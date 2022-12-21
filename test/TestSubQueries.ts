@@ -1,14 +1,14 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Collection} from '../src/Collection'
+import {collection} from '../src/Collection'
 import {store} from './DbSuite'
 
 test('IncludeMany', () => {
   const db = store()
-  const Role = new Collection<{id: string; name: string}>('Role')
+  const Role = collection<{id: string; name: string}>('Role')
   const role1 = db.insert(Role, {name: 'role1'})
   const role2 = db.insert(Role, {name: 'role2'})
-  const User = new Collection<{id: string; roles: Array<string>}>('User')
+  const User = collection<{id: string; roles: Array<string>}>('User')
   const user = db.insert(User, {roles: [role1.id, role2.id]})
   const UserAlias = User.as('user1')
   const RoleAlias = Role.as('role')
@@ -24,9 +24,9 @@ test('IncludeMany', () => {
     )
   )!
   assert.equal([{name: 'role1'}, {name: 'role2'}], bundled.roles)
-  const Entry = new Collection<{id: string}>('Entry')
-  const Language = new Collection<{id: string; entry: string}>('Language')
-  const Version = new Collection<{id: string; language: string}>('Version')
+  const Entry = collection<{id: string}>('Entry')
+  const Language = collection<{id: string; entry: string}>('Language')
+  const Version = collection<{id: string; language: string}>('Version')
   const entry = db.insert(Entry, {})
   const language = db.insert(Language, {entry: entry.id})
   const version1 = db.insert(Version, {
@@ -57,8 +57,8 @@ test('IncludeMany', () => {
 
 test('Subquery', () => {
   const db = store()
-  const User = new Collection<{id: string; name: string}>('user')
-  const Post = new Collection<{id: string; title: string; user: string}>('post')
+  const User = collection<{id: string; name: string}>('user')
+  const Post = collection<{id: string; title: string; user: string}>('post')
   const user1 = db.insert(User, {name: 'bob'})
   const post1 = db.insert(Post, {title: 'hello', user: user1.id})
   const userWithPosts = db.first(

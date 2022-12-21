@@ -8,7 +8,6 @@ export interface Driver {
 export namespace Driver {
   export type Options = {
     readonly?: boolean
-    fileMustExist?: boolean
   }
 
   export type PreparedStatement = {

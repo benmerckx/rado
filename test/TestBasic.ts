@@ -1,12 +1,12 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Collection} from '../src/Collection'
+import {collection} from '../src/Collection'
 import {Expr} from '../src/Expr'
 import {store} from './DbSuite'
 
 test('basic', () => {
   const db = store()
-  const Node = new Collection<{id: string; index: number}>(`node`)
+  const Node = collection<{id: string; index: number}>(`node`)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
@@ -26,7 +26,7 @@ test('basic', () => {
 
 test('filters', () => {
   const db = store()
-  const Test = new Collection<typeof a & {id: string}>('test')
+  const Test = collection<typeof a & {id: string}>('test')
   const a = {prop: 10}
   const b = {prop: 20}
   db.insertAll(Test, [a, b])
@@ -36,11 +36,11 @@ test('filters', () => {
 
 test('select', () => {
   const db = store()
-  const Test = new Collection<typeof a & {id: string}>('test')
+  const Test = collection<typeof a & {id: string}>('test')
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
   db.insertAll(Test, [a, b])
-  const res = db.all(Test.select(({propA, propB}) => ({a: propA, b: propB})))
+  const res = db.all(Test.select({a: Test.propA, b: Test.propB}))
   assert.equal(res, [
     {a: 10, b: 5},
     {a: 20, b: 5}
@@ -61,7 +61,7 @@ test('select', () => {
 
 test('update', () => {
   const db = store()
-  const Test = new Collection<typeof a & {id: string}>('test')
+  const Test = collection<typeof a & {id: string}>('test')
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
   db.insertAll(Test, [a, b])
@@ -71,7 +71,7 @@ test('update', () => {
 
 /*test('query', () => {
   const db = store()
-  const Test = new Collection<typeof a & {id: string}>('test')
+  const Test = collection<typeof a & {id: string}>('test')
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
   db.insertAll(Test, [a, b])
@@ -84,7 +84,7 @@ test('update', () => {
 test('case', () => {
   const db = store()
   type Test = {id: string} & ({type: 'A'; x: number} | {type: 'B'})
-  const Test = new Collection<Test>('test')
+  const Test = collection<Test>('test')
   const a = {type: 'A', x: 1} as const
   const b = {type: 'B'} as const
   db.insertAll(Test, [a, b])
@@ -103,7 +103,7 @@ test('case', () => {
 
 test('json', () => {
   const db = store()
-  const Test = new Collection<typeof a & {id: string}>('test')
+  const Test = collection<typeof a & {id: string}>('test')
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
   db.insertAll(Test, [a, b])
@@ -124,14 +124,14 @@ test('each', () => {
       {id: 'c', type: 'entry'}
     ]
   }
-  const Test = new Collection<typeof a & {id: string}>('test')
+  const Test = collection<typeof a & {id: string}>('test')
   db.insertAll(Test, [a])
   const res = db.first(Test.select({refs: Test.refs.each()}))
   assert.equal(res!, a)
 
   const b = {id: 'b', title: 'Entry B'}
   const c = {id: 'c', title: 'Entry C'}
-  const Entry = new Collection<typeof b>('Entry')
+  const Entry = collection<typeof b>('Entry')
   db.insertAll(Entry, [b, c])
 
   const refs = Test.refs.each()
@@ -152,7 +152,7 @@ test('each', () => {
 test('custom id', () => {
   const db = store()
   type Entry = {title: string; alinea?: {id: string}}
-  const Entry = new Collection<Entry>('test', {
+  const Entry = collection<Entry>('test', {
     id: {
       property: 'alinea.id',
       addToRow: (row: any, id: string) => {

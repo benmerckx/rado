@@ -7,7 +7,7 @@ import {Sql, sql} from '../Sql'
 const SINGLE_QUOTE = "'"
 const BACKTICK = '`'
 
-export const sqliteFormatter = new (class extends Formatter {
+class SqliteFormatter extends Formatter {
   escape(value: any): string {
     if (value == null) return 'null'
     if (typeof value === 'boolean') return value ? '1' : '0'
@@ -105,4 +105,6 @@ export const sqliteFormatter = new (class extends Formatter {
     }
     return super.formatExpr(expr, options)
   }
-})()
+}
+
+export const sqliteFormatter = new SqliteFormatter()

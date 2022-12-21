@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Collection} from '../src/Collection'
+import {collection} from '../src/Collection'
 import {store} from './DbSuite'
 
 type User = {
@@ -13,7 +13,7 @@ type User = {
   roles?: Array<string>
 }
 
-const User = new Collection<User>('User')
+const User = collection<User>('User')
 
 test('Update', () => {
   const db = store()

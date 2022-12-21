@@ -139,7 +139,7 @@ export abstract class Formatter {
         const join = from.join === 'left' ? 'left' : 'inner'
         return sql`${left} ${Sql.raw(join)} join ${right} on ${on}`
       case FromType.Each:
-        throw 'Not supported in current formatter: expr.each()'
+        throw new Error('Not supported in current formatter: expr.each()')
     }
   }
 

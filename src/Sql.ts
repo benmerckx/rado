@@ -25,7 +25,7 @@ export class Sql {
         case ParamType.Value:
           return param.value
         case ParamType.Named:
-          if (!input) throw 'Missing input'
+          if (!input) throw new Error('Missing input')
           return input[param.name]
       }
     })

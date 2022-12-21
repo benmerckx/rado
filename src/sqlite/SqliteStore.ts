@@ -1,10 +1,9 @@
 import convertHrtime from 'convert-hrtime'
 import prettyMilliseconds from 'pretty-ms'
-import {Collection, CollectionImpl} from '../Collection'
-import {CursorImpl} from '../Cursor'
+import {Collection} from '../Collection'
+import {Cursor} from '../Cursor'
 import {Driver} from '../Driver'
 import {Expr} from '../Expr'
-import {Fields} from '../Fields'
 import {From, FromType} from '../From'
 import {sql} from '../Sql'
 import {IdLess, QueryOptions, Store} from '../Store'
@@ -39,12 +38,6 @@ export class SqliteStore implements Store {
   constructor(private db: Driver, private createId: CreateId) {
     this.db = db
     this.createId = createId
-    // this.db.exec('PRAGMA journal_mode = WAL')
-    // this.db.exec('PRAGMA optimize')
-    // Since we're only using the db in memory and they're computed from a
-    // source we don't need acid guarantees
-    this.db.exec('PRAGMA synchronous = OFF')
-    this.db.exec('PRAGMA journal_mode = MEMORY')
   }
 
   private debug<T>(run: () => T, log = false): T {
@@ -60,7 +53,7 @@ export class SqliteStore implements Store {
     return result
   }
 
-  all<Row>(cursor: CursorImpl<Row>, options?: QueryOptions): Array<Row> {
+  all<Row>(cursor: Cursor<Row>, options?: QueryOptions): Array<Row> {
     const stmt = f.formatSelect(cursor.cursor, {
       formatAsJson: true,
       formatSubject: subject => sql`json_object('result', ${subject})`
@@ -79,29 +72,26 @@ export class SqliteStore implements Store {
     })
   }
 
-  first<Row>(cursor: CursorImpl<Row>, options?: QueryOptions): Row | null {
+  first<Row>(cursor: Cursor<Row>, options?: QueryOptions): Row | null {
     return ifMissing(null, () => {
       return this.all(cursor.take(1), options)[0] || null
     })
   }
 
-  sure<Row>(cursor: CursorImpl<Row>, options?: QueryOptions): Row {
+  sure<Row>(cursor: Cursor<Row>, options?: QueryOptions): Row {
     const res = this.first(cursor, options)
     if (!res) throw new Error(`Not found`)
     return res
   }
 
-  delete<Row>(
-    cursor: CursorImpl<Row>,
-    options?: QueryOptions
-  ): {changes: number} {
+  delete<Row>(cursor: Cursor<Row>, options?: QueryOptions): {changes: number} {
     return ifMissing({changes: 0}, () => {
       const stmt = f.formatDelete(cursor.cursor)
       return this.prepare(stmt.sql).run(stmt.getParams())
     })
   }
 
-  count<Row>(cursor: CursorImpl<Row>, options?: QueryOptions): number {
+  count<Row>(cursor: Cursor<Row>, options?: QueryOptions): number {
     return ifMissing(0, () => {
       const stmt = f.formatSelect(cursor.cursor)
       return this.prepare(`select count() from (${stmt.sql})`).get(
@@ -149,7 +139,7 @@ export class SqliteStore implements Store {
   }
 
   update<Row>(
-    cursor: CursorImpl<Row>,
+    cursor: Cursor<Row>,
     update: Update<Row>,
     options?: QueryOptions
   ): {changes: number} {
@@ -160,7 +150,7 @@ export class SqliteStore implements Store {
   }
 
   createIndex<Row>(
-    collection: CollectionImpl<Row>,
+    collection: Collection<Row>,
     name: string,
     on: Array<Expr<any>>
   ) {
@@ -204,85 +194,6 @@ export class SqliteStore implements Store {
     } catch (e: any) {
       throw new Error(`Could not prepare query:\n${query}\nCause: ${e}`)
     }
-  }
-
-  createFts5<Row extends {}>(
-    collection: CollectionImpl<Row>,
-    name: string,
-    fields: (collection: Fields<Row>) => Record<string, Expr<string>>
-  ): boolean {
-    const created = this.createFts5Table(collection, name, fields)
-    if (created) this.createFts5Triggers(collection, name, fields)
-    return created
-  }
-
-  createFts5Table<Row extends {}>(
-    collection: CollectionImpl<Row>,
-    name: string,
-    fields: (collection: Fields<Row>) => Record<string, Expr<string>>
-  ): boolean {
-    const newFields = fields(collection.as('new'))
-    const keys = Object.keys(newFields).map(key => f.escapeId(key))
-    try {
-      const instruction = `create virtual table ${f.escapeId(
-        name
-      )} using fts5(id unindexed, ${keys.join(', ')})`
-      this.db.exec(instruction)
-      return true
-    } catch (e: any) {
-      if (e.message.includes('already exists')) return false
-      else throw e
-    }
-  }
-
-  createFts5Triggers<Row extends {}>(
-    collection: CollectionImpl<Row>,
-    name: string,
-    fields: (collection: Fields<Row>) => Record<string, Expr<string>>
-  ) {
-    const options = {
-      formatInline: true,
-      formatAsJson: false,
-      formatShallow: true
-    }
-    const table = f.formatFrom(collection.cursor.from, options)
-    const idx = f.escapeId(name)
-    const newFields = fields(collection.as('new'))
-    const keys = Object.keys(newFields).map(key => f.escapeId(key))
-    const origins = fields(collection as any)
-    const originValues = Object.values(origins)
-      .map(expr => {
-        return f.formatExpr(expr.expr, options).sql
-      })
-      .join(', ')
-    const newValues = Object.values(newFields).map(expr => {
-      return f.formatExpr(expr.expr, options).sql
-    })
-    const setters = keys.map((key, i) => {
-      return `${key}=${newValues[i]}`
-    })
-    const id = f.formatExpr(collection.id.expr, {
-      formatInline: true,
-      formatAsJson: false,
-      formatShallow: true
-    })
-    const instruction = `
-      create trigger ${f.escapeId(`${name}_ai`)} after insert on ${table} begin
-        insert into ${idx}(id, ${keys.join(
-      ', '
-    )}) values (${id}, ${newValues.join(', ')});
-      end;
-      create trigger ${f.escapeId(`${name}_ad`)} after delete on ${table} begin
-        delete from ${idx} where id=json_extract(old.data, ${id});
-      end;
-      create trigger ${f.escapeId(`${name}_au`)} after update on ${table} begin
-        update ${idx} set ${setters} where id=json_extract(new.data, ${id});
-      end;
-      insert into ${f.escapeId(name)}(id, ${keys.join(', ')})
-        select ${id}, ${originValues}
-        from ${table};
-    `
-    this.db.exec(instruction)
   }
 
   createOnMissing<T>(

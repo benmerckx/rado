@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Collection} from '../src/Collection'
+import {collection} from '../src/Collection'
 import {store} from './DbSuite'
 
 type Entry = {
@@ -11,8 +11,8 @@ type Entry = {
 
 test('OrderBy', () => {
   const db = store()
-  const User = new Collection<{id: string; name: string}>('user')
-  const Contact = new Collection<{id: string; user: string}>('contact')
+  const User = collection<{id: string; name: string}>('user')
+  const Contact = collection<{id: string; user: string}>('contact')
   const user1 = db.insert(User, {name: 'b'})
   const user2 = db.insert(User, {name: 'a'})
   const contact1 = db.insert(Contact, {user: user1.id})
@@ -28,12 +28,12 @@ test('OrderBy', () => {
 
 test('Cursor joins', () => {
   const db = store()
-  const Entry = new Collection<Entry>('Entry')
-  const Type1 = new Collection<Entry>('Entry', {
+  const Entry = collection<Entry>('Entry')
+  const Type1 = collection<Entry>('Entry', {
     where: Entry.as('Type1').type.is('Type1'),
     alias: 'Type1'
   })
-  const Type2 = new Collection<Entry>('Entry', {
+  const Type2 = collection<Entry>('Entry', {
     where: Entry.as('Type2').type.is('Type2'),
     alias: 'Type2'
   })

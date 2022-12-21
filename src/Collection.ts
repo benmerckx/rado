@@ -1,16 +1,14 @@
-import {CursorImpl} from './Cursor'
+import {Cursor} from './Cursor'
 import {Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {From} from './From'
 import {Selection} from './Selection'
-import type {Store} from './Store'
 
 export type CollectionOptions = {
   flat?: boolean
   columns?: Array<string>
   where?: Expr<boolean>
   alias?: string
-  computed?: (collection: Fields<any>) => Record<string, Expr<any>>
   id?: CollectionId
 }
 
@@ -20,18 +18,16 @@ interface CollectionId {
   getFromRow: (row: any) => string
 }
 
-export class CollectionImpl<Row = any> extends CursorImpl<Row> {
+export class Collection<Row = any> extends Cursor<Row> {
   private __options: CollectionOptions
   __collectionId: CollectionId
   constructor(name: string, options: CollectionOptions = {}) {
-    const {flat, columns, where, alias, computed} = options
+    const {flat, columns, where, alias} = options
     const from = flat
       ? From.Table(name, columns || [], alias)
       : From.Column(From.Table(name, ['data'], alias), 'data')
     const row = ExprData.Row(from)
-    const selection = computed
-      ? ExprData.Merge(row, ExprData.create(computed(Fields.create(row))))
-      : row
+    const selection = row
     super({
       from,
       selection,
@@ -66,32 +62,21 @@ export class CollectionImpl<Row = any> extends CursorImpl<Row> {
     return this.fields.with(that)
   }
 
-  as<T = Row>(name: string): Collection<T> {
-    return new Collection<T>(From.source(this.cursor.from), {
+  as<T = Row>(name: string): Collection<T> & Fields<T> {
+    return collection<T>(From.source(this.cursor.from), {
       ...this.__options,
       alias: name
     })
   }
 
-  static extend<Row, F extends Record<string, Expr<any>>>(
-    collection: Collection<Row>,
-    createFields: (current: Fields<Row>) => F
-  ): Collection<Row & Store.TypeOf<F>> {
-    return new Collection<Row & Store.TypeOf<F>>(
-      From.source(collection.cursor.from),
-      {
-        ...collection.__options,
-        computed: createFields as any
-      }
-    )
+  toExpr() {
+    return this.fields
   }
 }
 
-export interface CollectionConstructor {
-  new <Row>(name: string, options?: CollectionOptions): Collection<Row>
-  extend: typeof CollectionImpl.extend
+export function collection<T>(
+  name: string,
+  options?: CollectionOptions
+): Collection<T> & Fields<T> {
+  return new Collection(name, options) as Collection<T> & Fields<T>
 }
-
-export type Collection<T> = CollectionImpl<T> & Fields<T>
-
-export const Collection = CollectionImpl as CollectionConstructor

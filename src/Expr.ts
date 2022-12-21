@@ -1,4 +1,4 @@
-import {Cursor, CursorData, CursorImpl, CursorSingleRow} from './Cursor'
+import {Cursor, CursorData, CursorSingleRow} from './Cursor'
 import {Fields} from './Fields'
 import {From, FromType} from './From'
 import {OrderBy, OrderDirection} from './OrderBy'
@@ -100,8 +100,13 @@ export const ExprData = {
   },
   create(input: any): ExprData {
     if (input == null) return ExprData.Param(ParamData.Value(null))
+    if (
+      input &&
+      typeof input === 'object' &&
+      typeof input.toExpr === 'function'
+    )
+      input = input.toExpr()
     if (input instanceof Expr) return input.expr
-    if (input instanceof Cursor) return ExprData.Query(input.cursor)
     if (input && typeof input === 'object' && !Array.isArray(input))
       return ExprData.Record(
         Object.fromEntries(
@@ -194,10 +199,10 @@ export class Expr<T> {
     return binop(this, BinOp.Equals, that)
   }
 
-  isIn(that: EV<Array<T>> | CursorImpl<T>): Expr<boolean> {
+  isIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
     return binop(this, BinOp.In, that)
   }
-  isNotIn(that: EV<Array<T>> | CursorImpl<T>): Expr<boolean> {
+  isNotIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
     return binop(this, BinOp.NotIn, that)
   }
   add(this: Expr<number>, that: EV<number>): Expr<number> {
@@ -241,7 +246,7 @@ export class Expr<T> {
   }
   with<X extends Selection>(that: X): Expr.With<T, X> {
     return new Expr<Expr.Combine<T, X>>(
-      ExprData.Merge(this.expr, Selection.create(that))
+      ExprData.Merge(this.expr, ExprData.create(that))
     )
   }
   private static uniqueId = 0

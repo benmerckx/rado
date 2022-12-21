@@ -1,15 +1,13 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Collection} from '../src/Collection'
+import {collection} from '../src/Collection'
 import {Cursor} from '../src/Cursor'
 import {Expr} from '../src/Expr'
 import {store} from './DbSuite'
 
 test('json', () => {
   const db = store()
-  const Node = new Collection<{id: string; index: number; empty?: string}>(
-    'node'
-  )
+  const Node = collection<{id: string; index: number; empty?: string}>('node')
   const amount = 10
   const objects = Array.from({length: amount}).map((_, i) => ({index: i}))
   assert.is(objects.length, amount)
