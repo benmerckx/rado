@@ -1,20 +1,41 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
+import {column} from '../src'
 import {collection} from '../src/Collection'
-import {store} from './DbSuite'
+import {createConnection} from './DbSuite'
 
-type Entry = {
-  id: string
-  type: string
-  num: number
-}
+type Entry = collection.infer<typeof Entry>
+const Entry = collection({
+  name: 'Entry',
+  columns: {
+    id: column.string(),
+    type: column.string(),
+    num: column.number()
+  }
+})
+
+type User = collection.infer<typeof User>
+const User = collection({
+  name: 'User',
+  columns: {
+    id: column.string(),
+    name: column.string()
+  }
+})
+
+type Contact = collection.infer<typeof Contact>
+const Contact = collection({
+  name: 'Contact',
+  columns: {
+    id: column.string(),
+    user: column.string()
+  }
+})
 
 test('OrderBy', () => {
-  const db = store()
-  const User = collection<{id: string; name: string}>('user')
-  const Contact = collection<{id: string; user: string}>('contact')
-  const user1 = db.insert(User, {name: 'b'})
-  const user2 = db.insert(User, {name: 'a'})
+  const query = createConnection()
+  const user1 = query(User.insertOne({name: 'b'}))
+  const user2 = query(User.insertOne({name: 'a'}))
   const contact1 = db.insert(Contact, {user: user1.id})
   const contact2 = db.insert(Contact, {user: user2.id})
   const results = db.all(
