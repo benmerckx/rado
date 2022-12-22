@@ -1,4 +1,4 @@
-import {Query} from './Query'
+import {Cursor} from './Cursor'
 /*
 export interface TransactionEnd<T> {}
 
@@ -18,9 +18,10 @@ export type Connection = Connection.Async | Connection.Sync
 
 export namespace Connection {
   export interface Sync {
-    <T>(query: Query<T>): T
+    <T>(cursor: Cursor<T>): T
+    exec<T>(cursor: Cursor<T>): T
   }
   export interface Async {
-    <T>(query: Query<T>): Promise<T>
+    <T>(cursor: Cursor<T>): Promise<T>
   }
 }

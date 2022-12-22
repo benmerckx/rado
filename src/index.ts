@@ -1,4 +1,5 @@
 export * from './Collection'
+export * from './Column'
 export * from './Cursor'
 export * from './Expr'
 export * from './Fields'

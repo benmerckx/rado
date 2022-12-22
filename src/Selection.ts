@@ -1,12 +1,17 @@
 import type {Cursor} from './Cursor'
 import type {Expr} from './Expr'
 
-type SelectionBase = Expr<any> | Cursor.Selectable<any>
+type SelectionBase =
+  | Expr<any>
+  | Cursor.SelectMultiple<any>
+  | Cursor.SelectSingle<any>
 interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 
 export namespace Selection {
-  export type Infer<T> = T extends Cursor.Selectable<infer K>
+  export type Infer<T> = T extends Cursor.Filterable<Array<infer K>>
+    ? K
+    : T extends Cursor.Filterable<infer K>
     ? K
     : T extends Expr<infer K>
     ? K

@@ -1,23 +1,31 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
+import {column, insertInto, selectFirst, update} from '../src'
 import {collection} from '../src/Collection'
 import {Expr} from '../src/Expr'
-import {store} from './DbSuite'
+import {createConnection} from './DbSuite'
 
 test('basic', () => {
-  const db = store()
-  const Node = collection<{id: string; index: number}>(`node`)
+  const query = createConnection()
+  const Node = collection({
+    name: 'node',
+    columns: {
+      id: column.string(),
+      index: column.number()
+    }
+  })
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
-  db.insertAll(Node, objects)
-  assert.equal(db.count(Node), amount)
-  const stored = db.all(Node)
+  query(Node.insertAll(objects))
+  assert.equal(query(Node).length, amount)
+  const stored = query(Node)
   const id = stored[amount - 1].id
   assert.equal(
-    db.first(
-      Node.where(
-        Node.index.greaterOrEqual(amount - 1).and(Node.index.less(amount))
+    query(
+      Node.first().where(
+        Node.index.greaterOrEqual(amount - 1),
+        Node.index.less(amount)
       )
     )!.id,
     id
@@ -25,48 +33,67 @@ test('basic', () => {
 })
 
 test('filters', () => {
-  const db = store()
-  const Test = collection<typeof a & {id: string}>('test')
+  const query = createConnection()
+  const Test = collection({
+    name: 'test',
+    columns: {
+      id: column.string(),
+      prop: column.number()
+    }
+  })
   const a = {prop: 10}
   const b = {prop: 20}
-  db.insertAll(Test, [a, b])
-  const gt10 = db.first(Test.where(Test.prop.greater(10)))!
+  query(Test.insertAll(a, b))
+  const gt10 = query(Test.first().where(Test.prop.greater(10)))!
   assert.equal(gt10.prop, 20)
 })
 
 test('select', () => {
-  const db = store()
-  const Test = collection<typeof a & {id: string}>('test')
+  const query = createConnection()
+  const Test = collection({
+    name: 'test',
+    columns: {
+      id: column.string(),
+      propA: column.number(),
+      propB: column.number()
+    }
+  })
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
-  db.insertAll(Test, [a, b])
-  const res = db.all(Test.select({a: Test.propA, b: Test.propB}))
+  query(Test.insertAll(a, b))
+  const res = query(Test.select({a: Test.propA, b: Test.propB}))
   assert.equal(res, [
     {a: 10, b: 5},
     {a: 20, b: 5}
   ])
-  const res2 = db.first(
-    Test.select(
-      Test.fields.with({
-        testProp: Expr.value(123)
-      })
-    )
+  const res2 = query(
+    Test.select({
+      ...Test,
+      testProp: Expr.value(123)
+    }).first()
   )!
   assert.is(res2.testProp, 123)
-  const res3 = db.first(Test.select(Expr.value('test')))!
+  const res3 = query(Test.first().select(Expr.value('test')))!
   assert.is(res3, 'test')
-  const res4 = db.first(Test.select(Expr.value(true)))!
+  const res4 = query(Test.first().select(Expr.value(true)))!
   assert.is(res4, true)
 })
 
 test('update', () => {
-  const db = store()
-  const Test = collection<typeof a & {id: string}>('test')
+  const query = createConnection()
+  const Test = collection({
+    name: 'test',
+    columns: {
+      id: column.string(),
+      propA: column.number(),
+      propB: column.number()
+    }
+  })
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
-  db.insertAll(Test, [a, b])
-  db.update(Test.where(Test.propA.is(10)), {propA: 15})
-  assert.ok(db.first(Test.where(Test.propA.is(15))))
+  query(insertInto(Test).values(a, b))
+  query(update(Test).set({propA: 15}).where(Test.propA.is(10)))
+  assert.ok(query(selectFirst(Test).where(Test.propA.is(15))))
 })
 
 /*test('query', () => {
@@ -79,7 +106,7 @@ test('update', () => {
   const byProp = query(({prop}: Input) => Test.where(Test.prop.is(prop)))
   assert.is(db.first(byProp({prop: 10}))!.prop, 10)
   assert.is(db.first(byProp({prop: 20}))!.prop, 20)
-})*/
+})
 
 test('case', () => {
   const db = store()
@@ -99,44 +126,65 @@ test('case', () => {
     ),
     [1, 2]
   )
-})
+})*/
 
 test('json', () => {
-  const db = store()
-  const Test = collection<typeof a & {id: string}>('test')
+  const query = createConnection()
+  const Test = collection({
+    name: 'test',
+    columns: {
+      id: column.string(),
+      prop: column.number(),
+      propB: column.number()
+    }
+  })
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
-  db.insertAll(Test, [a, b])
-  const q = Test.where(Test.prop.is(10)).select({
-    fieldA: Expr.value(12),
-    fieldB: Test.propB
-  })
-  const res1 = db.first(q)!
+  query(insertInto(Test).values(a, b))
+  const q = Test.first()
+    .select({
+      fieldA: Expr.value(12),
+      fieldB: Test.propB
+    })
+    .where(Test.prop.is(10))
+  const res1 = query(q)!
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 5)
 })
 
 test('each', () => {
-  const db = store()
+  const query = createConnection()
   const a = {
     refs: [
       {id: 'b', type: 'entry'},
       {id: 'c', type: 'entry'}
     ]
   }
-  const Test = collection<typeof a & {id: string}>('test')
-  db.insertAll(Test, [a])
-  const res = db.first(Test.select({refs: Test.refs.each()}))
+  const Test = collection({
+    name: 'test',
+    columns: {
+      id: column.string(),
+      refs: column.array<{id: string; type: string}>()
+    }
+  })
+  query(insertInto(Test).values(a))
+  const res = query(selectFirst(Test).select({refs: Test.refs}))
   assert.equal(res!, a)
 
   const b = {id: 'b', title: 'Entry B'}
   const c = {id: 'c', title: 'Entry C'}
-  const Entry = collection<typeof b>('Entry')
-  db.insertAll(Entry, [b, c])
+  const Entry = collection({
+    name: 'Entry',
+    columns: {
+      id: column.string(),
+      title: column.string()
+    }
+  })
+  query(insertInto(Entry).values(b, c))
 
-  const refs = Test.refs.each()
+  /*const refs = Test.refs.each()
   const Link = Entry.as('Link')
-  const query = Test.select({
+  const tests = Test.select({
     links: refs
       .where(refs.get('type').is('entry'))
       .innerJoin(Link, Link.id.is(refs.get('id')))
@@ -146,25 +194,7 @@ test('each', () => {
   assert.equal(res2.links, [
     {id: 'b', title: 'Entry B'},
     {id: 'c', title: 'Entry C'}
-  ])
-})
-
-test('custom id', () => {
-  const db = store()
-  type Entry = {title: string; alinea?: {id: string}}
-  const Entry = collection<Entry>('test', {
-    id: {
-      property: 'alinea.id',
-      addToRow: (row: any, id: string) => {
-        return {...row, alinea: {...row.alinea, id}}
-      },
-      getFromRow: (row: any) => row.alinea?.id
-    }
-  })
-  const entries = [{title: 'a'}, {title: 'b'}]
-  db.insertAll(Entry, entries)
-  const withIds = db.all(Entry)
-  assert.ok(withIds.every(e => e.alinea!.id))
+  ])*/
 })
 
 test.run()
