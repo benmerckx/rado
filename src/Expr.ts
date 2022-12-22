@@ -1,10 +1,9 @@
-import {Cursor, CursorData, CursorSingleRow} from './Cursor'
-import {Fields} from './Fields'
-import {From, FromType} from './From'
+import {Cursor} from './Cursor'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamData, ParamType} from './Param'
+import {Query} from './Query'
 import {Selection} from './Selection'
-import type {Store} from './Store'
+import {Target} from './Target'
 
 export const enum UnOp {
   Not,
@@ -52,10 +51,10 @@ export type ExprData =
   | {type: ExprType.Field; expr: ExprData; field: string}
   | {type: ExprType.Param; param: ParamData}
   | {type: ExprType.Call; method: string; params: Array<ExprData>}
-  | {type: ExprType.Query; cursor: CursorData}
+  | {type: ExprType.Query; query: Query.Select}
   | {type: ExprType.Record; fields: Record<string, ExprData>}
   | {type: ExprType.Merge; a: ExprData; b: ExprData}
-  | {type: ExprType.Row; from: From}
+  | {type: ExprType.Row; target: Target}
   | {
       type: ExprType.Case
       expr: ExprData
@@ -79,8 +78,8 @@ export const ExprData = {
   Call(method: string, params: Array<ExprData>): ExprData {
     return {type: ExprType.Call, method, params}
   },
-  Query(cursor: CursorData): ExprData {
-    return {type: ExprType.Query, cursor}
+  Query(query: Query.Select): ExprData {
+    return {type: ExprType.Query, query}
   },
   Record(fields: Record<string, ExprData>): ExprData {
     return {type: ExprType.Record, fields}
@@ -88,8 +87,8 @@ export const ExprData = {
   Merge(a: ExprData, b: ExprData): ExprData {
     return {type: ExprType.Merge, a, b}
   },
-  Row(from: From): ExprData {
-    return {type: ExprType.Row, from}
+  Row(target: Target): ExprData {
+    return {type: ExprType.Row, target}
   },
   Case(
     expr: ExprData,
@@ -193,12 +192,11 @@ export class Expr<T> {
       return this.isNotNull()
     return binop(this, BinOp.NotEquals, that)
   }
-  is(that: EV<T> | CursorSingleRow<T>): Expr<boolean> {
+  is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
     if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
       return this.isNull()
     return binop(this, BinOp.Equals, that)
   }
-
   isIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
     return binop(this, BinOp.In, that)
   }
@@ -244,8 +242,8 @@ export class Expr<T> {
   match(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return binop(this, BinOp.Match, that)
   }
-  with<X extends Selection>(that: X): Expr.With<T, X> {
-    return new Expr<Expr.Combine<T, X>>(
+  with<X extends Selection>(that: X): Selection.With<T, X> {
+    return new Expr<Selection.Combine<T, X>>(
       ExprData.Merge(this.expr, ExprData.create(that))
     )
   }
@@ -253,56 +251,12 @@ export class Expr<T> {
   private __id() {
     return `__id${Expr.uniqueId++}`
   }
-  each<Row>(this: Expr<Array<Row>>): Cursor<Row> {
-    const from = From.Each(this.expr, this.__id())
-    return new Cursor<Row>({
-      from,
-      selection: ExprData.Row(from)
-    })
-  }
   at<T>(this: Expr<Array<T>>, index: number): Expr<T | null> {
     return this.get(`[${Number(index)}]`)
-  }
-  map<T, X extends Selection>(
-    this: Expr<Array<T>>,
-    fn: (cursor: Expr<T> & Fields<T>) => X
-  ): Expr<Array<Store.TypeOf<X>>> {
-    const row = this.each()
-    return row.select(
-      fn(
-        new Expr(
-          ExprData.Row({
-            type: FromType.Each,
-            expr: row.cursor.selection,
-            alias: (row.cursor.from as {alias: string}).alias
-          })
-        ) as any
-      )
-    ) as any
   }
   sure() {
     return this as Expr<NonNullable<T>>
   }
-  case<
-    T extends string | number,
-    C extends {[K in T]?: Selection},
-    DC extends Selection
-  >(
-    this: Expr<T>,
-    cases: C,
-    defaultCase?: DC
-  ): Expr<Store.TypeOf<C[keyof C]> | Store.TypeOf<DC>> {
-    return new Expr(
-      ExprData.Case(
-        this.expr,
-        Object.fromEntries(
-          Object.entries(cases).map(([k, v]) => [k, ExprData.create(v)])
-        ),
-        defaultCase && ExprData.create(defaultCase)
-      )
-    )
-  }
-
   get<T>(name: string): Expr<T> {
     return new Expr(ExprData.Field(this.expr, name as string))
   }
@@ -319,9 +273,4 @@ function unop<This, Res>(self: Expr<This>, type: UnOp) {
 
 function binop<This, That, Res>(self: Expr<This>, type: BinOp, that: That) {
   return new Expr<Res>(ExprData.BinOp(type, self.expr, toExpr(that)))
-}
-
-export namespace Expr {
-  export type With<A, B> = Expr<Combine<A, B>>
-  export type Combine<A, B> = Omit<A, keyof Store.TypeOf<B>> & Store.TypeOf<B>
 }

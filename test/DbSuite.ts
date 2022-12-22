@@ -1,9 +1,9 @@
 import sqlite from '@alinea/sqlite-wasm'
 import BetterSqlite3Database from 'better-sqlite3'
-import {BetterSqlite3Driver} from '../src/sqlite/drivers/BetterSqlite3Driver'
-import {SqlJsDriver} from '../src/sqlite/drivers/SqlJsDriver'
-import {SqliteStore} from '../src/sqlite/SqliteStore'
 import {nanoid} from 'nanoid'
+import {BetterSqlite3Driver} from '../src/sqlite/BetterSqlite3Driver'
+import {SqlJsDriver} from '../src/sqlite/SqlJsDriver'
+import {SqliteStore} from '../src/sqlite/SqliteStore'
 
 const {Database} = await sqlite()
 

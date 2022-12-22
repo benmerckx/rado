@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {collection} from '../src/Collection'
-import {Cursor} from '../src/Cursor'
+import {Cursor} from '../src/Cursor.ts_'
 import {Expr} from '../src/Expr'
 import {store} from './DbSuite'
 

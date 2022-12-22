@@ -1,82 +1,51 @@
-import {Cursor} from './Cursor'
 import {Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
-import {From} from './From'
-import {Selection} from './Selection'
+import {Target} from './Target'
 
-export type CollectionOptions = {
-  flat?: boolean
-  columns?: Array<string>
-  where?: Expr<boolean>
+export interface CollectionData {
+  name: string
   alias?: string
-  id?: CollectionId
+  columns: Record<string, ExprData>
 }
 
-interface CollectionId {
-  property: string
-  addToRow: (row: any, id: string) => any
-  getFromRow: (row: any) => string
-}
-
-export class Collection<Row = any> extends Cursor<Row> {
-  private __options: CollectionOptions
-  __collectionId: CollectionId
-  constructor(name: string, options: CollectionOptions = {}) {
-    const {flat, columns, where, alias} = options
-    const from = flat
-      ? From.Table(name, columns || [], alias)
-      : From.Column(From.Table(name, ['data'], alias), 'data')
-    const row = ExprData.Row(from)
-    const selection = row
-    super({
-      from,
-      selection,
-      where: where?.expr
+export class Collection<T> {
+  constructor(public data: CollectionData) {
+    return new Proxy(this, {
+      get(target: any, key) {
+        return key in target ? target[key] : target.get(key)
+      }
     })
-    this.__options = options
-    this.__collectionId = options?.id || {
-      property: 'id',
-      addToRow: (row, id) => Object.assign({id}, row),
-      getFromRow: row => row.id
-    }
   }
 
-  pick<Props extends Array<keyof Row>>(
-    ...properties: Props
-  ): Expr<{
-    [K in Props[number]]: Row[K]
-  }> {
-    const fields: Record<string, ExprData> = {}
-    for (const prop of properties)
-      fields[prop as string] = this.get(prop as string).expr
-    return new Expr<{
-      [K in Props[number]]: Row[K]
-    }>(ExprData.Record(fields))
+  as(alias: string): Collection<T> & Fields<T> {
+    return new Collection({...this.data, alias}) as Collection<T> & Fields<T>
   }
 
-  get id() {
-    return this.get(this.__collectionId.property) as Expr<string>
-  }
-
-  with<X extends Selection>(that: X): Expr.With<Row, X> {
-    return this.fields.with(that)
-  }
-
-  as<T = Row>(name: string): Collection<T> & Fields<T> {
-    return collection<T>(From.source(this.cursor.from), {
-      ...this.__options,
-      alias: name
-    })
+  get(name: string): Expr<any> {
+    return new Expr(ExprData.Field(this.toExpr().expr, name as string))
   }
 
   toExpr() {
-    return this.fields
+    return new Expr<T>(ExprData.Row(Target.Collection(this.data)))
   }
 }
 
-export function collection<T>(
-  name: string,
-  options?: CollectionOptions
+export interface CollectionOptions<T> {
+  name: string
+  alias?: string
+  columns: {[K in keyof T]: string}
+}
+
+export function collection<T extends {}>(
+  options: CollectionOptions<T>
 ): Collection<T> & Fields<T> {
-  return new Collection(name, options) as Collection<T> & Fields<T>
+  return new Collection({
+    ...options,
+    columns: Object.fromEntries(
+      Object.entries(options.columns).map(([key, value]) => [
+        key,
+        ExprData.create(value)
+      ])
+    )
+  }) as Collection<T> & Fields<T>
 }
