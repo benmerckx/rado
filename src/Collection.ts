@@ -12,11 +12,11 @@ export interface CollectionData {
 }
 
 export class Collection<T> extends Cursor.SelectMultiple<T> {
-  #data: CollectionData
+  private _data: CollectionData
 
   constructor(data: CollectionData) {
     super(Query.Select({from: Target.Collection(data)}))
-    this.#data = data
+    this._data = data
     return new Proxy(this, {
       get(target: any, key) {
         return key in target ? target[key] : target.get(key)
@@ -33,11 +33,11 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
   }
 
   data() {
-    return this.#data
+    return this._data
   }
 
   as(alias: string): Collection<T> & Fields<T> {
-    return new Collection({...this.#data, alias}) as Collection<T> & Fields<T>
+    return new Collection({...this.data(), alias}) as Collection<T> & Fields<T>
   }
 
   get(name: string): Expr<any> {
@@ -45,7 +45,7 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
   }
 
   toExpr() {
-    return new Expr<T>(ExprData.Row(Target.Collection(this.#data)))
+    return new Expr<T>(ExprData.Row(Target.Collection(this.data())))
   }
 }
 

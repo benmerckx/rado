@@ -1,5 +1,6 @@
 import {BinOp, ExprData, ExprType, UnOp} from './Expr'
 import {OrderBy, OrderDirection} from './OrderBy'
+import {ParamType} from './Param'
 import {Query, QueryType} from './Query'
 import {Sanitizer} from './Sanitizer'
 import {
@@ -220,7 +221,7 @@ export abstract class Formatter implements Sanitizer {
           case TargetType.Collection:
             return expr.target.collection.columns[field]
           default:
-            throw 'todo'
+            throw new Error('todo')
         }
       case ExprType.Merge:
         return (
@@ -261,7 +262,12 @@ export abstract class Formatter implements Sanitizer {
             .add(this.formatIn(expr.b, ctx))
         )
       case ExprType.Param:
-        throw 'todo'
+        switch (expr.param.type) {
+          case ParamType.Value:
+            return value(expr.param.value)
+          case ParamType.Named:
+            throw new Error('todo')
+        }
       case ExprType.Field:
         return this.formatField(expr.expr, expr.field, ctx)
       case ExprType.Call: {
@@ -276,7 +282,7 @@ export abstract class Formatter implements Sanitizer {
           raw('select json_group_array(json(res)) from ').parenthesis(subQuery)
         )
       case ExprType.Row:
-        throw 'todo'
+        throw new Error('todo')
       case ExprType.Merge:
         return call(
           'json_patch',
@@ -292,8 +298,9 @@ export abstract class Formatter implements Sanitizer {
               .add(this.formatExpr(value, {...ctx, formatAsJson: true}))
           })
         )
-      case ExprType.Case:
-        throw `Not supported in current formatter: _.case(...)`
+      default:
+        console.log(expr)
+        throw new Error('todo')
     }
   }
 }

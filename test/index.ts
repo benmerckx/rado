@@ -1,4 +1,12 @@
 import {parse} from 'uvu/parse'
 import {run} from 'uvu/run'
 
-parse('test', 'Test*').then(({suites}) => run(suites))
+const pattern = process.argv.pop()
+
+parse('test', 'Test*').then(({suites}) =>
+  run(
+    suites.filter(({name}) =>
+      pattern ? name.toLowerCase().includes(pattern) : true
+    )
+  )
+)

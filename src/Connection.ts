@@ -19,7 +19,6 @@ export type Connection = Connection.Async | Connection.Sync
 export namespace Connection {
   export interface Sync {
     <T>(cursor: Cursor<T>): T
-    exec<T>(cursor: Cursor<T>): T
   }
   export interface Async {
     <T>(cursor: Cursor<T>): Promise<T>

@@ -6,7 +6,8 @@ import {SqliteFormatter} from './SqliteFormatter'
 
 export function createSqlJsConnection(db: Database): Connection.Sync {
   const formatter = new SqliteFormatter()
-  return <T>({query}: Cursor<T>): T => {
+  return <T>(cursor: Cursor<T>): T => {
+    const query = cursor.query()
     const [sql, params] = formatter.compile(query)
     const stmt = db.prepare(sql)
     switch (query.type) {
