@@ -191,7 +191,11 @@ export abstract class Formatter implements Sanitizer {
     return parenthesis(
       separated(
         columns.map(column => {
-          return value(row[column])
+          const value = row[column]
+          throw new Error(`we should handle this based on the column type`)
+          if (Array.isArray(value))
+            return this.formatString(JSON.stringify(value))
+          return this.formatValue(value, false)
         })
       )
     )
@@ -299,6 +303,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Collection:
+            throw new Error(`we should handle this based on the column type`)
             return ident(
               expr.target.collection.alias || expr.target.collection.name
             )
@@ -322,7 +327,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatValue(rawValue: any, formatAsJson?: boolean): Statement {
     switch (true) {
-      case rawValue === null:
+      case rawValue === null || rawValue === undefined:
         return raw('null')
       case !formatAsJson && typeof rawValue === 'boolean':
         return rawValue ? raw('1') : raw('0')
@@ -334,7 +339,9 @@ export abstract class Formatter implements Sanitizer {
       case typeof rawValue === 'string' || typeof rawValue === 'number':
         return value(rawValue)
       default:
-        return call('json', this.formatString(JSON.stringify(rawValue)))
+        const expr = this.formatString(JSON.stringify(rawValue))
+        if (formatAsJson) return call('json', expr)
+        return expr
     }
   }
 
