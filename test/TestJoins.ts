@@ -2,7 +2,7 @@ import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column} from '../src'
 import {collection} from '../src/Collection'
-import {createConnection} from './DbSuite'
+import {connect} from './DbSuite'
 
 type Entry = collection.infer<typeof Entry>
 const Entry = collection({
@@ -33,7 +33,7 @@ const Contact = collection({
 })
 
 test('OrderBy', () => {
-  const query = createConnection()
+  const query = connect()
   const user1 = query(User.insertOne({name: 'b'}))
   const user2 = query(User.insertOne({name: 'a'}))
   const contact1 = db.insert(Contact, {user: user1.id})

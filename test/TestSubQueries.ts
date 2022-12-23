@@ -1,10 +1,10 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {collection} from '../src/Collection'
-import {store} from './DbSuite'
+import {connect} from './DbSuite'
 
 test('IncludeMany', () => {
-  const db = store()
+  const query = connect()
   const Role = collection<{id: string; name: string}>('Role')
   const role1 = db.insert(Role, {name: 'role1'})
   const role2 = db.insert(Role, {name: 'role2'})

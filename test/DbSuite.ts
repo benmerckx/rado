@@ -1,9 +1,7 @@
 import sqlite from '@alinea/sqlite-wasm'
 import BetterSqlite3Database from 'better-sqlite3'
-import {
-  createBetterSqlite3Connection,
-  createSqlJsConnection
-} from '../src/sqlite'
+import {createConnection as createBetterSqlite3Connection} from '../src/driver/better-sqlite3'
+import {createConnection as createSqlJsConnection} from '../src/driver/sql.js'
 
 const {Database} = await sqlite()
 
@@ -17,6 +15,6 @@ function createSqliteJsDb() {
   return createSqlJsConnection(new Database())
 }
 
-export function createConnection() {
+export function connect() {
   return useWasm ? createSqliteJsDb() : createBetterSqlite3Db()
 }

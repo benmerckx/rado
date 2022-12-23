@@ -67,9 +67,11 @@ export abstract class Formatter implements Sanitizer {
   }
 
   compile<T>(query: Query<T>, formatInline = false) {
-    return this.format(query, {
+    const result = this.format(query, {
       formatSubject: select => call('json_object', raw("'result'"), select)
     }).compile(this, formatInline)
+    console.log(result)
+    return result
   }
 
   format<T>(query: Query<T>, ctx: FormatContext = {}): Statement {
@@ -154,7 +156,7 @@ export abstract class Formatter implements Sanitizer {
   formatBatch(queries: Query[], ctx: FormatContext) {
     return separated(
       queries.map(query => this.format(query, ctx)),
-      ';'
+      '; '
     )
   }
 

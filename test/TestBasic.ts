@@ -3,10 +3,10 @@ import * as assert from 'uvu/assert'
 import {column, create, insertInto, selectFirst} from '../src'
 import {collection} from '../src/Collection'
 import {Expr} from '../src/Expr'
-import {createConnection} from './DbSuite'
+import {connect} from './DbSuite'
 
 test('basic', () => {
-  const query = createConnection()
+  const query = connect()
   const Node = collection({
     name: 'node',
     columns: {
@@ -34,7 +34,7 @@ test('basic', () => {
 })
 
 test('filters', () => {
-  const query = createConnection()
+  const query = connect()
   const Test = collection({
     name: 'test',
     columns: {
@@ -51,7 +51,7 @@ test('filters', () => {
 })
 
 test('select', () => {
-  const query = createConnection()
+  const query = connect()
   const Test = collection({
     name: 'test',
     columns: {
@@ -83,7 +83,7 @@ test('select', () => {
 })
 
 test('update', () => {
-  const query = createConnection()
+  const query = connect()
   const Test = collection({
     name: 'test',
     columns: {
@@ -133,7 +133,7 @@ test('case', () => {
 })*/
 
 test('json', () => {
-  const query = createConnection()
+  const query = connect()
   const Test = collection({
     name: 'test',
     columns: {
@@ -157,8 +157,8 @@ test('json', () => {
   assert.is(res1.fieldB, 5)
 })
 
-test.skip('each', () => {
-  const query = createConnection()
+test.only('each', () => {
+  const query = connect()
   const a = {
     refs: [
       {id: 'b', type: 'entry'},
@@ -180,8 +180,8 @@ test.skip('each', () => {
       title: column.string()
     }
   })
-  query(create(Test, Entry))
 
+  query(create(Test, Entry))
   query(insertInto(Test).values(a))
   const res = query(selectFirst(Test).select({refs: Test.refs}))
   assert.equal(res!, a)
