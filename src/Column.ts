@@ -1,15 +1,19 @@
 export const enum ColumnType {
-  String,
-  Number,
-  Boolean,
-  Object,
-  Array
+  String = 'String',
+  Integer = 'Integer',
+  Number = 'Number',
+  Boolean = 'Boolean',
+  Object = 'Object',
+  Array = 'Array'
 }
 
 export interface ColumnOptions<T> {
   name?: string
-  nullable?: boolean
-  byDefault?: T
+  notNull?: boolean
+  autoIncrement?: boolean
+  primaryKey?: boolean
+  unique?: boolean
+  defaultValue?: T
   generated?: boolean
 }
 
@@ -18,21 +22,34 @@ export interface ColumnData<T = any> extends ColumnOptions<T> {
 }
 
 export class Column<T = any> {
-  constructor(public name: string, public options: ColumnOptions<T>) {}
+  constructor(public name: string, public data: ColumnData<T>) {}
 }
 
 function typeFactory(defaultOptions: ColumnOptions<any> = {}) {
   return {
-    string<T = string>(options: ColumnOptions<T> = {}): ColumnData<T> {
+    string<T extends string = string>(
+      options: ColumnOptions<T> = {}
+    ): ColumnData<T> {
       return {type: ColumnType.String, ...options}
     },
-    number<T = number>(options: ColumnOptions<T> = {}): ColumnData<T> {
+    integer<T extends number = number>(
+      options: ColumnOptions<T> = {}
+    ): ColumnData<T> {
+      return {type: ColumnType.Integer, ...options}
+    },
+    number<T extends number = number>(
+      options: ColumnOptions<T> = {}
+    ): ColumnData<T> {
       return {type: ColumnType.Number, ...options}
     },
-    boolean<T = boolean>(options: ColumnOptions<T> = {}): ColumnData<T> {
+    boolean<T extends boolean = boolean>(
+      options: ColumnOptions<T> = {}
+    ): ColumnData<T> {
       return {type: ColumnType.Boolean, ...options}
     },
-    object<T = {}>(options: ColumnOptions<T> = {}): ColumnData<T> {
+    object<T extends object = object>(
+      options: ColumnOptions<T> = {}
+    ): ColumnData<T> {
       return {type: ColumnType.Object, ...options}
     },
     array<T = any>(

@@ -6,43 +6,43 @@ import {Selection} from './Selection'
 import {Target} from './Target'
 
 export const enum UnOp {
-  Not,
-  IsNull
+  Not = 'Not',
+  IsNull = 'IsNull'
 }
 
 export const enum BinOp {
-  Add,
-  Subt,
-  Mult,
-  Mod,
-  Div,
-  Greater,
-  GreaterOrEqual,
-  Less,
-  LessOrEqual,
-  Equals,
-  NotEquals,
-  And,
-  Or,
-  Like,
-  Glob,
-  Match,
-  In,
-  NotIn,
-  Concat
+  Add = 'Add',
+  Subt = 'Subt',
+  Mult = 'Mult',
+  Mod = 'Mod',
+  Div = 'Div',
+  Greater = 'Greater',
+  GreaterOrEqual = 'GreaterOrEqual',
+  Less = 'Less',
+  LessOrEqual = 'LessOrEqual',
+  Equals = 'Equals',
+  NotEquals = 'NotEquals',
+  And = 'And',
+  Or = 'Or',
+  Like = 'Like',
+  Glob = 'Glob',
+  Match = 'Match',
+  In = 'In',
+  NotIn = 'NotIn',
+  Concat = 'Concat'
 }
 
 export const enum ExprType {
-  UnOp,
-  BinOp,
-  Field,
-  Param,
-  Call,
-  Query,
-  Record,
-  Row,
-  Merge,
-  Case
+  UnOp = 'UnOp',
+  BinOp = 'BinOp',
+  Field = 'Field',
+  Param = 'Param',
+  Call = 'Call',
+  Query = 'Query',
+  Record = 'Record',
+  Row = 'Row',
+  Merge = 'Merge',
+  Case = 'Case'
 }
 
 export type ExprData =
@@ -98,7 +98,8 @@ export const ExprData = {
     return {type: ExprType.Case, expr, cases, defaultCase}
   },
   create(input: any): ExprData {
-    if (input == null) return ExprData.Param(ParamData.Value(null))
+    if (input === null || input === undefined)
+      return ExprData.Param(ParamData.Value(null))
     if (
       input &&
       typeof input === 'object' &&

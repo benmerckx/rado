@@ -12,11 +12,17 @@ export interface CollectionData {
 }
 
 export class Collection<T> extends Cursor.SelectMultiple<T> {
-  private _data: CollectionData
-
   constructor(data: CollectionData) {
-    super(Query.Select({from: Target.Collection(data)}))
-    this._data = data
+    super(
+      Query.Select({
+        from: Target.Collection(data),
+        selection: ExprData.Row(Target.Collection(data))
+      })
+    )
+    Object.defineProperty(this, 'data', {
+      enumerable: false,
+      value: () => data
+    })
     return new Proxy(this, {
       get(target: any, key) {
         return key in target ? target[key] : target.get(key)
@@ -32,8 +38,16 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
     return new Cursor.Insert<T>(this.data()).values(...data)
   }
 
-  data() {
-    return this._data
+  set(data: Partial<T>) {
+    return new Cursor.Update<T>(
+      Query.Update({
+        collection: this.data()
+      })
+    ).set(data)
+  }
+
+  create() {
+    return new Cursor.Create(this.data())
   }
 
   as(alias: string): Collection<T> & Fields<T> {
@@ -46,6 +60,11 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
 
   toExpr() {
     return new Expr<T>(ExprData.Row(Target.Collection(this.data())))
+  }
+
+  /** @internal */
+  data(): CollectionData {
+    throw new Error('Not implemented')
   }
 }
 

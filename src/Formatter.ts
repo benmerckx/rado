@@ -1,3 +1,4 @@
+import {Column, ColumnType} from './Column'
 import {BinOp, ExprData, ExprType, UnOp} from './Expr'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamType} from './Param'
@@ -44,7 +45,7 @@ const joins = {
 export interface FormatContext {
   nameResult?: string
   formatAsJson?: boolean
-  formatInline?: boolean
+  formatSubject?: (subject: Statement) => Statement
 }
 
 export abstract class Formatter implements Sanitizer {
@@ -65,8 +66,10 @@ export abstract class Formatter implements Sanitizer {
       : this.formatSqlAccess(on, field)
   }
 
-  compile<T>(query: Query<T>) {
-    return this.format(query).compile(this)
+  compile<T>(query: Query<T>, formatInline = false) {
+    return this.format(query, {
+      formatSubject: select => call('json_object', raw("'result'"), select)
+    }).compile(this, formatInline)
   }
 
   format<T>(query: Query<T>, ctx: FormatContext = {}): Statement {
@@ -79,12 +82,17 @@ export abstract class Formatter implements Sanitizer {
         return this.formatUpdate(query, ctx)
       case QueryType.Delete:
         return this.formatDelete(query, ctx)
+      case QueryType.CreateTable:
+        return this.formatCreateTable(query, ctx)
+      case QueryType.Batch:
+        return this.formatBatch(query.queries, ctx)
     }
   }
 
   formatSelect(query: Query.Select, ctx: FormatContext) {
     return raw('select')
-      .add(this.formatSelection(query.selection))
+      .add(this.formatSelection(query, ctx))
+      .addIf(ctx.nameResult, raw('as').addIdent(ctx.nameResult!))
       .add('from')
       .add(this.formatTarget(query.from, ctx))
       .add(this.formatWhere(query.where, ctx))
@@ -95,14 +103,18 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatInsert(query: Query.Insert, ctx: FormatContext) {
-    const columns = Object.keys(query.into.columns)
+    const columns = Object.values(query.into.columns)
     return raw('insert into')
       .addCall(
         query.into.name,
-        ...columns.map(column => this.formatString(column))
+        ...columns.map(column => this.formatString(column.name))
       )
       .add('values')
-      .addSeparated(query.data.map(row => this.formatInsertRow(columns, row)))
+      .addSeparated(
+        query.data.map(row =>
+          this.formatInsertRow(Object.keys(query.into.columns), row)
+        )
+      )
   }
 
   formatUpdate(query: Query.Update, ctx: FormatContext) {
@@ -114,7 +126,7 @@ export abstract class Formatter implements Sanitizer {
         Object.keys(data).map(column => {
           return ident(column)
             .add('=')
-            .add(this.formatExprValue(data[column], ctx))
+            .add(this.formatExprValue(ExprData.create(data[column]), ctx))
         })
       )
       .add(this.formatWhere(query.where, ctx))
@@ -126,6 +138,51 @@ export abstract class Formatter implements Sanitizer {
       .addIdent(query.collection.name)
       .add(this.formatWhere(query.where, ctx))
       .add(this.formatLimit(query, ctx))
+  }
+
+  formatCreateTable(query: Query.CreateTable, ctx: FormatContext) {
+    return raw('create table')
+      .addIf(query.ifNotExists, 'if not exists')
+      .addCall(
+        query.collection.name,
+        ...Object.values(query.collection.columns).map(column => {
+          return this.formatColumn(column)
+        })
+      )
+  }
+
+  formatBatch(queries: Query[], ctx: FormatContext) {
+    return separated(
+      queries.map(query => this.format(query, ctx)),
+      ';'
+    )
+  }
+
+  formatColumn(column: Column) {
+    return ident(column.name)
+      .add(this.formatType(column.data.type))
+      .addIf(column.data.notNull, 'not null')
+      .addIf(column.data.unique, 'unique')
+      .addIf(column.data.autoIncrement, 'autoincrement')
+      .addIf(column.data.primaryKey, 'primary key')
+      .addIf(
+        column.data.defaultValue !== undefined,
+        raw('default').value(column.data.defaultValue)
+      )
+  }
+
+  formatType(type: ColumnType): Statement {
+    switch (type) {
+      case ColumnType.String:
+      case ColumnType.Object:
+      case ColumnType.Array:
+        return raw('text')
+      case ColumnType.Number:
+      case ColumnType.Boolean:
+        return raw('numeric')
+      case ColumnType.Integer:
+        return raw('integer')
+    }
   }
 
   formatInsertRow(columns: Array<string>, row: Record<string, any>) {
@@ -190,9 +247,17 @@ export abstract class Formatter implements Sanitizer {
       .addIf(offset && offset > 0, raw('offset').addValue(offset))
   }
 
-  formatSelection(selection: ExprData | undefined): Statement {
-    if (!selection) return raw('*')
-    return this.formatExpr(selection, {formatAsJson: true})
+  formatSelection(
+    {selection, from}: Query.Select,
+    ctx: FormatContext
+  ): Statement {
+    const {formatSubject} = ctx
+    const subject = this.formatExpr(selection, {
+      ...ctx,
+      formatSubject: undefined,
+      formatAsJson: true
+    })
+    return formatSubject ? formatSubject(subject) : subject
   }
 
   formatExprValue(expr: ExprData, ctx: FormatContext): Statement {
@@ -216,13 +281,6 @@ export abstract class Formatter implements Sanitizer {
     switch (expr.type) {
       case ExprType.Record:
         return expr.fields[field]
-      case ExprType.Row:
-        switch (expr.target.type) {
-          case TargetType.Collection:
-            return expr.target.collection.columns[field]
-          default:
-            throw new Error('todo')
-        }
       case ExprType.Merge:
         return (
           this.retrieveField(expr.a, field) || this.retrieveField(expr.b, field)
@@ -235,15 +293,47 @@ export abstract class Formatter implements Sanitizer {
   formatField(expr: ExprData, field: string, ctx: FormatContext): Statement {
     const fieldExpr = this.retrieveField(expr, field)
     if (fieldExpr) return this.formatExpr(fieldExpr, ctx)
-    return this.formatAccess(
-      this.formatExpr(expr, ctx),
-      field,
-      ctx.formatAsJson
-    )
+    switch (expr.type) {
+      case ExprType.Row:
+        switch (expr.target.type) {
+          case TargetType.Collection:
+            return ident(
+              expr.target.collection.alias || expr.target.collection.name
+            )
+              .raw('.')
+              .ident(field)
+          default:
+            throw new Error('todo')
+        }
+      default:
+        return this.formatAccess(
+          this.formatExpr(expr, {...ctx, formatAsJson: true}),
+          field,
+          ctx.formatAsJson
+        )
+    }
   }
 
   formatString(input: string): Statement {
     return raw(this.escapeValue(String(input)))
+  }
+
+  formatValue(rawValue: any, formatAsJson?: boolean): Statement {
+    switch (true) {
+      case rawValue === null:
+        return raw('null')
+      case !formatAsJson && typeof rawValue === 'boolean':
+        return rawValue ? raw('1') : raw('0')
+      case Array.isArray(rawValue):
+        const res = parenthesis(
+          separated(rawValue.map((v: any) => this.formatValue(v, false)))
+        )
+        return formatAsJson ? raw('json_array').concat(res) : res
+      case typeof rawValue === 'string' || typeof rawValue === 'number':
+        return value(rawValue)
+      default:
+        return call('json', this.formatString(JSON.stringify(rawValue)))
+    }
   }
 
   formatExpr(expr: ExprData, ctx: FormatContext): Statement {
@@ -264,7 +354,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Param:
         switch (expr.param.type) {
           case ParamType.Value:
-            return value(expr.param.value)
+            return this.formatValue(expr.param.value, ctx.formatAsJson)
           case ParamType.Named:
             throw new Error('todo')
         }
@@ -276,13 +366,27 @@ export abstract class Formatter implements Sanitizer {
       }
       case ExprType.Query:
         if (!ctx.formatAsJson) return parenthesis(this.format(expr.query, ctx))
-        const subQuery = this.format(expr.query, {...ctx, nameResult: 'res'})
+        const subQuery = this.format(expr.query, {...ctx, nameResult: 'result'})
         if (expr.query.singleResult) return call('json', parenthesis(subQuery))
         return parenthesis(
-          raw('select json_group_array(json(res)) from ').parenthesis(subQuery)
+          raw('select json_group_array(json(result)) from ').parenthesis(
+            subQuery
+          )
         )
       case ExprType.Row:
-        throw new Error('todo')
+        const collection = Target.source(expr.target)
+        if (!collection) throw new Error(`Cannot select empty target`)
+        return this.formatExpr(
+          ExprData.Record(
+            Object.fromEntries(
+              Object.entries(collection.columns).map(([key, column]) => [
+                key,
+                ExprData.Field(ExprData.Row(expr.target), column.name)
+              ])
+            )
+          ),
+          ctx
+        )
       case ExprType.Merge:
         return call(
           'json_patch',

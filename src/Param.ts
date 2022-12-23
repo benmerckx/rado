@@ -1,6 +1,6 @@
 export const enum ParamType {
-  Value,
-  Named
+  Value = 'Value',
+  Named = 'Named'
 }
 
 export type ParamData =

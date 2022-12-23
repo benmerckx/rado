@@ -7,7 +7,7 @@ import {
 
 const {Database} = await sqlite()
 
-const useWasm = true
+const useWasm = false
 
 function createBetterSqlite3Db() {
   return createBetterSqlite3Connection(new BetterSqlite3Database(':memory:'))

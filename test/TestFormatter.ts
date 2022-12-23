@@ -15,7 +15,6 @@ const User = collection({
 
 test('formatter', () => {
   const formatter = new SqliteFormatter()
-  console.log(formatter)
   const [sql] = formatter.compile(
     Query.Select({
       from: Target.Collection(User.data()),
@@ -25,7 +24,8 @@ test('formatter', () => {
       }),
       where: User.id.is('1').expr,
       limit: 1
-    })
+    }),
+    true
   )
   console.log(sql)
   assert.ok(true)

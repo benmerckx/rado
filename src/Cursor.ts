@@ -11,13 +11,15 @@ export class Cursor<T> {
   // https://github.com/Microsoft/TypeScript/wiki/FAQ#why-doesnt-type-inference-work-on-this-interface-interface-foot--
   private declare __type: T
 
-  #query: Query<T>
   constructor(query: Query<T>) {
-    this.#query = query
+    Object.defineProperty(this, 'query', {
+      enumerable: false,
+      value: () => query
+    })
   }
 
-  query() {
-    return this.#query
+  query(): Query<T> {
+    throw new Error('Not implemented')
   }
 }
 
@@ -67,6 +69,18 @@ export namespace Cursor {
 
     values(...data: Array<T>): InsertValues {
       return new InsertValues(Query.Insert({into: this.into, data}))
+    }
+  }
+
+  export class Create extends Cursor<void> {
+    constructor(protected collection: CollectionData) {
+      super(Query.CreateTable({collection}))
+    }
+  }
+
+  export class Batch extends Cursor<void> {
+    constructor(protected queries: Array<Query>) {
+      super(Query.Batch({queries}))
     }
   }
 

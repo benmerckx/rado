@@ -1,9 +1,9 @@
 import {Sanitizer} from './Sanitizer'
 
 const enum TokenType {
-  Raw,
-  Ident,
-  Value
+  Raw = 'Raw',
+  Ident = 'Ident',
+  Value = 'Value'
 }
 
 class Token {
@@ -22,8 +22,8 @@ class Token {
   }
 }
 
-const SEPARATE = Token.Raw(', ')
-const WHITESPACE = Token.Raw(' ')
+const SEPARATE = ', '
+const WHITESPACE = ' '
 
 export class Statement {
   constructor(public tokens: Array<Token>) {}
@@ -41,11 +41,11 @@ export class Statement {
   }
 
   space() {
-    return this.concat(WHITESPACE)
+    return this.concat(Token.Raw(WHITESPACE))
   }
 
   call(method: string, ...args: Array<Statement>) {
-    return ident(method).parenthesis(separated(args))
+    return this.ident(method).parenthesis(separated(args))
   }
 
   addCall(method: string, ...args: Array<Statement>) {
@@ -59,7 +59,7 @@ export class Statement {
   }
 
   addIf(condition: any, addition: string | Statement) {
-    if (condition) return this
+    if (!condition) return this
     return this.add(addition)
   }
 
@@ -92,16 +92,16 @@ export class Statement {
     return this.space().parenthesis(stmnt)
   }
 
-  separated(input: Array<Statement>) {
+  separated(input: Array<Statement>, separator = SEPARATE) {
     return this.concat(
       ...input.flatMap((stmt, i) =>
-        i === 0 ? stmt.tokens : [SEPARATE, ...stmt.tokens]
+        i === 0 ? stmt.tokens : [Token.Raw(separator), ...stmt.tokens]
       )
     )
   }
 
-  addSeparated(input: Array<Statement>) {
-    return this.space().separated(input)
+  addSeparated(input: Array<Statement>, separator = SEPARATE) {
+    return this.space().separated(input, separator)
   }
 
   isEmpty() {
@@ -113,7 +113,7 @@ export class Statement {
     )
   }
 
-  compile(sanitizer: Sanitizer): [string, Array<any>] {
+  compile(sanitizer: Sanitizer, formatInline = false): [string, Array<any>] {
     let sql = '',
       params = []
     for (const token of this.tokens) {
@@ -125,8 +125,12 @@ export class Statement {
           sql += sanitizer.escapeIdent(token.data)
           break
         case TokenType.Value:
-          sql += '?'
-          params.push(token.data)
+          if (formatInline) {
+            sql += sanitizer.escapeValue(token.data)
+          } else {
+            sql += '?'
+            params.push(token.data === undefined ? null : token.data)
+          }
           break
       }
     }
@@ -158,6 +162,6 @@ export function call(method: string, ...args: Array<Statement>) {
   return ident(method).parenthesis(separated(args))
 }
 
-export function separated(input: Array<Statement>) {
-  return empty().separated(input)
+export function separated(input: Array<Statement>, separator = SEPARATE) {
+  return empty().separated(input, separator)
 }

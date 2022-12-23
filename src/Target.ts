@@ -2,9 +2,9 @@ import {CollectionData} from './Collection'
 import {ExprData} from './Expr'
 
 export const enum TargetType {
-  Each,
-  Collection,
-  Join
+  Each = 'Each',
+  Collection = 'Collection',
+  Join = 'Join'
 }
 
 export type Target = Target.Each | Target.Collection | Target.Join
@@ -41,12 +41,14 @@ export namespace Target {
     return {type: TargetType.Join, left, right, joinType, on}
   }
 
-  export function source(from: Target): string {
+  export function source(from: Target): CollectionData | undefined {
     switch (from.type) {
       case TargetType.Collection:
-        return from.collection.alias || from.collection.name
+        return from.collection
+      case TargetType.Join:
+        return source(from.left)
       default:
-        throw new Error(`Cannot determine source for ${from.type}`)
+        return undefined
     }
   }
 }

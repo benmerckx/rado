@@ -12,7 +12,12 @@ export function createBetterSqlite3Connection(db: Database): Connection.Sync {
     const stmt = db.prepare(sql)
     switch (query.type) {
       case QueryType.Select:
-        return stmt.all(...params) as T
+        const res = stmt
+          .pluck()
+          .all(...params)
+          .map(item => JSON.parse(item).result)
+        if (query.singleResult) return res[0] as T
+        return res as T
       default:
         const {changes} = stmt.run(...params)
         return {rowsAffected: changes} as T

@@ -7,7 +7,9 @@ export const enum QueryType {
   Insert,
   Select,
   Update,
-  Delete
+  Delete,
+  CreateTable,
+  Batch
 }
 
 export type Query<T = any> =
@@ -15,6 +17,8 @@ export type Query<T = any> =
   | Query.Select
   | Query.Update
   | Query.Delete
+  | Query.CreateTable
+  | Query.Batch
 
 export namespace Query {
   export interface Limit {
@@ -22,7 +26,7 @@ export namespace Query {
     offset?: number
   }
   export interface QueryBase extends Limit {
-    selection?: ExprData
+    type: QueryType
     where?: ExprData
     orderBy?: Array<OrderBy>
     groupBy?: Array<ExprData>
@@ -38,6 +42,7 @@ export namespace Query {
   }
   export interface Select extends QueryBase {
     type: QueryType.Select
+    selection: ExprData
     from: Target
     singleResult?: boolean
   }
@@ -62,5 +67,22 @@ export namespace Query {
     del: Omit<Delete, 'type'>
   ): Query<{rowsAffected: number}> {
     return {type: QueryType.Delete, ...del}
+  }
+  export interface CreateTable extends QueryBase {
+    type: QueryType.CreateTable
+    collection: CollectionData
+    ifNotExists?: boolean
+  }
+  export function CreateTable<T>(
+    create: Omit<CreateTable, 'type'>
+  ): Query<void> {
+    return {type: QueryType.CreateTable, ...create}
+  }
+  export interface Batch extends QueryBase {
+    type: QueryType.Batch
+    queries: Array<Query<any>>
+  }
+  export function Batch<T>(batch: Omit<Batch, 'type'>): Query<void> {
+    return {type: QueryType.Batch, ...batch}
   }
 }

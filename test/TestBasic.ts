@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, insertInto, selectFirst, update} from '../src'
+import {column, create, insertInto, selectFirst} from '../src'
 import {collection} from '../src/Collection'
 import {Expr} from '../src/Expr'
 import {createConnection} from './DbSuite'
@@ -10,10 +10,11 @@ test('basic', () => {
   const Node = collection({
     name: 'node',
     columns: {
-      id: column.string(),
+      id: column.integer({primaryKey: true}),
       index: column.number()
     }
   })
+  query(create(Node))
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
@@ -37,13 +38,14 @@ test('filters', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.string(),
+      id: column.integer({primaryKey: true}),
       prop: column.number()
     }
   })
+  query(create(Test))
   const a = {prop: 10}
   const b = {prop: 20}
-  query(Test.insertAll(a, b))
+  query(Test.insertAll([a, b]))
   const gt10 = query(Test.first().where(Test.prop.greater(10)))!
   assert.equal(gt10.prop, 20)
 })
@@ -53,14 +55,15 @@ test('select', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.string(),
+      id: column.integer({primaryKey: true}),
       propA: column.number(),
       propB: column.number()
     }
   })
+  query(create(Test))
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
-  query(Test.insertAll(a, b))
+  query(Test.insertAll([a, b]))
   const res = query(Test.select({a: Test.propA, b: Test.propB}))
   assert.equal(res, [
     {a: 10, b: 5},
@@ -84,16 +87,17 @@ test('update', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.string(),
+      id: column.integer({primaryKey: true}),
       propA: column.number(),
       propB: column.number()
     }
   })
+  query(Test.create())
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
-  query(insertInto(Test).values(a, b))
-  query(update(Test).set({propA: 15}).where(Test.propA.is(10)))
-  assert.ok(query(selectFirst(Test).where(Test.propA.is(15))))
+  query(Test.insertAll([a, b]))
+  query(Test.set({propA: 15}).where(Test.propA.is(10)))
+  assert.ok(query(Test.first().where(Test.propA.is(15))))
 })
 
 /*test('query', () => {
@@ -133,11 +137,12 @@ test('json', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.string(),
+      id: column.integer({primaryKey: true}),
       prop: column.number(),
       propB: column.number()
     }
   })
+  query(create(Test))
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
   query(insertInto(Test).values(a, b))
@@ -152,7 +157,7 @@ test('json', () => {
   assert.is(res1.fieldB, 5)
 })
 
-test('each', () => {
+test.skip('each', () => {
   const query = createConnection()
   const a = {
     refs: [
@@ -163,24 +168,28 @@ test('each', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.string(),
+      id: column.integer({primaryKey: true}),
       refs: column.array<{id: string; type: string}>()
     }
   })
+
+  const Entry = collection({
+    name: 'Entry',
+    columns: {
+      id: column.integer({primaryKey: true}),
+      title: column.string()
+    }
+  })
+  query(create(Test, Entry))
+
   query(insertInto(Test).values(a))
   const res = query(selectFirst(Test).select({refs: Test.refs}))
   assert.equal(res!, a)
 
   const b = {id: 'b', title: 'Entry B'}
   const c = {id: 'c', title: 'Entry C'}
-  const Entry = collection({
-    name: 'Entry',
-    columns: {
-      id: column.string(),
-      title: column.string()
-    }
-  })
-  query(insertInto(Entry).values(b, c))
+  query(create(Entry))
+  query(Entry.insertAll([b, c]))
 
   /*const refs = Test.refs.each()
   const Link = Entry.as('Link')
