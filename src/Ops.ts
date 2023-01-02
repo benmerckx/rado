@@ -46,7 +46,7 @@ export function deleteFrom<Row>(
 export function create(...collections: Array<Collection<any>>): Cursor.Batch {
   return new Cursor.Batch(
     collections.map(collection =>
-      Query.CreateTable({collection: collection.data()})
+      Query.CreateTable({collection: collection.data(), ifNotExists: true})
     )
   )
 }

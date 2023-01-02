@@ -186,8 +186,8 @@ test.only('each', () => {
   const res = query(selectFirst(Test).select({refs: Test.refs}))
   assert.equal(res!, a)
 
-  const b = {id: 'b', title: 'Entry B'}
-  const c = {id: 'c', title: 'Entry C'}
+  const b = {title: 'Entry B'}
+  const c = {title: 'Entry C'}
   query(create(Entry))
   query(Entry.insertAll([b, c]))
 

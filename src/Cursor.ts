@@ -74,7 +74,7 @@ export namespace Cursor {
 
   export class Create extends Cursor<void> {
     constructor(protected collection: CollectionData) {
-      super(Query.CreateTable({collection}))
+      super(Query.CreateTable({collection, ifNotExists: true}))
     }
   }
 

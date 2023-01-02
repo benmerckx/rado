@@ -113,9 +113,7 @@ export abstract class Formatter implements Sanitizer {
       )
       .add('values')
       .addSeparated(
-        query.data.map(row =>
-          this.formatInsertRow(Object.keys(query.into.columns), row)
-        )
+        query.data.map(row => this.formatInsertRow(query.into.columns, row))
       )
   }
 
@@ -187,15 +185,40 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatInsertRow(columns: Array<string>, row: Record<string, any>) {
+  formatInsertRow(columns: Record<string, Column>, row: Record<string, any>) {
     return parenthesis(
       separated(
-        columns.map(column => {
-          const value = row[column]
-          throw new Error(`we should handle this based on the column type`)
-          if (Array.isArray(value))
-            return this.formatString(JSON.stringify(value))
-          return this.formatValue(value, false)
+        Object.entries(columns).map(([property, column]) => {
+          const columnValue = row[property]
+          const isNull = columnValue === undefined || columnValue === null
+          if (isNull) {
+            if (column.notNull)
+              throw new TypeError(`Expected value for column ${property}`)
+            return raw('null')
+          }
+          switch (column.type) {
+            case ColumnType.String:
+              if (typeof columnValue !== 'string')
+                throw new TypeError(`Expected string for column ${property}`)
+              return value(columnValue)
+            case ColumnType.Integer:
+            case ColumnType.Number:
+              if (typeof columnValue !== 'number')
+                throw new TypeError(`Expected number for column ${property}`)
+              return value(columnValue)
+            case ColumnType.Boolean:
+              if (typeof columnValue !== 'boolean')
+                throw new TypeError(`Expected boolean for column ${property}`)
+              return value(columnValue)
+            case ColumnType.Object:
+              if (typeof columnValue !== 'object')
+                throw new TypeError(`Expected object for column ${property}`)
+              return value(JSON.stringify(columnValue))
+            case ColumnType.Array:
+              if (!Array.isArray(columnValue))
+                throw new TypeError(`Expected array for column ${property}`)
+              return value(JSON.stringify(columnValue))
+          }
         })
       )
     )
@@ -303,12 +326,19 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Collection:
-            throw new Error(`we should handle this based on the column type`)
-            return ident(
+            const selection = ident(
               expr.target.collection.alias || expr.target.collection.name
             )
               .raw('.')
               .ident(field)
+            const column = expr.target.collection.columns[field]
+            switch (column?.type) {
+              case ColumnType.Array:
+              case ColumnType.Object:
+                return call('json', selection)
+              default:
+                return selection
+            }
           default:
             throw new Error('todo')
         }

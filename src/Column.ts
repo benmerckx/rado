@@ -23,6 +23,14 @@ export interface ColumnData<T = any> extends ColumnOptions<T> {
 
 export class Column<T = any> {
   constructor(public name: string, public data: ColumnData<T>) {}
+
+  get notNull() {
+    return this.data.notNull
+  }
+
+  get type() {
+    return this.data.type
+  }
 }
 
 function typeFactory(defaultOptions: ColumnOptions<any> = {}) {
