@@ -8,7 +8,7 @@ import {Target} from './Target'
 export interface CollectionData {
   name: string
   alias?: string
-  columns: Record<string, Column>
+  columns: Record<string, ColumnData>
 }
 
 export class Collection<T> extends Cursor.SelectMultiple<T> {
@@ -71,18 +71,22 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
 export interface CollectionOptions<T> {
   name: string
   alias?: string
-  columns: {[K in keyof T]: ColumnData<T[K]>}
+  columns: {[K in keyof T]: Column<T[K]>}
+}
+
+type FieldsOf<T> = {
+  [K in keyof T]: null extends T[K] ? undefined | T[K] : T[K]
 }
 
 export function collection<T extends {}>(
   options: CollectionOptions<T>
-): Collection<T> & Fields<T> {
+): Collection<FieldsOf<T>> & Fields<T> {
   return new Collection({
     ...options,
     columns: Object.fromEntries(
-      Object.entries(options.columns).map(([key, value]) => {
-        const data = value as ColumnData
-        return [key, new Column(data.name || key, data as ColumnData)]
+      Object.entries(options.columns).map(([key, column]) => {
+        const {data} = column as Column
+        return [key, {...data, name: data.name || key}]
       })
     )
   }) as Collection<T> & Fields<T>

@@ -10,7 +10,7 @@ test('basic', () => {
   const Node = collection({
     name: 'node',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       index: column.number()
     }
   })
