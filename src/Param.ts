@@ -15,11 +15,3 @@ export const ParamData = {
     return {type: ParamType.Named, name: name}
   }
 }
-
-export class Param {
-  constructor(public param: ParamData) {}
-
-  static value(value: any) {
-    return new Param(ParamData.Value(value))
-  }
-}

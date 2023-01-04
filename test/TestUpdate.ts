@@ -15,10 +15,10 @@ const User = collection({
 })
 type User = collection.infer<typeof User>
 
-test('Update', () => {
-  const query = connect()
-  query(User.createTable())
-  const user = query(
+test('Update', async () => {
+  const query = await connect()
+  await query(User.createTable())
+  const user = await query(
     User.insertOne({
       name: {
         given: 'abc',
@@ -26,21 +26,21 @@ test('Update', () => {
       }
     })
   )
-  const res = query(
+  const res = await query(
     User.set({
       email: 'test'
     }).where(User.id.is(user.id))
   )
   assert.is(res.rowsAffected, 1)
-  assert.is(query(User.first())!.email, 'test')
-  const res2 = query(
+  assert.is((await query(User.first()))!.email, 'test')
+  const res2 = await query(
     User.set({
       email: User.email.concat('@example.com')
     }).where(User.id.is(user.id))
   )
   assert.is(res2.rowsAffected, 1)
-  assert.is(query(User.first())!.email, 'test@example.com')
-  const res3 = query(
+  assert.is((await query(User.first()))!.email, 'test@example.com')
+  const res3 = await query(
     User.set({
       name: {
         given: 'def',
@@ -49,13 +49,13 @@ test('Update', () => {
     }).where(User.id.is(user.id))
   )
   assert.is(res3.rowsAffected, 1)
-  assert.is(query(User.first())!.name.given, 'def')
+  assert.is((await query(User.first()))!.name.given, 'def')
 })
 
-test('Update object', () => {
-  const query = connect()
-  query(User.createTable())
-  const user = query(
+test('Update object', async () => {
+  const query = await connect()
+  await query(User.createTable())
+  const user = await query(
     User.insertOne({
       name: {
         given: 'abc',
@@ -63,7 +63,7 @@ test('Update object', () => {
       }
     })
   )
-  const res = query(
+  const res = await query(
     User.set({
       name: {
         given: '123',
@@ -72,15 +72,15 @@ test('Update object', () => {
     }).where(User.id.is(user.id))
   )
   assert.is(res.rowsAffected, 1)
-  const user2 = query(User.where(User.id.is(user.id)).first())!
+  const user2 = (await query(User.where(User.id.is(user.id)).first()))!
   assert.is(user2.name.given, '123')
   assert.is(user2.name.last, '456')
 })
 
-test('Update array', () => {
-  const query = connect()
-  query(User.createTable())
-  const user = query(
+test('Update array', async () => {
+  const query = await connect()
+  await query(User.createTable())
+  const user = await query(
     User.insertOne({
       name: {
         given: 'abc',
@@ -88,13 +88,13 @@ test('Update array', () => {
       }
     })
   )
-  const res = query(
+  const res = await query(
     User.set({
       roles: ['a', 'b']
     }).where(User.id.is(user.id))
   )
   assert.is(res.rowsAffected, 1)
-  const user2 = query(User.first().where(User.id.is(user.id)))!
+  const user2 = (await query(User.first().where(User.id.is(user.id))))!
   assert.equal(user2.roles, ['a', 'b'])
 })
 

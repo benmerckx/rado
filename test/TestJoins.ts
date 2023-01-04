@@ -22,15 +22,14 @@ const Contact = collection({
   }
 })
 
-test('OrderBy', () => {
-  const query = connect()
-  query(create(User, Contact))
-  const user1 = query(User.insertOne({name: 'b'}))
-  const user2 = query(User.insertOne({name: 'a'}))
-  console.log({user1, user2})
-  const contact1 = query(Contact.insertOne({user: user1.id}))
-  const contact2 = query(Contact.insertOne({user: user2.id}))
-  const results = query(
+test('OrderBy', async () => {
+  const query = await connect()
+  await query(create(User, Contact))
+  const user1 = await query(User.insertOne({name: 'b'}))
+  const user2 = await query(User.insertOne({name: 'a'}))
+  const contact1 = await query(Contact.insertOne({user: user1.id}))
+  const contact2 = await query(Contact.insertOne({user: user2.id}))
+  const results = await query(
     Contact.leftJoin(User, User.id.is(Contact.user))
       .select({...Contact, user: User})
       .orderBy(User.name.asc())

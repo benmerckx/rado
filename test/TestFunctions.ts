@@ -8,8 +8,8 @@ import {connect} from './DbSuite'
 
 const {cast, strftime} = SqliteFunctions
 
-test('Functions', () => {
-  const query = connect()
+test('Functions', async () => {
+  const query = await connect()
   const User = collection({
     name: 'User',
     columns: {
@@ -17,7 +17,7 @@ test('Functions', () => {
       birthdate: column.string()
     }
   })
-  query(User.createTable())
+  await query(User.createTable())
   const now = '1920-01-01'
   const int = (e: Expr<any>) => cast(e, 'integer')
   const age: Expr<number> = int(strftime('%Y', now))
@@ -25,8 +25,11 @@ test('Functions', () => {
     .substract(
       int(strftime('%m-%d', now).less(strftime('%m-%d', User.birthdate)))
     )
-  const me = query(User.insertOne({birthdate: '1900-01-01'}))
-  assert.is(query(User.first().select({age}).where(User.id.is(me.id)))!.age, 20)
+  const me = await query(User.insertOne({birthdate: '1900-01-01'}))
+  assert.is(
+    (await query(User.first().select({age}).where(User.id.is(me.id))))!.age,
+    20
+  )
 })
 
 test.run()

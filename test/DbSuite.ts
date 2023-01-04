@@ -1,20 +1,26 @@
-import sqlite from '@alinea/sqlite-wasm'
-import BetterSqlite3Database from 'better-sqlite3'
-import {createConnection as createBetterSqlite3Connection} from '../src/driver/better-sqlite3'
-import {createConnection as createSqlJsConnection} from '../src/driver/sql.js'
+import {Connection} from '../src/Connection'
 
-const {Database} = await sqlite()
-
-const useWasm = true
-
-function createBetterSqlite3Db() {
-  return createBetterSqlite3Connection(new BetterSqlite3Database(':memory:'))
-}
-
-function createSqliteJsDb() {
-  return createSqlJsConnection(new Database())
-}
-
-export function connect() {
-  return useWasm ? createSqliteJsDb() : createBetterSqlite3Db()
+export async function connect(): Promise<Connection> {
+  switch (process.env.TEST_DRIVER) {
+    case 'better-sqlite3': {
+      const {default: BetterSqlite3Database} = await import('better-sqlite3')
+      const {createConnection} = await import('../src/driver/better-sqlite3')
+      return createConnection(new BetterSqlite3Database(':memory:'))
+    }
+    case 'sql.js': {
+      const {init} = await import('@alinea/sqlite-wasm')
+      const {Database} = await init()
+      const {createConnection} = await import('../src/driver/sql.js')
+      return createConnection(new Database())
+    }
+    case 'sqlite3': {
+      const {
+        default: {Database}
+      } = await import('sqlite3')
+      const {createConnection} = await import('../src/driver/sqlite3')
+      return createConnection(new Database(':memory:'))
+    }
+    default:
+      throw new Error(`Unknown driver ${process.env.TEST_DRIVER}`)
+  }
 }

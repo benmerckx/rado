@@ -69,7 +69,8 @@ export abstract class Formatter implements Sanitizer {
 
   compile<T>(query: Query<T>, formatInline = false) {
     const result = this.format(query, {
-      formatSubject: select => call('json_object', raw("'result'"), select)
+      formatSubject: select => call('json_object', raw("'result'"), select),
+      nameResult: 'result'
     }).compile(this, formatInline)
     // console.log(result[0])
     return result
@@ -95,7 +96,7 @@ export abstract class Formatter implements Sanitizer {
   formatSelect(query: Query.Select, ctx: FormatContext) {
     return raw('select')
       .add(this.formatSelection(query.selection, ctx))
-      .addIf(ctx.nameResult, raw('as').addIdentifier(ctx.nameResult!))
+
       .addLine('from')
       .add(this.formatTarget(query.from, ctx))
       .add(this.formatWhere(query.where, ctx))
@@ -312,7 +313,10 @@ export abstract class Formatter implements Sanitizer {
       formatSubject: undefined,
       formatAsJson: true
     })
-    return formatSubject ? formatSubject(subject) : subject
+    return (formatSubject ? formatSubject(subject) : subject).addIf(
+      ctx.nameResult,
+      raw('as').addIdentifier(ctx.nameResult!)
+    )
   }
 
   formatExprValue(expr: ExprData, ctx: FormatContext): Statement {

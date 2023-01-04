@@ -1,12 +1,17 @@
+import sade from 'sade'
 import {parse} from 'uvu/parse'
 import {run} from 'uvu/run'
 
-const pattern = process.argv[2]
-
-parse('test', 'Test*').then(({suites}) =>
-  run(
-    suites.filter(({name}) =>
-      pattern ? name.toLowerCase().includes(pattern) : true
+sade('test [pattern]', true)
+  .option('--driver', 'Pick driver')
+  .action((pattern, opts) => {
+    process.env.TEST_DRIVER = opts.driver || 'better-sqlite3'
+    parse('test', 'Test*').then(({suites}) =>
+      run(
+        suites.filter(({name}) =>
+          pattern ? name.toLowerCase().includes(pattern) : true
+        )
+      )
     )
-  )
-)
+  })
+  .parse(process.argv)

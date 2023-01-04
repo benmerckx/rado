@@ -146,6 +146,11 @@ export class Expr<T> {
     return new Expr<T>(ExprData.Param(ParamData.Value(value)))
   }
 
+  static create<T>(input: EV<T>): Expr<T> {
+    if (input instanceof Expr) return input
+    return new Expr(ExprData.create(input))
+  }
+
   constructor(public expr: ExprData) {
     return new Proxy(this, {
       get(target: any, key) {
@@ -185,86 +190,99 @@ export class Expr<T> {
   isNull(): Expr<boolean> {
     return unop(this, UnOp.IsNull)
   }
+
   isNotNull(): Expr<boolean> {
     return this.isNull().not()
   }
+
   isNot(that: EV<T>): Expr<boolean> {
     if (that == null || (that instanceof Expr && isConstant(that.expr, null)))
       return this.isNotNull()
     return binop(this, BinOp.NotEquals, that)
   }
+
   is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
     if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
       return this.isNull()
     return binop(this, BinOp.Equals, that)
   }
+
   isIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
     return binop(this, BinOp.In, that)
   }
+
   isNotIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
     return binop(this, BinOp.NotIn, that)
   }
+
   add(this: Expr<number>, that: EV<number>): Expr<number> {
     return binop(this, BinOp.Add, that)
   }
+
   substract(this: Expr<number>, that: EV<number>): Expr<number> {
     return binop(this, BinOp.Subt, that)
   }
+
   multiply(this: Expr<number>, that: EV<number>): Expr<number> {
     return binop(this, BinOp.Mult, that)
   }
+
   remainder(this: Expr<number>, that: EV<number>): Expr<number> {
     return binop(this, BinOp.Mod, that)
   }
+
   divide(this: Expr<number>, that: EV<number>): Expr<number> {
     return binop(this, BinOp.Div, that)
   }
+
   greater(that: EV<any>): Expr<boolean> {
     return binop(this, BinOp.Greater, that)
   }
+
   greaterOrEqual(that: EV<any>): Expr<boolean> {
     return binop(this, BinOp.GreaterOrEqual, that)
   }
+
   less(that: EV<any>): Expr<boolean> {
     return binop(this, BinOp.Less, that)
   }
+
   lessOrEqual(that: EV<any>): Expr<boolean> {
     return binop(this, BinOp.LessOrEqual, that)
   }
+
   concat(this: Expr<string>, that: EV<string>): Expr<string> {
     return binop(this, BinOp.Concat, that)
   }
+
   like(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return binop(this, BinOp.Like, that)
   }
+
   glob(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return binop(this, BinOp.Glob, that)
   }
+
   match(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return binop(this, BinOp.Match, that)
   }
+
   with<X extends Selection>(that: X): Selection.With<T, X> {
     return new Expr<Selection.Combine<T, X>>(
       ExprData.Merge(this.expr, ExprData.create(that))
     )
   }
-  private static uniqueId = 0
-  private __id() {
-    return `__id${Expr.uniqueId++}`
-  }
+
   at<T>(this: Expr<Array<T>>, index: number): Expr<T | null> {
     return this.get(`[${Number(index)}]`)
   }
+
   sure() {
     return this as Expr<NonNullable<T>>
   }
+
   get<T>(name: string): Expr<T> {
     return new Expr(ExprData.Field(this.expr, name as string))
-  }
-
-  static create<T>(input: EV<T>): Expr<T> {
-    if (input instanceof Expr) return input
-    return new Expr(ExprData.create(input))
   }
 }
 

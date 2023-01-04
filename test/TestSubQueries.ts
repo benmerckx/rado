@@ -4,8 +4,8 @@ import {column, create} from '../src'
 import {collection} from '../src/Collection'
 import {connect} from './DbSuite'
 
-test('IncludeMany', () => {
-  const query = connect()
+test('IncludeMany', async () => {
+  const query = await connect()
   const Role = collection({
     name: 'Role',
     columns: {
@@ -40,13 +40,13 @@ test('IncludeMany', () => {
       language: column.integer()
     }
   })
-  query(create(Role, User, Entry, Language, Version))
-  const role1 = query(Role.insertOne({name: 'role1'}))
-  const role2 = query(Role.insertOne({name: 'role2'}))
-  const user = query(User.insertOne({roles: [role1.id, role2.id]}))
+  await query(create(Role, User, Entry, Language, Version))
+  const role1 = await query(Role.insertOne({name: 'role1'}))
+  const role2 = await query(Role.insertOne({name: 'role2'}))
+  const user = await query(User.insertOne({roles: [role1.id, role2.id]}))
   const UserAlias = User.as('user1')
   const RoleAlias = Role.as('role')
-  const bundled = query(
+  const bundled = await query(
     UserAlias.first().select({
       ...UserAlias,
       roles: RoleAlias.select({
@@ -57,14 +57,14 @@ test('IncludeMany', () => {
     })
   )!
   assert.equal(bundled.roles, [{name: 'role1'}, {name: 'role2'}])
-  const entry = query(Entry.insertOne({}))
-  const language = query(Language.insertOne({entry: entry.id}))
-  const version1 = query(
+  const entry = await query(Entry.insertOne({}))
+  const language = await query(Language.insertOne({entry: entry.id}))
+  const version1 = await query(
     Version.insertOne({
       language: language.id
     })
   )
-  const version2 = query(
+  const version2 = await query(
     Version.insertOne({
       language: language.id
     })
@@ -73,7 +73,7 @@ test('IncludeMany', () => {
     ...Language,
     versions: Version.where(Version.language.is(Language.id))
   })
-  const page = query(Entry.select({...Entry, languages}).first())
+  const page = await query(Entry.select({...Entry, languages}).first())
   assert.equal(page, {
     ...entry,
     languages: [{...language, versions: [version1, version2]}]
