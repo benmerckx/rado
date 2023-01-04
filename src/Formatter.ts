@@ -1,4 +1,4 @@
-import {Column, ColumnType} from './Column'
+import {ColumnData, ColumnType} from './Column'
 import {BinOp, ExprData, ExprType, UnOp} from './Expr'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamType} from './Param'
@@ -109,7 +109,7 @@ export abstract class Formatter implements Sanitizer {
     return raw('insert into')
       .addCall(
         query.into.name,
-        ...columns.map(column => this.formatString(column.name))
+        ...columns.map(column => this.formatString(column.name!))
       )
       .add('values')
       .addSeparated(
@@ -158,16 +158,16 @@ export abstract class Formatter implements Sanitizer {
     )
   }
 
-  formatColumn(column: Column) {
-    return ident(column.name)
-      .add(this.formatType(column.data.type))
-      .addIf(column.data.notNull, 'not null')
-      .addIf(column.data.unique, 'unique')
-      .addIf(column.data.autoIncrement, 'autoincrement')
-      .addIf(column.data.primaryKey, 'primary key')
+  formatColumn(column: ColumnData) {
+    return ident(column.name!)
+      .add(this.formatType(column.type))
+      .addIf(!column.nullable, 'not null')
+      .addIf(column.unique, 'unique')
+      .addIf(column.autoIncrement, 'autoincrement')
+      .addIf(column.primaryKey, 'primary key')
       .addIf(
-        column.data.defaultValue !== undefined,
-        raw('default').value(column.data.defaultValue)
+        column.defaultValue !== undefined,
+        raw('default').value(column.defaultValue)
       )
   }
 
@@ -185,14 +185,17 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatInsertRow(columns: Record<string, Column>, row: Record<string, any>) {
+  formatInsertRow(
+    columns: Record<string, ColumnData>,
+    row: Record<string, any>
+  ) {
     return parenthesis(
       separated(
         Object.entries(columns).map(([property, column]) => {
           const columnValue = row[property]
           const isNull = columnValue === undefined || columnValue === null
           if (isNull) {
-            if (column.notNull)
+            if (!column.nullable)
               throw new TypeError(`Expected value for column ${property}`)
             return raw('null')
           }
@@ -420,7 +423,7 @@ export abstract class Formatter implements Sanitizer {
             Object.fromEntries(
               Object.entries(collection.columns).map(([key, column]) => [
                 key,
-                ExprData.Field(ExprData.Row(expr.target), column.name)
+                ExprData.Field(ExprData.Row(expr.target), column.name!)
               ])
             )
           ),

@@ -7,9 +7,10 @@ export const enum ColumnType {
   Array = 'Array'
 }
 
-export interface ColumnOptions<T> {
+export interface ColumnData<T = any> {
+  type: ColumnType
   name?: string
-  notNull?: boolean
+  nullable?: boolean
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
@@ -17,58 +18,51 @@ export interface ColumnOptions<T> {
   generated?: boolean
 }
 
-export interface ColumnData<T = any> extends ColumnOptions<T> {
-  type: ColumnType
-}
-
 export class Column<T = any> {
-  constructor(public name: string, public data: ColumnData<T>) {}
+  constructor(public data: ColumnData<T>) {}
 
-  get notNull() {
-    return this.data.notNull
+  name(name: string): Column<T> {
+    return new Column({...this.data, name})
   }
 
-  get type() {
-    return this.data.type
+  nullable(): Column<T | null> {
+    return new Column({...this.data, nullable: true})
   }
-}
 
-function typeFactory(defaultOptions: ColumnOptions<any> = {}) {
-  return {
-    string<T extends string = string>(
-      options: ColumnOptions<T> = {}
-    ): ColumnData<T> {
-      return {type: ColumnType.String, ...options}
-    },
-    integer<T extends number = number>(
-      options: ColumnOptions<T> = {}
-    ): ColumnData<T> {
-      return {type: ColumnType.Integer, ...options}
-    },
-    number<T extends number = number>(
-      options: ColumnOptions<T> = {}
-    ): ColumnData<T> {
-      return {type: ColumnType.Number, ...options}
-    },
-    boolean<T extends boolean = boolean>(
-      options: ColumnOptions<T> = {}
-    ): ColumnData<T> {
-      return {type: ColumnType.Boolean, ...options}
-    },
-    object<T extends object = object>(
-      options: ColumnOptions<T> = {}
-    ): ColumnData<T> {
-      return {type: ColumnType.Object, ...options}
-    },
-    array<T = any>(
-      options: ColumnOptions<Array<T>> = {}
-    ): ColumnData<Array<T>> {
-      return {type: ColumnType.Array, ...options}
-    }
+  autoIncrement(): Column<T> {
+    return new Column({...this.data, autoIncrement: true})
+  }
+
+  primaryKey(): Column<T> {
+    return new Column({...this.data, primaryKey: true})
+  }
+
+  unique(): Column<T> {
+    return new Column({...this.data, unique: true})
+  }
+
+  defaultValue(value: T): Column<T> {
+    return new Column({...this.data, defaultValue: value})
   }
 }
 
 export const column = {
-  ...typeFactory(),
-  generated: typeFactory({generated: true})
+  string<T extends string = string>(): Column<T> {
+    return new Column({type: ColumnType.String})
+  },
+  integer<T extends number = number>(): Column<T> {
+    return new Column({type: ColumnType.Integer})
+  },
+  number<T extends number = number>(): Column<T> {
+    return new Column({type: ColumnType.Number})
+  },
+  boolean<T extends boolean = boolean>(): Column<T> {
+    return new Column({type: ColumnType.Boolean})
+  },
+  object<T extends object = object>(): Column<T> {
+    return new Column({type: ColumnType.Object})
+  },
+  array<T = any>(): Column<Array<T>> {
+    return new Column({type: ColumnType.Array})
+  }
 }
