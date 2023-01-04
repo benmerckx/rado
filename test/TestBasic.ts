@@ -157,6 +157,22 @@ test('json', async () => {
   assert.is(res1.fieldB, 5)
 })
 
+test('bytes', async () => {
+  const query = await connect()
+  const Test = collection({
+    name: 'test',
+    columns: {
+      id: column.integer().primaryKey(),
+      prop: column.blob()
+    }
+  })
+  await query(create(Test))
+  const a = {prop: new Uint8Array([1, 2, 3])}
+  await query(insertInto(Test).values(a))
+  const res = await query(Test.first())!
+  assert.equal(res!.prop, new Uint8Array([1, 2, 3]))
+})
+
 test('each', async () => {
   const query = await connect()
   const a = {

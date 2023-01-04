@@ -4,7 +4,8 @@ export const enum ColumnType {
   Number = 'Number',
   Boolean = 'Boolean',
   Object = 'Object',
-  Array = 'Array'
+  Array = 'Array',
+  Blob = 'Blob'
 }
 
 export interface ColumnData {
@@ -69,5 +70,8 @@ export const column = {
   },
   array<T = any>(): Column<Array<T>> {
     return new Column({type: ColumnType.Array})
+  },
+  blob<T extends ArrayBuffer = Uint8Array>(): Column<T> {
+    return new Column({type: ColumnType.Blob})
   }
 }

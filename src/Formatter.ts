@@ -194,6 +194,8 @@ export abstract class Formatter implements Sanitizer {
         return raw('numeric')
       case ColumnType.Integer:
         return raw('integer')
+      case ColumnType.Blob:
+        return raw('blob')
     }
   }
 
@@ -245,6 +247,10 @@ export abstract class Formatter implements Sanitizer {
         if (!Array.isArray(columnValue))
           throw new TypeError(`Expected array for column ${column.name}`)
         return value(JSON.stringify(columnValue))
+      case ColumnType.Blob:
+        if (!(columnValue instanceof Uint8Array))
+          throw new TypeError(`Expected Uint8Array for column ${column.name}`)
+        return value(columnValue)
     }
   }
 
