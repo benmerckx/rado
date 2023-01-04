@@ -2,8 +2,10 @@ import {Sanitizer} from './Sanitizer'
 
 const enum TokenType {
   Raw = 'Raw',
-  Ident = 'Ident',
-  Value = 'Value'
+  Identifier = 'Identifier',
+  Value = 'Value',
+  Indent = 'Indent',
+  Dedent = 'Dedent'
 }
 
 class Token {
@@ -13,8 +15,16 @@ class Token {
     return new Token(TokenType.Raw, data)
   }
 
-  static Ident(data: string) {
-    return new Token(TokenType.Ident, data)
+  static Indent() {
+    return new Token(TokenType.Indent, null)
+  }
+
+  static Dedent() {
+    return new Token(TokenType.Dedent, null)
+  }
+
+  static Identifier(data: string) {
+    return new Token(TokenType.Identifier, data)
   }
 
   static Value(data: any) {
@@ -22,8 +32,9 @@ class Token {
   }
 }
 
-const SEPARATE = ', '
+const SEPARATE = ','
 const WHITESPACE = ' '
+const NEWLINE = '\n'
 
 export class Statement {
   constructor(public tokens: Array<Token>) {}
@@ -45,7 +56,7 @@ export class Statement {
   }
 
   call(method: string, ...args: Array<Statement>) {
-    return this.ident(method).parenthesis(separated(args))
+    return this.identifier(method).parenthesis(separated(args))
   }
 
   addCall(method: string, ...args: Array<Statement>) {
@@ -58,17 +69,38 @@ export class Statement {
     return this.space().concat(Statement.create(addition))
   }
 
-  addIf(condition: any, addition: string | Statement) {
+  addLine(addition: undefined | string | Statement) {
+    if (!addition) return this
+    if (addition instanceof Statement && addition.isEmpty()) return this
+    return this.newline().concat(Statement.create(addition))
+  }
+
+  addIf(
+    condition: any,
+    addition: string | Statement | (() => string | Statement)
+  ) {
     if (!condition) return this
-    return this.add(addition)
+    return this.add(typeof addition === 'function' ? addition() : addition)
   }
 
-  ident(name: string) {
-    return this.concat(Token.Ident(name))
+  indent() {
+    return this.concat(Token.Indent())
   }
 
-  addIdent(name: string) {
-    return this.space().ident(name)
+  dedent() {
+    return this.concat(Token.Dedent())
+  }
+
+  newline() {
+    return this.raw(NEWLINE)
+  }
+
+  identifier(name: string) {
+    return this.concat(Token.Identifier(name))
+  }
+
+  addIdentifier(name: string) {
+    return this.space().identifier(name)
   }
 
   value(value: any) {
@@ -85,7 +117,13 @@ export class Statement {
   }
 
   parenthesis(inner: string | Statement) {
-    return this.raw('(').concat(Statement.create(inner)).raw(')')
+    return this.raw('(')
+      .indent()
+      .newline()
+      .concat(Statement.create(inner))
+      .dedent()
+      .newline()
+      .raw(')')
   }
 
   addParenthesis(stmnt: string | Statement) {
@@ -95,7 +133,9 @@ export class Statement {
   separated(input: Array<Statement>, separator = SEPARATE) {
     return this.concat(
       ...input.flatMap((stmt, i) =>
-        i === 0 ? stmt.tokens : [Token.Raw(separator), ...stmt.tokens]
+        i === 0
+          ? stmt.tokens
+          : [Token.Raw(separator), Token.Raw(NEWLINE), ...stmt.tokens]
       )
     )
   }
@@ -115,13 +155,15 @@ export class Statement {
 
   compile(sanitizer: Sanitizer, formatInline = false): [string, Array<any>] {
     let sql = '',
-      params = []
+      params = [],
+      indent = ''
     for (const token of this.tokens) {
       switch (token.type) {
         case TokenType.Raw:
-          sql += token.data
+          if (token.data === NEWLINE) sql += NEWLINE + indent
+          else sql += token.data
           break
-        case TokenType.Ident:
+        case TokenType.Identifier:
           sql += sanitizer.escapeIdent(token.data)
           break
         case TokenType.Value:
@@ -132,10 +174,20 @@ export class Statement {
             params.push(token.data === undefined ? null : token.data)
           }
           break
+        case TokenType.Indent:
+          indent += '  '
+          break
+        case TokenType.Dedent:
+          indent = indent.slice(0, -2)
+          break
       }
     }
     return [sql, params]
   }
+}
+
+export function newline() {
+  return new Statement([Token.Raw(NEWLINE)])
 }
 
 export function raw(raw: string) {
@@ -143,7 +195,7 @@ export function raw(raw: string) {
 }
 
 export function ident(name: string) {
-  return new Statement([Token.Ident(name)])
+  return new Statement([Token.Identifier(name)])
 }
 
 export function value(value: any) {

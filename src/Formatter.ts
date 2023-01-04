@@ -8,6 +8,7 @@ import {
   Statement,
   call,
   ident,
+  newline,
   parenthesis,
   raw,
   separated,
@@ -70,7 +71,7 @@ export abstract class Formatter implements Sanitizer {
     const result = this.format(query, {
       formatSubject: select => call('json_object', raw("'result'"), select)
     }).compile(this, formatInline)
-    console.log(result)
+    // console.log(result[0])
     return result
   }
 
@@ -93,9 +94,9 @@ export abstract class Formatter implements Sanitizer {
 
   formatSelect(query: Query.Select, ctx: FormatContext) {
     return raw('select')
-      .add(this.formatSelection(query, ctx))
-      .addIf(ctx.nameResult, raw('as').addIdent(ctx.nameResult!))
-      .add('from')
+      .add(this.formatSelection(query.selection, ctx))
+      .addIf(ctx.nameResult, raw('as').addIdentifier(ctx.nameResult!))
+      .addLine('from')
       .add(this.formatTarget(query.from, ctx))
       .add(this.formatWhere(query.where, ctx))
       .add(this.formatGroupBy(query.groupBy, ctx))
@@ -115,18 +116,28 @@ export abstract class Formatter implements Sanitizer {
       .addSeparated(
         query.data.map(row => this.formatInsertRow(query.into.columns, row))
       )
+      .addIf(query.selection, () =>
+        raw('returning').add(this.formatSelection(query.selection!, ctx))
+      )
   }
 
   formatUpdate(query: Query.Update, ctx: FormatContext) {
     const data = query.set || {}
     return raw('update')
-      .addIdent(query.collection.name)
+      .addIdentifier(query.collection.name)
       .add('set')
       .addSeparated(
-        Object.keys(data).map(column => {
-          return ident(column)
+        Object.keys(data).map(key => {
+          const column = query.collection.columns[key]
+          const exprData = data[key]
+          return ident(key)
             .add('=')
-            .add(this.formatExprValue(ExprData.create(data[column]), ctx))
+            .add(
+              this.formatExpr(ExprData.create(data[key]), {
+                ...ctx,
+                formatAsJson: true
+              })
+            )
         })
       )
       .add(this.formatWhere(query.where, ctx))
@@ -135,7 +146,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatDelete(query: Query.Delete, ctx: FormatContext) {
     return raw('delete from')
-      .addIdent(query.collection.name)
+      .addIdentifier(query.collection.name)
       .add(this.formatWhere(query.where, ctx))
       .add(this.formatLimit(query, ctx))
   }
@@ -161,10 +172,10 @@ export abstract class Formatter implements Sanitizer {
   formatColumn(column: ColumnData) {
     return ident(column.name!)
       .add(this.formatType(column.type))
-      .addIf(!column.nullable, 'not null')
       .addIf(column.unique, 'unique')
       .addIf(column.autoIncrement, 'autoincrement')
       .addIf(column.primaryKey, 'primary key')
+      .addIf(!column.nullable, 'not null')
       .addIf(
         column.defaultValue !== undefined,
         raw('default').value(column.defaultValue)
@@ -193,48 +204,60 @@ export abstract class Formatter implements Sanitizer {
       separated(
         Object.entries(columns).map(([property, column]) => {
           const columnValue = row[property]
-          const isNull = columnValue === undefined || columnValue === null
-          if (isNull) {
-            if (!column.nullable)
-              throw new TypeError(`Expected value for column ${property}`)
-            return raw('null')
-          }
-          switch (column.type) {
-            case ColumnType.String:
-              if (typeof columnValue !== 'string')
-                throw new TypeError(`Expected string for column ${property}`)
-              return value(columnValue)
-            case ColumnType.Integer:
-            case ColumnType.Number:
-              if (typeof columnValue !== 'number')
-                throw new TypeError(`Expected number for column ${property}`)
-              return value(columnValue)
-            case ColumnType.Boolean:
-              if (typeof columnValue !== 'boolean')
-                throw new TypeError(`Expected boolean for column ${property}`)
-              return value(columnValue)
-            case ColumnType.Object:
-              if (typeof columnValue !== 'object')
-                throw new TypeError(`Expected object for column ${property}`)
-              return value(JSON.stringify(columnValue))
-            case ColumnType.Array:
-              if (!Array.isArray(columnValue))
-                throw new TypeError(`Expected array for column ${property}`)
-              return value(JSON.stringify(columnValue))
-          }
+          return this.formatColumnValue(column, columnValue)
         })
       )
     )
   }
 
+  formatColumnValue(column: ColumnData, columnValue: any) {
+    const isNull = columnValue === undefined || columnValue === null
+    const isOptional =
+      column.nullable ||
+      column.autoIncrement ||
+      column.primaryKey ||
+      column.defaultValue
+    if (isNull) {
+      if (!isOptional)
+        throw new TypeError(`Expected value for column ${column.name}`)
+      return raw('null')
+    }
+    switch (column.type) {
+      case ColumnType.String:
+        if (typeof columnValue !== 'string')
+          throw new TypeError(`Expected string for column ${column.name}`)
+        return value(columnValue)
+      case ColumnType.Integer:
+      case ColumnType.Number:
+        if (typeof columnValue !== 'number')
+          throw new TypeError(`Expected number for column ${column.name}`)
+        return value(columnValue)
+      case ColumnType.Boolean:
+        if (typeof columnValue !== 'boolean')
+          throw new TypeError(`Expected boolean for column ${column.name}`)
+        return value(columnValue)
+      case ColumnType.Object:
+        if (typeof columnValue !== 'object')
+          throw new TypeError(`Expected object for column ${column.name}`)
+        return value(JSON.stringify(columnValue))
+      case ColumnType.Array:
+        if (!Array.isArray(columnValue))
+          throw new TypeError(`Expected array for column ${column.name}`)
+        return value(JSON.stringify(columnValue))
+    }
+  }
+
   formatTarget(target: Target, ctx: FormatContext): Statement {
     switch (target.type) {
       case TargetType.Collection:
-        return ident(target.collection.alias || target.collection.name)
+        return ident(target.collection.name).addIf(
+          target.collection.alias,
+          () => raw('as').addIdentifier(target.collection.alias!)
+        )
       case TargetType.Join:
         const {left, right, joinType} = target
         return this.formatTarget(left, ctx)
-          .add(joins[joinType])
+          .addLine(joins[joinType])
           .add('join')
           .add(this.formatTarget(right, ctx))
           .add('on')
@@ -246,43 +269,43 @@ export abstract class Formatter implements Sanitizer {
 
   formatWhere(expr: ExprData | undefined, ctx: FormatContext) {
     if (!expr) return
-    return raw('where').add(this.formatExprValue(expr, ctx))
+    return newline().raw('where').add(this.formatExprValue(expr, ctx))
   }
 
   formatHaving(expr: ExprData | undefined, ctx: FormatContext) {
     if (!expr) return
-    return raw('having').add(this.formatExprValue(expr, ctx))
+    return newline().raw('having').add(this.formatExprValue(expr, ctx))
   }
 
   formatGroupBy(groupBy: Array<ExprData> | undefined, ctx: FormatContext) {
     if (!groupBy) return
-    return raw('group by').addSeparated(
-      groupBy.map(expr => this.formatExprValue(expr, ctx))
-    )
+    return newline()
+      .raw('group by')
+      .addSeparated(groupBy.map(expr => this.formatExprValue(expr, ctx)))
   }
 
   formatOrderBy(orderBy: Array<OrderBy> | undefined, ctx: FormatContext) {
     if (!orderBy) return
-    return raw('order by').addSeparated(
-      orderBy.map(({expr, order}) =>
-        this.formatExprValue(expr, ctx).add(
-          order === OrderDirection.Asc ? 'asc' : 'desc'
+    return newline()
+      .raw('order by')
+      .addSeparated(
+        orderBy.map(({expr, order}) =>
+          this.formatExprValue(expr, ctx).add(
+            order === OrderDirection.Asc ? 'asc' : 'desc'
+          )
         )
       )
-    )
   }
 
   formatLimit({limit, offset}: Query.Limit, ctx: FormatContext) {
     if (!limit && !offset) return
-    return raw('limit')
+    return newline()
+      .raw('limit')
       .addValue(limit)
       .addIf(offset && offset > 0, raw('offset').addValue(offset))
   }
 
-  formatSelection(
-    {selection, from}: Query.Select,
-    ctx: FormatContext
-  ): Statement {
+  formatSelection(selection: ExprData, ctx: FormatContext): Statement {
     const {formatSubject} = ctx
     const subject = this.formatExpr(selection, {
       ...ctx,
@@ -333,7 +356,7 @@ export abstract class Formatter implements Sanitizer {
               expr.target.collection.alias || expr.target.collection.name
             )
               .raw('.')
-              .ident(field)
+              .identifier(field)
             const column = expr.target.collection.columns[field]
             switch (column?.type) {
               case ColumnType.Array:
@@ -403,17 +426,33 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Field:
         return this.formatField(expr.expr, expr.field, ctx)
       case ExprType.Call: {
-        const params = expr.params.map(expr => this.formatExprValue(expr, ctx))
-        return call(expr.method, ...params)
+        if (expr.method === 'cast') {
+          const [e, type] = expr.params
+          const typeName =
+            type.type === ExprType.Param &&
+            type.param.type === ParamType.Value &&
+            type.param.value
+          return raw('cast').parenthesis(
+            this.formatExprValue(e, ctx)
+              .add('as')
+              .add(this.formatString(typeName))
+          )
+        } else {
+          const params = expr.params.map(expr =>
+            this.formatExprValue(expr, ctx)
+          )
+          return call(expr.method, ...params)
+        }
       }
       case ExprType.Query:
         if (!ctx.formatAsJson) return parenthesis(this.format(expr.query, ctx))
         const subQuery = this.format(expr.query, {...ctx, nameResult: 'result'})
         if (expr.query.singleResult) return call('json', parenthesis(subQuery))
         return parenthesis(
-          raw('select json_group_array(json(result)) from ').parenthesis(
-            subQuery
-          )
+          raw('select json_group_array(json(result))')
+            .newline()
+            .raw('from ')
+            .parenthesis(subQuery)
         )
       case ExprType.Row:
         const collection = Target.source(expr.target)
@@ -441,7 +480,8 @@ export abstract class Formatter implements Sanitizer {
           ...Object.entries(expr.fields).map(([key, value]) => {
             return this.formatString(key)
               .raw(',')
-              .add(this.formatExpr(value, {...ctx, formatAsJson: true}))
+              .newline()
+              .concat(this.formatExpr(value, {...ctx, formatAsJson: true}))
           })
         )
       default:

@@ -1,5 +1,6 @@
 import {Collection, CollectionData} from './Collection'
 import {EV, Expr, ExprData} from './Expr'
+import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
 import {Query} from './Query'
 import {Selection} from './Selection'
@@ -20,6 +21,10 @@ export class Cursor<T> {
 
   query(): Query<T> {
     throw new Error('Not implemented')
+  }
+
+  toJSON() {
+    return this.query()
   }
 }
 
@@ -62,12 +67,26 @@ export namespace Cursor {
     }
   }
 
-  export class InsertValues extends Cursor<{rowsAffected: number}> {}
+  export class InsertValuesReturning<T> extends Cursor<T> {}
+
+  export class InsertValues extends Cursor<{rowsAffected: number}> {
+    query(): Query.Insert {
+      return super.query() as Query.Insert
+    }
+
+    returning<X extends Selection>(
+      selection: X
+    ): InsertValuesReturning<Selection.Infer<X>> {
+      return new InsertValuesReturning<Selection.Infer<X>>(
+        Query.Insert({...this.query(), selection: ExprData.create(selection)})
+      )
+    }
+  }
 
   export class Insert<T> {
     constructor(protected into: CollectionData) {}
 
-    values(...data: Array<T>): InsertValues {
+    values(...data: Array<Collection.Insert<T>>): InsertValues {
       return new InsertValues(Query.Insert({into: this.into, data}))
     }
   }
@@ -78,7 +97,7 @@ export namespace Cursor {
     }
   }
 
-  export class Batch extends Cursor<void> {
+  export class Batch<T = void> extends Cursor<T> {
     constructor(protected queries: Array<Query>) {
       super(Query.Batch({queries}))
     }
@@ -91,7 +110,7 @@ export namespace Cursor {
 
     leftJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectMultiple<T> {
       const query = this.query()
-      return new SelectMultiple<T>({
+      return new SelectMultiple({
         ...query,
         from: Target.Join(
           query.from,
@@ -104,7 +123,7 @@ export namespace Cursor {
 
     innerJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectMultiple<T> {
       const query = this.query()
-      return new SelectMultiple<T>({
+      return new SelectMultiple({
         ...query,
         from: Target.Join(
           query.from,
@@ -118,9 +137,17 @@ export namespace Cursor {
     select<X extends Selection>(
       selection: X
     ): SelectMultiple<Selection.Infer<X>> {
-      return new SelectMultiple<Selection.Infer<X>>({
+      return new SelectMultiple({
         ...this.query(),
         selection: ExprData.create(selection)
+      })
+    }
+
+    count(): SelectSingle<number> {
+      return new SelectSingle({
+        ...this.query(),
+        selection: Functions.count().expr,
+        singleResult: true
       })
     }
 
@@ -138,19 +165,27 @@ export namespace Cursor {
       })
     }
 
-    first(): SelectSingle<T> {
-      return new SelectSingle<T>({...this.query(), singleResult: true})
+    first(): SelectSingle<T | null> {
+      return new SelectSingle({...this.query(), singleResult: true})
+    }
+
+    where(...where: Array<EV<boolean>>): SelectMultiple<T> {
+      return new SelectMultiple(super.where(...where).query())
+    }
+
+    toExpr(): Expr<T> {
+      return new Expr<T>(ExprData.Query(this.query()))
     }
   }
 
-  export class SelectSingle<T> extends Filterable<T | null> {
+  export class SelectSingle<T> extends Filterable<T> {
     query(): Query.Select {
       return super.query() as Query.Select
     }
 
     leftJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectSingle<T> {
       const query = this.query()
-      return new SelectSingle<T>({
+      return new SelectSingle({
         ...query,
         from: Target.Join(
           query.from,
@@ -163,7 +198,7 @@ export namespace Cursor {
 
     innerJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectSingle<T> {
       const query = this.query()
-      return new SelectSingle<T>({
+      return new SelectSingle({
         ...query,
         from: Target.Join(
           query.from,
@@ -177,7 +212,7 @@ export namespace Cursor {
     select<X extends Selection>(
       selection: X
     ): SelectSingle<Selection.Infer<X>> {
-      return new SelectSingle<Selection.Infer<X>>({
+      return new SelectSingle({
         ...this.query(),
         selection: ExprData.create(selection)
       })
@@ -195,6 +230,14 @@ export namespace Cursor {
         ...this.query(),
         groupBy: groupBy.map(ExprData.create)
       })
+    }
+
+    where(...where: Array<EV<boolean>>): SelectSingle<T> {
+      return new SelectSingle(super.where(...where).query())
+    }
+
+    toExpr(): Expr<T> {
+      return new Expr<T>(ExprData.Query(this.query()))
     }
   }
 }

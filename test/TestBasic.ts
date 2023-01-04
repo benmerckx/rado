@@ -38,7 +38,7 @@ test('filters', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       prop: column.number()
     }
   })
@@ -55,7 +55,7 @@ test('select', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       propA: column.number(),
       propB: column.number()
     }
@@ -87,12 +87,12 @@ test('update', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       propA: column.number(),
       propB: column.number()
     }
   })
-  query(Test.create())
+  query(Test.createTable())
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
   query(Test.insertAll([a, b]))
@@ -137,7 +137,7 @@ test('json', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       prop: column.number(),
       propB: column.number()
     }
@@ -157,7 +157,7 @@ test('json', () => {
   assert.is(res1.fieldB, 5)
 })
 
-test.only('each', () => {
+test('each', () => {
   const query = connect()
   const a = {
     refs: [
@@ -168,7 +168,7 @@ test.only('each', () => {
   const Test = collection({
     name: 'test',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       refs: column.array<{id: string; type: string}>()
     }
   })
@@ -176,7 +176,7 @@ test.only('each', () => {
   const Entry = collection({
     name: 'Entry',
     columns: {
-      id: column.integer({primaryKey: true}),
+      id: column.integer().primaryKey(),
       title: column.string()
     }
   })

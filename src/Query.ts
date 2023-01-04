@@ -4,12 +4,12 @@ import {OrderBy} from './OrderBy'
 import {Target} from './Target'
 
 export const enum QueryType {
-  Insert,
-  Select,
-  Update,
-  Delete,
-  CreateTable,
-  Batch
+  Insert = 'Insert',
+  Select = 'Select',
+  Update = 'Update',
+  Delete = 'Delete',
+  CreateTable = 'CreateTable',
+  Batch = 'Batch'
 }
 
 export type Query<T = any> =
@@ -31,6 +31,8 @@ export namespace Query {
     orderBy?: Array<OrderBy>
     groupBy?: Array<ExprData>
     having?: ExprData
+    selection?: ExprData
+    singleResult?: boolean
   }
   export interface Insert extends QueryBase {
     type: QueryType.Insert
@@ -44,7 +46,6 @@ export namespace Query {
     type: QueryType.Select
     selection: ExprData
     from: Target
-    singleResult?: boolean
   }
   export function Select<T>(select: Omit<Select, 'type'>): Query<T> {
     return {type: QueryType.Select, ...select}

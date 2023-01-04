@@ -1,13 +1,17 @@
+import {Column} from './Column'
 import {Expr} from './Expr'
 
+// https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
+type Field<T> = [T] extends [Array<any>]
+  ? Expr<T>
+  : [T] extends [Column.Optional & infer V]
+  ? Field<V>
+  : [T] extends [Record<string, any>]
+  ? FieldsOf<T>
+  : Expr<T>
+
 type FieldsOf<Row> = Row extends Record<string, any>
-  ? {
-      [K in keyof Row]-?: Row[K] extends Array<any>
-        ? Expr<Row[K]>
-        : Row[K] extends object | undefined
-        ? FieldsOf<Row[K]>
-        : Expr<Row[K]>
-    }
+  ? {[K in keyof Row]-?: Field<Row[K]>}
   : never
 
 // Source: https://stackoverflow.com/a/61625831/5872160

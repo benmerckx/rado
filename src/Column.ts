@@ -7,19 +7,19 @@ export const enum ColumnType {
   Array = 'Array'
 }
 
-export interface ColumnData<T = any> {
+export interface ColumnData {
   type: ColumnType
   name?: string
   nullable?: boolean
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
-  defaultValue?: T
+  defaultValue?: any
   generated?: boolean
 }
 
 export class Column<T = any> {
-  constructor(public data: ColumnData<T>) {}
+  constructor(public data: ColumnData) {}
 
   name(name: string): Column<T> {
     return new Column({...this.data, name})
@@ -29,11 +29,11 @@ export class Column<T = any> {
     return new Column({...this.data, nullable: true})
   }
 
-  autoIncrement(): Column<T> {
+  autoIncrement(): Column<T & Column.Optional> {
     return new Column({...this.data, autoIncrement: true})
   }
 
-  primaryKey(): Column<T> {
+  primaryKey(): Column<T & Column.Optional> {
     return new Column({...this.data, primaryKey: true})
   }
 
@@ -41,9 +41,14 @@ export class Column<T = any> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(value: T): Column<T> {
+  defaultValue(value: T): Column<T & Column.Optional> {
     return new Column({...this.data, defaultValue: value})
   }
+}
+
+export namespace Column {
+  declare const isOptional: unique symbol
+  export type Optional = {[isOptional]: true}
 }
 
 export const column = {

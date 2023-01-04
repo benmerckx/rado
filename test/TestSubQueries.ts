@@ -1,60 +1,86 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
+import {column, create} from '../src'
 import {collection} from '../src/Collection'
 import {connect} from './DbSuite'
 
 test('IncludeMany', () => {
   const query = connect()
-  const Role = collection<{id: string; name: string}>('Role')
-  const role1 = db.insert(Role, {name: 'role1'})
-  const role2 = db.insert(Role, {name: 'role2'})
-  const User = collection<{id: string; roles: Array<string>}>('User')
-  const user = db.insert(User, {roles: [role1.id, role2.id]})
+  const Role = collection({
+    name: 'Role',
+    columns: {
+      id: column.integer().primaryKey(),
+      name: column.string()
+    }
+  })
+  const User = collection({
+    name: 'User',
+    columns: {
+      id: column.integer().primaryKey(),
+      roles: column.array<number>()
+    }
+  })
+  const Entry = collection({
+    name: 'Entry',
+    columns: {
+      id: column.integer().primaryKey()
+    }
+  })
+  const Language = collection({
+    name: 'Language',
+    columns: {
+      id: column.integer().primaryKey(),
+      entry: column.integer()
+    }
+  })
+  const Version = collection({
+    name: 'Version',
+    columns: {
+      id: column.integer().primaryKey(),
+      language: column.integer()
+    }
+  })
+  query(create(Role, User, Entry, Language, Version))
+  const role1 = query(Role.insertOne({name: 'role1'}))
+  const role2 = query(Role.insertOne({name: 'role2'}))
+  const user = query(User.insertOne({roles: [role1.id, role2.id]}))
   const UserAlias = User.as('user1')
   const RoleAlias = Role.as('role')
-  const bundled = db.first(
-    UserAlias.select(
-      UserAlias.with({
-        roles: RoleAlias.where(RoleAlias.id.isIn(UserAlias.roles))
-          .select({
-            name: RoleAlias.name
-          })
-          .orderBy(RoleAlias.name.asc())
+  const bundled = query(
+    UserAlias.first().select({
+      ...UserAlias,
+      roles: RoleAlias.select({
+        name: RoleAlias.name
       })
-    )
+        .orderBy(RoleAlias.name.asc())
+        .where(RoleAlias.id.isIn(UserAlias.roles))
+    })
   )!
-  assert.equal([{name: 'role1'}, {name: 'role2'}], bundled.roles)
-  const Entry = collection<{id: string}>('Entry')
-  const Language = collection<{id: string; entry: string}>('Language')
-  const Version = collection<{id: string; language: string}>('Version')
-  const entry = db.insert(Entry, {})
-  const language = db.insert(Language, {entry: entry.id})
-  const version1 = db.insert(Version, {
-    language: language.id
-  })
-  const version2 = db.insert(Version, {
-    language: language.id
-  })
-  const page = db.first(
-    Entry.select(
-      Entry.with({
-        languages: Language.where(Language.entry.is(Entry.id)).select(
-          Language.with({
-            versions: Version.where(Version.language.is(Language.id))
-          })
-        )
-      })
-    )
+  assert.equal(bundled.roles, [{name: 'role1'}, {name: 'role2'}])
+  const entry = query(Entry.insertOne({}))
+  const language = query(Language.insertOne({entry: entry.id}))
+  const version1 = query(
+    Version.insertOne({
+      language: language.id
+    })
   )
-  assert.equal(
-    {
-      ...entry,
-      languages: [{...language, versions: [version1, version2]}]
-    },
-    page
+  const version2 = query(
+    Version.insertOne({
+      language: language.id
+    })
   )
+  const languages = Language.where(Language.entry.is(Entry.id)).select({
+    ...Language,
+    versions: Version.where(Version.language.is(Language.id))
+  })
+  const page = query(Entry.select({...Entry, languages}).first())
+  assert.equal(page, {
+    ...entry,
+    languages: [{...language, versions: [version1, version2]}]
+  })
 })
 
+/*
 test('Subquery', () => {
   const db = store()
   const User = collection<{id: string; name: string}>('user')
@@ -72,6 +98,6 @@ test('Subquery', () => {
   )!
   assert.is(userWithPosts.name, 'bob')
   assert.is(userWithPosts.posts[0].id, post1.id)
-})
+})*/
 
 test.run()

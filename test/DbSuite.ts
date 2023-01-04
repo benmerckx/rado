@@ -5,7 +5,7 @@ import {createConnection as createSqlJsConnection} from '../src/driver/sql.js'
 
 const {Database} = await sqlite()
 
-const useWasm = false
+const useWasm = true
 
 function createBetterSqlite3Db() {
   return createBetterSqlite3Connection(new BetterSqlite3Database(':memory:'))

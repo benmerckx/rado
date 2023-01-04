@@ -9,9 +9,9 @@ interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 
 export namespace Selection {
-  export type Infer<T> = T extends Cursor.Filterable<Array<infer K>>
+  export type Infer<T> = T extends Cursor<Array<infer K>>
     ? K
-    : T extends Cursor.Filterable<infer K>
+    : T extends Cursor<infer K>
     ? K
     : T extends Expr<infer K>
     ? K
