@@ -1,15 +1,21 @@
 import type {Database} from 'sqlite3'
-import {Connection} from '../Connection'
-import {Cursor} from '../Cursor'
-import {Query, QueryType} from '../Query'
+import {Driver} from '../Driver'
+import {Query} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
-export function createConnection(db: Database): Connection.Async {
-  const formatter = new SqliteFormatter()
-  function run<T>(query: Query<T>): Promise<T> {
+class Sqlite3Driver extends Driver.Async {
+  formatter = new SqliteFormatter()
+  lock: Promise<void> | undefined
+
+  constructor(private db: Database) {
+    super()
+  }
+
+  async execute<T>(query: Query<T>): Promise<T> {
+    await this.lock
     return new Promise<T>((resolve, reject) => {
-      const [sql, params] = formatter.compile(query)
-      const stmt = db.prepare(sql)
+      const [sql, params] = this.formatter.compile(query)
+      const stmt = this.db.prepare(sql)
       if ('selection' in query) {
         stmt.all(params, (err, rows) => {
           const res = rows.map(row => JSON.parse(row.result).result)
@@ -24,16 +30,18 @@ export function createConnection(db: Database): Connection.Async {
       }
     })
   }
-  return async <T>(cursor: Cursor<T>): Promise<T> => {
-    const query = cursor.query()
-    switch (query.type) {
-      case QueryType.Batch:
-        let result
-        const stmts = query.queries
-        for (const query of stmts) result = await run(query)
-        return result as T
-      default:
-        return run(query)
-    }
+
+  isolate(): [connection: Driver.Async, release: () => Promise<void>] {
+    const connection = new Sqlite3Driver(this.db)
+    let release!: () => Promise<void>,
+      trigger = new Promise<void>(resolve => {
+        release = async () => resolve()
+      })
+    this.lock = Promise.resolve(this.lock).then(() => trigger)
+    return [connection, release]
   }
+}
+
+export function connect(db: Database) {
+  return new Sqlite3Driver(db)
 }

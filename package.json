@@ -23,14 +23,11 @@
     "test": "tsx test"
   },
   "devDependencies": {
-    "@alinea/sqlite-wasm": "^0.1.11",
     "@types/better-sqlite3": "^5.4.1",
     "@types/sql.js": "^1.4.2",
     "better-sqlite3": "^7.5.1",
-    "convert-hrtime": "^5.0.0",
-    "nanoid": "^4.0.0",
-    "pretty-ms": "^8.0.0",
     "sade": "^1.8.1",
+    "sql.js": "^1.8.0",
     "sqlite3": "^5.1.4",
     "tsx": "^3.12.1",
     "typescript": "^4.9.4",

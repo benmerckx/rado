@@ -9,7 +9,8 @@ export const enum QueryType {
   Update = 'Update',
   Delete = 'Delete',
   CreateTable = 'CreateTable',
-  Batch = 'Batch'
+  Batch = 'Batch',
+  Transaction = 'Transaction'
 }
 
 export type Query<T = any> =
@@ -19,8 +20,14 @@ export type Query<T = any> =
   | Query.Delete
   | Query.CreateTable
   | Query.Batch
+  | Query.Transaction
 
 export namespace Query {
+  export function Transaction<T>(
+    transaction: Omit<Transaction, 'type'>
+  ): Query<T> {
+    return {type: QueryType.Transaction, ...transaction}
+  }
   export interface Limit {
     limit?: number
     offset?: number
@@ -85,5 +92,15 @@ export namespace Query {
   }
   export function Batch<T>(batch: Omit<Batch, 'type'>): Query<void> {
     return {type: QueryType.Batch, ...batch}
+  }
+  export enum TransactionOperation {
+    Begin = 'Begin',
+    Commit = 'Commit',
+    Rollback = 'Rollback'
+  }
+  export interface Transaction extends QueryBase {
+    type: QueryType.Transaction
+    id: string
+    op: TransactionOperation
   }
 }

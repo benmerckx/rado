@@ -5,22 +5,6 @@ __metadata:
   version: 6
   cacheKey: 8
 
-"@alinea/iso@npm:*":
-  version: 0.2.1
-  resolution: "@alinea/iso@npm:0.2.1"
-  checksum: 2376dd2cc7bd3f69721161bdf21850c868085c7966daf55a4c14300351111f8c94c9e9a83c74798334a63c0993fee67f9363dff74d2ca055c18145a95e7941f2
-  languageName: node
-  linkType: hard
-
-"@alinea/sqlite-wasm@npm:^0.1.11":
-  version: 0.1.11
-  resolution: "@alinea/sqlite-wasm@npm:0.1.11"
-  dependencies:
-    "@alinea/iso": "*"
-  checksum: 2ae1c3878e77c1d1b6172f63f217e4c135c68d329070c98e5f55eacfb4e5d35770f32a1c7692be747636ac02d6e568ee3e76f764ef90017aadd71ed9657d01f6
-  languageName: node
-  linkType: hard
-
 "@esbuild-kit/cjs-loader@npm:^2.4.0":
   version: 2.4.1
   resolution: "@esbuild-kit/cjs-loader@npm:2.4.1"
@@ -430,13 +414,6 @@ __metadata:
   version: 1.1.0
   resolution: "console-control-strings@npm:1.1.0"
   checksum: 8755d76787f94e6cf79ce4666f0c5519906d7f5b02d4b884cf41e11dcd759ed69c57da0670afd9236d229a46e0f9cf519db0cd829c6dca820bb5a5c3def584ed
-  languageName: node
-  linkType: hard
-
-"convert-hrtime@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "convert-hrtime@npm:5.0.0"
-  checksum: 5245ad1ac6dd57b2d87624ae0eeac1d2a74812a6631208c09368bef787a28e7dbfa736cddaa9c8a0c425cb240437ea506afec7b9684ff617004d06a551f26c87
   languageName: node
   linkType: hard
 
@@ -1283,15 +1260,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "nanoid@npm:4.0.0"
-  bin:
-    nanoid: bin/nanoid.js
-  checksum: 7d5946df5c6d383694195b781ae7b5067c149d164ec71e910d6b06676309c3459b68af570b944fb5ecd5065d19df464f05700d141d70bb712ff8ca06642fd8df
-  languageName: node
-  linkType: hard
-
 "napi-build-utils@npm:^1.0.1":
   version: 1.0.2
   resolution: "napi-build-utils@npm:1.0.2"
@@ -1449,13 +1417,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"parse-ms@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "parse-ms@npm:3.0.0"
-  checksum: fc602bba093835562321a67a9d6c8c9687ca4f26a09459a77e07ebd7efddd1a5766725ec60eb0c83a2abe67f7a23808f7deb1c1226727776eaf7f9607ae09db2
-  languageName: node
-  linkType: hard
-
 "path-is-absolute@npm:^1.0.0":
   version: 1.0.1
   resolution: "path-is-absolute@npm:1.0.1"
@@ -1482,15 +1443,6 @@ __metadata:
   bin:
     prebuild-install: bin.js
   checksum: dbf96d0146b6b5827fc8f67f72074d2e19c69628b9a7a0a17d0fad1bf37e9f06922896972e074197fc00a52eae912993e6ef5a0d471652f561df5cb516f3f467
-  languageName: node
-  linkType: hard
-
-"pretty-ms@npm:^8.0.0":
-  version: 8.0.0
-  resolution: "pretty-ms@npm:8.0.0"
-  dependencies:
-    parse-ms: ^3.0.0
-  checksum: b7d2a8182887af0e5ab93f9df331f10db9b8eda86855e2de115eb01a6c501bde5631a8813b1b0abdd7d045e79b08ae875369a8fd279a3dacd6d9e572bdd3bfa6
   languageName: node
   linkType: hard
 
@@ -1525,14 +1477,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "rado@workspace:."
   dependencies:
-    "@alinea/sqlite-wasm": ^0.1.11
     "@types/better-sqlite3": ^5.4.1
     "@types/sql.js": ^1.4.2
     better-sqlite3: ^7.5.1
-    convert-hrtime: ^5.0.0
-    nanoid: ^4.0.0
-    pretty-ms: ^8.0.0
     sade: ^1.8.1
+    sql.js: ^1.8.0
     sqlite3: ^5.1.4
     tsx: ^3.12.1
     typescript: ^4.9.4
@@ -1711,6 +1660,13 @@ __metadata:
   version: 0.6.1
   resolution: "source-map@npm:0.6.1"
   checksum: 59ce8640cf3f3124f64ac289012c2b8bd377c238e316fb323ea22fbfe83da07d81e000071d7242cad7a23cd91c7de98e4df8830ec3f133cb6133a5f6e9f67bc2
+  languageName: node
+  linkType: hard
+
+"sql.js@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "sql.js@npm:1.8.0"
+  checksum: 4c16846815664ef95c4dc2ffbbef4cba5236ead0798c9f1fac11f66c194a0ac51862fe26980be55cef8738b12ebe9d12efe71262953773cdcb41fbef034b2320
   languageName: node
   linkType: hard
 

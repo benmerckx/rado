@@ -88,6 +88,8 @@ export abstract class Formatter implements Sanitizer {
         return this.formatDelete(query, ctx)
       case QueryType.CreateTable:
         return this.formatCreateTable(query, ctx)
+      case QueryType.Transaction:
+        return this.formatTransaction(query, ctx)
       case QueryType.Batch:
         return this.formatBatch(query.queries, ctx)
     }
@@ -168,6 +170,17 @@ export abstract class Formatter implements Sanitizer {
       queries.map(query => this.format(query, ctx)),
       '; '
     )
+  }
+
+  formatTransaction({op, id}: Query.Transaction, ctx: FormatContext) {
+    switch (op) {
+      case Query.TransactionOperation.Begin:
+        return raw('savepoint').addIdentifier(id)
+      case Query.TransactionOperation.Commit:
+        return raw('release').addIdentifier(id)
+      case Query.TransactionOperation.Rollback:
+        return raw('rollback to').addIdentifier(id)
+    }
   }
 
   formatColumn(column: ColumnData) {

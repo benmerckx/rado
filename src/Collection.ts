@@ -10,6 +10,7 @@ export interface CollectionData {
   name: string
   alias?: string
   columns: Record<string, ColumnData>
+  indexes?: Record<string, Array<Expr<any>>>
 }
 
 export class Collection<T> extends Cursor.SelectMultiple<T> {

@@ -1,14 +1,18 @@
 import type {Database} from 'better-sqlite3'
-import {Connection} from '../Connection'
-import {Cursor} from '../Cursor'
-import {Query, QueryType} from '../Query'
+import {Driver} from '../Driver'
+import {Query} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
-export function createConnection(db: Database): Connection.Sync {
-  const formatter = new SqliteFormatter()
-  function run<T>(query: Query<T>): T {
-    const [sql, params] = formatter.compile(query)
-    const stmt = db.prepare(sql)
+class BetterSqlite3Driver extends Driver.Sync {
+  formatter = new SqliteFormatter()
+
+  constructor(private db: Database) {
+    super()
+  }
+
+  execute<T>(query: Query<T>): T {
+    const [sql, params] = this.formatter.compile(query)
+    const stmt = this.db.prepare(sql)
     if ('selection' in query) {
       const res = stmt
         .pluck()
@@ -21,16 +25,8 @@ export function createConnection(db: Database): Connection.Sync {
       return {rowsAffected: changes} as T
     }
   }
-  return <T>(cursor: Cursor<T>): T => {
-    const query = cursor.query()
-    switch (query.type) {
-      case QueryType.Batch:
-        let result
-        const stmts = query.queries
-        for (const query of stmts) result = run(query)
-        return result as T
-      default:
-        return run(query)
-    }
-  }
+}
+
+export function connect(db: Database) {
+  return new BetterSqlite3Driver(db)
 }
