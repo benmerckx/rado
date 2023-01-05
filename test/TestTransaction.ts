@@ -29,4 +29,39 @@ test('Transaction', async () => {
   assert.equal(bob?.name, 'Bob')
 })
 
+test('Rollback', async () => {
+  const query = await connect()
+  await query(User.createTable())
+  await query
+    .transaction(async function (query) {
+      await query(User.insertOne({name: 'Bob'}))
+      throw new Error('Rollback')
+    })
+    .catch(() => {})
+  const bob = await query(User.first().where(User.name.is('Bob')))
+  assert.is(bob, undefined)
+})
+
+test('Savepoints', async () => {
+  const query = await connect()
+  await query(User.createTable())
+  await query.transaction(async function (query) {
+    await query(User.insertOne({name: 'Bob'}))
+
+    await query
+      .transaction(async function (query) {
+        await query(User.insertOne({name: 'Ted'}))
+        throw new Error('Rollback')
+      })
+      .catch(() => {})
+
+    await query(User.insertOne({name: 'Alice'}))
+  })
+  const users = await query(User)
+  assert.equal(users, [
+    {id: 1, name: 'Bob'},
+    {id: 2, name: 'Alice'}
+  ])
+})
+
 test.run()

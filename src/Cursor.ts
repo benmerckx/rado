@@ -165,7 +165,7 @@ export namespace Cursor {
       })
     }
 
-    first(): SelectSingle<T | null> {
+    first(): SelectSingle<T | undefined> {
       return new SelectSingle({...this.query(), singleResult: true})
     }
 
