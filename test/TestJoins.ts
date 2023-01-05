@@ -34,7 +34,6 @@ test('OrderBy', async () => {
       .select({...Contact, user: User})
       .orderBy(User.name.asc())
   )
-  console.log(results)
   assert.is(results[0].user.name, 'a')
   assert.is(results[1].user.name, 'b')
 })
