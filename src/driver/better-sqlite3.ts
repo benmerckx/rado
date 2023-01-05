@@ -3,7 +3,7 @@ import {Driver} from '../Driver'
 import {Query} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
-class BetterSqlite3Driver extends Driver.Sync {
+export class BetterSqlite3Driver extends Driver.Sync {
   formatter = new SqliteFormatter()
 
   constructor(private db: Database) {
@@ -24,6 +24,11 @@ class BetterSqlite3Driver extends Driver.Sync {
       const {changes} = stmt.run(...params)
       return {rowsAffected: changes} as T
     }
+  }
+
+  export(): Uint8Array {
+    // This is missing from the type definitions
+    return (this.db as any).serialize()
   }
 }
 

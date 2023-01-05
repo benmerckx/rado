@@ -3,7 +3,7 @@ import {Driver} from '../Driver'
 import {Query} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
-class Sqlite3Driver extends Driver.Async {
+export class Sqlite3Driver extends Driver.Async {
   formatter = new SqliteFormatter()
   lock: Promise<void> | undefined
 

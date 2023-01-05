@@ -3,7 +3,7 @@ import {Driver} from '../Driver'
 import {Query} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
-class SqlJsDriver extends Driver.Sync {
+export class SqlJsDriver extends Driver.Sync {
   formatter = new SqliteFormatter()
 
   constructor(private db: Database) {
@@ -26,6 +26,10 @@ class SqlJsDriver extends Driver.Sync {
       stmt.run(params)
       return {rowsAffected: this.db.getRowsModified()} as T
     }
+  }
+
+  export(): Uint8Array {
+    return this.db.export()
   }
 }
 

@@ -4,6 +4,7 @@ import {Query, QueryType} from './Query'
 export namespace Driver {
   export interface Sync {
     <T>(query: Cursor<T>): T
+    (strings: TemplateStringsArray, ...values: any[]): any
   }
   export abstract class Sync extends Function {
     transactionId = 0
@@ -11,8 +12,9 @@ export namespace Driver {
     constructor() {
       super()
       return new Proxy(this, {
-        apply(target, thisArg, argumentsList) {
-          return target.executeCursor(argumentsList[0])
+        apply(target, thisArg, input) {
+          if (input[0] instanceof Cursor) return target.executeCursor(input[0])
+          throw new Error('todo')
         }
       })
     }
@@ -58,6 +60,7 @@ export namespace Driver {
 
   export interface Async {
     <T>(query: Cursor<T>): Promise<T>
+    (strings: TemplateStringsArray, ...values: any[]): Promise<any>
   }
   export abstract class Async extends Function {
     transactionId = 0
@@ -65,10 +68,18 @@ export namespace Driver {
     constructor() {
       super()
       return new Proxy(this, {
-        apply(target, thisArg, argumentsList) {
-          return target.executeCursor(argumentsList[0])
+        apply(target, thisArg, input) {
+          if (input[0] instanceof Cursor) return target.executeCursor(input[0])
+          throw new Error('todo')
         }
       })
+    }
+
+    async executeRaw([strings, values]: [
+      strings: TemplateStringsArray,
+      values: Array<any>
+    ]) {
+      console.log(strings)
     }
 
     async executeCursor<T>(cursor: Cursor<T>): Promise<T> {
