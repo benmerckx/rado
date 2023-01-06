@@ -129,11 +129,11 @@ export abstract class Formatter implements Sanitizer {
   formatUpdate(query: Query.Update, ctx: FormatContext) {
     const data = query.set || {}
     return raw('update')
-      .addIdentifier(query.collection.name)
+      .addIdentifier(query.table.name)
       .add('set')
       .addSeparated(
         Object.keys(data).map(key => {
-          const column = query.collection.columns[key]
+          const column = query.table.columns[key]
           const exprData = data[key]
           return ident(key)
             .add('=')
@@ -151,7 +151,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatDelete(query: Query.Delete, ctx: FormatContext) {
     return raw('delete from')
-      .addIdentifier(query.collection.name)
+      .addIdentifier(query.table.name)
       .add(this.formatWhere(query.where, ctx))
       .add(this.formatLimit(query, ctx))
   }
@@ -160,8 +160,8 @@ export abstract class Formatter implements Sanitizer {
     return raw('create table')
       .addIf(query.ifNotExists, 'if not exists')
       .addCall(
-        query.collection.name,
-        ...Object.values(query.collection.columns).map(column => {
+        query.table.name,
+        ...Object.values(query.table.columns).map(column => {
           return this.formatColumn(column)
         })
       )
@@ -269,10 +269,9 @@ export abstract class Formatter implements Sanitizer {
 
   formatTarget(target: Target, ctx: FormatContext): Statement {
     switch (target.type) {
-      case TargetType.Collection:
-        return ident(target.collection.name).addIf(
-          target.collection.alias,
-          () => raw('as').addIdentifier(target.collection.alias!)
+      case TargetType.Table:
+        return ident(target.table.name).addIf(target.table.alias, () =>
+          raw('as').addIdentifier(target.table.alias!)
         )
       case TargetType.Join:
         const {left, right, joinType} = target
@@ -374,13 +373,13 @@ export abstract class Formatter implements Sanitizer {
     switch (expr.type) {
       case ExprType.Row:
         switch (expr.target.type) {
-          case TargetType.Collection:
+          case TargetType.Table:
             const selection = ident(
-              expr.target.collection.alias || expr.target.collection.name
+              expr.target.table.alias || expr.target.table.name
             )
               .raw('.')
               .identifier(field)
-            const column = expr.target.collection.columns[field]
+            const column = expr.target.table.columns[field]
             switch (column?.type) {
               case ColumnType.Array:
               case ColumnType.Object:
@@ -478,12 +477,12 @@ export abstract class Formatter implements Sanitizer {
             .parenthesis(subQuery)
         )
       case ExprType.Row:
-        const collection = Target.source(expr.target)
-        if (!collection) throw new Error(`Cannot select empty target`)
+        const table = Target.source(expr.target)
+        if (!table) throw new Error(`Cannot select empty target`)
         return this.formatExpr(
           ExprData.Record(
             Object.fromEntries(
-              Object.entries(collection.columns).map(([key, column]) => [
+              Object.entries(table.columns).map(([key, column]) => [
                 key,
                 ExprData.Field(ExprData.Row(expr.target), column.name!)
               ])

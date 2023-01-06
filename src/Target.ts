@@ -1,13 +1,13 @@
-import {CollectionData} from './Collection'
 import {ExprData} from './Expr'
+import {TableData} from './Table'
 
 export const enum TargetType {
   Each = 'Each',
-  Collection = 'Collection',
+  Table = 'Table',
   Join = 'Join'
 }
 
-export type Target = Target.Each | Target.Collection | Target.Join
+export type Target = Target.Each | Target.Table | Target.Join
 
 export namespace Target {
   export interface Each {
@@ -18,12 +18,12 @@ export namespace Target {
   export function Each(expr: ExprData, alias: string): Each {
     return {type: TargetType.Each, expr, alias}
   }
-  export interface Collection {
-    type: TargetType.Collection
-    collection: CollectionData
+  export interface Table {
+    type: TargetType.Table
+    table: TableData
   }
-  export function Collection(collection: CollectionData): Collection {
-    return {type: TargetType.Collection, collection}
+  export function Table(table: TableData): Table {
+    return {type: TargetType.Table, table: table}
   }
   export interface Join {
     type: TargetType.Join
@@ -41,10 +41,10 @@ export namespace Target {
     return {type: TargetType.Join, left, right, joinType, on}
   }
 
-  export function source(from: Target): CollectionData | undefined {
+  export function source(from: Target): TableData | undefined {
     switch (from.type) {
-      case TargetType.Collection:
-        return from.collection
+      case TargetType.Table:
+        return from.table
       case TargetType.Join:
         return source(from.left)
       default:

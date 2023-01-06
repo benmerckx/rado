@@ -1,52 +1,44 @@
-import {Collection} from './Collection'
 import {Cursor} from './Cursor'
 import {ExprData} from './Expr'
 import {Query} from './Query'
+import {Table} from './Table'
 import {Target} from './Target'
 
-export function selectAll<Row>(
-  collection: Collection<Row>
-): Cursor.SelectMultiple<Row> {
+export function selectAll<Row>(table: Table<Row>): Cursor.SelectMultiple<Row> {
   return new Cursor.SelectMultiple<Row>(
     Query.Select({
-      from: Target.Collection(collection.data()),
-      selection: ExprData.Row(Target.Collection(collection.data()))
+      from: Target.Table(table.data()),
+      selection: ExprData.Row(Target.Table(table.data()))
     })
   )
 }
 
-export function selectFirst<Row>(
-  collection: Collection<Row>
-): Cursor.SelectSingle<Row> {
+export function selectFirst<Row>(table: Table<Row>): Cursor.SelectSingle<Row> {
   return new Cursor.SelectSingle<Row>(
     Query.Select({
-      from: Target.Collection(collection.data()),
-      selection: ExprData.Row(Target.Collection(collection.data())),
+      from: Target.Table(table.data()),
+      selection: ExprData.Row(Target.Table(table.data())),
       singleResult: true
     })
   )
 }
 
-export function update<Row>(collection: Collection<Row>): Cursor.Update<Row> {
-  return new Cursor.Update<Row>(Query.Update({collection: collection.data()}))
+export function update<Row>(table: Table<Row>): Cursor.Update<Row> {
+  return new Cursor.Update<Row>(Query.Update({table: table.data()}))
 }
 
-export function insertInto<Row>(
-  collection: Collection<Row>
-): Cursor.Insert<Row> {
-  return new Cursor.Insert<Row>(collection.data())
+export function insertInto<Row>(table: Table<Row>): Cursor.Insert<Row> {
+  return new Cursor.Insert<Row>(table.data())
 }
 
-export function deleteFrom<Row>(
-  collection: Collection<Row>
-): Cursor.Delete<Row> {
-  return new Cursor.Delete<Row>(Query.Delete({collection: collection.data()}))
+export function deleteFrom<Row>(table: Table<Row>): Cursor.Delete<Row> {
+  return new Cursor.Delete<Row>(Query.Delete({table: table.data()}))
 }
 
-export function create(...collections: Array<Collection<any>>): Cursor.Batch {
+export function create(...tables: Array<Table<any>>): Cursor.Batch {
   return new Cursor.Batch(
-    collections.map(collection =>
-      Query.CreateTable({collection: collection.data(), ifNotExists: true})
+    tables.map(table =>
+      Query.CreateTable({table: table.data(), ifNotExists: true})
     )
   )
 }

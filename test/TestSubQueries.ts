@@ -1,39 +1,38 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create} from '../src'
-import {collection} from '../src/Collection'
+import {column, create, table} from '../src'
 import {connect} from './DbSuite'
 
 test('IncludeMany', async () => {
   const query = await connect()
-  const Role = collection({
+  const Role = table({
     name: 'Role',
     columns: {
       id: column.integer().primaryKey(),
       name: column.string()
     }
   })
-  const User = collection({
+  const User = table({
     name: 'User',
     columns: {
       id: column.integer().primaryKey(),
       roles: column.array<number>()
     }
   })
-  const Entry = collection({
+  const Entry = table({
     name: 'Entry',
     columns: {
       id: column.integer().primaryKey()
     }
   })
-  const Language = collection({
+  const Language = table({
     name: 'Language',
     columns: {
       id: column.integer().primaryKey(),
       entry: column.integer()
     }
   })
-  const Version = collection({
+  const Version = table({
     name: 'Version',
     columns: {
       id: column.integer().primaryKey(),
@@ -83,8 +82,8 @@ test('IncludeMany', async () => {
 /*
 test('Subquery', () => {
   const db = store()
-  const User = collection<{id: string; name: string}>('user')
-  const Post = collection<{id: string; title: string; user: string}>('post')
+  const User = table<{id: string; name: string}>('user')
+  const Post = table<{id: string; title: string; user: string}>('post')
   const user1 = db.insert(User, {name: 'bob'})
   const post1 = db.insert(Post, {title: 'hello', user: user1.id})
   const userWithPosts = db.first(

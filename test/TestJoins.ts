@@ -1,11 +1,11 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column, create} from '../src'
-import {collection} from '../src/Collection'
+import {table} from '../src/Table'
 import {connect} from './DbSuite'
 
-type User = collection.infer<typeof User>
-const User = collection({
+type User = table.infer<typeof User>
+const User = table({
   name: 'User',
   columns: {
     id: column.integer().primaryKey(),
@@ -13,8 +13,8 @@ const User = collection({
   }
 })
 
-type Contact = collection.infer<typeof Contact>
-const Contact = collection({
+type Contact = table.infer<typeof Contact>
+const Contact = table({
   name: 'Contact',
   columns: {
     id: column.integer().primaryKey(),

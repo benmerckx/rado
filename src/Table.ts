@@ -6,31 +6,32 @@ import {Query} from './Query'
 import {Target} from './Target'
 import {Update} from './Update'
 
-export interface CollectionData {
+export interface TableData {
   name: string
   alias?: string
   columns: Record<string, ColumnData>
   indexes?: Record<string, Array<Expr<any>>>
 }
 
-export class Collection<T> extends Cursor.SelectMultiple<T> {
-  constructor(data: CollectionData) {
+export class Table<T> extends Cursor.SelectMultiple<T> {
+  constructor(data: TableData) {
     super(
       Query.Select({
-        from: Target.Collection(data),
-        selection: ExprData.Row(Target.Collection(data))
+        from: Target.Table(data),
+        selection: ExprData.Row(Target.Table(data))
       })
     )
     Object.defineProperty(this, 'data', {
       enumerable: false,
       value: () => data
     })
-    for (const column of Object.keys(data.columns)) {
-      Object.defineProperty(this, column, {
-        enumerable: true,
-        get: () => this.get(column)
-      })
-    }
+    if (data.columns)
+      for (const column of Object.keys(data.columns)) {
+        Object.defineProperty(this, column, {
+          enumerable: true,
+          get: () => this.get(column)
+        })
+      }
     return new Proxy(this, {
       get(target: any, key) {
         return key in target ? target[key] : target.get(key)
@@ -38,25 +39,25 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
     })
   }
 
-  insertOne(record: Collection.Insert<T>) {
+  insertOne(record: Table.Insert<T>) {
     return new Cursor.Batch<T>([
       Query.Insert({
         into: this.data(),
         data: [record],
-        selection: ExprData.Row(Target.Collection(this.data())),
+        selection: ExprData.Row(Target.Table(this.data())),
         singleResult: true
       })
     ])
   }
 
-  insertAll(data: Array<Collection.Insert<T>>) {
+  insertAll(data: Array<Table.Insert<T>>) {
     return new Cursor.Insert<T>(this.data()).values(...data)
   }
 
   set(data: Update<T>) {
     return new Cursor.Update<T>(
       Query.Update({
-        collection: this.data()
+        table: this.data()
       })
     ).set(data)
   }
@@ -65,8 +66,8 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
     return new Cursor.Create(this.data())
   }
 
-  as(alias: string): Collection<T> & Fields<T> {
-    return new Collection({...this.data(), alias}) as Collection<T> & Fields<T>
+  as(alias: string): Table<T> & Fields<T> {
+    return new Table({...this.data(), alias}) as Table<T> & Fields<T>
   }
 
   get(name: string): Expr<any> {
@@ -74,16 +75,16 @@ export class Collection<T> extends Cursor.SelectMultiple<T> {
   }
 
   toExpr() {
-    return new Expr<T>(ExprData.Row(Target.Collection(this.data())))
+    return new Expr<T>(ExprData.Row(Target.Table(this.data())))
   }
 
   /** @internal */
-  data(): CollectionData {
+  data(): TableData {
     throw new Error('Not implemented')
   }
 }
 
-export namespace Collection {
+export namespace Table {
   // Source: https://stackoverflow.com/a/67577722
   type Intersection<A, B> = A & B extends infer U
     ? {[P in keyof U]: U[P]}
@@ -111,16 +112,16 @@ export namespace Collection {
   >
 }
 
-export interface CollectionOptions<T> {
+export interface TableOptions<T> {
   name: string
   alias?: string
   columns: {[K in keyof T]: Column<T[K]>}
 }
 
-export function collection<T extends {}>(
-  options: CollectionOptions<T>
-): Collection<T> & Fields<T> {
-  return new Collection({
+export function table<T extends {}>(
+  options: TableOptions<T>
+): Table<T> & Fields<T> {
+  return new Table({
     ...options,
     columns: Object.fromEntries(
       Object.entries(options.columns).map(([key, column]) => {
@@ -128,9 +129,9 @@ export function collection<T extends {}>(
         return [key, {...data, name: data.name || key}]
       })
     )
-  }) as Collection<T> & Fields<T>
+  }) as Table<T> & Fields<T>
 }
 
-export namespace collection {
-  export type infer<T> = T extends Collection<infer U> ? U : never
+export namespace table {
+  export type infer<T> = T extends Table<infer U> ? U : never
 }

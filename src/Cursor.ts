@@ -1,9 +1,9 @@
-import {Collection, CollectionData} from './Collection'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
 import {Query} from './Query'
 import {Selection} from './Selection'
+import {Table, TableData} from './Table'
 import {Target} from './Target'
 import {Update as UpdateSet} from './Update'
 
@@ -84,16 +84,16 @@ export namespace Cursor {
   }
 
   export class Insert<T> {
-    constructor(protected into: CollectionData) {}
+    constructor(protected into: TableData) {}
 
-    values(...data: Array<Collection.Insert<T>>): InsertValues {
+    values(...data: Array<Table.Insert<T>>): InsertValues {
       return new InsertValues(Query.Insert({into: this.into, data}))
     }
   }
 
   export class Create extends Cursor<void> {
-    constructor(protected collection: CollectionData) {
-      super(Query.CreateTable({collection, ifNotExists: true}))
+    constructor(protected table: TableData) {
+      super(Query.CreateTable({table, ifNotExists: true}))
     }
   }
 
@@ -108,26 +108,26 @@ export namespace Cursor {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectMultiple<T> {
+    leftJoin<C>(that: Table<C>, on: Expr<boolean>): SelectMultiple<T> {
       const query = this.query()
       return new SelectMultiple({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Collection(that.data()),
+          Target.Table(that.data()),
           'left',
           on.expr
         )
       })
     }
 
-    innerJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectMultiple<T> {
+    innerJoin<C>(that: Table<C>, on: Expr<boolean>): SelectMultiple<T> {
       const query = this.query()
       return new SelectMultiple({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Collection(that.data()),
+          Target.Table(that.data()),
           'inner',
           on.expr
         )
@@ -183,26 +183,26 @@ export namespace Cursor {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectSingle<T> {
+    leftJoin<C>(that: Table<C>, on: Expr<boolean>): SelectSingle<T> {
       const query = this.query()
       return new SelectSingle({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Collection(that.data()),
+          Target.Table(that.data()),
           'left',
           on.expr
         )
       })
     }
 
-    innerJoin<C>(that: Collection<C>, on: Expr<boolean>): SelectSingle<T> {
+    innerJoin<C>(that: Table<C>, on: Expr<boolean>): SelectSingle<T> {
       const query = this.query()
       return new SelectSingle({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Collection(that.data()),
+          Target.Table(that.data()),
           'inner',
           on.expr
         )

@@ -1,11 +1,10 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Cursor, column} from '../src'
-import {collection} from '../src/Collection'
+import {Cursor, column, table} from '../src'
 import {Expr} from '../src/Expr'
 import {connect} from './DbSuite'
 
-const Node = collection({
+const Node = table({
   name: 'node',
   columns: {
     id: column.integer().primaryKey(),

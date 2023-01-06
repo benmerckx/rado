@@ -1,13 +1,12 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, insertInto, selectFirst} from '../src'
-import {collection} from '../src/Collection'
+import {column, create, insertInto, selectFirst, table} from '../src'
 import {Expr} from '../src/Expr'
 import {connect} from './DbSuite'
 
 test('basic', async () => {
   const query = await connect()
-  const Node = collection({
+  const Node = table({
     name: 'node',
     columns: {
       id: column.integer().primaryKey(),
@@ -35,7 +34,7 @@ test('basic', async () => {
 
 test('filters', async () => {
   const query = await connect()
-  const Test = collection({
+  const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
@@ -52,7 +51,7 @@ test('filters', async () => {
 
 test('select', async () => {
   const query = await connect()
-  const Test = collection({
+  const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
@@ -84,7 +83,7 @@ test('select', async () => {
 
 test('update', async () => {
   const query = await connect()
-  const Test = collection({
+  const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
@@ -100,41 +99,9 @@ test('update', async () => {
   assert.ok(await query(Test.first().where(Test.propA.is(15))))
 })
 
-/*test('query', () => {
-  const db = store()
-  const Test = collection<typeof a & {id: string}>('test')
-  const a = {prop: 10, propB: 5}
-  const b = {prop: 20, propB: 5}
-  db.insertAll(Test, [a, b])
-  type Input = {prop: number}
-  const byProp = query(({prop}: Input) => Test.where(Test.prop.is(prop)))
-  assert.is(db.first(byProp({prop: 10}))!.prop, 10)
-  assert.is(db.first(byProp({prop: 20}))!.prop, 20)
-})
-
-test('case', () => {
-  const db = store()
-  type Test = {id: string} & ({type: 'A'; x: number} | {type: 'B'})
-  const Test = collection<Test>('test')
-  const a = {type: 'A', x: 1} as const
-  const b = {type: 'B'} as const
-  db.insertAll(Test, [a, b])
-  assert.equal(
-    db.all(
-      Test.select(
-        Test.type.case({
-          A: Expr.value(1),
-          B: Expr.value(2)
-        })
-      )
-    ),
-    [1, 2]
-  )
-})*/
-
 test('json', async () => {
   const query = await connect()
-  const Test = collection({
+  const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
@@ -165,7 +132,7 @@ test('each', async () => {
       {id: 'c', type: 'entry'}
     ]
   }
-  const Test = collection({
+  const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
@@ -173,7 +140,7 @@ test('each', async () => {
     }
   })
 
-  const Entry = collection({
+  const Entry = table({
     name: 'Entry',
     columns: {
       id: column.integer().primaryKey(),

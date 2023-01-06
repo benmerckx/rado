@@ -1,6 +1,6 @@
-import {CollectionData} from './Collection'
 import {ExprData} from './Expr'
 import {OrderBy} from './OrderBy'
+import {TableData} from './Table'
 import {Target} from './Target'
 
 export const enum QueryType {
@@ -40,7 +40,7 @@ export namespace Query {
   }
   export interface Insert extends QueryBase {
     type: QueryType.Insert
-    into: CollectionData
+    into: TableData
     data: Array<any>
   }
   export function Insert<T>(insert: Omit<Insert, 'type'>): Query<T> {
@@ -56,7 +56,7 @@ export namespace Query {
   }
   export interface Update extends QueryBase {
     type: QueryType.Update
-    collection: CollectionData
+    table: TableData
     set?: Record<string, any>
   }
   export function Update<T>(
@@ -66,7 +66,7 @@ export namespace Query {
   }
   export interface Delete extends QueryBase {
     type: QueryType.Delete
-    collection: CollectionData
+    table: TableData
   }
   export function Delete<T>(
     del: Omit<Delete, 'type'>
@@ -75,7 +75,7 @@ export namespace Query {
   }
   export interface CreateTable extends QueryBase {
     type: QueryType.CreateTable
-    collection: CollectionData
+    table: TableData
     ifNotExists?: boolean
   }
   export function CreateTable<T>(

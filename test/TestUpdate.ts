@@ -1,10 +1,10 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column} from '../src'
-import {collection} from '../src/Collection'
+import {table} from '../src/Table'
 import {connect} from './DbSuite'
 
-const User = collection({
+const User = table({
   name: 'user',
   columns: {
     id: column.integer().primaryKey(),
@@ -13,7 +13,7 @@ const User = collection({
     roles: column.array<string>().nullable()
   }
 })
-type User = collection.infer<typeof User>
+type User = table.infer<typeof User>
 
 test('Update', async () => {
   const query = await connect()

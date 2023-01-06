@@ -1,10 +1,9 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column} from '../src'
-import {collection} from '../src/Collection'
+import {column, table} from '../src'
 import {connect} from './DbSuite'
 
-const User = collection({
+const User = table({
   name: 'User',
   columns: {
     id: column.integer().primaryKey(),

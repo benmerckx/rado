@@ -1,7 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column} from '../src'
-import {collection} from '../src/Collection'
+import {column, table} from '../src'
 import {Expr} from '../src/Expr'
 import {SqliteFunctions} from '../src/sqlite/SqliteFunctions'
 import {connect} from './DbSuite'
@@ -10,7 +9,7 @@ const {cast, strftime} = SqliteFunctions
 
 test('Functions', async () => {
   const query = await connect()
-  const User = collection({
+  const User = table({
     name: 'User',
     columns: {
       id: column.integer().primaryKey(),
