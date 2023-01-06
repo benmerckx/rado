@@ -162,6 +162,18 @@ export class Expr<T> {
     return new Expr(ExprData.create(input))
   }
 
+  static and(...conditions: Array<EV<boolean>>): Expr<boolean> {
+    return conditions
+      .map(Expr.create)
+      .reduce((condition, expr) => condition.and(expr), Expr.value(true))
+  }
+
+  static or(...conditions: Array<EV<boolean>>): Expr<boolean> {
+    return conditions
+      .map(Expr.create)
+      .reduce((condition, expr) => condition.or(expr), Expr.value(false))
+  }
+
   constructor(public expr: ExprData) {
     return new Proxy(this, {
       get(target: any, key) {

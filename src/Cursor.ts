@@ -41,9 +41,7 @@ export namespace Cursor {
 
   export class Filterable<T> extends Limitable<T> {
     where(...where: Array<EV<boolean>>): Filterable<T> {
-      const condition = where
-        .map(Expr.create)
-        .reduce((condition, expr) => condition.and(expr), Expr.value(true))
+      const condition = Expr.and(...where)
       const query = this.query()
       return new Filterable({
         ...query,
@@ -108,7 +106,7 @@ export namespace Cursor {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Table<C>, on: Expr<boolean>): SelectMultiple<T> {
+    leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
       const query = this.query()
       return new SelectMultiple({
         ...query,
@@ -116,12 +114,12 @@ export namespace Cursor {
           query.from,
           Target.Table(that.data()),
           'left',
-          on.expr
+          Expr.and(...on).expr
         )
       })
     }
 
-    innerJoin<C>(that: Table<C>, on: Expr<boolean>): SelectMultiple<T> {
+    innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
       const query = this.query()
       return new SelectMultiple({
         ...query,
@@ -129,7 +127,7 @@ export namespace Cursor {
           query.from,
           Target.Table(that.data()),
           'inner',
-          on.expr
+          Expr.and(...on).expr
         )
       })
     }
@@ -183,7 +181,7 @@ export namespace Cursor {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Table<C>, on: Expr<boolean>): SelectSingle<T> {
+    leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
       const query = this.query()
       return new SelectSingle({
         ...query,
@@ -191,12 +189,12 @@ export namespace Cursor {
           query.from,
           Target.Table(that.data()),
           'left',
-          on.expr
+          Expr.and(...on).expr
         )
       })
     }
 
-    innerJoin<C>(that: Table<C>, on: Expr<boolean>): SelectSingle<T> {
+    innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
       const query = this.query()
       return new SelectSingle({
         ...query,
@@ -204,7 +202,7 @@ export namespace Cursor {
           query.from,
           Target.Table(that.data()),
           'inner',
-          on.expr
+          Expr.and(...on).expr
         )
       })
     }
