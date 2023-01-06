@@ -1,6 +1,6 @@
 import type {Database} from 'better-sqlite3'
 import {Driver} from '../Driver'
-import {Query} from '../Query'
+import {Query, QueryType} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
 export class BetterSqlite3Driver extends Driver.Sync {
@@ -10,7 +10,7 @@ export class BetterSqlite3Driver extends Driver.Sync {
     super()
   }
 
-  execute<T>(query: Query<T>): T {
+  execute(query: Query) {
     const [sql, params] = this.formatter.compile(query)
     const stmt = this.db.prepare(sql)
     if ('selection' in query) {
@@ -18,11 +18,21 @@ export class BetterSqlite3Driver extends Driver.Sync {
         .pluck()
         .all(...params)
         .map(item => JSON.parse(item).result)
-      if (query.singleResult) return res[0] as T
-      return res as T
+      if (query.singleResult) return res[0]
+      return res
+    } else if (query.type === QueryType.Raw) {
+      switch (query.expectedReturn) {
+        case 'row':
+          return stmt.get(...params)
+        case 'rows':
+          return stmt.all(...params)
+        default:
+          stmt.run(...params)
+          return undefined
+      }
     } else {
       const {changes} = stmt.run(...params)
-      return {rowsAffected: changes} as T
+      return {rowsAffected: changes}
     }
   }
 

@@ -51,6 +51,14 @@ export class Statement {
     return typeof from === 'string' ? raw(from) : from
   }
 
+  static ofTemplate(strings: ReadonlyArray<string>, params: Array<any>) {
+    return new Statement(
+      strings
+        .flatMap((s, i) => [Token.Raw(s), Token.Value(params[i])])
+        .slice(0, -1)
+    )
+  }
+
   space() {
     return this.concat(Token.Raw(WHITESPACE))
   }

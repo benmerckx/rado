@@ -1,26 +1,58 @@
 import {Cursor} from './Cursor'
 import {Query, QueryType} from './Query'
 
+class Callable extends Function {
+  constructor(fn: Function) {
+    super()
+    return new Proxy(this, {
+      apply(_, thisArg, input) {
+        return fn.apply(thisArg, input)
+      }
+    })
+  }
+}
+
+abstract class DriverBase extends Callable {
+  constructor() {
+    super((...args: Array<any>) => {
+      const [input, ...rest] = args
+      if (input instanceof Cursor) return this.executeQuery(input.query())
+      return this.executeTemplate(undefined, input, ...rest)
+    })
+  }
+
+  all(strings: TemplateStringsArray, ...params: Array<any>) {
+    return this.executeTemplate('rows', strings, ...params)
+  }
+
+  get(strings: TemplateStringsArray, ...params: Array<any>) {
+    return this.executeTemplate('row', strings, ...params)
+  }
+
+  executeTemplate(
+    expectedReturn: Query.RawReturn,
+    strings: TemplateStringsArray,
+    ...params: Array<any>
+  ) {
+    if (strings.some(chunk => chunk.includes('?')))
+      throw new TypeError('SQL injection hazard')
+    return this.executeQuery(Query.Raw({strings, params, expectedReturn}))
+  }
+
+  abstract executeQuery(query: Query<any>): any
+}
+
 export namespace Driver {
   export interface Sync {
     <T>(query: Cursor<T>): T
     (strings: TemplateStringsArray, ...values: any[]): any
   }
-  export abstract class Sync extends Function {
+  export abstract class Sync extends DriverBase {
     transactionId = 0
 
-    constructor() {
-      super()
-      return new Proxy(this, {
-        apply(target, thisArg, input) {
-          if (input[0] instanceof Cursor) return target.executeCursor(input[0])
-          throw new Error('todo')
-        }
-      })
-    }
+    abstract execute(query: Query): any
 
-    executeCursor<T>(cursor: Cursor<T>): T {
-      const query = cursor.query()
+    executeQuery<T>(query: Query<T>): T {
       switch (query.type) {
         case QueryType.Batch:
           let result!: T
@@ -32,7 +64,13 @@ export namespace Driver {
       }
     }
 
-    abstract execute<T>(query: Query<T>): T
+    all<T>(strings: TemplateStringsArray, ...params: Array<any>): Array<T> {
+      return super.all(strings, ...params)
+    }
+
+    get<T>(strings: TemplateStringsArray, ...params: Array<any>): T {
+      return super.get(strings, ...params)
+    }
 
     transaction<T>(run: (query: Sync) => T): T {
       const id = `t${this.transactionId++}`
@@ -62,28 +100,13 @@ export namespace Driver {
     <T>(query: Cursor<T>): Promise<T>
     (strings: TemplateStringsArray, ...values: any[]): Promise<any>
   }
-  export abstract class Async extends Function {
+  export abstract class Async extends DriverBase {
     transactionId = 0
 
-    constructor() {
-      super()
-      return new Proxy(this, {
-        apply(target, thisArg, input) {
-          if (input[0] instanceof Cursor) return target.executeCursor(input[0])
-          throw new Error('todo')
-        }
-      })
-    }
+    abstract execute(query: Query): Promise<any>
+    abstract isolate(): [connection: Async, release: () => Promise<void>]
 
-    async executeRaw([strings, values]: [
-      strings: TemplateStringsArray,
-      values: Array<any>
-    ]) {
-      console.log(strings)
-    }
-
-    async executeCursor<T>(cursor: Cursor<T>): Promise<T> {
-      const query = cursor.query()
+    async executeQuery<T>(query: Query<T>): Promise<T> {
       switch (query.type) {
         case QueryType.Batch:
           let result!: T
@@ -95,8 +118,16 @@ export namespace Driver {
       }
     }
 
-    abstract execute<T>(query: Query<T>): Promise<T>
-    abstract isolate(): [connection: Async, release: () => Promise<void>]
+    all<T>(
+      strings: TemplateStringsArray,
+      ...params: Array<any>
+    ): Promise<Array<T>> {
+      return super.all(strings, ...params)
+    }
+
+    get<T>(strings: TemplateStringsArray, ...params: Array<any>): Promise<T> {
+      return super.get(strings, ...params)
+    }
 
     async transaction<T>(run: (query: Async) => T): Promise<T> {
       const id = `t${this.transactionId++}`

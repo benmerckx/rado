@@ -1,6 +1,6 @@
 import type {Database} from 'sqlite3'
 import {Driver} from '../Driver'
-import {Query} from '../Query'
+import {Query, QueryType} from '../Query'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 
 export class Sqlite3Driver extends Driver.Async {
@@ -11,9 +11,9 @@ export class Sqlite3Driver extends Driver.Async {
     super()
   }
 
-  async execute<T>(query: Query<T>): Promise<T> {
+  async execute(query: Query) {
     await this.lock
-    return new Promise<T>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const [sql, params] = this.formatter.compile(query)
       const stmt = this.db.prepare(sql)
       if ('selection' in query) {
@@ -22,10 +22,29 @@ export class Sqlite3Driver extends Driver.Async {
           if (err) reject(err)
           else resolve(query.singleResult ? res[0] : res)
         })
+      } else if (query.type === QueryType.Raw) {
+        switch (query.expectedReturn) {
+          case 'row':
+            return stmt.get(params, (err, row) => {
+              if (err) reject(err)
+              else resolve(row)
+            })
+          case 'rows':
+            return stmt.all(params, (err, rows) => {
+              if (err) reject(err)
+              else resolve(rows)
+            })
+          default:
+            stmt.run(params, err => {
+              if (err) reject(err)
+              else resolve(undefined)
+            })
+            return undefined
+        }
       } else {
         stmt.run(params, function (err) {
           if (err) reject(err)
-          else resolve({rowsAffected: this.changes} as T)
+          else resolve({rowsAffected: this.changes})
         })
       }
     })
