@@ -297,7 +297,7 @@ export class Expr<T> {
     return new Expr(
       ExprData.Filter(
         target,
-        ExprData.create(fn(Fields.from(ExprData.Row(target))))
+        ExprData.create(fn(new Expr(ExprData.Row(target)) as Fields<T>))
       )
     )
   }
@@ -311,7 +311,7 @@ export class Expr<T> {
     return new Expr(
       ExprData.Map(
         target,
-        ExprData.create(fn(Fields.from(ExprData.Row(target))))
+        ExprData.create(fn(new Expr(ExprData.Row(target)) as Fields<T>))
       )
     )
   }

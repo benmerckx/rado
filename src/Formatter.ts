@@ -430,7 +430,9 @@ export abstract class Formatter implements Sanitizer {
           case UnOp.IsNull:
             return this.formatExprValue(expr.expr, ctx).add('is null')
           case UnOp.Not:
-            return raw('!').parenthesis(this.formatExprValue(expr.expr, ctx))
+            return raw('not').addParenthesis(
+              this.formatExprValue(expr.expr, ctx)
+            )
         }
       case ExprType.BinOp:
         return parenthesis(

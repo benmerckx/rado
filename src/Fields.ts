@@ -1,5 +1,5 @@
 import {Column} from './Column'
-import {Expr, ExprData} from './Expr'
+import {Expr} from './Expr'
 
 // https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
 type Field<T> = [T] extends [Array<any>]
@@ -20,13 +20,3 @@ type IsStrictlyAny<T> = (T extends never ? true : false) extends false
   : true
 
 export type Fields<T> = IsStrictlyAny<T> extends true ? any : Field<T>
-
-export namespace Fields {
-  export function from<T>(from: ExprData): Fields<T> {
-    return new Proxy({} as Fields<T>, {
-      get(_, key: string) {
-        return new Expr(ExprData.Field(from, key))
-      }
-    })
-  }
-}
