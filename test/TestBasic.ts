@@ -128,15 +128,16 @@ test('each', async () => {
   const query = await connect()
   const a = {
     refs: [
-      {id: 'b', type: 'entry'},
-      {id: 'c', type: 'entry'}
+      {id: 1, type: 'entry'},
+      {id: 0, type: 'nonsense'},
+      {id: 2, type: 'entry'}
     ]
   }
   const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
-      refs: column.array<{id: string; type: string}>()
+      refs: column.array<{id: number; type: string}>()
     }
   })
 
@@ -158,19 +159,24 @@ test('each', async () => {
   await query(create(Entry))
   await query(Entry.insertAll([b, c]))
 
-  /*const refs = Test.refs.each()
   const Link = Entry.as('Link')
   const tests = Test.select({
-    links: refs
-      .where(refs.get('type').is('entry'))
-      .innerJoin(Link, Link.id.is(refs.get('id')))
-      .select({id: Link.id, title: Link.title})
-  })
-  const res2 = db.first(query)!
+    links: Test.refs
+      .filter(ref => {
+        return ref.type.is('entry')
+      })
+      .map(ref => {
+        return Link.select({id: Link.id, title: Link.title})
+          .where(Link.id.is(ref.id))
+          .first()
+      })
+  }).first()
+
+  const res2 = (await query(tests))!
   assert.equal(res2.links, [
-    {id: 'b', title: 'Entry B'},
-    {id: 'c', title: 'Entry C'}
-  ])*/
+    {id: 1, title: 'Entry B'},
+    {id: 2, title: 'Entry C'}
+  ])
 })
 
 test.run()

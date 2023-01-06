@@ -202,7 +202,7 @@ export function raw(raw: string) {
   return new Statement([Token.Raw(raw)])
 }
 
-export function ident(name: string) {
+export function identifier(name: string) {
   return new Statement([Token.Identifier(name)])
 }
 
@@ -219,7 +219,7 @@ export function parenthesis(stmnt: Statement) {
 }
 
 export function call(method: string, ...args: Array<Statement>) {
-  return ident(method).parenthesis(separated(args))
+  return identifier(method).parenthesis(separated(args))
 }
 
 export function separated(input: Array<Statement>, separator = SEPARATE) {

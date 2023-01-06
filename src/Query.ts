@@ -25,11 +25,9 @@ export type Query<T = any> =
   | Query.Raw
 
 export namespace Query {
-  export interface Limit {
+  export interface QueryBase {
     limit?: number
     offset?: number
-  }
-  export interface QueryBase extends Limit {
     type: QueryType
     where?: ExprData
     orderBy?: Array<OrderBy>

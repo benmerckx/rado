@@ -1,4 +1,5 @@
 import {Cursor} from './Cursor'
+import {Fields} from './Fields'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamData, ParamType} from './Param'
 import {Query} from './Query'
@@ -41,6 +42,8 @@ export const enum ExprType {
   Query = 'Query',
   Record = 'Record',
   Row = 'Row',
+  Map = 'Map',
+  Filter = 'Filter',
   Merge = 'Merge',
   Case = 'Case'
 }
@@ -55,6 +58,8 @@ export type ExprData =
   | {type: ExprType.Record; fields: Record<string, ExprData>}
   | {type: ExprType.Merge; a: ExprData; b: ExprData}
   | {type: ExprType.Row; target: Target}
+  | {type: ExprType.Map; target: Target; result: ExprData}
+  | {type: ExprType.Filter; target: Target; condition: ExprData}
   | {
       type: ExprType.Case
       expr: ExprData
@@ -89,6 +94,12 @@ export const ExprData = {
   },
   Row(target: Target): ExprData {
     return {type: ExprType.Row, target}
+  },
+  Map(target: Target, result: ExprData): ExprData {
+    return {type: ExprType.Map, target, result}
+  },
+  Filter(target: Target, condition: ExprData): ExprData {
+    return {type: ExprType.Filter, target, condition}
   },
   Case(
     expr: ExprData,
@@ -275,6 +286,34 @@ export class Expr<T> {
 
   at<T>(this: Expr<Array<T>>, index: number): Expr<T | null> {
     return this.get(`[${Number(index)}]`)
+  }
+
+  filter<T>(
+    this: Expr<Array<T>>,
+    fn: (cursor: Fields<T>) => Expr<boolean>
+  ): Expr<Array<T>> {
+    const alias = `__${Math.random().toString(36).slice(2, 9)}`
+    const target = Target.Each(this.expr, alias)
+    return new Expr(
+      ExprData.Filter(
+        target,
+        ExprData.create(fn(Fields.from(ExprData.Row(target))))
+      )
+    )
+  }
+
+  map<T, X extends Selection>(
+    this: Expr<Array<T>>,
+    fn: (cursor: Fields<T>) => X
+  ): Expr<Array<Selection.Infer<X>>> {
+    const alias = `__${Math.random().toString(36).slice(2, 9)}`
+    const target = Target.Each(this.expr, alias)
+    return new Expr(
+      ExprData.Map(
+        target,
+        ExprData.create(fn(Fields.from(ExprData.Row(target))))
+      )
+    )
   }
 
   sure() {

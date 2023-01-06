@@ -7,7 +7,7 @@ import {Sanitizer} from './Sanitizer'
 import {
   Statement,
   call,
-  ident,
+  identifier,
   newline,
   parenthesis,
   raw,
@@ -100,7 +100,6 @@ export abstract class Formatter implements Sanitizer {
   formatSelect(query: Query.Select, ctx: FormatContext) {
     return raw('select')
       .add(this.formatSelection(query.selection, ctx))
-
       .addLine('from')
       .add(this.formatTarget(query.from, ctx))
       .add(this.formatWhere(query.where, ctx))
@@ -135,7 +134,7 @@ export abstract class Formatter implements Sanitizer {
         Object.keys(data).map(key => {
           const column = query.table.columns[key]
           const exprData = data[key]
-          return ident(key)
+          return identifier(key)
             .add('=')
             .add(
               this.formatExpr(ExprData.create(data[key]), {
@@ -190,7 +189,7 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatColumn(column: ColumnData) {
-    return ident(column.name!)
+    return identifier(column.name!)
       .add(this.formatType(column.type))
       .addIf(column.unique, 'unique')
       .addIf(column.autoIncrement, 'autoincrement')
@@ -270,7 +269,7 @@ export abstract class Formatter implements Sanitizer {
   formatTarget(target: Target, ctx: FormatContext): Statement {
     switch (target.type) {
       case TargetType.Table:
-        return ident(target.table.name).addIf(target.table.alias, () =>
+        return identifier(target.table.name).addIf(target.table.alias, () =>
           raw('as').addIdentifier(target.table.alias!)
         )
       case TargetType.Join:
@@ -316,11 +315,14 @@ export abstract class Formatter implements Sanitizer {
       )
   }
 
-  formatLimit({limit, offset}: Query.Limit, ctx: FormatContext) {
-    if (!limit && !offset) return
+  formatLimit(
+    {limit, offset, singleResult}: Query.QueryBase,
+    ctx: FormatContext
+  ) {
+    if (!limit && !offset && !singleResult) return
     return newline()
       .raw('limit')
-      .addValue(limit)
+      .addValue(singleResult ? 1 : limit)
       .addIf(offset && offset > 0, raw('offset').addValue(offset))
   }
 
@@ -374,7 +376,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Table:
-            const selection = ident(
+            const selection = identifier(
               expr.target.table.alias || expr.target.table.name
             )
               .raw('.')
@@ -387,8 +389,6 @@ export abstract class Formatter implements Sanitizer {
               default:
                 return selection
             }
-          default:
-            throw new Error('todo')
         }
       default:
         return this.formatAccess(
@@ -436,7 +436,11 @@ export abstract class Formatter implements Sanitizer {
         return parenthesis(
           this.formatExprValue(expr.a, ctx)
             .add(binOps[expr.op])
-            .add(this.formatIn(expr.b, ctx))
+            .add(
+              expr.op === BinOp.In || expr.op === BinOp.NotIn
+                ? this.formatIn(expr.b, ctx)
+                : this.formatExprValue(expr.b, ctx)
+            )
         )
       case ExprType.Param:
         switch (expr.param.type) {
@@ -477,19 +481,26 @@ export abstract class Formatter implements Sanitizer {
             .parenthesis(subQuery)
         )
       case ExprType.Row:
-        const table = Target.source(expr.target)
-        if (!table) throw new Error(`Cannot select empty target`)
-        return this.formatExpr(
-          ExprData.Record(
-            Object.fromEntries(
-              Object.entries(table.columns).map(([key, column]) => [
-                key,
-                ExprData.Field(ExprData.Row(expr.target), column.name!)
-              ])
+        switch (expr.target.type) {
+          case TargetType.Table:
+            const table = Target.source(expr.target)
+            if (!table) throw new Error(`Cannot select empty target`)
+            return this.formatExpr(
+              ExprData.Record(
+                Object.fromEntries(
+                  Object.entries(table.columns).map(([key, column]) => [
+                    key,
+                    ExprData.Field(ExprData.Row(expr.target), column.name!)
+                  ])
+                )
+              ),
+              ctx
             )
-          ),
-          ctx
-        )
+          case TargetType.Each:
+            return identifier(expr.target.alias).raw('.value')
+          default:
+            throw new Error(`Cannot select from ${expr.target.type}`)
+        }
       case ExprType.Merge:
         return call(
           'json_patch',
@@ -506,6 +517,51 @@ export abstract class Formatter implements Sanitizer {
               .concat(this.formatExpr(value, {...ctx, formatAsJson: true}))
           })
         )
+      case ExprType.Filter: {
+        const {target, condition} = expr
+        switch (target.type) {
+          case TargetType.Each:
+            return parenthesis(
+              raw('select json_group_array(json(result)) from').addParenthesis(
+                raw('select value as result')
+                  .add('from')
+                  .addCall(
+                    'json_each',
+                    this.formatExpr(target.expr, {...ctx, formatAsJson: true})
+                  )
+                  .add('as')
+                  .addIdentifier(target.alias)
+                  .add('where')
+                  .add(this.formatExprValue(condition, ctx))
+              )
+            )
+          default:
+            throw new Error('todo')
+        }
+      }
+      case ExprType.Map: {
+        const {target, result} = expr
+        switch (target.type) {
+          case TargetType.Each:
+            return parenthesis(
+              raw('select json_group_array(json(result)) from').addParenthesis(
+                raw('select')
+                  .add(this.formatExpr(result, {...ctx, formatAsJson: true}))
+                  .add('as')
+                  .addIdentifier('result')
+                  .add('from')
+                  .addCall(
+                    'json_each',
+                    this.formatExpr(target.expr, {...ctx, formatAsJson: true})
+                  )
+                  .add('as')
+                  .addIdentifier(target.alias)
+              )
+            )
+          default:
+            throw new Error('todo')
+        }
+      }
       default:
         console.log(expr)
         throw new Error('todo')

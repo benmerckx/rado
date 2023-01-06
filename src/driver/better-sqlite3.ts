@@ -38,7 +38,8 @@ export class BetterSqlite3Driver extends Driver.Sync {
 
   export(): Uint8Array {
     // This is missing from the type definitions
-    return (this.db as any).serialize()
+    // @ts-ignore
+    return this.db.serialize()
   }
 }
 
