@@ -51,7 +51,7 @@ export class Statement {
     return typeof from === 'string' ? raw(from) : from
   }
 
-  static ofTemplate(strings: ReadonlyArray<string>, params: Array<any>) {
+  static tag(strings: ReadonlyArray<string>, ...params: Array<any>) {
     return new Statement(
       strings
         .flatMap((s, i) => [Token.Raw(s), Token.Value(params[i])])
@@ -161,7 +161,7 @@ export class Statement {
     )
   }
 
-  compile(sanitizer: Sanitizer, formatInline = false): [string, Array<any>] {
+  compile(sanitizer: Sanitizer, formatInline = false): Statement.Compiled {
     let sql = '',
       params = [],
       indent = ''
@@ -172,7 +172,7 @@ export class Statement {
           else sql += token.data
           break
         case TokenType.Identifier:
-          sql += sanitizer.escapeIdent(token.data)
+          sql += sanitizer.escapeIdentifier(token.data)
           break
         case TokenType.Value:
           if (formatInline) {
@@ -192,6 +192,10 @@ export class Statement {
     }
     return [sql, params]
   }
+}
+
+export namespace Statement {
+  export type Compiled = [sql: string, params: Array<any>]
 }
 
 export function newline() {

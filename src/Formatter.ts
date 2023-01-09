@@ -53,7 +53,7 @@ export abstract class Formatter implements Sanitizer {
   constructor() {}
 
   abstract escapeValue(value: any): string
-  abstract escapeIdent(ident: string): string
+  abstract escapeIdentifier(ident: string): string
   abstract formatSqlAccess(on: Statement, field: string): Statement
   abstract formatJsonAccess(on: Statement, field: string): Statement
 
@@ -88,6 +88,8 @@ export abstract class Formatter implements Sanitizer {
         return this.formatDelete(query, ctx)
       case QueryType.CreateTable:
         return this.formatCreateTable(query, ctx)
+      case QueryType.AlterTable:
+        return this.formatAlterTable(query, ctx)
       case QueryType.Transaction:
         return this.formatTransaction(query, ctx)
       case QueryType.Batch:
@@ -166,6 +168,18 @@ export abstract class Formatter implements Sanitizer {
       )
   }
 
+  formatAlterTable(query: Query.AlterTable, ctx: FormatContext) {
+    let stmt = raw('alter table').addIdentifier(query.table.name)
+    if (query.addColumn) {
+      stmt = stmt.add('add column').add(this.formatColumn(query.addColumn))
+    } else if (query.dropColumn) {
+      stmt = stmt.add('drop column').addIdentifier(query.dropColumn.name)
+    } else if (query.alterColumn) {
+      throw new Error(`Not available in this formatter: alter column`)
+    }
+    return stmt
+  }
+
   formatTransaction({op, id}: Query.Transaction, ctx: FormatContext) {
     switch (op) {
       case Query.TransactionOperation.Begin:
@@ -185,7 +199,7 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatRaw({strings, params}: Query.Raw, ctx: FormatContext) {
-    return Statement.ofTemplate(strings, params)
+    return Statement.tag(strings, ...params)
   }
 
   formatColumn(column: ColumnData) {
@@ -197,19 +211,20 @@ export abstract class Formatter implements Sanitizer {
       .addIf(!column.nullable, 'not null')
       .addIf(
         column.defaultValue !== undefined,
-        raw('default').value(column.defaultValue)
+        raw('default').add(this.formatInlineValue(column.defaultValue))
       )
   }
 
   formatType(type: ColumnType): Statement {
     switch (type) {
       case ColumnType.String:
-      case ColumnType.Object:
-      case ColumnType.Array:
         return raw('text')
+      case ColumnType.Json:
+        return raw('json')
       case ColumnType.Number:
-      case ColumnType.Boolean:
         return raw('numeric')
+      case ColumnType.Boolean:
+        return raw('boolean')
       case ColumnType.Integer:
         return raw('integer')
     }
@@ -255,13 +270,9 @@ export abstract class Formatter implements Sanitizer {
         if (typeof columnValue !== 'boolean')
           throw new TypeError(`Expected boolean for column ${column.name}`)
         return value(columnValue)
-      case ColumnType.Object:
+      case ColumnType.Json:
         if (typeof columnValue !== 'object')
           throw new TypeError(`Expected object for column ${column.name}`)
-        return value(JSON.stringify(columnValue))
-      case ColumnType.Array:
-        if (!Array.isArray(columnValue))
-          throw new TypeError(`Expected array for column ${column.name}`)
         return value(JSON.stringify(columnValue))
     }
   }
@@ -383,8 +394,7 @@ export abstract class Formatter implements Sanitizer {
               .identifier(field)
             const column = expr.target.table.columns[field]
             switch (column?.type) {
-              case ColumnType.Array:
-              case ColumnType.Object:
+              case ColumnType.Json:
                 return call('json', selection)
               default:
                 return selection
@@ -401,6 +411,19 @@ export abstract class Formatter implements Sanitizer {
 
   formatString(input: string): Statement {
     return raw(this.escapeValue(String(input)))
+  }
+
+  formatInlineValue(rawValue: any): Statement {
+    switch (true) {
+      case rawValue === null || rawValue === undefined:
+        return raw('null')
+      case typeof rawValue === 'boolean':
+        return rawValue ? raw('true') : raw('false')
+      case typeof rawValue === 'string' || typeof rawValue === 'number':
+        return this.formatString(rawValue)
+      default:
+        return this.formatString(JSON.stringify(rawValue))
+    }
   }
 
   formatValue(rawValue: any, formatAsJson?: boolean): Statement {

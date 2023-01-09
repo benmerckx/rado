@@ -1,5 +1,5 @@
 import {ExprData} from './Expr'
-import {TableData} from './Table'
+import {Schema} from './Schema'
 
 export const enum TargetType {
   Each = 'Each',
@@ -20,9 +20,9 @@ export namespace Target {
   }
   export interface Table {
     type: TargetType.Table
-    table: TableData
+    table: Schema
   }
-  export function Table(table: TableData): Table {
+  export function Table(table: Schema): Table {
     return {type: TargetType.Table, table: table}
   }
   export interface Join {
@@ -41,7 +41,7 @@ export namespace Target {
     return {type: TargetType.Join, left, right, joinType, on}
   }
 
-  export function source(from: Target): TableData | undefined {
+  export function source(from: Target): Schema | undefined {
     switch (from.type) {
       case TargetType.Table:
         return from.table

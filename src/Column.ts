@@ -3,23 +3,21 @@ export const enum ColumnType {
   Integer = 'Integer',
   Number = 'Number',
   Boolean = 'Boolean',
-  Object = 'Object',
-  Array = 'Array'
+  Json = 'Json'
 }
 
 export interface ColumnData {
   type: ColumnType
-  name?: string
+  name: string
   nullable?: boolean
+  defaultValue?: any
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
-  defaultValue?: any
-  generated?: boolean
 }
 
 export class Column<T = any> {
-  constructor(public data: ColumnData) {}
+  constructor(public data: Partial<ColumnData>) {}
 
   name(name: string): Column<T> {
     return new Column({...this.data, name})
@@ -65,9 +63,9 @@ export const column = {
     return new Column({type: ColumnType.Boolean})
   },
   object<T extends object = object>(): Column<T> {
-    return new Column({type: ColumnType.Object})
+    return new Column({type: ColumnType.Json})
   },
   array<T = any>(): Column<Array<T>> {
-    return new Column({type: ColumnType.Array})
+    return new Column({type: ColumnType.Json})
   }
 }

@@ -20,7 +20,7 @@ export class SqliteFormatter extends Formatter {
     return 'json(' + this.escapeString(JSON.stringify(value)) + ')'
   }
 
-  escapeIdent(input: string): string {
+  escapeIdentifier(input: string): string {
     return escapeWithin(input, '`')
   }
 

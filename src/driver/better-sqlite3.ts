@@ -1,38 +1,42 @@
 import type {Database} from 'better-sqlite3'
 import {Driver} from '../Driver'
-import {Query, QueryType} from '../Query'
+import {Schema} from '../Schema'
+import {Statement} from '../Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
+import {SqliteSchema} from '../sqlite/SqliteSchema'
 
 export class BetterSqlite3Driver extends Driver.Sync {
-  formatter = new SqliteFormatter()
-
-  constructor(private db: Database) {
-    super()
+  constructor(public db: Database) {
+    super(new SqliteFormatter())
   }
 
-  execute(query: Query) {
-    const [sql, params] = this.formatter.compile(query)
-    const stmt = this.db.prepare(sql)
-    if ('selection' in query) {
-      const res = stmt
-        .pluck()
-        .all(...params)
-        .map(item => JSON.parse(item).result)
-      if (query.singleResult) return res[0]
-      return res
-    } else if (query.type === QueryType.Raw) {
-      switch (query.expectedReturn) {
-        case 'row':
-          return stmt.get(...params)
-        case 'rows':
-          return stmt.all(...params)
-        default:
-          stmt.run(...params)
-          return undefined
-      }
-    } else {
-      const {changes} = stmt.run(...params)
-      return {rowsAffected: changes}
+  rows<T extends object = object>([sql, params]: Statement.Compiled): Array<T> {
+    return this.db.prepare(sql).all(...params)
+  }
+
+  values([sql, params]: Statement.Compiled): Array<Array<any>> {
+    return this.db
+      .prepare(sql)
+      .raw()
+      .all(...params)
+  }
+
+  execute([sql, params]: Statement.Compiled): void {
+    this.db.prepare(sql).run(...params)
+  }
+
+  mutate([sql, params]: Statement.Compiled): {rowsAffected: number} {
+    const {changes} = this.db.prepare(sql).run(...params)
+    return {rowsAffected: changes}
+  }
+
+  schema(tableName: string): Schema {
+    const columns: Array<SqliteSchema.Column> = this.rows<SqliteSchema.Column>(
+      SqliteSchema.tableData(tableName).compile(this.formatter)
+    )
+    return {
+      name: tableName,
+      columns: Object.fromEntries(columns.map(SqliteSchema.parseColumn))
     }
   }
 

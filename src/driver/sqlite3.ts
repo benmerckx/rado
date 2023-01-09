@@ -1,53 +1,69 @@
 import type {Database} from 'sqlite3'
 import {Driver} from '../Driver'
-import {Query, QueryType} from '../Query'
+import {Query} from '../Query'
+import {Schema} from '../Schema'
+import {Statement} from '../Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
+import {SqliteSchema} from '../sqlite/SqliteSchema'
 
 export class Sqlite3Driver extends Driver.Async {
-  formatter = new SqliteFormatter()
   lock: Promise<void> | undefined
 
   constructor(private db: Database) {
-    super()
+    super(new SqliteFormatter())
   }
 
-  async execute(query: Query) {
+  async executeQuery<T>(query: Query<T>): Promise<T> {
     await this.lock
+    return super.executeQuery(query)
+  }
+
+  rows<T extends object = object>([sql, params]: Statement.Compiled): Promise<
+    Array<T>
+  > {
     return new Promise((resolve, reject) => {
-      const [sql, params] = this.formatter.compile(query)
       const stmt = this.db.prepare(sql)
-      if ('selection' in query) {
-        stmt.all(params, (err, rows) => {
-          const res = rows.map(row => JSON.parse(row.result).result)
-          if (err) reject(err)
-          else resolve(query.singleResult ? res[0] : res)
-        })
-      } else if (query.type === QueryType.Raw) {
-        switch (query.expectedReturn) {
-          case 'row':
-            return stmt.get(params, (err, row) => {
-              if (err) reject(err)
-              else resolve(row)
-            })
-          case 'rows':
-            return stmt.all(params, (err, rows) => {
-              if (err) reject(err)
-              else resolve(rows)
-            })
-          default:
-            stmt.run(params, err => {
-              if (err) reject(err)
-              else resolve(undefined)
-            })
-            return undefined
-        }
-      } else {
-        stmt.run(params, function (err) {
-          if (err) reject(err)
-          else resolve({rowsAffected: this.changes})
-        })
-      }
+      stmt.all(params, (err, rows) => {
+        if (err) reject(err)
+        else resolve(rows)
+      })
     })
+  }
+
+  async values(stmt: Statement.Compiled): Promise<Array<Array<any>>> {
+    const rows = await this.rows(stmt)
+    return rows.map(Object.values)
+  }
+
+  execute([sql, params]: Statement.Compiled): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const stmt = this.db.prepare(sql)
+      stmt.run(params, err => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+  }
+
+  mutate([sql, params]: Statement.Compiled): Promise<{rowsAffected: number}> {
+    return new Promise((resolve, reject) => {
+      const stmt = this.db.prepare(sql)
+      stmt.run(params, function (err) {
+        if (err) reject(err)
+        else resolve({rowsAffected: this.changes})
+      })
+    })
+  }
+
+  async schema(tableName: string): Promise<Schema> {
+    const columns: Array<SqliteSchema.Column> =
+      await this.rows<SqliteSchema.Column>(
+        SqliteSchema.tableData(tableName).compile(this.formatter)
+      )
+    return {
+      name: tableName,
+      columns: Object.fromEntries(columns.map(SqliteSchema.parseColumn))
+    }
   }
 
   isolate(): [connection: Driver.Async, release: () => Promise<void>] {

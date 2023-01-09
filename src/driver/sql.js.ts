@@ -1,43 +1,47 @@
 import type {Database} from 'sql.js'
 import {Driver} from '../Driver'
-import {Query, QueryType} from '../Query'
+import {Schema} from '../Schema'
+import {Statement} from '../Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
+import {SqliteSchema} from '../sqlite/SqliteSchema'
 
 export class SqlJsDriver extends Driver.Sync {
-  formatter = new SqliteFormatter()
-
-  constructor(private db: Database) {
-    super()
+  constructor(public db: Database) {
+    super(new SqliteFormatter())
   }
 
-  execute(query: Query) {
-    const [sql, params] = this.formatter.compile(query)
+  rows<T extends object = object>([sql, params]: Statement.Compiled): Array<T> {
     const stmt = this.db.prepare(sql)
-    if ('selection' in query) {
-      stmt.bind(params)
-      const res = []
-      while (stmt.step()) {
-        const row = stmt.get()[0] as string
-        res.push(JSON.parse(row).result)
-      }
-      if (query.singleResult) return res[0]
-      return res
-    } else if (query.type === QueryType.Raw) {
-      switch (query.expectedReturn) {
-        case 'row':
-          return stmt.getAsObject(params)
-        case 'rows':
-          stmt.bind(params)
-          const res = []
-          while (stmt.step()) res.push(stmt.getAsObject())
-          return res
-        default:
-          stmt.run(params)
-          return undefined
-      }
-    } else {
-      stmt.run(params)
-      return {rowsAffected: this.db.getRowsModified()}
+    stmt.bind(params)
+    const res = []
+    while (stmt.step()) res.push(stmt.getAsObject())
+    return res as Array<T>
+  }
+
+  values([sql, params]: Statement.Compiled): Array<Array<any>> {
+    const stmt = this.db.prepare(sql)
+    stmt.bind(params)
+    const res = []
+    while (stmt.step()) res.push(stmt.get())
+    return res
+  }
+
+  execute([sql, params]: Statement.Compiled): void {
+    this.db.prepare(sql).run(params)
+  }
+
+  mutate([sql, params]: Statement.Compiled): {rowsAffected: number} {
+    this.db.prepare(sql).run(params)
+    return {rowsAffected: this.db.getRowsModified()}
+  }
+
+  schema(tableName: string): Schema {
+    const columns: Array<SqliteSchema.Column> = this.rows<SqliteSchema.Column>(
+      SqliteSchema.tableData(tableName).compile(this.formatter)
+    )
+    return {
+      name: tableName,
+      columns: Object.fromEntries(columns.map(SqliteSchema.parseColumn))
     }
   }
 

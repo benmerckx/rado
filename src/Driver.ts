@@ -1,5 +1,8 @@
 import {Cursor} from './Cursor'
+import {Formatter} from './Formatter'
 import {Query, QueryType} from './Query'
+import {Schema} from './Schema'
+import {Statement} from './Statement'
 
 class Callable extends Function {
   constructor(fn: Function) {
@@ -13,7 +16,7 @@ class Callable extends Function {
 }
 
 abstract class DriverBase extends Callable {
-  constructor() {
+  constructor(public formatter: Formatter) {
     super((...args: Array<any>) => {
       const [input, ...rest] = args
       if (input instanceof Cursor) return this.executeQuery(input.query())
@@ -50,17 +53,40 @@ export namespace Driver {
   export abstract class Sync extends DriverBase {
     transactionId = 0
 
-    abstract execute(query: Query): any
+    abstract rows(stmt: Statement.Compiled): Array<object>
+    abstract values(stmt: Statement.Compiled): Array<Array<any>>
+    abstract execute(stmt: Statement.Compiled): void
+    abstract mutate(stmt: Statement.Compiled): {rowsAffected: number}
+    abstract schema(tableName: string): Schema
 
     executeQuery<T>(query: Query<T>): T {
       switch (query.type) {
         case QueryType.Batch:
           let result!: T
           const stmts = query.queries
-          for (const query of stmts) result = this.execute(query)
+          for (const query of stmts) result = this.executeQuery(query)
           return result
         default:
-          return this.execute(query)
+          const stmt = this.formatter.compile(query)
+          if ('selection' in query) {
+            const res = this.values(stmt).map(
+              ([item]) => JSON.parse(item).result
+            )
+            if (query.singleResult) return res[0] as T
+            return res as T
+          } else if (query.type === QueryType.Raw) {
+            switch (query.expectedReturn) {
+              case 'row':
+                return this.rows(stmt)[0] as T
+              case 'rows':
+                return this.rows(stmt) as T
+              default:
+                this.execute(stmt)
+                return undefined!
+            }
+          } else {
+            return this.mutate(stmt) as T
+          }
       }
     }
 
@@ -74,17 +100,17 @@ export namespace Driver {
 
     transaction<T>(run: (query: Sync) => T): T {
       const id = `t${this.transactionId++}`
-      this.execute(
+      this.executeQuery(
         Query.Transaction({op: Query.TransactionOperation.Begin, id})
       )
       try {
         const res = run(this)
-        this.execute(
+        this.executeQuery(
           Query.Transaction({op: Query.TransactionOperation.Commit, id})
         )
         return res
       } catch (e) {
-        this.execute(
+        this.executeQuery(
           Query.Transaction({op: Query.TransactionOperation.Rollback, id})
         )
         throw e
@@ -103,18 +129,41 @@ export namespace Driver {
   export abstract class Async extends DriverBase {
     transactionId = 0
 
-    abstract execute(query: Query): Promise<any>
     abstract isolate(): [connection: Async, release: () => Promise<void>]
+    abstract rows(stmt: Statement.Compiled): Promise<Array<object>>
+    abstract values(stmt: Statement.Compiled): Promise<Array<Array<any>>>
+    abstract execute(stmt: Statement.Compiled): Promise<void>
+    abstract mutate(stmt: Statement.Compiled): Promise<{rowsAffected: number}>
+    abstract schema(tableName: string): Promise<Schema>
 
     async executeQuery<T>(query: Query<T>): Promise<T> {
       switch (query.type) {
         case QueryType.Batch:
           let result!: T
           const stmts = query.queries
-          for (const query of stmts) result = await this.execute(query)
+          for (const query of stmts) result = await this.executeQuery(query)
           return result
         default:
-          return this.execute(query)
+          const stmt = this.formatter.compile(query)
+          if ('selection' in query) {
+            const res = (await this.values(stmt)).map(
+              ([item]) => JSON.parse(item).result
+            )
+            if (query.singleResult) return res[0] as T
+            return res as T
+          } else if (query.type === QueryType.Raw) {
+            switch (query.expectedReturn) {
+              case 'row':
+                return (await this.rows(stmt))[0] as T
+              case 'rows':
+                return (await this.rows(stmt)) as T
+              default:
+                await this.execute(stmt)
+                return undefined!
+            }
+          } else {
+            return (await this.mutate(stmt)) as T
+          }
       }
     }
 
@@ -132,17 +181,17 @@ export namespace Driver {
     async transaction<T>(run: (query: Async) => T): Promise<T> {
       const id = `t${this.transactionId++}`
       const [connection, release] = this.isolate()
-      await connection.execute(
+      await connection.executeQuery(
         Query.Transaction({op: Query.TransactionOperation.Begin, id})
       )
       try {
         const res = await run(connection)
-        await connection.execute(
+        await connection.executeQuery(
           Query.Transaction({op: Query.TransactionOperation.Commit, id})
         )
         return res
       } catch (e) {
-        await connection.execute(
+        await connection.executeQuery(
           Query.Transaction({op: Query.TransactionOperation.Rollback, id})
         )
         throw e
@@ -156,12 +205,32 @@ export namespace Driver {
     lock: Promise<void> | undefined
 
     constructor(private sync: Sync) {
-      super()
+      super(sync.formatter)
     }
 
-    async execute<T>(query: Query<T>): Promise<T> {
+    async executeQuery<T>(query: Query<T>): Promise<T> {
       await this.lock
-      return this.sync.execute(query)
+      return super.executeQuery(query)
+    }
+
+    async rows(stmt: Statement.Compiled): Promise<Array<object>> {
+      return this.sync.rows(stmt)
+    }
+
+    async values(stmt: Statement.Compiled): Promise<Array<Array<any>>> {
+      return this.sync.values(stmt)
+    }
+
+    async execute(stmt: Statement.Compiled): Promise<void> {
+      return this.sync.execute(stmt)
+    }
+
+    async mutate(stmt: Statement.Compiled): Promise<{rowsAffected: number}> {
+      return this.sync.mutate(stmt)
+    }
+
+    async schema(tableName: string): Promise<Schema> {
+      return this.sync.schema(tableName)
     }
 
     isolate(): [connection: Async, release: () => Promise<void>] {

@@ -1,35 +1,29 @@
-import {Column, ColumnData} from './Column'
+import {Column} from './Column'
 import {Cursor} from './Cursor'
 import {Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {Query} from './Query'
+import {Schema} from './Schema'
 import {Target} from './Target'
 import {Update} from './Update'
-
-export interface TableData {
-  name: string
-  alias?: string
-  columns: Record<string, ColumnData>
-  indexes?: Record<string, Array<Expr<any>>>
-}
 
 export class Table<T> extends Cursor.SelectMultiple<T> {
   /** @internal */
   protected declare __tableType: T
 
-  constructor(data: TableData) {
+  constructor(schema: Schema) {
     super(
       Query.Select({
-        from: Target.Table(data),
-        selection: ExprData.Row(Target.Table(data))
+        from: Target.Table(schema),
+        selection: ExprData.Row(Target.Table(schema))
       })
     )
-    Object.defineProperty(this, 'data', {
+    Object.defineProperty(this, 'schema', {
       enumerable: false,
-      value: () => data
+      value: () => schema
     })
-    if (data.columns)
-      for (const column of Object.keys(data.columns)) {
+    if (schema.columns)
+      for (const column of Object.keys(schema.columns)) {
         Object.defineProperty(this, column, {
           enumerable: true,
           get: () => this.get(column)
@@ -45,32 +39,32 @@ export class Table<T> extends Cursor.SelectMultiple<T> {
   insertOne(record: Table.Insert<T>) {
     return new Cursor.Batch<T>([
       Query.Insert({
-        into: this.data(),
+        into: this.schema(),
         data: [record],
-        selection: ExprData.Row(Target.Table(this.data())),
+        selection: ExprData.Row(Target.Table(this.schema())),
         singleResult: true
       })
     ])
   }
 
   insertAll(data: Array<Table.Insert<T>>) {
-    return new Cursor.Insert<T>(this.data()).values(...data)
+    return new Cursor.Insert<T>(this.schema()).values(...data)
   }
 
   set(data: Update<T>) {
     return new Cursor.Update<T>(
       Query.Update({
-        table: this.data()
+        table: this.schema()
       })
     ).set(data)
   }
 
   createTable() {
-    return new Cursor.Create(this.data())
+    return new Cursor.Create(this.schema())
   }
 
   as(alias: string): Table<T> & Fields<T> {
-    return new Table({...this.data(), alias}) as Table<T> & Fields<T>
+    return new Table({...this.schema(), alias}) as Table<T> & Fields<T>
   }
 
   get(name: string): Expr<any> {
@@ -78,11 +72,10 @@ export class Table<T> extends Cursor.SelectMultiple<T> {
   }
 
   toExpr() {
-    return new Expr<T>(ExprData.Row(Target.Table(this.data())))
+    return new Expr<T>(ExprData.Row(Target.Table(this.schema())))
   }
 
-  /** @internal */
-  data(): TableData {
+  schema(): Schema {
     throw new Error('Not implemented')
   }
 }
@@ -119,6 +112,7 @@ export interface TableOptions<T> {
   name: string
   alias?: string
   columns: {[K in keyof T]: Column<T[K]>}
+  indexes?: Record<string, Array<Expr<any>>>
 }
 
 export function table<T extends {}>(

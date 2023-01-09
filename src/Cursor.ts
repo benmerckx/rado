@@ -2,8 +2,9 @@ import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
 import {Query} from './Query'
+import {Schema} from './Schema'
 import {Selection} from './Selection'
-import {Table, TableData} from './Table'
+import {Table} from './Table'
 import {Target} from './Target'
 import {Update as UpdateSet} from './Update'
 
@@ -81,7 +82,7 @@ export namespace Cursor {
   }
 
   export class Insert<T> {
-    constructor(protected into: TableData) {}
+    constructor(protected into: Schema) {}
 
     values(...data: Array<Table.Insert<T>>): InsertValues {
       return new InsertValues(Query.Insert({into: this.into, data}))
@@ -89,7 +90,7 @@ export namespace Cursor {
   }
 
   export class Create extends Cursor<void> {
-    constructor(protected table: TableData) {
+    constructor(protected table: Schema) {
       super(Query.CreateTable({table, ifNotExists: true}))
     }
   }
@@ -111,7 +112,7 @@ export namespace Cursor {
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.data()),
+          Target.Table(that.schema()),
           'left',
           Expr.and(...on).expr
         )
@@ -124,7 +125,7 @@ export namespace Cursor {
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.data()),
+          Target.Table(that.schema()),
           'inner',
           Expr.and(...on).expr
         )
@@ -186,7 +187,7 @@ export namespace Cursor {
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.data()),
+          Target.Table(that.schema()),
           'left',
           Expr.and(...on).expr
         )
@@ -199,7 +200,7 @@ export namespace Cursor {
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.data()),
+          Target.Table(that.schema()),
           'inner',
           Expr.and(...on).expr
         )
