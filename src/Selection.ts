@@ -1,6 +1,5 @@
 import type {Cursor} from './Cursor'
 import type {Expr} from './Expr'
-import {Table} from './Table'
 
 type SelectionBase =
   | Expr<any>
@@ -10,9 +9,9 @@ interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 
 export namespace Selection {
-  export type Infer<T> = T extends Table<infer K>
+  export type Infer<T> = T extends {__tableType: infer K}
     ? K
-    : T extends Cursor<infer K>
+    : T extends {__cursortype: infer K}
     ? K
     : T extends Expr<infer K>
     ? K

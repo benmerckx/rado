@@ -2,14 +2,15 @@
   "compilerOptions": {
     "module": "ESNext",
     "target": "ESNext",
+    "moduleResolution": "node",
     "preserveWatchOutput": true,
     "outDir": "dist",
     "skipLibCheck": true,
     "strict": true,
     "declaration": true,
-    "moduleResolution": "node",
+    "emitDeclarationOnly": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },
-  "include": ["src", "test"]
+  "include": ["src"]
 }

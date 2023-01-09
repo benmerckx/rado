@@ -8,9 +8,8 @@ import {Target} from './Target'
 import {Update as UpdateSet} from './Update'
 
 export class Cursor<T> {
-  // Not sure what the correct way to circumvent this is
-  // https://github.com/Microsoft/TypeScript/wiki/FAQ#why-doesnt-type-inference-work-on-this-interface-interface-foot--
-  private declare __type: T
+  /** @internal */
+  protected declare __cursorType: T
 
   constructor(query: Query<T>) {
     Object.defineProperty(this, 'query', {
@@ -23,7 +22,7 @@ export class Cursor<T> {
     throw new Error('Not implemented')
   }
 
-  toJSON() {
+  toJSON(): Query<T> {
     return this.query()
   }
 }

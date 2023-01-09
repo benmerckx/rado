@@ -14,6 +14,9 @@ export interface TableData {
 }
 
 export class Table<T> extends Cursor.SelectMultiple<T> {
+  /** @internal */
+  protected declare __tableType: T
+
   constructor(data: TableData) {
     super(
       Query.Select({
