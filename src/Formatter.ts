@@ -579,8 +579,7 @@ export abstract class Formatter implements Sanitizer {
           'json_object',
           ...Object.entries(expr.fields).map(([key, value]) => {
             return this.formatString(key)
-              .raw(',')
-              .newline()
+              .raw(', ')
               .concat(this.formatExpr(value, {...ctx, formatAsJson: true}))
           })
         )

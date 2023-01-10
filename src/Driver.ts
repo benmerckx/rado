@@ -188,7 +188,6 @@ export namespace Driver {
           })
         default:
           const stmt = this.formatter.compile(query)
-          console.log(stmt[0])
           if ('selection' in query) {
             const res = (await this.values(stmt)).map(
               ([item]) => JSON.parse(item).result
