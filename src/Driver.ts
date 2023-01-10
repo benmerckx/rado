@@ -1,8 +1,9 @@
 import {Cursor} from './Cursor'
 import {Formatter} from './Formatter'
 import {Query, QueryType} from './Query'
-import {Schema} from './Schema'
+import {Schema, SchemaInstructions} from './Schema'
 import {Statement} from './Statement'
+import {Table} from './Table'
 
 class Callable extends Function {
   constructor(fn: Function) {
@@ -57,15 +58,36 @@ export namespace Driver {
     abstract values(stmt: Statement.Compiled): Array<Array<any>>
     abstract execute(stmt: Statement.Compiled): void
     abstract mutate(stmt: Statement.Compiled): {rowsAffected: number}
-    abstract schema(tableName: string): Schema
+    abstract schemaInstructions(
+      tableName: string
+    ): SchemaInstructions | undefined
+
+    migrateSchema(...tables: Array<Table<any>>) {
+      const queries = []
+      for (const table of Object.values(tables)) {
+        const schema = table.schema()
+        const localSchema = this.schemaInstructions(schema.name)
+        if (!localSchema) {
+          queries.push(...Schema.create(schema).queries)
+        } else {
+          const changes = Schema.upgrade(this.formatter, localSchema, schema)
+          if (changes.length) queries.push(...changes)
+        }
+      }
+      return this.executeQuery(Query.Batch({queries}))
+    }
 
     executeQuery<T>(query: Query<T>): T {
       switch (query.type) {
         case QueryType.Batch:
           let result!: T
           const stmts = query.queries
-          for (const query of stmts) result = this.executeQuery(query)
-          return result
+          if (stmts.length === 0) return undefined!
+          if (stmts.length === 1) return this.executeQuery(stmts[0])
+          return this.transaction(cnx => {
+            for (const query of stmts) result = cnx.executeQuery(query)
+            return result
+          })
         default:
           const stmt = this.formatter.compile(query)
           if ('selection' in query) {
@@ -134,17 +156,39 @@ export namespace Driver {
     abstract values(stmt: Statement.Compiled): Promise<Array<Array<any>>>
     abstract execute(stmt: Statement.Compiled): Promise<void>
     abstract mutate(stmt: Statement.Compiled): Promise<{rowsAffected: number}>
-    abstract schema(tableName: string): Promise<Schema>
+    abstract schemaInstructions(
+      tableName: string
+    ): Promise<SchemaInstructions | undefined>
+
+    async migrateSchema(...tables: Array<Table<any>>) {
+      const queries = []
+      for (const table of Object.values(tables)) {
+        const schema = table.schema()
+        const localSchema = await this.schemaInstructions(schema.name)
+        if (!localSchema) {
+          queries.push(...Schema.create(schema).queries)
+        } else {
+          const changes = Schema.upgrade(this.formatter, localSchema, schema)
+          if (changes.length) queries.push(...changes)
+        }
+      }
+      return this.executeQuery(Query.Batch({queries}))
+    }
 
     async executeQuery<T>(query: Query<T>): Promise<T> {
       switch (query.type) {
         case QueryType.Batch:
           let result!: T
           const stmts = query.queries
-          for (const query of stmts) result = await this.executeQuery(query)
-          return result
+          if (stmts.length === 0) return undefined!
+          if (stmts.length === 1) return this.executeQuery(stmts[0])
+          return this.transaction(async cnx => {
+            for (const query of stmts) result = await cnx.executeQuery(query)
+            return result
+          })
         default:
           const stmt = this.formatter.compile(query)
+          console.log(stmt[0])
           if ('selection' in query) {
             const res = (await this.values(stmt)).map(
               ([item]) => JSON.parse(item).result
@@ -229,8 +273,10 @@ export namespace Driver {
       return this.sync.mutate(stmt)
     }
 
-    async schema(tableName: string): Promise<Schema> {
-      return this.sync.schema(tableName)
+    async schemaInstructions(
+      tableName: string
+    ): Promise<SchemaInstructions | undefined> {
+      return this.sync.schemaInstructions(tableName)
     }
 
     isolate(): [connection: Async, release: () => Promise<void>] {

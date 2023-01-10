@@ -91,7 +91,7 @@ export namespace Cursor {
 
   export class Create extends Cursor<void> {
     constructor(protected table: Schema) {
-      super(Query.CreateTable({table, ifNotExists: true}))
+      super(Schema.create(table))
     }
   }
 

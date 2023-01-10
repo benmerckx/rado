@@ -1,7 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Query, column, table} from '../src'
-import {Schema} from '../src/Schema'
+import {column, table} from '../src'
 import {connect} from './DbSuite'
 
 const columns = {
@@ -27,62 +26,37 @@ const TestTable = table({
   columns
 })
 
-test('Schema', async () => {
-  const query = await connect()
-  await query(TestTable.createTable())
-  assert.equal(await query.schema('test'), TestTable.schema())
-})
+const query = await connect()
 
 test('Add col', async () => {
-  const TestTable2 = table({
+  const Start = table({
     name: 'test',
     columns: {
-      ...columns,
+      id: column.integer().primaryKey(),
+      text: column.string()
+    }
+  })
+  await query(Start.createTable())
+  const AddCol = table({
+    name: 'test',
+    columns: {
+      id: column.integer().primaryKey(),
       newCol: column.string()
+    },
+    indexes() {
+      return {
+        newCol: {on: [this.newCol]}
+      }
     }
   })
-  const changes = Schema.diff(TestTable.schema(), TestTable2.schema())
-  assert.equal(changes, [
-    Query.AlterTable({
-      table: TestTable2.schema(),
-      addColumn: TestTable2.schema().columns.newCol
+  await query.migrateSchema(AddCol)
+  await query(
+    AddCol.insertOne({
+      newCol: 'new'
     })
-  ])
-})
-
-test('Remove col', async () => {
-  const {array, ...restColumns} = columns
-  const TestTable2 = table({
-    name: 'test',
-    columns: restColumns
-  })
-  const changes = Schema.diff(TestTable.schema(), TestTable2.schema())
-  assert.equal(changes, [
-    Query.AlterTable({
-      table: TestTable2.schema(),
-      dropColumn: TestTable.schema().columns.array
-    })
-  ])
-})
-
-test('Alter col', async () => {
-  const TestTable2 = table({
-    name: 'test',
-    columns: {
-      ...columns,
-      array: column.array().defaultValue([3, 2, 1])
-    }
-  })
-  const changes = Schema.diff(TestTable.schema(), TestTable2.schema())
-  assert.equal(changes, [
-    Query.AlterTable({
-      table: TestTable2.schema(),
-      alterColumn: [
-        TestTable2.schema().columns.array,
-        TestTable.schema().columns.array
-      ]
-    })
-  ])
+  )
+  const rowOne = await query(AddCol.first())
+  assert.equal(rowOne, {id: 1, newCol: 'new'})
 })
 
 test.run()

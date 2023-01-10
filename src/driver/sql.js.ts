@@ -1,6 +1,6 @@
 import type {Database} from 'sql.js'
 import {Driver} from '../Driver'
-import {Schema} from '../Schema'
+import {SchemaInstructions} from '../Schema'
 import {Statement} from '../Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
@@ -35,13 +35,18 @@ export class SqlJsDriver extends Driver.Sync {
     return {rowsAffected: this.db.getRowsModified()}
   }
 
-  schema(tableName: string): Schema {
-    const columns: Array<SqliteSchema.Column> = this.rows<SqliteSchema.Column>(
-      SqliteSchema.tableData(tableName).compile(this.formatter)
-    )
-    return {
-      name: tableName,
-      columns: Object.fromEntries(columns.map(SqliteSchema.parseColumn))
+  schemaInstructions(tableName: string): SchemaInstructions | undefined {
+    try {
+      const columnData: Array<SqliteSchema.Column> =
+        this.rows<SqliteSchema.Column>(
+          SqliteSchema.tableData(tableName).compile(this.formatter)
+        )
+      const indexData = this.rows<SqliteSchema.Index>(
+        SqliteSchema.indexData(tableName).compile(this.formatter)
+      )
+      return SqliteSchema.createInstructions(columnData, indexData)
+    } catch (e) {
+      return undefined
     }
   }
 

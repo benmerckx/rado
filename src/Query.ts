@@ -1,8 +1,7 @@
 import {ColumnData} from './Column'
 import {ExprData} from './Expr'
-import {Key} from './Key'
 import {OrderBy} from './OrderBy'
-import {Schema} from './Schema'
+import {Index, Schema} from './Schema'
 import {Target} from './Target'
 
 export const enum QueryType {
@@ -11,6 +10,8 @@ export const enum QueryType {
   Update = 'Update',
   Delete = 'Delete',
   CreateTable = 'CreateTable',
+  CreateIndex = 'CreateIndex',
+  DropIndex = 'DropIndex',
   AlterTable = 'AlterTable',
   Batch = 'Batch',
   Transaction = 'Transaction',
@@ -23,6 +24,8 @@ export type Query<T = any> =
   | Query.Update
   | Query.Delete
   | Query.CreateTable
+  | Query.CreateIndex
+  | Query.DropIndex
   | Query.AlterTable
   | Query.Batch
   | Query.Transaction
@@ -81,6 +84,26 @@ export namespace Query {
   ): Query.CreateTable {
     return {type: QueryType.CreateTable, ...create}
   }
+  export interface CreateIndex extends QueryBase {
+    type: QueryType.CreateIndex
+    table: Schema
+    index: Index
+    ifNotExists?: boolean
+  }
+  export function CreateIndex(
+    create: Omit<CreateIndex, 'type'>
+  ): Query.CreateIndex {
+    return {type: QueryType.CreateIndex, ...create}
+  }
+  export interface DropIndex extends QueryBase {
+    type: QueryType.DropIndex
+    table: Schema
+    index: Index
+    ifExists?: boolean
+  }
+  export function DropIndex(drop: Omit<DropIndex, 'type'>): Query.DropIndex {
+    return {type: QueryType.DropIndex, ...drop}
+  }
   export interface Batch extends QueryBase {
     type: QueryType.Batch
     queries: Array<Query<any>>
@@ -116,11 +139,9 @@ export namespace Query {
   export interface AlterTable extends QueryBase {
     type: QueryType.AlterTable
     table: Schema
-    alterColumn?: [to: ColumnData, from: ColumnData | undefined]
+    alterColumn?: ColumnData
     addColumn?: ColumnData
-    dropColumn?: ColumnData
-    addKey?: Key
-    dropKey?: Key
+    dropColumn?: string
   }
   export function AlterTable(
     alter: Omit<AlterTable, 'type'>

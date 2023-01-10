@@ -1,6 +1,7 @@
 import {Cursor} from './Cursor'
 import {ExprData} from './Expr'
 import {Query} from './Query'
+import {Schema} from './Schema'
 import {Table} from './Table'
 import {Target} from './Target'
 
@@ -37,8 +38,6 @@ export function deleteFrom<Row>(table: Table<Row>): Cursor.Delete<Row> {
 
 export function create(...tables: Array<Table<any>>): Cursor.Batch {
   return new Cursor.Batch(
-    tables.map(table =>
-      Query.CreateTable({table: table.schema(), ifNotExists: true})
-    )
+    tables.flatMap(table => Schema.create(table.schema()).queries)
   )
 }

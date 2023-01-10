@@ -45,6 +45,7 @@ const joins = {
 
 export interface FormatContext {
   nameResult?: string
+  skipTableName?: boolean
   formatAsJson?: boolean
   formatSubject?: (subject: Statement) => Statement
 }
@@ -88,6 +89,10 @@ export abstract class Formatter implements Sanitizer {
         return this.formatDelete(query, ctx)
       case QueryType.CreateTable:
         return this.formatCreateTable(query, ctx)
+      case QueryType.CreateIndex:
+        return this.formatCreateIndex(query, ctx)
+      case QueryType.DropIndex:
+        return this.formatDropIndex(query, ctx)
       case QueryType.AlterTable:
         return this.formatAlterTable(query, ctx)
       case QueryType.Transaction:
@@ -168,12 +173,34 @@ export abstract class Formatter implements Sanitizer {
       )
   }
 
+  formatCreateIndex(query: Query.CreateIndex, ctx: FormatContext = {}) {
+    return raw('create index')
+      .addIf(query.ifNotExists, 'if not exists')
+      .addIdentifier(query.index.name)
+      .add('on')
+      .addIdentifier(query.table.name)
+      .parenthesis(
+        separated(
+          query.index.on.map(expr =>
+            this.formatExprValue(expr, {...ctx, skipTableName: true})
+          )
+        )
+      )
+      .add(this.formatWhere(query.where, ctx))
+  }
+
+  formatDropIndex(query: Query.DropIndex, ctx: FormatContext) {
+    return raw('drop index')
+      .addIf(query.ifExists, 'if exists')
+      .addIdentifier(query.index.name)
+  }
+
   formatAlterTable(query: Query.AlterTable, ctx: FormatContext) {
     let stmt = raw('alter table').addIdentifier(query.table.name)
     if (query.addColumn) {
       stmt = stmt.add('add column').add(this.formatColumn(query.addColumn))
     } else if (query.dropColumn) {
-      stmt = stmt.add('drop column').addIdentifier(query.dropColumn.name)
+      stmt = stmt.add('drop column').addIdentifier(query.dropColumn)
     } else if (query.alterColumn) {
       throw new Error(`Not available in this formatter: alter column`)
     }
@@ -213,6 +240,21 @@ export abstract class Formatter implements Sanitizer {
         column.defaultValue !== undefined,
         raw('default').add(this.formatInlineValue(column.defaultValue))
       )
+      .addIf(column.references, () => {
+        return this.formatContraintReference(column.references!)
+      })
+  }
+
+  formatContraintReference(reference: ExprData) {
+    if (
+      reference.type !== ExprType.Field ||
+      reference.expr.type !== ExprType.Row
+    )
+      throw new Error('not supported')
+    const from = reference.expr.target
+    return raw('references')
+      .addIdentifier(Target.source(from)!.name)
+      .parenthesis(identifier(reference.field))
   }
 
   formatType(type: ColumnType): Statement {
@@ -387,11 +429,11 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Table:
-            const selection = identifier(
-              expr.target.table.alias || expr.target.table.name
-            )
-              .raw('.')
-              .identifier(field)
+            const selection = ctx.skipTableName
+              ? identifier(field)
+              : identifier(expr.target.table.alias || expr.target.table.name)
+                  .raw('.')
+                  .identifier(field)
             const column = expr.target.table.columns[field]
             switch (column?.type) {
               case ColumnType.Json:

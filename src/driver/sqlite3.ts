@@ -1,7 +1,7 @@
 import type {Database} from 'sqlite3'
 import {Driver} from '../Driver'
 import {Query} from '../Query'
-import {Schema} from '../Schema'
+import {SchemaInstructions} from '../Schema'
 import {Statement} from '../Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
@@ -55,14 +55,20 @@ export class Sqlite3Driver extends Driver.Async {
     })
   }
 
-  async schema(tableName: string): Promise<Schema> {
-    const columns: Array<SqliteSchema.Column> =
-      await this.rows<SqliteSchema.Column>(
-        SqliteSchema.tableData(tableName).compile(this.formatter)
+  async schemaInstructions(
+    tableName: string
+  ): Promise<SchemaInstructions | undefined> {
+    try {
+      const columnData: Array<SqliteSchema.Column> =
+        await this.rows<SqliteSchema.Column>(
+          SqliteSchema.tableData(tableName).compile(this.formatter)
+        )
+      const indexData = await this.rows<SqliteSchema.Index>(
+        SqliteSchema.indexData(tableName).compile(this.formatter)
       )
-    return {
-      name: tableName,
-      columns: Object.fromEntries(columns.map(SqliteSchema.parseColumn))
+      return SqliteSchema.createInstructions(columnData, indexData)
+    } catch (e) {
+      return undefined
     }
   }
 

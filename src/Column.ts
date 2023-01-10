@@ -1,3 +1,5 @@
+import {Expr, ExprData} from './Expr'
+
 export const enum ColumnType {
   String = 'String',
   Integer = 'Integer',
@@ -6,18 +8,24 @@ export const enum ColumnType {
   Json = 'Json'
 }
 
-export interface ColumnData {
+interface PartialColumnData {
   type: ColumnType
-  name: string
+  name?: string
   nullable?: boolean
   defaultValue?: any
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
+  references?: ExprData
+}
+
+export interface ColumnData extends PartialColumnData {
+  type: ColumnType
+  name: string
 }
 
 export class Column<T = any> {
-  constructor(public data: Partial<ColumnData>) {}
+  constructor(public data: PartialColumnData) {}
 
   name(name: string): Column<T> {
     return new Column({...this.data, name})
@@ -33,6 +41,10 @@ export class Column<T = any> {
 
   primaryKey(): Column<T & Column.Optional> {
     return new Column({...this.data, primaryKey: true})
+  }
+
+  references(column: Expr<T>) {
+    return new Column({...this.data, references: ExprData.create(column)})
   }
 
   unique(): Column<T> {

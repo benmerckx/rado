@@ -3,7 +3,7 @@ import {Cursor} from './Cursor'
 import {Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {Query} from './Query'
-import {Schema} from './Schema'
+import {Index, Schema} from './Schema'
 import {Target} from './Target'
 import {Update} from './Update'
 
@@ -112,20 +112,45 @@ export interface TableOptions<T> {
   name: string
   alias?: string
   columns: {[K in keyof T]: Column<T[K]>}
-  indexes?: Record<string, Array<Expr<any>>>
+  indexes?: (this: Fields<T>) => Record<
+    string,
+    {
+      on: Array<Expr<any>>
+      where?: Expr<boolean>
+    }
+  >
 }
 
 export function table<T extends {}>(
   options: TableOptions<T>
 ): Table<T> & Fields<T> {
-  return new Table({
+  const schema = {
     ...options,
     columns: Object.fromEntries(
       Object.entries(options.columns).map(([key, column]) => {
         const {data} = column as Column
         return [key, {...data, name: data.name || key}]
       })
-    )
+    ),
+    indexes: {}
+  }
+  const indexes: Record<string, Index> = Object.fromEntries(
+    Object.entries(
+      options.indexes
+        ? options.indexes.call(
+            new Expr(ExprData.Row(Target.Table(schema))) as Fields<T>
+          )
+        : {}
+    ).map(([key, index]) => {
+      return [
+        key,
+        {name: key, on: index.on.map(ExprData.create), where: index.where?.expr}
+      ]
+    })
+  )
+  return new Table({
+    ...schema,
+    indexes
   }) as Table<T> & Fields<T>
 }
 
