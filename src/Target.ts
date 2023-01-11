@@ -1,7 +1,7 @@
 import {ExprData} from './Expr'
 import {Schema} from './Schema'
 
-export const enum TargetType {
+export enum TargetType {
   Each = 'Each',
   Table = 'Table',
   Join = 'Join'

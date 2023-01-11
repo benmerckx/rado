@@ -4,7 +4,7 @@ import {OrderBy} from './OrderBy'
 import {Index, Schema} from './Schema'
 import {Target} from './Target'
 
-export const enum QueryType {
+export enum QueryType {
   Insert = 'Insert',
   Select = 'Select',
   Update = 'Update',

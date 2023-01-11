@@ -6,12 +6,12 @@ import {Query} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
-export const enum UnOp {
+export enum UnOp {
   Not = 'Not',
   IsNull = 'IsNull'
 }
 
-export const enum BinOp {
+export enum BinOp {
   Add = 'Add',
   Subt = 'Subt',
   Mult = 'Mult',
@@ -33,7 +33,7 @@ export const enum BinOp {
   Concat = 'Concat'
 }
 
-export const enum ExprType {
+export enum ExprType {
   UnOp = 'UnOp',
   BinOp = 'BinOp',
   Field = 'Field',

@@ -1,6 +1,6 @@
 import {Sanitizer} from './Sanitizer'
 
-const enum TokenType {
+enum TokenType {
   Raw = 'Raw',
   Identifier = 'Identifier',
   Value = 'Value',

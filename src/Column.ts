@@ -1,6 +1,6 @@
 import {Expr, ExprData} from './Expr'
 
-export const enum ColumnType {
+export enum ColumnType {
   String = 'String',
   Integer = 'Integer',
   Number = 'Number',
