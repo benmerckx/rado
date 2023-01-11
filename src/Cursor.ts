@@ -150,10 +150,12 @@ export namespace Cursor {
       })
     }
 
-    orderBy(...orderBy: Array<OrderBy>): SelectMultiple<T> {
+    orderBy(...orderBy: Array<Expr<any> | OrderBy>): SelectMultiple<T> {
       return new SelectMultiple({
         ...this.query(),
-        orderBy
+        orderBy: orderBy.map(e => {
+          return e instanceof Expr ? e.asc() : e
+        })
       })
     }
 

@@ -1,10 +1,13 @@
 import {EV, Expr} from '../Expr'
 import {Functions} from '../Functions'
+import {Table} from '../Table'
 
 export const SqliteFunctions = Functions as SqliteFunctions
 
 export type SqliteFunctions = {
-  arrayLength(x: EV<Array<any>>): Expr<number>
+  /** Use the match operator for the FTS5 module */
+  match(table: Table<any>, searchTerm: EV<string>): Expr<boolean>
+
   cast(x: EV<any>, type: 'text'): Expr<string>
   cast(x: EV<any>, type: 'real'): Expr<number>
   cast(x: EV<any>, type: 'integer'): Expr<number>

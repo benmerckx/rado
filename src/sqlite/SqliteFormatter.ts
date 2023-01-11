@@ -1,5 +1,7 @@
-import {Formatter} from '../Formatter'
-import {Statement} from '../Statement'
+import {ExprData, ExprType} from '../Expr'
+import {FormatContext, Formatter} from '../Formatter'
+import {Statement, identifier} from '../Statement'
+import {TargetType} from '../Target'
 
 function escapeWithin(input: string, outer: string) {
   let buf = outer
@@ -36,5 +38,22 @@ export class SqliteFormatter extends Formatter {
   formatJsonAccess(on: Statement, field: string): Statement {
     const target = this.formatString(`$.${field}`)
     return on.raw('->').concat(target)
+  }
+
+  formatExpr(expr: ExprData, ctx: FormatContext): Statement {
+    switch (expr.type) {
+      case ExprType.Call:
+        if (expr.method === 'match') {
+          const [from, query] = expr.params
+          if (from.type !== ExprType.Row) throw new Error('not implemented')
+          if (from.target.type !== TargetType.Table)
+            throw new Error('not implemented')
+          return identifier(from.target.table.alias || from.target.table.name)
+            .raw(' match ')
+            .concat(this.formatExprValue(query, ctx))
+        }
+      default:
+        return super.formatExpr(expr, ctx)
+    }
   }
 }

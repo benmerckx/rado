@@ -24,15 +24,16 @@ const Contact = table({
 
 test('OrderBy', async () => {
   const query = await connect()
-  await query(create(User, Contact))
-  const user1 = await query(User.insertOne({name: 'b'}))
-  const user2 = await query(User.insertOne({name: 'a'}))
-  const contact1 = await query(Contact.insertOne({user: user1.id}))
-  const contact2 = await query(Contact.insertOne({user: user2.id}))
+  await query.transaction(async query => {
+    await query(create(User, Contact))
+    const user1 = await query(User.insertOne({name: 'b'}))
+    const user2 = await query(User.insertOne({name: 'a'}))
+    await query(Contact.insertAll([{user: user1.id}, {user: user2.id}]))
+  })
   const results = await query(
     Contact.leftJoin(User, User.id.is(Contact.user))
       .select({...Contact, user: User})
-      .orderBy(User.name.asc())
+      .orderBy(User.name)
   )
   assert.is(results[0].user.name, 'a')
   assert.is(results[1].user.name, 'b')
