@@ -169,7 +169,7 @@ abstract class SyncDriver extends DriverBase {
 
 interface AsyncDriver {
   <T>(query: Cursor<T>): Promise<T>
-  <T>(...queries: Array<Cursor<any>>): T
+  <T>(...queries: Array<Cursor<any>>): Promise<T>
   (strings: TemplateStringsArray, ...values: any[]): Promise<any>
 }
 
