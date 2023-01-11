@@ -33,7 +33,8 @@ export namespace SqliteSchema {
   export function createInstructions(
     columnData: Array<Column>,
     indexData: Array<Index>
-  ): SchemaInstructions {
+  ): SchemaInstructions | undefined {
+    if (columnData.length === 0 && indexData.length === 0) return undefined
     const columns = columnData.map(columnInstruction)
     const indexes = indexData.map(indexInstruction)
     return {

@@ -36,18 +36,14 @@ export class SqlJsDriver extends Driver.Sync {
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {
-    try {
-      const columnData: Array<SqliteSchema.Column> =
-        this.rows<SqliteSchema.Column>(
-          SqliteSchema.tableData(tableName).compile(this.formatter)
-        )
-      const indexData = this.rows<SqliteSchema.Index>(
-        SqliteSchema.indexData(tableName).compile(this.formatter)
+    const columnData: Array<SqliteSchema.Column> =
+      this.rows<SqliteSchema.Column>(
+        SqliteSchema.tableData(tableName).compile(this.formatter)
       )
-      return SqliteSchema.createInstructions(columnData, indexData)
-    } catch (e) {
-      return undefined
-    }
+    const indexData = this.rows<SqliteSchema.Index>(
+      SqliteSchema.indexData(tableName).compile(this.formatter)
+    )
+    return SqliteSchema.createInstructions(columnData, indexData)
   }
 
   export(): Uint8Array {

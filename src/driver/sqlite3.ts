@@ -58,18 +58,14 @@ export class Sqlite3Driver extends Driver.Async {
   async schemaInstructions(
     tableName: string
   ): Promise<SchemaInstructions | undefined> {
-    try {
-      const columnData: Array<SqliteSchema.Column> =
-        await this.rows<SqliteSchema.Column>(
-          SqliteSchema.tableData(tableName).compile(this.formatter)
-        )
-      const indexData = await this.rows<SqliteSchema.Index>(
-        SqliteSchema.indexData(tableName).compile(this.formatter)
+    const columnData: Array<SqliteSchema.Column> =
+      await this.rows<SqliteSchema.Column>(
+        SqliteSchema.tableData(tableName).compile(this.formatter)
       )
-      return SqliteSchema.createInstructions(columnData, indexData)
-    } catch (e) {
-      return undefined
-    }
+    const indexData = await this.rows<SqliteSchema.Index>(
+      SqliteSchema.indexData(tableName).compile(this.formatter)
+    )
+    return SqliteSchema.createInstructions(columnData, indexData)
   }
 
   isolate(): [connection: Driver.Async, release: () => Promise<void>] {
