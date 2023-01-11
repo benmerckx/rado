@@ -16,21 +16,44 @@ class Callable extends Function {
   }
 }
 
+function isTemplateStringsArray(input: any): input is TemplateStringsArray {
+  return Boolean(Array.isArray(input) && (input as any).raw)
+}
+
 abstract class DriverBase extends Callable {
   constructor(public formatter: Formatter) {
     super((...args: Array<any>) => {
       const [input, ...rest] = args
-      if (input instanceof Cursor) return this.executeQuery(input.query())
-      return this.executeTemplate(undefined, input, ...rest)
+      if (input instanceof Cursor && rest.length === 0)
+        return this.executeQuery(input.query())
+      if (isTemplateStringsArray(input))
+        return this.executeTemplate(undefined, input, ...rest)
+      return this.executeQuery(
+        Query.Batch({
+          queries: args
+            .filter(arg => arg instanceof Cursor)
+            .map(arg => arg.query())
+        })
+      )
     })
   }
 
-  all(strings: TemplateStringsArray, ...params: Array<any>) {
-    return this.executeTemplate('rows', strings, ...params)
+  all(...args: Array<any>) {
+    const [input, ...rest] = args
+    if (input instanceof Cursor) return this.executeQuery(input.query())
+    return this.executeTemplate('rows', input, ...rest)
   }
 
-  get(strings: TemplateStringsArray, ...params: Array<any>) {
-    return this.executeTemplate('row', strings, ...params)
+  get(...args: Array<any>) {
+    const [input, ...rest] = args
+    if (input instanceof Cursor.SelectMultiple)
+      return this.executeQuery(input.first().query())
+    if (input instanceof Cursor) return this.executeQuery(input.query())
+    return this.executeTemplate('row', input, ...rest)
+  }
+
+  sql(strings: TemplateStringsArray, ...params: Array<any>) {
+    return new Cursor(Query.Raw({strings, params}))
   }
 
   executeTemplate(
@@ -48,6 +71,7 @@ abstract class DriverBase extends Callable {
 
 interface SyncDriver {
   <T>(query: Cursor<T>): T
+  <T>(...queries: Array<Cursor<any>>): T
   (strings: TemplateStringsArray, ...values: any[]): any
 }
 
@@ -108,12 +132,17 @@ abstract class SyncDriver extends DriverBase {
     }
   }
 
-  all<T>(strings: TemplateStringsArray, ...params: Array<any>): Array<T> {
-    return super.all(strings, ...params)
+  all<T>(cursor: Cursor<T>): Array<T>
+  all<T>(strings: TemplateStringsArray, ...params: Array<any>): Array<T>
+  all<T>(...args: Array<any>): Array<T> {
+    return super.all(...args)
   }
 
-  get<T>(strings: TemplateStringsArray, ...params: Array<any>): T {
-    return super.get(strings, ...params)
+  get<T>(cursor: Cursor.SelectMultiple<T>): T | null
+  get<T>(cursor: Cursor<T>): T
+  get<T>(strings: TemplateStringsArray, ...params: Array<any>): T
+  get<T>(...args: Array<any>): T {
+    return super.get(...args)
   }
 
   transaction<T>(run: (query: SyncDriver) => T): T {
@@ -142,6 +171,7 @@ abstract class SyncDriver extends DriverBase {
 
 interface AsyncDriver {
   <T>(query: Cursor<T>): Promise<T>
+  <T>(...queries: Array<Cursor<any>>): T
   (strings: TemplateStringsArray, ...values: any[]): Promise<any>
 }
 
@@ -207,15 +237,20 @@ abstract class AsyncDriver extends DriverBase {
     }
   }
 
+  all<T>(cursor: Cursor<T>): Promise<Array<T>>
   all<T>(
     strings: TemplateStringsArray,
     ...params: Array<any>
-  ): Promise<Array<T>> {
-    return super.all(strings, ...params)
+  ): Promise<Array<T>>
+  all<T>(...args: Array<any>): Promise<Array<T>> {
+    return super.all(...args)
   }
 
-  get<T>(strings: TemplateStringsArray, ...params: Array<any>): Promise<T> {
-    return super.get(strings, ...params)
+  get<T>(cursor: Cursor.SelectMultiple<T>): Promise<T | null>
+  get<T>(cursor: Cursor<T>): Promise<T>
+  get<T>(strings: TemplateStringsArray, ...params: Array<any>): Promise<T>
+  get<T>(...args: Array<any>): Promise<T> {
+    return super.get(...args)
   }
 
   async transaction<T>(run: (query: AsyncDriver) => T): Promise<T> {

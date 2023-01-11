@@ -23,8 +23,10 @@ test('Get rows', async () => {
 })
 
 test('Execute', async () => {
-  await query`create table test (id integer primary key, name text)`
-  await query`insert into test (name) values (${valueWithQuotes})`
+  await query(
+    query.sql`create table test (id integer primary key, name text)`,
+    query.sql`insert into test (name) values (${valueWithQuotes})`
+  )
   assert.equal(await query.all`select * from test`, [
     {id: 1, name: valueWithQuotes}
   ])
