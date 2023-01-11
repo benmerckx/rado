@@ -157,5 +157,7 @@ export function table<T extends {}>(
 }
 
 export namespace table {
-  export type infer<T> = T extends Table<infer U> ? U : never
+  export type infer<T> = T extends Table<infer U>
+    ? {[K in keyof U]: [U[K]] extends [Column.Optional & infer V] ? V : U[K]}
+    : never
 }
