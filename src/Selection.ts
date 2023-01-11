@@ -9,9 +9,11 @@ interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 
 export namespace Selection {
-  export type Infer<T> = T extends {__tableType: infer K}
+  export declare const __tableType: unique symbol
+  export declare const __cursorType: unique symbol
+  export type Infer<T> = T extends {[__tableType](): infer K}
     ? K
-    : T extends {__cursortype: infer K}
+    : T extends {[__cursorType](): infer K}
     ? K
     : T extends Expr<infer K>
     ? K

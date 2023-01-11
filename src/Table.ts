@@ -4,12 +4,14 @@ import {Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {Query} from './Query'
 import {Index, Schema} from './Schema'
+import {Selection} from './Selection'
 import {Target} from './Target'
 import {Update} from './Update'
 
 export class Table<T> extends Cursor.SelectMultiple<T> {
-  /** @internal */
-  protected declare __tableType: T
+  [Selection.__tableType](): T {
+    throw 'assert'
+  }
 
   constructor(schema: Schema) {
     super(

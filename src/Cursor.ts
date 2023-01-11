@@ -9,8 +9,9 @@ import {Target} from './Target'
 import {Update as UpdateSet} from './Update'
 
 export class Cursor<T> {
-  /** @internal */
-  protected declare __cursorType: T
+  [Selection.__cursorType](): T {
+    throw 'assert'
+  }
 
   constructor(query: Query<T>) {
     Object.defineProperty(this, 'query', {
