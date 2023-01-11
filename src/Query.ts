@@ -98,7 +98,7 @@ export namespace Query {
   export interface DropIndex extends QueryBase {
     type: QueryType.DropIndex
     table: Schema
-    index: Index
+    name: string
     ifExists?: boolean
   }
   export function DropIndex(drop: Omit<DropIndex, 'type'>): Query.DropIndex {

@@ -192,7 +192,7 @@ export abstract class Formatter implements Sanitizer {
   formatDropIndex(query: Query.DropIndex, ctx: FormatContext) {
     return raw('drop index')
       .addIf(query.ifExists, 'if exists')
-      .addIdentifier(query.index.name)
+      .addIdentifier(query.name)
   }
 
   formatAlterTable(query: Query.AlterTable, ctx: FormatContext) {

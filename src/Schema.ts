@@ -66,7 +66,7 @@ export namespace Schema {
       if (!localInstruction) {
         res.push(Query.CreateIndex({table: schema, index: schemaIndex}))
       } else if (!schemaIndex) {
-        res.push(Query.DropIndex({table: schema, index: schemaIndex}))
+        res.push(Query.DropIndex({table: schema, name: indexName}))
       } else {
         const [instruction] = formatter
           .formatCreateIndex(
@@ -74,7 +74,7 @@ export namespace Schema {
           )
           .compile(formatter)
         if (localInstruction !== instruction) {
-          res.push(Query.DropIndex({table: schema, index: schemaIndex}))
+          res.push(Query.DropIndex({table: schema, name: indexName}))
           res.push(Query.CreateIndex({table: schema, index: schemaIndex}))
         }
       }
