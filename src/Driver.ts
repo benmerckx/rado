@@ -40,6 +40,8 @@ abstract class DriverBase extends Callable {
 
   all(...args: Array<any>) {
     const [input, ...rest] = args
+    if (input instanceof Cursor.SelectSingle)
+      return this.executeQuery(input.all().query())
     if (input instanceof Cursor) return this.executeQuery(input.query())
     return this.executeTemplate('rows', input, ...rest)
   }
@@ -130,6 +132,7 @@ abstract class SyncDriver extends DriverBase {
     }
   }
 
+  all<T>(cursor: Cursor.SelectSingle<T>): Array<T>
   all<T>(cursor: Cursor<T>): Array<T>
   all<T>(strings: TemplateStringsArray, ...params: Array<any>): Array<T>
   all<T>(...args: Array<any>): Array<T> {
@@ -235,7 +238,8 @@ abstract class AsyncDriver extends DriverBase {
     }
   }
 
-  all<T>(cursor: Cursor<T>): Promise<Array<T>>
+  all<T>(cursor: Cursor.SelectSingle<T>): Promise<Array<T>>
+  all<T>(cursor: Cursor<T>): Promise<T>
   all<T>(
     strings: TemplateStringsArray,
     ...params: Array<any>

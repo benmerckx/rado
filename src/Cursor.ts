@@ -235,6 +235,10 @@ export namespace Cursor {
       return new SelectSingle(super.where(...where).query())
     }
 
+    all(): SelectMultiple<T> {
+      return new SelectMultiple({...this.query(), singleResult: false})
+    }
+
     toExpr(): Expr<T> {
       return new Expr<T>(ExprData.Query(this.query()))
     }
