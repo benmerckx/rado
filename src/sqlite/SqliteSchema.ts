@@ -1,5 +1,5 @@
 import {SchemaInstructions} from '../Schema'
-import {Statement, identifier} from '../Statement'
+import {Statement, identifier, raw} from '../Statement'
 import {SqliteFormatter} from './SqliteFormatter'
 
 export namespace SqliteSchema {
@@ -36,7 +36,7 @@ export namespace SqliteSchema {
   ): SchemaInstructions | undefined {
     if (columnData.length === 0 && indexData.length === 0) return undefined
     const columns = columnData.map(columnInstruction)
-    const indexes = indexData.map(indexInstruction)
+    const indexes = indexData.map(indexInstruction).filter(row => row[1])
     return {
       columns: Object.fromEntries(columns),
       indexes: Object.fromEntries(indexes)
@@ -50,7 +50,10 @@ export namespace SqliteSchema {
         .add(column.type.toLowerCase())
         .addIf(column.pk === 1, 'primary key')
         .addIf(column.notnull === 1, 'not null')
-        .addIf(column.dflt_value !== null, column.dflt_value!)
+        .addIf(
+          column.dflt_value !== null,
+          raw('default').add(column.dflt_value!)
+        )
         .compile(formatter)[0]
     ]
   }
