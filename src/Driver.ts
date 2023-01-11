@@ -61,8 +61,6 @@ abstract class DriverBase extends Callable {
     strings: TemplateStringsArray,
     ...params: Array<any>
   ) {
-    if (strings.some(chunk => chunk.includes('?')))
-      throw new TypeError('SQL injection hazard')
     return this.executeQuery(Query.Raw({strings, params, expectedReturn}))
   }
 

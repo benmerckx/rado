@@ -45,7 +45,7 @@ test('filters', async () => {
   const a = {prop: 10}
   const b = {prop: 20}
   await query(Test.insertAll([a, b]))
-  const gt10 = (await query(Test.first().where(Test.prop.greater(10))))!
+  const gt10 = (await query.get(Test.where(Test.prop.greater(10))))!
   assert.equal(gt10.prop, 20)
 })
 

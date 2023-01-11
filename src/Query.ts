@@ -134,6 +134,8 @@ export namespace Query {
     params: Array<any>
   }
   export function Raw(raw: Omit<Raw, 'type'>): Query.Raw {
+    if (raw.strings.some(chunk => chunk.includes('?')))
+      throw new TypeError('SQL injection hazard')
     return {type: QueryType.Raw, ...raw}
   }
   export interface AlterTable extends QueryBase {
