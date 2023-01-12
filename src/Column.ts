@@ -43,7 +43,7 @@ export class Column<T> {
     return new Column({...this.data, primaryKey: true})
   }
 
-  references(column: Expr<T>) {
+  references(column: Expr<T>): Column<T> {
     return new Column({...this.data, references: ExprData.create(column)})
   }
 
