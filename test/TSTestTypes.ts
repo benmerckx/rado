@@ -10,7 +10,11 @@ const test: ShouldBeRecord = undefined!
 const shouldBeExpr: Expr<Location> = test.location
 const shouldBeExprNumber: Expr<number> = test.location.lat
 
-type Item = {type: 'test'; x: 1} | {type: 'test2'; y: 2}
+type Base = {
+  isOptional?: boolean
+}
+
+type Item = ({type: 'test'; x: 1} & Base) | {type: 'test2'; y: 2; here: string}
 
 type TestTypes = Fields<{
   item: Item

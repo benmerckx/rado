@@ -1,13 +1,16 @@
 import {Column} from './Column'
 import {Expr} from './Expr'
 
-// Source: https://stackoverflow.com/a/49279355/5872160
-type GetKeys<U> = U extends Record<infer K, any> ? K : never
-type UnionToIntersection<U> = {
-  [K in GetKeys<U>]: U extends Record<K, infer T> ? T : never
+// Source: https://www.steveruiz.me/posts/smooshed-object-union
+type ObjectUnion<T> = {
+  [K in T extends infer P ? keyof P : never]: T extends infer P
+    ? K extends keyof P
+      ? P[K]
+      : never
+    : never
 }
 
-type RecordField<T> = Expr<T> & FieldsOf<UnionToIntersection<T>>
+type RecordField<T> = Expr<T> & FieldsOf<ObjectUnion<T>>
 
 // https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
 type Field<T> = [T] extends [Array<any>]
