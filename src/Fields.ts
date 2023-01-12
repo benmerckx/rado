@@ -1,6 +1,8 @@
 import {Column} from './Column'
 import {Expr} from './Expr'
 
+type RecordField<T> = Expr<T> & FieldsOf<T>
+
 // https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
 type Field<T> = [T] extends [Array<any>]
   ? Expr<T>
@@ -10,8 +12,8 @@ type Field<T> = [T] extends [Array<any>]
   ? Field<V>
   : [T] extends [number | string | boolean]
   ? Expr<T>
-  : [T] extends [Record<string, any>]
-  ? FieldsOf<T>
+  : [T] extends [Record<string, any> | null]
+  ? RecordField<T>
   : Expr<T>
 
 type FieldsOf<Row> = Row extends Record<string, any>
@@ -23,4 +25,8 @@ type IsStrictlyAny<T> = (T extends never ? true : false) extends false
   ? false
   : true
 
-export type Fields<T> = IsStrictlyAny<T> extends true ? any : Field<T>
+export type Fields<T> = IsStrictlyAny<T> extends true
+  ? any
+  : T extends object
+  ? FieldsOf<T>
+  : Field<T>

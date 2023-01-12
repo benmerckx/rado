@@ -309,7 +309,7 @@ export class Expr<T> {
     return new Expr(
       ExprData.Filter(
         target,
-        ExprData.create(fn(new Expr(ExprData.Row(target)) as Fields<T>))
+        ExprData.create(fn(new Expr(ExprData.Row(target)) as any))
       )
     )
   }
@@ -323,7 +323,7 @@ export class Expr<T> {
     return new Expr(
       ExprData.Map(
         target,
-        ExprData.create(fn(new Expr(ExprData.Row(target)) as Fields<T>))
+        ExprData.create(fn(new Expr(ExprData.Row(target)) as any))
       )
     )
   }
@@ -343,4 +343,8 @@ function unop<This, Res>(self: Expr<This>, type: UnOp) {
 
 function binop<This, That, Res>(self: Expr<This>, type: BinOp, that: That) {
   return new Expr<Res>(ExprData.BinOp(type, self.expr, toExpr(that)))
+}
+
+export namespace Expr {
+  export type Record<T> = Expr<T> & {[K in keyof T]: Expr<T[K]>}
 }

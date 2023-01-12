@@ -9,7 +9,9 @@ sade('test [pattern]', true)
     parse('test', 'Test*').then(({suites}) =>
       run(
         suites.filter(({name}) =>
-          pattern ? name.toLowerCase().includes(pattern) : true
+          pattern
+            ? name.toLowerCase().includes(pattern)
+            : name.startsWith('Test')
         )
       )
     )
