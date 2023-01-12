@@ -175,7 +175,9 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatCreateIndex(query: Query.CreateIndex, ctx: FormatContext = {}) {
-    return raw('create index')
+    return raw('create')
+      .addIf(query.index.unique, 'unique')
+      .add('index')
       .addIf(query.ifNotExists, 'if not exists')
       .addIdentifier(query.index.name)
       .add('on')
