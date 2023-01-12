@@ -4,13 +4,10 @@
     "target": "ESNext",
     "moduleResolution": "node",
     "preserveWatchOutput": true,
-    "outDir": "dist",
     "skipLibCheck": true,
     "strict": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
+    "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
-  },
-  "include": ["src"]
+  }
 }

@@ -155,9 +155,7 @@ test('each', async () => {
 
   await query(create(Test, Entry))
   await query(insertInto(Test).values(a))
-  const res = await query(
-    selectFirst(Test).select({id: Test.id, refs: Test.refs})
-  )
+  const res = await query(selectFirst(Test).select({refs: Test.refs}))
   assert.equal(res!, a)
 
   const b = {title: 'Entry B'}

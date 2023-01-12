@@ -20,9 +20,9 @@
     }
   },
   "scripts": {
-    "build": "tsc && tsx build.ts",
+    "build": "tsc -p tsconfig.build.json && tsx build.ts",
     "test": "tsx test",
-    "prepublishOnly": "tsc && tsx build.ts"
+    "prepublishOnly": "tsc -p tsconfig.build.json && tsx build.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^5.4.1",

@@ -114,18 +114,15 @@ export namespace Table {
     Optionals<Pick<T, OptionalKeys<T>>>,
     Pick<T, RequiredKeys<T>>
   >
-  export type Normalize<T> = Intersection<
-    {
-      [K in keyof T]: T[K] extends Column.Optional<infer V>
+  export type Normalize<T> = {
+    [K in keyof T]: T[K] extends Column.Optional<infer V>
+      ? V
+      : T[K] extends Column.Primary<infer K, infer V>
+      ? string extends K
         ? V
-        : T[K] extends Column.Primary<infer K, infer V>
-        ? string extends K
-          ? V
-          : V & {[Column.isPrimary]: K}
-        : T[K]
-    },
-    {}
-  >
+        : V & {[Column.isPrimary]: K}
+      : T[K]
+  }
   export type Infer<T> = T extends Table<infer U> ? Normalize<U> : never
 }
 
