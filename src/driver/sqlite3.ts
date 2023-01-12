@@ -1,8 +1,8 @@
 import type {Database} from 'sqlite3'
-import {Driver} from '../Driver'
-import {Query} from '../Query'
-import {SchemaInstructions} from '../Schema'
-import {Statement} from '../Statement'
+import {Driver} from '../lib/Driver'
+import {Query} from '../lib/Query'
+import {SchemaInstructions} from '../lib/Schema'
+import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
 

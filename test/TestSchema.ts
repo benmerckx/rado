@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, table} from '../src'
+import {column, index, table} from '../src'
 import {connect} from './DbSuite'
 
 const columns = {
@@ -45,8 +45,8 @@ test('Add col', async () => {
     },
     indexes() {
       return {
-        newCol: {on: [this.newCol]},
-        multiple: {on: [this.newCol.concat('inline parameter test')]}
+        newCol: index(this.newCol),
+        multiple: index(this.newCol.concat('inline parameter test'))
       }
     }
   })

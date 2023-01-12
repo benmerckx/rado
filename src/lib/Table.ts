@@ -1,9 +1,10 @@
-import {Column} from './Column'
+import {Column, PrimaryKey} from './Column'
 import {Cursor} from './Cursor'
 import {Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
+import {Index, IndexData} from './Index'
 import {Query} from './Query'
-import {Index, Schema} from './Schema'
+import {Schema} from './Schema'
 import {Selection} from './Selection'
 import {Target} from './Target'
 import {Update} from './Update'
@@ -92,35 +93,37 @@ export namespace Table {
   type OptionalKeys<T> = {
     [K in keyof T]: null extends T[K]
       ? K
-      : T[K] extends Column.Primary<any, any>
+      : T[K] extends Column.IsPrimary<any, any>
       ? K
-      : T[K] extends Column.Optional<any>
+      : T[K] extends Column.IsOptional<any>
       ? K
       : never
   }[keyof T]
   type RequiredKeys<T> = {
     [K in keyof T]: null extends T[K]
       ? never
-      : T[K] extends Column.Primary<any, any>
+      : T[K] extends Column.IsPrimary<any, any>
       ? never
-      : T[K] extends Column.Optional<any>
+      : T[K] extends Column.IsOptional<any>
       ? never
       : K
   }[keyof T]
   type Optionals<T> = {
-    [K in keyof T]?: T[K] extends Column.Optional<infer V> ? V : T[K]
+    [K in keyof T]?: T[K] extends Column.IsOptional<infer V>
+      ? V
+      : T[K] extends Column.IsPrimary<infer V, infer K>
+      ? PrimaryKey<V, K>
+      : T[K]
   }
   export type Insert<T> = Intersection<
     Optionals<Pick<T, OptionalKeys<T>>>,
     Pick<T, RequiredKeys<T>>
   >
   export type Normalize<T> = {
-    [K in keyof T]: T[K] extends Column.Optional<infer V>
+    [K in keyof T]: T[K] extends Column.IsOptional<infer V>
       ? V
-      : T[K] extends Column.Primary<infer K, infer V>
-      ? string extends K
-        ? V
-        : V & {[Column.isPrimary]: K}
+      : T[K] extends Column.IsPrimary<infer V, infer K>
+      ? PrimaryKey<V, K>
       : T[K]
   }
   export type Infer<T> = T extends Table<infer U> ? Normalize<U> : never
@@ -130,13 +133,7 @@ export interface TableOptions<T> {
   name: string
   alias?: string
   columns: {[K in keyof T]: Column<T[K]>}
-  indexes?: (this: Fields<T>) => Record<
-    string,
-    {
-      on: Array<Expr<any>>
-      where?: Expr<boolean>
-    }
-  >
+  indexes?: (this: Fields<T>) => Record<string, Index>
 }
 
 export function table<T extends {}>(
@@ -152,7 +149,7 @@ export function table<T extends {}>(
     ),
     indexes: {}
   }
-  const indexes: Record<string, Index> = Object.fromEntries(
+  const indexes: Record<string, IndexData> = Object.fromEntries(
     Object.entries(
       options.indexes
         ? options.indexes.call(
@@ -165,8 +162,7 @@ export function table<T extends {}>(
         indexName,
         {
           name: indexName,
-          on: index.on.map(ExprData.create),
-          where: index.where?.expr
+          ...index.data
         }
       ]
     })

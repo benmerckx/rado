@@ -1,7 +1,7 @@
-import {ExprData, ExprType} from '../Expr'
-import {FormatContext, Formatter} from '../Formatter'
-import {Statement, identifier} from '../Statement'
-import {TargetType} from '../Target'
+import {ExprData, ExprType} from '../lib/Expr'
+import {FormatContext, Formatter} from '../lib/Formatter'
+import {Statement, identifier} from '../lib/Statement'
+import {TargetType} from '../lib/Target'
 
 function escapeWithin(input: string, outer: string) {
   let buf = outer

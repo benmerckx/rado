@@ -1,7 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column} from '../src'
-import {table} from '../src/Table'
+import {column, table} from '../src'
 import {SqliteFunctions} from '../src/sqlite/SqliteFunctions'
 import {connect} from './DbSuite'
 

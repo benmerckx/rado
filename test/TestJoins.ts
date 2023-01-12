@@ -1,7 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Id, column, create} from '../src'
-import {table} from '../src/Table'
+import {Id, column, create, table} from '../src'
 import {connect} from './DbSuite'
 
 type User = table.infer<typeof User>

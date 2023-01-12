@@ -1,7 +1,8 @@
 import {ColumnData} from './Column'
 import {ExprData} from './Expr'
+import {IndexData} from './Index'
 import {OrderBy} from './OrderBy'
-import {Index, Schema} from './Schema'
+import {Schema} from './Schema'
 import {Target} from './Target'
 
 export enum QueryType {
@@ -87,7 +88,7 @@ export namespace Query {
   export interface CreateIndex extends QueryBase {
     type: QueryType.CreateIndex
     table: Schema
-    index: Index
+    index: IndexData
     ifNotExists?: boolean
   }
   export function CreateIndex(

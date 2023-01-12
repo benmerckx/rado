@@ -1,6 +1,6 @@
-import {EV, Expr} from '../Expr'
-import {Functions} from '../Functions'
-import {Table} from '../Table'
+import {EV, Expr} from '../lib/Expr'
+import {Functions} from '../lib/Functions'
+import {Table} from '../lib/Table'
 
 export const SqliteFunctions = Functions as SqliteFunctions
 

@@ -1,5 +1,5 @@
-import {SchemaInstructions} from '../Schema'
-import {Statement, identifier, raw} from '../Statement'
+import {SchemaInstructions} from '../lib/Schema'
+import {Statement, identifier, raw} from '../lib/Statement'
 import {SqliteFormatter} from './SqliteFormatter'
 
 export namespace SqliteSchema {

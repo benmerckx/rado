@@ -1,19 +1,13 @@
 import {ColumnData} from './Column'
-import {ExprData} from './Expr'
 import {Formatter} from './Formatter'
+import {IndexData} from './Index'
 import {Query} from './Query'
-
-export interface Index {
-  name: string
-  on: Array<ExprData>
-  where?: ExprData
-}
 
 export interface Schema {
   name: string
   alias?: string
   columns: Record<string, ColumnData>
-  indexes: Record<string, Index>
+  indexes: Record<string, IndexData>
 }
 
 export interface SchemaInstructions {

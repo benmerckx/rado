@@ -1,7 +1,7 @@
 import type {Database} from 'better-sqlite3'
-import {Driver} from '../Driver'
-import {SchemaInstructions} from '../Schema'
-import {Statement} from '../Statement'
+import {Driver} from '../lib/Driver'
+import {SchemaInstructions} from '../lib/Schema'
+import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
 

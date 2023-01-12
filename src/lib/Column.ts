@@ -35,11 +35,11 @@ export class Column<T> {
     return new Column({...this.data, nullable: true})
   }
 
-  autoIncrement(): Column<Column.Optional<T>> {
+  autoIncrement(): Column<Column.IsOptional<T>> {
     return new Column({...this.data, autoIncrement: true})
   }
 
-  primaryKey<K extends string>(): Column<Column.Primary<K, T>> {
+  primaryKey<K extends string>(): Column<Column.IsPrimary<T, K>> {
     return new Column({...this.data, primaryKey: true})
   }
 
@@ -51,16 +51,20 @@ export class Column<T> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(value: T): Column<Column.Optional<T>> {
+  defaultValue(value: T): Column<Column.IsOptional<T>> {
     return new Column({...this.data, defaultValue: value})
   }
 }
 
+export type PrimaryKey<T, K> = string extends K
+  ? T
+  : T & {[Column.isPrimary]: K}
+
 export namespace Column {
   export declare const isOptional: unique symbol
-  export type Optional<T> = {[isOptional]: true; __t: T}
+  export type IsOptional<T> = {[isOptional]: true; __t: T}
   export declare const isPrimary: unique symbol
-  export type Primary<Of, T> = {[isPrimary]: Of; __t: T}
+  export type IsPrimary<T, K> = {[isPrimary]: K; __t: T}
 }
 
 export const column = {

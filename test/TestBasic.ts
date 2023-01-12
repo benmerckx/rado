@@ -1,7 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, insertInto, selectFirst, table} from '../src'
-import {Expr} from '../src/Expr'
+import {Expr, column, create, insertInto, selectFirst, table} from '../src'
 import {connect} from './DbSuite'
 
 test('basic', async () => {
@@ -9,7 +8,7 @@ test('basic', async () => {
   const Node = table({
     name: 'node',
     columns: {
-      id: column.integer().primaryKey(),
+      id: column.integer().primaryKey<'node'>(),
       index: column.number()
     }
   })
