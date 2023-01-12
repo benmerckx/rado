@@ -160,9 +160,14 @@ export function table<T extends {}>(
           )
         : {}
     ).map(([key, index]) => {
+      const indexName = `${schema.name}.${key}`
       return [
-        key,
-        {name: key, on: index.on.map(ExprData.create), where: index.where?.expr}
+        indexName,
+        {
+          name: indexName,
+          on: index.on.map(ExprData.create),
+          where: index.where?.expr
+        }
       ]
     })
   )
