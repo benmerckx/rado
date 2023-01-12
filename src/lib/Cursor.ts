@@ -52,7 +52,7 @@ export namespace Cursor {
     }
   }
 
-  export class Delete<T> extends Filterable<{rowsAffected: number}> {
+  export class Delete extends Filterable<{rowsAffected: number}> {
     query(): Query.Delete {
       return super.query() as Query.Delete
     }

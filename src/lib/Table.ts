@@ -62,6 +62,10 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
     ).set(data)
   }
 
+  delete() {
+    return new Cursor.Delete(Query.Delete({table: this.schema()}))
+  }
+
   createTable() {
     return new Cursor.Create(this.schema())
   }
