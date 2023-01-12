@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create} from '../src'
+import {Id, column, create} from '../src'
 import {table} from '../src/Table'
 import {connect} from './DbSuite'
 
@@ -8,7 +8,7 @@ type User = table.infer<typeof User>
 const User = table({
   name: 'User',
   columns: {
-    id: column.integer().primaryKey(),
+    id: column.integer().primaryKey<'User'>(),
     name: column.string()
   }
 })
@@ -17,8 +17,8 @@ type Contact = table.infer<typeof Contact>
 const Contact = table({
   name: 'Contact',
   columns: {
-    id: column.integer().primaryKey(),
-    user: column.integer()
+    id: column.integer().primaryKey<'Contact'>(),
+    user: column.integer<Id<User>>()
   }
 })
 

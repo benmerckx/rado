@@ -8,8 +8,8 @@ import {Selection} from './Selection'
 import {Target} from './Target'
 import {Update} from './Update'
 
-export class Table<T> extends Cursor.SelectMultiple<T> {
-  [Selection.__tableType](): T {
+export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
+  [Selection.__tableType](): Table.Normalize<T> {
     throw 'assert'
   }
 
@@ -39,7 +39,7 @@ export class Table<T> extends Cursor.SelectMultiple<T> {
   }
 
   insertOne(record: Table.Insert<T>) {
-    return new Cursor.Batch<T>([
+    return new Cursor.Batch<Table.Normalize<T>>([
       Query.Insert({
         into: this.schema(),
         data: [record],
@@ -53,8 +53,8 @@ export class Table<T> extends Cursor.SelectMultiple<T> {
     return new Cursor.Insert<T>(this.schema()).values(...data)
   }
 
-  set(data: Update<T>) {
-    return new Cursor.Update<T>(
+  set(data: Update<Table.Normalize<T>>) {
+    return new Cursor.Update<Table.Normalize<T>>(
       Query.Update({
         table: this.schema()
       })
@@ -73,8 +73,10 @@ export class Table<T> extends Cursor.SelectMultiple<T> {
     return new Expr(ExprData.Field(this.toExpr().expr, name as string))
   }
 
-  toExpr() {
-    return new Expr<T>(ExprData.Row(Target.Table(this.schema())))
+  toExpr(): Expr<Table.Normalize<T>> {
+    return new Expr<Table.Normalize<T>>(
+      ExprData.Row(Target.Table(this.schema()))
+    )
   }
 
   schema(): Schema {
@@ -90,24 +92,41 @@ export namespace Table {
   type OptionalKeys<T> = {
     [K in keyof T]: null extends T[K]
       ? K
-      : T[K] extends Column.Optional
+      : T[K] extends Column.Primary<any, any>
+      ? K
+      : T[K] extends Column.Optional<any>
       ? K
       : never
   }[keyof T]
   type RequiredKeys<T> = {
     [K in keyof T]: null extends T[K]
       ? never
-      : T[K] extends Column.Optional
+      : T[K] extends Column.Primary<any, any>
+      ? never
+      : T[K] extends Column.Optional<any>
       ? never
       : K
   }[keyof T]
   type Optionals<T> = {
-    [K in keyof T]?: T[K] extends Column.Optional & infer V ? V : T[K]
+    [K in keyof T]?: T[K] extends Column.Optional<infer V> ? V : T[K]
   }
   export type Insert<T> = Intersection<
     Optionals<Pick<T, OptionalKeys<T>>>,
     Pick<T, RequiredKeys<T>>
   >
+  export type Normalize<T> = Intersection<
+    {
+      [K in keyof T]: T[K] extends Column.Optional<infer V>
+        ? V
+        : T[K] extends Column.Primary<infer K, infer V>
+        ? string extends K
+          ? V
+          : V & {[Column.isPrimary]: K}
+        : T[K]
+    },
+    {}
+  >
+  export type Infer<T> = T extends Table<infer U> ? Normalize<U> : never
 }
 
 export interface TableOptions<T> {
@@ -130,7 +149,7 @@ export function table<T extends {}>(
     ...options,
     columns: Object.fromEntries(
       Object.entries(options.columns).map(([key, column]) => {
-        const {data} = column as Column
+        const {data} = column as Column<any>
         return [key, {...data, name: data.name || key}]
       })
     ),
@@ -157,7 +176,5 @@ export function table<T extends {}>(
 }
 
 export namespace table {
-  export type infer<T> = T extends Table<infer U>
-    ? {[K in keyof U]: [U[K]] extends [Column.Optional & infer V] ? V : U[K]}
-    : never
+  export type infer<T> = Table.Infer<T>
 }

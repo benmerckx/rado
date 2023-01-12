@@ -24,7 +24,7 @@ export interface ColumnData extends PartialColumnData {
   name: string
 }
 
-export class Column<T = any> {
+export class Column<T> {
   constructor(public data: PartialColumnData) {}
 
   name(name: string): Column<T> {
@@ -35,11 +35,11 @@ export class Column<T = any> {
     return new Column({...this.data, nullable: true})
   }
 
-  autoIncrement(): Column<T & Column.Optional> {
+  autoIncrement(): Column<Column.Optional<T>> {
     return new Column({...this.data, autoIncrement: true})
   }
 
-  primaryKey(): Column<T & Column.Optional> {
+  primaryKey<K extends string>(): Column<Column.Primary<K, T>> {
     return new Column({...this.data, primaryKey: true})
   }
 
@@ -51,14 +51,16 @@ export class Column<T = any> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(value: T): Column<T & Column.Optional> {
+  defaultValue(value: T): Column<Column.Optional<T>> {
     return new Column({...this.data, defaultValue: value})
   }
 }
 
 export namespace Column {
-  declare const isOptional: unique symbol
-  export type Optional = {[isOptional]: true}
+  export declare const isOptional: unique symbol
+  export type Optional<T> = {[isOptional]: true; __t: T}
+  export declare const isPrimary: unique symbol
+  export type Primary<Of, T> = {[isPrimary]: Of; __t: T}
 }
 
 export const column = {

@@ -86,11 +86,13 @@ test('update', async () => {
   const Test = table({
     name: 'test',
     columns: {
-      id: column.integer().primaryKey(),
+      id: column.integer().primaryKey<'test'>(),
       propA: column.number(),
       propB: column.number()
     }
   })
+  Test.id
+
   await query(Test.createTable())
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
@@ -136,22 +138,26 @@ test('each', async () => {
   const Test = table({
     name: 'test',
     columns: {
-      id: column.integer().primaryKey(),
+      id: column.integer().primaryKey<'test'>(),
       refs: column.array<{id: number; type: string}>()
     }
   })
+  type Test = table.infer<typeof Test>
 
   const Entry = table({
     name: 'Entry',
     columns: {
-      id: column.integer().primaryKey(),
+      id: column.integer().primaryKey<'Entry'>(),
       title: column.string()
     }
   })
+  type Entry = table.infer<typeof Entry>
 
   await query(create(Test, Entry))
   await query(insertInto(Test).values(a))
-  const res = await query(selectFirst(Test).select({refs: Test.refs}))
+  const res = await query(
+    selectFirst(Test).select({id: Test.id, refs: Test.refs})
+  )
   assert.equal(res!, a)
 
   const b = {title: 'Entry B'}

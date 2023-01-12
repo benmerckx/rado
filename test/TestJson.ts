@@ -7,7 +7,7 @@ import {connect} from './DbSuite'
 const Node = table({
   name: 'node',
   columns: {
-    id: column.integer().primaryKey(),
+    id: column.integer().primaryKey<'node'>(),
     index: column.integer()
   }
 })

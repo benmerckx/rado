@@ -7,7 +7,7 @@ import {connect} from './DbSuite'
 const User = table({
   name: 'user',
   columns: {
-    id: column.integer().primaryKey(),
+    id: column.integer().primaryKey<'user'>(),
     name: column.object<{given: string; last: string}>(),
     email: column.string().nullable(),
     roles: column.array<string>().nullable()

@@ -4,8 +4,12 @@ import {Expr} from './Expr'
 // https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
 type Field<T> = [T] extends [Array<any>]
   ? Expr<T>
-  : [T] extends [Column.Optional & infer V]
+  : [T] extends [Column.Primary<infer K, infer V>]
+  ? Expr<string extends K ? V : V & {[Column.isPrimary]: K}>
+  : [T] extends [Column.Optional<infer V>]
   ? Field<V>
+  : [T] extends [number | string | boolean]
+  ? Expr<T>
   : [T] extends [Record<string, any>]
   ? FieldsOf<T>
   : Expr<T>
