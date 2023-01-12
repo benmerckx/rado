@@ -45,7 +45,8 @@ test('Add col', async () => {
     },
     indexes() {
       return {
-        newCol: {on: [this.newCol]}
+        newCol: {on: [this.newCol]},
+        multiple: {on: [this.newCol.concat('inline parameter test')]}
       }
     }
   })

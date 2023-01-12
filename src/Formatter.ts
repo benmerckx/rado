@@ -46,6 +46,7 @@ const joins = {
 export interface FormatContext {
   nameResult?: string
   skipTableName?: boolean
+  forceInline?: boolean
   formatAsJson?: boolean
   formatSubject?: (subject: Statement) => Statement
 }
@@ -182,7 +183,11 @@ export abstract class Formatter implements Sanitizer {
       .parenthesis(
         separated(
           query.index.on.map(expr =>
-            this.formatExprValue(expr, {...ctx, skipTableName: true})
+            this.formatExprValue(expr, {
+              ...ctx,
+              skipTableName: true,
+              forceInline: true
+            })
           )
         )
       )
@@ -468,7 +473,8 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatValue(rawValue: any, formatAsJson?: boolean): Statement {
+  formatValue(rawValue: any, ctx: FormatContext): Statement {
+    const {formatAsJson, forceInline} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
         return raw('null')
@@ -476,10 +482,15 @@ export abstract class Formatter implements Sanitizer {
         return rawValue ? raw('1') : raw('0')
       case Array.isArray(rawValue):
         const res = parenthesis(
-          separated(rawValue.map((v: any) => this.formatValue(v, false)))
+          separated(
+            rawValue.map((v: any) =>
+              this.formatValue(v, {...ctx, formatAsJson: false})
+            )
+          )
         )
         return formatAsJson ? raw('json_array').concat(res) : res
       case typeof rawValue === 'string' || typeof rawValue === 'number':
+        if (forceInline) return raw(this.escapeValue(rawValue))
         return value(rawValue)
       default:
         const expr = this.formatString(JSON.stringify(rawValue))
@@ -512,7 +523,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Param:
         switch (expr.param.type) {
           case ParamType.Value:
-            return this.formatValue(expr.param.value, ctx.formatAsJson)
+            return this.formatValue(expr.param.value, ctx)
           case ParamType.Named:
             throw new Error('todo')
         }
