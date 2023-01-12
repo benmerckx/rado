@@ -1,7 +1,13 @@
 import {Column} from './Column'
 import {Expr} from './Expr'
 
-type RecordField<T> = Expr<T> & FieldsOf<T>
+// Source: https://stackoverflow.com/a/49279355/5872160
+type GetKeys<U> = U extends Record<infer K, any> ? K : never
+type UnionToIntersection<U> = {
+  [K in GetKeys<U>]: U extends Record<K, infer T> ? T : never
+}
+
+type RecordField<T> = Expr<T> & FieldsOf<UnionToIntersection<T>>
 
 // https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
 type Field<T> = [T] extends [Array<any>]
