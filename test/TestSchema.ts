@@ -1,10 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column, index, table} from '../src'
-import {SqliteFunctions} from '../src/sqlite'
+import {datetime} from '../src/sqlite'
 import {connect} from './DbSuite'
-
-const {datetime} = SqliteFunctions
 
 const columns = {
   id: column.integer().primaryKey(),
