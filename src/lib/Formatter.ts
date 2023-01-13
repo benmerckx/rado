@@ -247,7 +247,7 @@ export abstract class Formatter implements Sanitizer {
       .addIf(column.defaultValue, () =>
         raw('DEFAULT').addParenthesis(
           this.formatExpr(column.defaultValue!, {
-            formatAsJson: false,
+            formatAsJson: true,
             forceInline: true
           })
         )
@@ -304,7 +304,7 @@ export abstract class Formatter implements Sanitizer {
       column.nullable || column.autoIncrement || column.primaryKey
     if (isNull) {
       if (column.defaultValue !== undefined)
-        return this.formatExpr(column.defaultValue, {})
+        return this.formatExpr(column.defaultValue, {formatAsJson: true})
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
       return raw('NULL')

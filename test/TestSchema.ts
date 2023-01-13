@@ -30,6 +30,10 @@ const TestTable = table({
 
 const query = await connect()
 
+test('Create table', async () => {
+  await query(TestTable.createTable())
+})
+
 test('Add col', async () => {
   const createdAt = column.string().defaultValue(datetime('now', 'localtime'))
   const Start = table({
