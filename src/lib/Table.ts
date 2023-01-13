@@ -66,8 +66,19 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
     return new Cursor.Create(this.schema())
   }
 
-  as(alias: string): Table<T> & Fields<T> {
-    return new Table({...this.schema(), alias}) as Table<T> & Fields<T>
+  as(alias: string): this {
+    return new Table({...this.schema(), alias}) as this
+  }
+
+  alias(): Record<string, this> {
+    return new Proxy(
+      {},
+      {
+        get: (_, key) => {
+          return this.as(key as string)
+        }
+      }
+    )
   }
 
   get(name: string): Expr<any> {
@@ -175,4 +186,22 @@ export function table<T extends {}>(
 
 export namespace table {
   export type infer<T> = Table.Infer<T>
+
+  type Extensions<T> = {
+    [key: string]: (this: T, ...args: any[]) => any
+  }
+
+  export function extend<T extends Table<any>, E extends Extensions<T>>(
+    target: T,
+    extensions: E
+  ): T & E {
+    return new Proxy(target, {
+      get(target: any, key: string) {
+        if (key === 'as')
+          return (...args: Array<any>) =>
+            extend(target.as(...args), extensions as any)
+        return key in extensions ? extensions[key].bind(target) : target[key]
+      }
+    })
+  }
 }

@@ -120,9 +120,10 @@ export abstract class Formatter implements Sanitizer {
   formatInsert(query: Query.Insert, ctx: FormatContext) {
     const columns = Object.values(query.into.columns)
     return raw('insert into')
-      .addCall(
-        query.into.name,
-        ...columns.map(column => this.formatString(column.name!))
+      .addIdentifier(query.into.name)
+      .addIf(query.into.alias, () => raw('as').addIdentifier(query.into.alias!))
+      .parenthesis(
+        separated(columns.map(column => this.formatString(column.name!)))
       )
       .add('values')
       .addSeparated(
