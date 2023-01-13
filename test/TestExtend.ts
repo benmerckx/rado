@@ -36,8 +36,8 @@ type Role = table.infer<typeof Role>
 const UserRoles = table({
   name: 'user_roles',
   columns: {
-    userId: column.integer(),
-    roleId: column.integer()
+    userId: column.integer().references(User.id),
+    roleId: column.integer().references(Role.id)
   }
 })
 
