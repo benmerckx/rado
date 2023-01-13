@@ -52,7 +52,7 @@ export namespace SqliteSchema {
         .addIf(column.notnull === 1, 'NOT NULL')
         .addIf(
           column.dflt_value !== null,
-          raw('DEFAULT').add(column.dflt_value!)
+          raw('DEFAULT').addParenthesis(column.dflt_value!)
         )
         .compile(formatter)[0]
     ]

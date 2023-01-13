@@ -1,4 +1,4 @@
-import {Expr, ExprData} from './Expr'
+import {EV, Expr, ExprData} from './Expr'
 
 export enum ColumnType {
   String = 'String',
@@ -12,7 +12,7 @@ interface PartialColumnData {
   type: ColumnType
   name?: string
   nullable?: boolean
-  defaultValue?: any
+  defaultValue?: ExprData
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
@@ -51,8 +51,8 @@ export class Column<T> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(value: T): Column<Column.IsOptional<T>> {
-    return new Column({...this.data, defaultValue: value})
+  defaultValue(value: EV<T>): Column<Column.IsOptional<T>> {
+    return new Column({...this.data, defaultValue: ExprData.create(value)})
   }
 }
 

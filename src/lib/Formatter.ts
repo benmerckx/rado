@@ -244,9 +244,13 @@ export abstract class Formatter implements Sanitizer {
       .addIf(column.autoIncrement, 'AUTOINCREMENT')
       .addIf(column.primaryKey, 'PRIMARY KEY')
       .addIf(!column.nullable, 'NOT NULL')
-      .addIf(
-        column.defaultValue !== undefined,
-        raw('DEFAULT').add(this.formatInlineValue(column.defaultValue))
+      .addIf(column.defaultValue, () =>
+        raw('DEFAULT').addParenthesis(
+          this.formatExpr(column.defaultValue!, {
+            formatAsJson: false,
+            forceInline: true
+          })
+        )
       )
       .addIf(column.references, () => {
         return this.formatContraintReference(column.references!)
@@ -297,11 +301,10 @@ export abstract class Formatter implements Sanitizer {
   formatColumnValue(column: ColumnData, columnValue: any) {
     const isNull = columnValue === undefined || columnValue === null
     const isOptional =
-      column.nullable ||
-      column.autoIncrement ||
-      column.primaryKey ||
-      column.defaultValue !== undefined
+      column.nullable || column.autoIncrement || column.primaryKey
     if (isNull) {
+      if (column.defaultValue !== undefined)
+        return this.formatExpr(column.defaultValue, {})
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
       return raw('NULL')
