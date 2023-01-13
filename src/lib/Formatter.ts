@@ -300,7 +300,7 @@ export abstract class Formatter implements Sanitizer {
       column.nullable ||
       column.autoIncrement ||
       column.primaryKey ||
-      column.defaultValue
+      column.defaultValue !== undefined
     if (isNull) {
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
