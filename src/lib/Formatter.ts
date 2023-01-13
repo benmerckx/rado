@@ -445,14 +445,14 @@ export abstract class Formatter implements Sanitizer {
             const column = expr.target.table.columns[field]
             switch (column?.type) {
               case ColumnType.Json:
-                return call('json', selection)
+                if (ctx.formatAsJson) return call('json', selection)
               default:
                 return selection
             }
         }
       default:
         return this.formatAccess(
-          this.formatExpr(expr, {...ctx, formatAsJson: true}),
+          this.formatExpr(expr, ctx),
           field,
           ctx.formatAsJson
         )
