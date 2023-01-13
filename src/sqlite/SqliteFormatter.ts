@@ -49,7 +49,7 @@ export class SqliteFormatter extends Formatter {
           if (from.target.type !== TargetType.Table)
             throw new Error('not implemented')
           return identifier(from.target.table.alias || from.target.table.name)
-            .raw(' match ')
+            .raw(' MATCH ')
             .concat(this.formatExprValue(query, ctx))
         }
       default:

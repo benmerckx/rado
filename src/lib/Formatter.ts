@@ -106,9 +106,9 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatSelect(query: Query.Select, ctx: FormatContext) {
-    return raw('select')
+    return raw('SELECT')
       .add(this.formatSelection(query.selection, ctx))
-      .addLine('from')
+      .addLine('FROM')
       .add(this.formatTarget(query.from, ctx))
       .add(this.formatWhere(query.where, ctx))
       .add(this.formatGroupBy(query.groupBy, ctx))
@@ -119,26 +119,26 @@ export abstract class Formatter implements Sanitizer {
 
   formatInsert(query: Query.Insert, ctx: FormatContext) {
     const columns = Object.values(query.into.columns)
-    return raw('insert into')
+    return raw('INSERT INTO')
       .addIdentifier(query.into.name)
-      .addIf(query.into.alias, () => raw('as').addIdentifier(query.into.alias!))
+      .addIf(query.into.alias, () => raw('AS').addIdentifier(query.into.alias!))
       .parenthesis(
         separated(columns.map(column => this.formatString(column.name!)))
       )
-      .add('values')
+      .add('VALUES')
       .addSeparated(
         query.data.map(row => this.formatInsertRow(query.into.columns, row))
       )
       .addIf(query.selection, () =>
-        raw('returning').add(this.formatSelection(query.selection!, ctx))
+        raw('RETURNING').add(this.formatSelection(query.selection!, ctx))
       )
   }
 
   formatUpdate(query: Query.Update, ctx: FormatContext) {
     const data = query.set || {}
-    return raw('update')
+    return raw('UPDATE')
       .addIdentifier(query.table.name)
-      .add('set')
+      .add('SET')
       .addSeparated(
         Object.keys(data).map(key => {
           const column = query.table.columns[key]
@@ -158,15 +158,15 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatDelete(query: Query.Delete, ctx: FormatContext) {
-    return raw('delete from')
+    return raw('DELETE FROM')
       .addIdentifier(query.table.name)
       .add(this.formatWhere(query.where, ctx))
       .add(this.formatLimit(query, ctx))
   }
 
   formatCreateTable(query: Query.CreateTable, ctx: FormatContext) {
-    return raw('create table')
-      .addIf(query.ifNotExists, 'if not exists')
+    return raw('CREATE TABLE')
+      .addIf(query.ifNotExists, 'IF NOT EXISTS')
       .addCall(
         query.table.name,
         ...Object.values(query.table.columns).map(column => {
@@ -176,12 +176,12 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatCreateIndex(query: Query.CreateIndex, ctx: FormatContext = {}) {
-    return raw('create')
-      .addIf(query.index.unique, 'unique')
-      .add('index')
-      .addIf(query.ifNotExists, 'if not exists')
+    return raw('CREATE')
+      .addIf(query.index.unique, 'UNIQUE')
+      .add('INDEX')
+      .addIf(query.ifNotExists, 'IF NOT EXISTS')
       .addIdentifier(query.index.name)
-      .add('on')
+      .add('ON')
       .addIdentifier(query.table.name)
       .parenthesis(
         separated(
@@ -198,17 +198,17 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatDropIndex(query: Query.DropIndex, ctx: FormatContext) {
-    return raw('drop index')
-      .addIf(query.ifExists, 'if exists')
+    return raw('DROP INDEX')
+      .addIf(query.ifExists, 'IF EXISTS')
       .addIdentifier(query.name)
   }
 
   formatAlterTable(query: Query.AlterTable, ctx: FormatContext) {
-    let stmt = raw('alter table').addIdentifier(query.table.name)
+    let stmt = raw('ALTER TABLE').addIdentifier(query.table.name)
     if (query.addColumn) {
-      stmt = stmt.add('add column').add(this.formatColumn(query.addColumn))
+      stmt = stmt.add('ADD COLUMN').add(this.formatColumn(query.addColumn))
     } else if (query.dropColumn) {
-      stmt = stmt.add('drop column').addIdentifier(query.dropColumn)
+      stmt = stmt.add('DROP COLUMN').addIdentifier(query.dropColumn)
     } else if (query.alterColumn) {
       throw new Error(`Not available in this formatter: alter column`)
     }
@@ -218,11 +218,11 @@ export abstract class Formatter implements Sanitizer {
   formatTransaction({op, id}: Query.Transaction, ctx: FormatContext) {
     switch (op) {
       case Query.TransactionOperation.Begin:
-        return raw('savepoint').addIdentifier(id)
+        return raw('SAVEPOINT').addIdentifier(id)
       case Query.TransactionOperation.Commit:
-        return raw('release').addIdentifier(id)
+        return raw('RELEASE').addIdentifier(id)
       case Query.TransactionOperation.Rollback:
-        return raw('rollback to').addIdentifier(id)
+        return raw('ROLLBACK TO').addIdentifier(id)
     }
   }
 
@@ -240,13 +240,13 @@ export abstract class Formatter implements Sanitizer {
   formatColumn(column: ColumnData) {
     return identifier(column.name!)
       .add(this.formatType(column.type))
-      .addIf(column.unique, 'unique')
-      .addIf(column.autoIncrement, 'autoincrement')
-      .addIf(column.primaryKey, 'primary key')
-      .addIf(!column.nullable, 'not null')
+      .addIf(column.unique, 'UNIQUE')
+      .addIf(column.autoIncrement, 'AUTOINCREMENT')
+      .addIf(column.primaryKey, 'PRIMARY KEY')
+      .addIf(!column.nullable, 'NOT NULL')
       .addIf(
         column.defaultValue !== undefined,
-        raw('default').add(this.formatInlineValue(column.defaultValue))
+        raw('DEFAULT').add(this.formatInlineValue(column.defaultValue))
       )
       .addIf(column.references, () => {
         return this.formatContraintReference(column.references!)
@@ -260,7 +260,7 @@ export abstract class Formatter implements Sanitizer {
     )
       throw new Error('not supported')
     const from = reference.expr.target
-    return raw('references')
+    return raw('REFERENCES')
       .addIdentifier(Target.source(from)!.name)
       .parenthesis(identifier(reference.field))
   }
@@ -268,15 +268,15 @@ export abstract class Formatter implements Sanitizer {
   formatType(type: ColumnType): Statement {
     switch (type) {
       case ColumnType.String:
-        return raw('text')
+        return raw('TEXT')
       case ColumnType.Json:
-        return raw('json')
+        return raw('JSON')
       case ColumnType.Number:
-        return raw('numeric')
+        return raw('NUMERIC')
       case ColumnType.Boolean:
-        return raw('boolean')
+        return raw('BOOLEAN')
       case ColumnType.Integer:
-        return raw('integer')
+        return raw('INTEGER')
     }
   }
 
@@ -304,7 +304,7 @@ export abstract class Formatter implements Sanitizer {
     if (isNull) {
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
-      return raw('null')
+      return raw('NULL')
     }
     switch (column.type) {
       case ColumnType.String:
@@ -331,15 +331,15 @@ export abstract class Formatter implements Sanitizer {
     switch (target.type) {
       case TargetType.Table:
         return identifier(target.table.name).addIf(target.table.alias, () =>
-          raw('as').addIdentifier(target.table.alias!)
+          raw('AS').addIdentifier(target.table.alias!)
         )
       case TargetType.Join:
         const {left, right, joinType} = target
         return this.formatTarget(left, ctx)
           .addLine(joins[joinType])
-          .add('join')
+          .add('JOIN')
           .add(this.formatTarget(right, ctx))
-          .add('on')
+          .add('ON')
           .add(this.formatExprValue(target.on, ctx))
       default:
         throw new Error(`Cannot format target of type ${target.type}`)
@@ -348,29 +348,29 @@ export abstract class Formatter implements Sanitizer {
 
   formatWhere(expr: ExprData | undefined, ctx: FormatContext) {
     if (!expr) return
-    return newline().raw('where').add(this.formatExprValue(expr, ctx))
+    return newline().raw('WHERE').add(this.formatExprValue(expr, ctx))
   }
 
   formatHaving(expr: ExprData | undefined, ctx: FormatContext) {
     if (!expr) return
-    return newline().raw('having').add(this.formatExprValue(expr, ctx))
+    return newline().raw('HAVING').add(this.formatExprValue(expr, ctx))
   }
 
   formatGroupBy(groupBy: Array<ExprData> | undefined, ctx: FormatContext) {
     if (!groupBy) return
     return newline()
-      .raw('group by')
+      .raw('GROUP BY')
       .addSeparated(groupBy.map(expr => this.formatExprValue(expr, ctx)))
   }
 
   formatOrderBy(orderBy: Array<OrderBy> | undefined, ctx: FormatContext) {
     if (!orderBy) return
     return newline()
-      .raw('order by')
+      .raw('ORDER BY')
       .addSeparated(
         orderBy.map(({expr, order}) =>
           this.formatExprValue(expr, ctx).add(
-            order === OrderDirection.Asc ? 'asc' : 'desc'
+            order === OrderDirection.Asc ? 'ASC' : 'DESC'
           )
         )
       )
@@ -382,9 +382,9 @@ export abstract class Formatter implements Sanitizer {
   ) {
     if (!limit && !offset && !singleResult) return
     return newline()
-      .raw('limit')
+      .raw('LIMIT')
       .addValue(singleResult ? 1 : limit)
-      .addIf(offset && offset > 0, raw('offset').addValue(offset))
+      .addIf(offset && offset > 0, raw('OFFSET').addValue(offset))
   }
 
   formatSelection(selection: ExprData, ctx: FormatContext): Statement {
@@ -396,7 +396,7 @@ export abstract class Formatter implements Sanitizer {
     })
     return (formatSubject ? formatSubject(subject) : subject).addIf(
       ctx.nameResult,
-      raw('as').addIdentifier(ctx.nameResult!)
+      raw('AS').addIdentifier(ctx.nameResult!)
     )
   }
 
@@ -414,7 +414,7 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatUnwrapArray(stmt: Statement): Statement {
-    return parenthesis(raw('select value from').addCall('json_each', stmt))
+    return parenthesis(raw('SELECT value FROM').addCall('json_each', stmt))
   }
 
   retrieveField(expr: ExprData, field: string): ExprData | undefined {
@@ -466,9 +466,9 @@ export abstract class Formatter implements Sanitizer {
   formatInlineValue(rawValue: any): Statement {
     switch (true) {
       case rawValue === null || rawValue === undefined:
-        return raw('null')
+        return raw('NULL')
       case typeof rawValue === 'boolean':
-        return rawValue ? raw('true') : raw('false')
+        return rawValue ? raw('TRUE') : raw('FALSE')
       case typeof rawValue === 'string' || typeof rawValue === 'number':
         return this.formatString(rawValue)
       default:
@@ -480,7 +480,7 @@ export abstract class Formatter implements Sanitizer {
     const {formatAsJson, forceInline} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
-        return raw('null')
+        return raw('NULL')
       case !formatAsJson && typeof rawValue === 'boolean':
         return rawValue ? raw('1') : raw('0')
       case Array.isArray(rawValue):
@@ -507,9 +507,9 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.UnOp:
         switch (expr.op) {
           case UnOp.IsNull:
-            return this.formatExprValue(expr.expr, ctx).add('is null')
+            return this.formatExprValue(expr.expr, ctx).add('IS NULL')
           case UnOp.Not:
-            return raw('not').addParenthesis(
+            return raw('NOT').addParenthesis(
               this.formatExprValue(expr.expr, ctx)
             )
         }
@@ -556,10 +556,10 @@ export abstract class Formatter implements Sanitizer {
         const subQuery = this.format(expr.query, {...ctx, nameResult: 'result'})
         if (expr.query.singleResult) return call('json', parenthesis(subQuery))
         return parenthesis(
-          raw('select json_group_array(json(result))')
+          raw('SELECT json_group_array(json(result))')
             .newline()
-            .raw('from ')
-            .parenthesis(subQuery)
+            .raw('FROM')
+            .addParenthesis(subQuery)
         )
       case ExprType.Row:
         switch (expr.target.type) {
@@ -602,16 +602,16 @@ export abstract class Formatter implements Sanitizer {
         switch (target.type) {
           case TargetType.Each:
             return parenthesis(
-              raw('select json_group_array(json(result)) from').addParenthesis(
-                raw('select value as result')
-                  .add('from')
+              raw('SELECT json_group_array(json(result)) FROM').addParenthesis(
+                raw('SELECT value AS result')
+                  .add('FROM')
                   .addCall(
                     'json_each',
                     this.formatExpr(target.expr, {...ctx, formatAsJson: true})
                   )
-                  .add('as')
+                  .add('AS')
                   .addIdentifier(target.alias)
-                  .add('where')
+                  .add('WHERE')
                   .add(this.formatExprValue(condition, ctx))
               )
             )
@@ -624,17 +624,17 @@ export abstract class Formatter implements Sanitizer {
         switch (target.type) {
           case TargetType.Each:
             return parenthesis(
-              raw('select json_group_array(json(result)) from').addParenthesis(
-                raw('select')
+              raw('SELECT json_group_array(json(result)) FROM').addParenthesis(
+                raw('SELECT')
                   .add(this.formatExpr(result, {...ctx, formatAsJson: true}))
-                  .add('as')
+                  .add('AS')
                   .addIdentifier('result')
-                  .add('from')
+                  .add('FROM')
                   .addCall(
                     'json_each',
                     this.formatExpr(target.expr, {...ctx, formatAsJson: true})
                   )
-                  .add('as')
+                  .add('AS')
                   .addIdentifier(target.alias)
               )
             )
