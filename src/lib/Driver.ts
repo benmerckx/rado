@@ -133,7 +133,7 @@ abstract class SyncDriver extends DriverBase {
   }
 
   all<T>(cursor: Cursor.SelectSingle<T>): Array<T>
-  all<T>(cursor: Cursor<T>): Array<T>
+  all<T>(cursor: Cursor<T>): T
   all<T>(strings: TemplateStringsArray, ...params: Array<any>): Array<T>
   all<T>(...args: Array<any>): Array<T> {
     return super.all(...args)
