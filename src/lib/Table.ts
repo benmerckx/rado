@@ -4,7 +4,6 @@ import {EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import {Query} from './Query'
-import {Relation} from './Relation'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
 import {Target} from './Target'
@@ -149,7 +148,7 @@ export type TableOptions<T, R> = {
   name: string
   alias?: string
   columns: {
-    [K in keyof T]: Column<T[K]> | ((this: Fields<T>) => Relation<T[K]>)
+    [K in keyof T]: Column<T[K]>
   }
   indexes?: (this: Fields<T>) => Record<string, Index>
 }

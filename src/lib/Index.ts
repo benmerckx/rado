@@ -4,7 +4,6 @@ interface PartialIndexData {
   on: Array<ExprData>
   unique?: boolean
   where?: ExprData
-  unique?: boolean
 }
 
 export interface IndexData extends PartialIndexData {
@@ -20,10 +19,6 @@ export class Index {
 
   where(where: Expr<boolean>) {
     return new Index({...this.data, where: ExprData.create(where)})
-  }
-
-  unique() {
-    return new Index({...this.data, unique: true})
   }
 }
 
