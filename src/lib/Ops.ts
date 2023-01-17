@@ -32,8 +32,8 @@ export function insertInto<Row>(table: Table<Row>): Cursor.Insert<Row> {
   return new Cursor.Insert<Row>(table.schema())
 }
 
-export function deleteFrom<Row>(table: Table<Row>): Cursor.Delete<Row> {
-  return new Cursor.Delete<Row>(Query.Delete({table: table.schema()}))
+export function deleteFrom<Row>(table: Table<Row>): Cursor.Delete {
+  return new Cursor.Delete(Query.Delete({table: table.schema()}))
 }
 
 export function create(...tables: Array<Table<any>>): Cursor.Batch {
