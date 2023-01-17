@@ -1,5 +1,5 @@
 import {ColumnData, ColumnType} from './Column'
-import {BinOp, ExprData, ExprType, UnOp} from './Expr'
+import {BinOp, Expr, ExprData, ExprType, UnOp} from './Expr'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamType} from './Param'
 import {Query, QueryType} from './Query'
@@ -9,6 +9,7 @@ import {
   call,
   identifier,
   newline,
+  param,
   parenthesis,
   raw,
   separated,
@@ -74,7 +75,6 @@ export abstract class Formatter implements Sanitizer {
       formatSubject: select => call('json_object', raw("'result'"), select),
       nameResult: 'result'
     }).compile(this, formatInline)
-    // console.log(result[0])
     return result
   }
 
@@ -234,7 +234,13 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatRaw({strings, params}: Query.Raw, ctx: FormatContext) {
-    return Statement.tag(strings, ...params)
+    return Statement.tag(
+      strings,
+      params.map(param => {
+        if (param instanceof Expr) return this.formatExpr(param.expr, ctx)
+        return this.formatValue(param, ctx)
+      })
+    )
   }
 
   formatColumn(column: ColumnData) {
@@ -299,6 +305,8 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatColumnValue(column: ColumnData, columnValue: any) {
+    if (columnValue instanceof Expr)
+      return this.formatExprValue(columnValue.expr, {})
     const isNull = columnValue === undefined || columnValue === null
     const isOptional =
       column.nullable || column.autoIncrement || column.primaryKey
@@ -322,7 +330,7 @@ export abstract class Formatter implements Sanitizer {
       case ColumnType.Boolean:
         if (typeof columnValue !== 'boolean')
           throw new TypeError(`Expected boolean for column ${column.name}`)
-        return value(columnValue)
+        return raw(this.escapeValue(columnValue))
       case ColumnType.Json:
         if (typeof columnValue !== 'object')
           throw new TypeError(`Expected object for column ${column.name}`)
@@ -531,7 +539,7 @@ export abstract class Formatter implements Sanitizer {
           case ParamType.Value:
             return this.formatValue(expr.param.value, ctx)
           case ParamType.Named:
-            throw new Error('todo')
+            return param(expr.param.name)
         }
       case ExprType.Field:
         return this.formatField(expr.expr, expr.field, ctx)

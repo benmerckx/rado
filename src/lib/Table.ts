@@ -1,9 +1,10 @@
 import {Column, PrimaryKey} from './Column'
 import {Cursor} from './Cursor'
-import {Expr, ExprData} from './Expr'
+import {EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import {Query} from './Query'
+import {Relation} from './Relation'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
 import {Target} from './Target'
@@ -103,7 +104,7 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
 export namespace Table {
   // Source: https://stackoverflow.com/a/67577722
   type Intersection<A, B> = A & B extends infer U
-    ? {[P in keyof U]: U[P]}
+    ? {[P in keyof U]: EV<U[P]>}
     : never
   type OptionalKeys<T> = {
     [K in keyof T]: null extends T[K]
@@ -144,15 +145,17 @@ export namespace Table {
   export type Infer<T> = T extends Table<infer U> ? Normalize<U> : never
 }
 
-export interface TableOptions<T> {
+export type TableOptions<T, R> = {
   name: string
   alias?: string
-  columns: {[K in keyof T]: Column<T[K]>}
+  columns: {
+    [K in keyof T]: Column<T[K]> | ((this: Fields<T>) => Relation<T[K]>)
+  }
   indexes?: (this: Fields<T>) => Record<string, Index>
 }
 
-export function table<T extends {}>(
-  options: TableOptions<T>
+export function table<T extends {}, R>(
+  options: TableOptions<T, R>
 ): Table<T> & Fields<T> {
   const schema = {
     ...options,
@@ -173,13 +176,7 @@ export function table<T extends {}>(
         : {}
     ).map(([key, index]) => {
       const indexName = `${schema.name}.${key}`
-      return [
-        indexName,
-        {
-          name: indexName,
-          ...index.data
-        }
-      ]
+      return [indexName, {name: indexName, ...index.data}]
     })
   )
   return new Table({
