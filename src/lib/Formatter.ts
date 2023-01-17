@@ -318,7 +318,7 @@ export abstract class Formatter implements Sanitizer {
       case ColumnType.Boolean:
         if (typeof columnValue !== 'boolean')
           throw new TypeError(`Expected boolean for column ${column.name}`)
-        return value(columnValue)
+        return raw(this.escapeValue(columnValue))
       case ColumnType.Json:
         if (typeof columnValue !== 'object')
           throw new TypeError(`Expected object for column ${column.name}`)
