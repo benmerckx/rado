@@ -47,12 +47,12 @@ export namespace SqliteSchema {
     return [
       column.name,
       identifier(column.name)
-        .add(column.type.toLowerCase())
-        .addIf(column.pk === 1, 'primary key')
-        .addIf(column.notnull === 1, 'not null')
+        .add(column.type)
+        .addIf(column.pk === 1, 'PRIMARY KEY')
+        .addIf(column.notnull === 1, 'NOT NULL')
         .addIf(
           column.dflt_value !== null,
-          raw('default').add(column.dflt_value!)
+          raw('DEFAULT').addParenthesis(column.dflt_value!)
         )
         .compile(formatter)[0]
     ]

@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column, table} from '../src'
-import {SqliteFunctions} from '../src/sqlite/SqliteFunctions'
+import {match} from '../src/sqlite'
 import {connect} from './DbSuite'
 
 type Search = table.infer<typeof Search>
@@ -26,9 +26,7 @@ test('Search', async () => {
       {name: 'world', col2: 'test ok'}
     ])
   )
-  const results = await query(
-    Search.where(SqliteFunctions.match(Search, 'test'))
-  )
+  const results = await query(Search.where(match(Search, 'test')))
   assert.equal(
     results.map(res => res.name),
     ['test', 'world']

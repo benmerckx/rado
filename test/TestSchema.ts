@@ -1,6 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column, index, table} from '../src'
+import {datetime} from '../src/sqlite'
 import {connect} from './DbSuite'
 
 const columns = {
@@ -18,7 +19,8 @@ const columns = {
   defaultBoolean2: column.boolean().defaultValue(false),
   defaultFloat: column.number().defaultValue(1.23),
   defaultArray: column.array().defaultValue([1, 2, 3]),
-  defaultObject: column.object().defaultValue({a: 1, b: 2, c: 3})
+  defaultObject: column.object().defaultValue({a: 1, b: 2, c: 3}),
+  createdAt: column.string().defaultValue(datetime('now', 'localtime'))
 }
 
 const TestTable = table({
@@ -28,11 +30,17 @@ const TestTable = table({
 
 const query = await connect()
 
+test('Create table', async () => {
+  await query(TestTable.createTable())
+})
+
 test('Add col', async () => {
+  const createdAt = column.string().defaultValue(datetime('now', 'localtime'))
   const Start = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
+      createdAt,
       text: column.string()
     }
   })
@@ -41,6 +49,7 @@ test('Add col', async () => {
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
+      createdAt,
       newCol: column.string()
     },
     indexes() {
@@ -56,7 +65,9 @@ test('Add col', async () => {
       newCol: 'new'
     })
   )
-  const rowOne = await query(AddCol.first())
+  const rowOne = await query(
+    AddCol.select({id: AddCol.id, newCol: AddCol.newCol}).first()
+  )
   assert.equal(rowOne, {id: 1, newCol: 'new'})
 })
 

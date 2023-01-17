@@ -36,6 +36,11 @@ const SEPARATE = ','
 const WHITESPACE = ' '
 const NEWLINE = '\n'
 
+export interface CompileOptions {
+  formatInline?: boolean
+  spaces?: number
+}
+
 export class Statement {
   constructor(public tokens: Array<Token>) {}
 
@@ -99,7 +104,8 @@ export class Statement {
     return this.concat(Token.Dedent())
   }
 
-  newline() {
+  newline(ignore = false) {
+    if (ignore) return this
     return this.raw(NEWLINE)
   }
 

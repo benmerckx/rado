@@ -1,10 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {Expr, column, table} from '../src'
-import {SqliteFunctions} from '../src/sqlite/SqliteFunctions'
+import {cast, strftime} from '../src/sqlite'
 import {connect} from './DbSuite'
-
-const {cast, strftime} = SqliteFunctions
 
 test('Functions', async () => {
   const query = await connect()

@@ -24,6 +24,10 @@ export namespace Schema {
     return Query.Batch({queries})
   }
 
+  function removeLeadingWhitespace(str: string) {
+    return str.replace(/\n\s+/g, '\n')
+  }
+
   export function upgrade(
     formatter: Formatter,
     local: SchemaInstructions,
@@ -45,7 +49,10 @@ export namespace Schema {
         const [instruction] = formatter
           .formatColumn({...schemaCol, references: undefined})
           .compile(formatter)
-        if (localInstruction !== instruction) {
+        if (
+          removeLeadingWhitespace(localInstruction) !==
+          removeLeadingWhitespace(instruction)
+        ) {
           res.push(Query.AlterTable({table: schema, alterColumn: schemaCol}))
         }
       }
@@ -60,15 +67,18 @@ export namespace Schema {
       if (!localInstruction) {
         res.push(Query.CreateIndex({table: schema, index: schemaIndex}))
       } else if (!schemaIndex) {
-        res.push(Query.DropIndex({table: schema, name: indexName}))
+        res.unshift(Query.DropIndex({table: schema, name: indexName}))
       } else {
         const [instruction] = formatter
           .formatCreateIndex(
             Query.CreateIndex({table: schema, index: schemaIndex})
           )
           .compile(formatter)
-        if (localInstruction !== instruction) {
-          res.push(Query.DropIndex({table: schema, name: indexName}))
+        if (
+          removeLeadingWhitespace(localInstruction) !==
+          removeLeadingWhitespace(instruction)
+        ) {
+          res.unshift(Query.DropIndex({table: schema, name: indexName}))
           res.push(Query.CreateIndex({table: schema, index: schemaIndex}))
         }
       }
