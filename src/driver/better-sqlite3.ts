@@ -1,43 +1,47 @@
-import type {Database} from 'better-sqlite3'
+import type {Database, Statement as NativeStatement} from 'better-sqlite3'
 import {Driver} from '../lib/Driver'
 import {SchemaInstructions} from '../lib/Schema'
-import {Statement} from '../lib/Statement'
+import {CompiledStatement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
 
+class PreparedStatement implements Driver.Sync.PreparedStatement {
+  constructor(private stmt: NativeStatement) {}
+
+  all<T>(params: Array<any> = []): Array<T> {
+    return this.stmt.all(...params)
+  }
+
+  run(params: Array<any> = []): {rowsAffected: number} {
+    return {rowsAffected: this.stmt.run(...params).changes}
+  }
+
+  get<T>(params: Array<any> = []): T {
+    return this.stmt.get(...params)
+  }
+
+  execute(params: Array<any> = []): void {
+    this.stmt.run(...params)
+  }
+}
+
 export class BetterSqlite3Driver extends Driver.Sync {
+  tableData: (tableName: string) => Array<SqliteSchema.Column>
+  indexData: (tableName: string) => Array<SqliteSchema.Index>
+
   constructor(public db: Database) {
     super(new SqliteFormatter())
+    this.tableData = this.prepare(SqliteSchema.tableData)
+    this.indexData = this.prepare(SqliteSchema.indexData)
   }
 
-  rows<T extends object = object>([sql, params]: Statement.Compiled): Array<T> {
-    return this.db.prepare(sql).all(...params)
-  }
-
-  values([sql, params]: Statement.Compiled): Array<Array<any>> {
-    return this.db
-      .prepare(sql)
-      .raw()
-      .all(...params)
-  }
-
-  execute([sql, params]: Statement.Compiled): void {
-    this.db.prepare(sql).run(...params)
-  }
-
-  mutate([sql, params]: Statement.Compiled): {rowsAffected: number} {
-    const {changes} = this.db.prepare(sql).run(...params)
-    return {rowsAffected: changes}
+  prepareStatement(stmt: CompiledStatement): Driver.Sync.PreparedStatement {
+    return new PreparedStatement(this.db.prepare(stmt.sql))
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {
-    const columnData: Array<SqliteSchema.Column> =
-      this.rows<SqliteSchema.Column>(
-        SqliteSchema.tableData(tableName).compile(this.formatter)
-      )
-    const indexData = this.rows<SqliteSchema.Index>(
-      SqliteSchema.indexData(tableName).compile(this.formatter)
-    )
+    const columnData = this.tableData(tableName)
+    const indexData = this.indexData(tableName)
     return SqliteSchema.createInstructions(columnData, indexData)
   }
 

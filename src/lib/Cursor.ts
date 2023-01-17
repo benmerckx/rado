@@ -20,6 +20,13 @@ export class Cursor<T> {
     })
   }
 
+  static all(
+    strings: TemplateStringsArray,
+    ...params: Array<any>
+  ): Cursor<any> {
+    return new Cursor(Query.Raw({expectedReturn: 'rows', strings, params}))
+  }
+
   query(): Query<T> {
     throw new Error('Not implemented')
   }

@@ -1,9 +1,11 @@
+import {ParamData, ParamType} from './Param'
 import {Sanitizer} from './Sanitizer'
 
 enum TokenType {
   Raw = 'Raw',
   Identifier = 'Identifier',
   Value = 'Value',
+  Param = 'Param',
   Indent = 'Indent',
   Dedent = 'Dedent'
 }
@@ -30,6 +32,10 @@ class Token {
   static Value(data: any) {
     return new Token(TokenType.Value, data)
   }
+
+  static Param(name: string) {
+    return new Token(TokenType.Param, name)
+  }
 }
 
 const SEPARATE = ','
@@ -51,11 +57,12 @@ export class Statement {
     return typeof from === 'string' ? raw(from) : from
   }
 
-  static tag(strings: ReadonlyArray<string>, ...params: Array<any>) {
+  static tag(strings: ReadonlyArray<string>, params: Array<Statement>) {
     return new Statement(
-      strings
-        .flatMap((s, i) => [Token.Raw(s), Token.Value(params[i])])
-        .slice(0, -1)
+      strings.flatMap((s, i) => {
+        const param = params[i]
+        return [Token.Raw(s)].concat(param ? param.tokens : [])
+      })
     )
   }
 
@@ -119,6 +126,14 @@ export class Statement {
     return this.space().value(value)
   }
 
+  param(name: string) {
+    return this.concat(Token.Param(name))
+  }
+
+  addParam(name: string) {
+    return this.space().param(name)
+  }
+
   raw(query: string) {
     if (!query) return this
     return this.concat(Token.Raw(query))
@@ -161,9 +176,9 @@ export class Statement {
     )
   }
 
-  compile(sanitizer: Sanitizer, formatInline = false): Statement.Compiled {
+  compile(sanitizer: Sanitizer, formatInline = false): CompiledStatement {
     let sql = '',
-      params = [],
+      paramData: Array<ParamData> = [],
       indent = ''
     for (const token of this.tokens) {
       switch (token.type) {
@@ -179,8 +194,12 @@ export class Statement {
             sql += sanitizer.escapeValue(token.data)
           } else {
             sql += '?'
-            params.push(token.data === undefined ? null : token.data)
+            paramData.push(ParamData.Value(token.data ?? null))
           }
+          break
+        case TokenType.Param:
+          sql += '?'
+          paramData.push(ParamData.Named(token.data))
           break
         case TokenType.Indent:
           indent += '  '
@@ -190,12 +209,27 @@ export class Statement {
           break
       }
     }
-    return [sql, params]
+    return new CompiledStatement(sql, paramData)
   }
 }
 
-export namespace Statement {
-  export type Compiled = [sql: string, params: Array<any>]
+export class CompiledStatement {
+  constructor(public sql: string, private paramData: Array<ParamData>) {}
+
+  params(input?: Record<string, any>): Array<any> {
+    return this.paramData.map(param => {
+      if (param.type === ParamType.Named) {
+        if (input?.[param.name] === undefined)
+          throw new TypeError(`Missing parameter ${param.name}`)
+        return input[param.name]
+      }
+      return param.value
+    })
+  }
+
+  toString() {
+    return this.sql
+  }
 }
 
 export function newline() {
@@ -212,6 +246,10 @@ export function identifier(name: string) {
 
 export function value(value: any) {
   return new Statement([Token.Value(value)])
+}
+
+export function param(name: string) {
+  return new Statement([Token.Param(name)])
 }
 
 export function empty() {

@@ -1,5 +1,5 @@
 import {test} from 'uvu'
-import {column, relation, table} from '../src'
+import {column, table} from '../src'
 
 const UserDef = table({
   name: 'User',
@@ -18,10 +18,7 @@ const Post = table({
   columns: {
     id: column.integer().primaryKey<'Post'>(),
     userId: column.integer(),
-    title: column.string(),
-    posts() {
-      return relation.hasMany(UserDef)
-    }
+    title: column.string()
   }
 })
 type Post = table.infer<typeof Post>

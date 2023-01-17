@@ -1,48 +1,51 @@
 import type {Database} from 'sql.js'
 import {Driver} from '../lib/Driver'
 import {SchemaInstructions} from '../lib/Schema'
-import {Statement} from '../lib/Statement'
+import {CompiledStatement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
 
-export class SqlJsDriver extends Driver.Sync {
-  constructor(public db: Database) {
-    super(new SqliteFormatter())
-  }
+class PreparedStatement implements Driver.Sync.PreparedStatement {
+  constructor(private db: Database, private stmt: any) {}
 
-  rows<T extends object = object>([sql, params]: Statement.Compiled): Array<T> {
-    const stmt = this.db.prepare(sql)
-    stmt.bind(params)
+  all<T>(params?: Array<any>): Array<T> {
+    this.stmt.bind(params)
     const res = []
-    while (stmt.step()) res.push(stmt.getAsObject())
-    return res as Array<T>
-  }
-
-  values([sql, params]: Statement.Compiled): Array<Array<any>> {
-    const stmt = this.db.prepare(sql)
-    stmt.bind(params)
-    const res = []
-    while (stmt.step()) res.push(stmt.get())
+    while (this.stmt.step()) res.push(this.stmt.getAsObject())
     return res
   }
 
-  execute([sql, params]: Statement.Compiled): void {
-    this.db.prepare(sql).run(params)
-  }
-
-  mutate([sql, params]: Statement.Compiled): {rowsAffected: number} {
-    this.db.prepare(sql).run(params)
+  run(params?: Array<any>): {rowsAffected: number} {
+    this.stmt.run(params)
     return {rowsAffected: this.db.getRowsModified()}
   }
 
+  get<T>(params?: Array<any>): T {
+    return this.all(params)[0] as T
+  }
+
+  execute(params?: Array<any>): void {
+    this.stmt.run(params)
+  }
+}
+
+export class SqlJsDriver extends Driver.Sync {
+  tableData: (tableName: string) => Array<SqliteSchema.Column>
+  indexData: (tableName: string) => Array<SqliteSchema.Index>
+
+  constructor(public db: Database) {
+    super(new SqliteFormatter())
+    this.tableData = this.prepare(SqliteSchema.tableData)
+    this.indexData = this.prepare(SqliteSchema.indexData)
+  }
+
+  prepareStatement(stmt: CompiledStatement): Driver.Sync.PreparedStatement {
+    return new PreparedStatement(this.db, this.db.prepare(stmt.sql))
+  }
+
   schemaInstructions(tableName: string): SchemaInstructions | undefined {
-    const columnData: Array<SqliteSchema.Column> =
-      this.rows<SqliteSchema.Column>(
-        SqliteSchema.tableData(tableName).compile(this.formatter)
-      )
-    const indexData = this.rows<SqliteSchema.Index>(
-      SqliteSchema.indexData(tableName).compile(this.formatter)
-    )
+    const columnData = this.tableData(tableName)
+    const indexData = this.indexData(tableName)
     return SqliteSchema.createInstructions(columnData, indexData)
   }
 

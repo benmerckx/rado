@@ -1,6 +1,6 @@
 import {Column, PrimaryKey} from './Column'
 import {Cursor} from './Cursor'
-import {Expr, ExprData} from './Expr'
+import {EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import {Query} from './Query'
@@ -93,7 +93,7 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
 export namespace Table {
   // Source: https://stackoverflow.com/a/67577722
   type Intersection<A, B> = A & B extends infer U
-    ? {[P in keyof U]: U[P]}
+    ? {[P in keyof U]: EV<U[P]>}
     : never
   type OptionalKeys<T> = {
     [K in keyof T]: null extends T[K]

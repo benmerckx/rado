@@ -42,7 +42,7 @@ export namespace Schema {
       } else if (!schemaCol) {
         res.push(Query.AlterTable({table: schema, dropColumn: columnName}))
       } else {
-        const [instruction] = formatter
+        const {sql: instruction} = formatter
           .formatColumn({...schemaCol, references: undefined})
           .compile(formatter)
         if (localInstruction !== instruction) {
@@ -62,7 +62,7 @@ export namespace Schema {
       } else if (!schemaIndex) {
         res.push(Query.DropIndex({table: schema, name: indexName}))
       } else {
-        const [instruction] = formatter
+        const {sql: instruction} = formatter
           .formatCreateIndex(
             Query.CreateIndex({table: schema, index: schemaIndex})
           )

@@ -1,5 +1,7 @@
+import {Cursor} from '../lib/Cursor'
+import {Expr} from '../lib/Expr'
 import {SchemaInstructions} from '../lib/Schema'
-import {Statement, identifier, raw} from '../lib/Statement'
+import {identifier, raw} from '../lib/Statement'
 import {SqliteFormatter} from './SqliteFormatter'
 
 export namespace SqliteSchema {
@@ -22,12 +24,16 @@ export namespace SqliteSchema {
     sql: string
   }
 
-  export function tableData(tableName: string) {
-    return Statement.tag`select * from pragma_table_info(${tableName}) order by cid`
+  export function tableData(
+    tableName: Expr<string>
+  ): Cursor<Array<SqliteSchema.Column>> {
+    return Cursor.all`select * from pragma_table_info(${tableName}) order by cid`
   }
 
-  export function indexData(tableName: string) {
-    return Statement.tag`select * from sqlite_master where type='index' and tbl_name=${tableName}`
+  export function indexData(
+    tableName: Expr<string>
+  ): Cursor<Array<SqliteSchema.Index>> {
+    return Cursor.all`select * from sqlite_master where type='index' and tbl_name=${tableName}`
   }
 
   export function createInstructions(
@@ -54,7 +60,7 @@ export namespace SqliteSchema {
           column.dflt_value !== null,
           raw('default').add(column.dflt_value!)
         )
-        .compile(formatter)[0]
+        .compile(formatter).sql
     ]
   }
 
