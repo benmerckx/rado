@@ -200,9 +200,7 @@ export class Statement {
             sql += sanitizer.escapeValue(token.data)
           } else {
             sql += '?'
-            paramData.push(
-              ParamData.Value(sanitizer.formatParamValue(token.data))
-            )
+            paramData.push(ParamData.Value(token.data))
           }
           break
         case TokenType.Param:
@@ -217,20 +215,25 @@ export class Statement {
           break
       }
     }
-    return new CompiledStatement(sql, paramData)
+    return new CompiledStatement(sanitizer, sql, paramData)
   }
 }
 
 export class CompiledStatement {
-  constructor(public sql: string, private paramData: Array<ParamData>) {}
+  constructor(
+    public sanitizer: Sanitizer,
+    public sql: string,
+    private paramData: Array<ParamData>
+  ) {}
 
   params(input?: Record<string, any>): Array<any> {
     return this.paramData.map(param => {
       if (param.type === ParamType.Named) {
-        if (input && param.name in input) return input[param.name]
+        if (input && param.name in input)
+          return this.sanitizer.formatParamValue(input[param.name])
         throw new TypeError(`Missing parameter ${param.name}`)
       }
-      return param.value
+      return this.sanitizer.formatParamValue(param.value)
     })
   }
 
