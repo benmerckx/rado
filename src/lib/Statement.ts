@@ -227,9 +227,8 @@ export class CompiledStatement {
   params(input?: Record<string, any>): Array<any> {
     return this.paramData.map(param => {
       if (param.type === ParamType.Named) {
-        if (input?.[param.name] === undefined)
-          throw new TypeError(`Missing parameter ${param.name}`)
-        return input[param.name]
+        if (input && param.name in input) return input[param.name]
+        throw new TypeError(`Missing parameter ${param.name}`)
       }
       return param.value
     })
