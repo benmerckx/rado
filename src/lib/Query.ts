@@ -43,6 +43,7 @@ export namespace Query {
     having?: ExprData
     selection?: ExprData
     singleResult?: boolean
+    validate?: boolean
   }
   export interface Insert extends QueryBase {
     type: QueryType.Insert

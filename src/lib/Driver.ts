@@ -151,7 +151,11 @@ abstract class SyncDriver extends DriverBase {
           const res = stmt
             .all<{result: string}>(params)
             .map(row => JSON.parse(row.result).result)
-          if (query.singleResult) return res[0] as T
+          if (query.singleResult) {
+            const row = res[0] as T
+            if (query.validate && !row) throw new Error('No row found')
+            return row
+          }
           return res as T
         } else if (query.type === QueryType.Raw) {
           switch (query.expectedReturn) {
@@ -280,7 +284,11 @@ abstract class AsyncDriver extends DriverBase {
           const res = (await stmt.all<{result: string}>(params)).map(
             item => JSON.parse(item.result).result
           )
-          if (query.singleResult) return res[0] as T
+          if (query.singleResult) {
+            const row = res[0] as T
+            if (query.validate && !row) throw new Error('No row found')
+            return row
+          }
           return res as T
         } else if (query.type === QueryType.Raw) {
           switch (query.expectedReturn) {

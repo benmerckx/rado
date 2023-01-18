@@ -21,12 +21,14 @@ test('basic', async () => {
   const stored = await query(Node)
   const id = stored[amount - 1].id
   assert.equal(
-    (await query(
-      Node.first().where(
-        Node.index.greaterOrEqual(amount - 1),
-        Node.index.less(amount)
+    (
+      await query(
+        Node.sure().where(
+          Node.index.greaterOrEqual(amount - 1),
+          Node.index.less(amount)
+        )
       )
-    ))!.id,
+    ).id,
     id
   )
 })
@@ -67,16 +69,16 @@ test('select', async () => {
     {a: 10, b: 5},
     {a: 20, b: 5}
   ])
-  const res2 = (await query(
+  const res2 = await query(
     Test.select({
       ...Test,
       testProp: Expr.value(123)
-    }).first()
-  ))!
+    }).sure()
+  )
   assert.is(res2.testProp, 123)
-  const res3 = await query(Test.first().select(Expr.value('test')))!
+  const res3 = await query(Test.sure().select(Expr.value('test')))
   assert.is(res3, 'test')
-  const res4 = await query(Test.first().select(Expr.value(true)))!
+  const res4 = await query(Test.sure().select(Expr.value(true)))
   assert.is(res4, true)
 })
 
@@ -97,7 +99,7 @@ test('update', async () => {
   const b = {propA: 20, propB: 5}
   await query(Test.insertAll([a, b]))
   await query(Test.set({propA: 15}).where(Test.propA.is(10)))
-  assert.ok(await query(Test.first().where(Test.propA.is(15))))
+  assert.ok(await query(Test.sure().where(Test.propA.is(15))))
 })
 
 test('json', async () => {
@@ -114,13 +116,13 @@ test('json', async () => {
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
   await query(insertInto(Test).values(a, b))
-  const q = Test.first()
+  const q = Test.sure()
     .select({
       fieldA: Expr.value(12),
       fieldB: Test.propB
     })
     .where(Test.prop.is(10))
-  const res1 = await query(q)!
+  const res1 = await query(q)
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 5)
 })
@@ -173,9 +175,9 @@ test('each', async () => {
           .where(Link.id.is(ref.id))
           .first()
       })
-  }).first()
+  }).sure()
 
-  const res2 = (await query(tests))!
+  const res2 = await query(tests)
   assert.equal(res2.links, [
     {id: 1, title: 'Entry B'},
     {id: 2, title: 'Entry C'}

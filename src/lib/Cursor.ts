@@ -177,6 +177,14 @@ export namespace Cursor {
       return new SelectSingle({...this.query(), singleResult: true})
     }
 
+    sure(): SelectSingle<T> {
+      return new SelectSingle({
+        ...this.query(),
+        singleResult: true,
+        validate: true
+      })
+    }
+
     where(...where: Array<EV<boolean>>): SelectMultiple<T> {
       return new SelectMultiple(super.where(...where).query())
     }
