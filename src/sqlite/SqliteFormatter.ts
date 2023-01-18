@@ -14,6 +14,14 @@ function escapeWithin(input: string, outer: string) {
 }
 
 export class SqliteFormatter extends Formatter {
+  formatParamValue(paramValue: any): any {
+    if (paramValue === null || paramValue === undefined) return null
+    if (typeof paramValue === 'boolean') return paramValue ? 1 : 0
+    if (typeof paramValue === 'number') return paramValue
+    if (typeof paramValue === 'string') return paramValue
+    return JSON.stringify(paramValue)
+  }
+
   escapeValue(value: any): string {
     if (value === null || value === undefined) return 'null'
     if (typeof value === 'boolean') return value ? '1' : '0'

@@ -200,7 +200,9 @@ export class Statement {
             sql += sanitizer.escapeValue(token.data)
           } else {
             sql += '?'
-            paramData.push(ParamData.Value(token.data ?? null))
+            paramData.push(
+              ParamData.Value(sanitizer.formatParamValue(token.data))
+            )
           }
           break
         case TokenType.Param:

@@ -57,6 +57,7 @@ export abstract class Formatter implements Sanitizer {
 
   abstract escapeValue(value: any): string
   abstract escapeIdentifier(ident: string): string
+  abstract formatParamValue(paramValue: any): any
   abstract formatSqlAccess(on: Statement, field: string): Statement
   abstract formatJsonAccess(on: Statement, field: string): Statement
 
