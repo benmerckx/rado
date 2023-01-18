@@ -40,14 +40,14 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
   }
 
   insertOne(record: Table.Insert<T>) {
-    return new Cursor.Batch<Table.Normalize<T>>([
+    return new Cursor<Table.Normalize<T>>(
       Query.Insert({
         into: this.schema(),
         data: [record],
         selection: ExprData.Row(Target.Table(this.schema())),
         singleResult: true
       })
-    ])
+    )
   }
 
   insertAll(data: Array<Table.Insert<T>>) {
