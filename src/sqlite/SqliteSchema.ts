@@ -1,7 +1,7 @@
 import {Cursor} from '../lib/Cursor'
 import {Expr} from '../lib/Expr'
 import {SchemaInstructions} from '../lib/Schema'
-import {identifier, raw} from '../lib/Statement'
+import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from './SqliteFormatter'
 
 export namespace SqliteSchema {
@@ -50,18 +50,19 @@ export namespace SqliteSchema {
   }
 
   export function columnInstruction(column: Column): [string, string] {
-    return [
-      column.name,
-      identifier(column.name)
-        .add(column.type)
-        .addIf(column.pk === 1, 'PRIMARY KEY')
-        .addIf(column.notnull === 1, 'NOT NULL')
-        .addIf(
-          column.dflt_value !== null,
-          raw('DEFAULT').addParenthesis(column.dflt_value!)
-        )
-        .compile(formatter).sql
-    ]
+    const stmt = new Statement()
+    stmt.identifier(column.name).add(column.type)
+    if (column.pk === 1) stmt.add('PRIMARY KEY')
+    if (column.notnull === 1) stmt.add('NOT NULL')
+    if (column.dflt_value !== null) {
+      stmt
+        .add('DEFAULT')
+        .space()
+        .openParenthesis()
+        .raw(column.dflt_value)
+        .closeParenthesis()
+    }
+    return [column.name, stmt.compile(formatter).sql]
   }
 
   export function indexInstruction(index: Index): [string, string] {

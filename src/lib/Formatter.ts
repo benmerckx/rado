@@ -4,17 +4,7 @@ import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamType} from './Param'
 import {Query, QueryType} from './Query'
 import {Sanitizer} from './Sanitizer'
-import {
-  Statement,
-  call,
-  identifier,
-  newline,
-  param,
-  parenthesis,
-  raw,
-  separated,
-  value
-} from './Statement'
+import {Statement} from './Statement'
 import {Target, TargetType} from './Target'
 
 const binOps = {
@@ -45,11 +35,12 @@ const joins = {
 }
 
 export interface FormatContext {
+  stmt: Statement
   nameResult?: string
   skipTableName?: boolean
   forceInline?: boolean
   formatAsJson?: boolean
-  formatSubject?: (subject: Statement) => Statement
+  formatSubject?: (mkSubject: () => void) => void
 }
 
 export abstract class Formatter implements Sanitizer {
@@ -58,375 +49,430 @@ export abstract class Formatter implements Sanitizer {
   abstract escapeValue(value: any): string
   abstract escapeIdentifier(ident: string): string
   abstract formatParamValue(paramValue: any): any
-  abstract formatSqlAccess(on: Statement, field: string): Statement
-  abstract formatJsonAccess(on: Statement, field: string): Statement
-
-  formatAccess(
-    on: Statement,
-    field: string,
-    formatAsJson?: boolean
-  ): Statement {
-    return formatAsJson
-      ? this.formatJsonAccess(on, field)
-      : this.formatSqlAccess(on, field)
-  }
+  abstract formatAccess(
+    ctx: FormatContext,
+    mkSubject: () => void,
+    field: string
+  ): Statement
 
   compile<T>(query: Query<T>, formatInline = false) {
-    const result = this.format(query, {
-      formatSubject: select => call('json_object', raw("'result'"), select),
-      nameResult: 'result'
-    }).compile(this, formatInline)
+    const stmt = new Statement()
+    const result = this.format(
+      {
+        stmt,
+        formatSubject: mkSubject => {
+          stmt.raw("json_object('result', ")
+          mkSubject()
+          stmt.raw(')')
+        },
+        nameResult: 'result'
+      },
+      query
+    ).compile(this, formatInline)
+    // console.log(result.sql)
     return result
   }
 
-  format<T>(query: Query<T>, ctx: FormatContext = {}): Statement {
+  format<T>(ctx: FormatContext, query: Query<T>): Statement {
     switch (query.type) {
       case QueryType.Select:
-        return this.formatSelect(query, ctx)
+        return this.formatSelect(ctx, query)
       case QueryType.Insert:
-        return this.formatInsert(query, ctx)
+        return this.formatInsert(ctx, query)
       case QueryType.Update:
-        return this.formatUpdate(query, ctx)
+        return this.formatUpdate(ctx, query)
       case QueryType.Delete:
-        return this.formatDelete(query, ctx)
+        return this.formatDelete(ctx, query)
       case QueryType.CreateTable:
-        return this.formatCreateTable(query, ctx)
+        return this.formatCreateTable(ctx, query)
       case QueryType.CreateIndex:
-        return this.formatCreateIndex(query, ctx)
+        return this.formatCreateIndex(ctx, query)
       case QueryType.DropIndex:
-        return this.formatDropIndex(query, ctx)
+        return this.formatDropIndex(ctx, query)
       case QueryType.AlterTable:
-        return this.formatAlterTable(query, ctx)
+        return this.formatAlterTable(ctx, query)
       case QueryType.Transaction:
-        return this.formatTransaction(query, ctx)
+        return this.formatTransaction(ctx, query)
       case QueryType.Batch:
-        return this.formatBatch(query.queries, ctx)
+        return this.formatBatch(ctx, query.queries)
       case QueryType.Raw:
-        return this.formatRaw(query, ctx)
+        return this.formatRaw(ctx, query)
     }
   }
 
-  formatSelect(query: Query.Select, ctx: FormatContext) {
-    return raw('SELECT')
-      .add(this.formatSelection(query.selection, ctx))
-      .addLine('FROM')
-      .add(this.formatTarget(query.from, ctx))
-      .add(this.formatWhere(query.where, ctx))
-      .add(this.formatGroupBy(query.groupBy, ctx))
-      .add(this.formatHaving(query.having, ctx))
-      .add(this.formatOrderBy(query.orderBy, ctx))
-      .add(this.formatLimit(query, ctx))
+  formatSelect(ctx: FormatContext, query: Query.Select): Statement {
+    const {stmt} = ctx
+    stmt.add('SELECT').space()
+    this.formatSelection(ctx, query.selection)
+    stmt.addLine('FROM').space()
+    this.formatTarget(ctx, query.from)
+    this.formatWhere(ctx, query.where)
+    this.formatGroupBy(ctx, query.groupBy)
+    this.formatHaving(ctx, query.having)
+    this.formatOrderBy(ctx, query.orderBy)
+    this.formatLimit(ctx, query)
+    return stmt
   }
 
-  formatInsert(query: Query.Insert, ctx: FormatContext) {
+  formatInsert(ctx: FormatContext, query: Query.Insert): Statement {
+    const {stmt} = ctx
     const columns = Object.values(query.into.columns)
-    return raw('INSERT INTO')
-      .addIdentifier(query.into.name)
-      .addIf(query.into.alias, () => raw('AS').addIdentifier(query.into.alias!))
-      .parenthesis(
-        separated(columns.map(column => this.formatString(column.name!)))
-      )
-      .add('VALUES')
-      .addSeparated(
-        query.data.map(row => this.formatInsertRow(query.into.columns, row))
-      )
-      .addIf(query.selection, () =>
-        raw('RETURNING').add(this.formatSelection(query.selection!, ctx))
-      )
+    stmt.add('INSERT INTO').addIdentifier(query.into.name)
+    if (query.into.alias) stmt.raw('AS').addIdentifier(query.into.alias)
+    for (const column of stmt.call(columns)) this.formatString(ctx, column.name)
+    stmt.add('VALUES')
+    for (const row of stmt.separate(query.data))
+      this.formatInsertRow(ctx, query.into.columns, row)
+    if (query.selection) {
+      stmt.add('RETURNING').space()
+      this.formatSelection(ctx, query.selection)
+    }
+    return stmt
   }
 
-  formatUpdate(query: Query.Update, ctx: FormatContext) {
+  formatUpdate(ctx: FormatContext, query: Query.Update): Statement {
+    const {stmt} = ctx
     const data = query.set || {}
-    return raw('UPDATE')
-      .addIdentifier(query.table.name)
-      .add('SET')
-      .addSeparated(
-        Object.keys(data).map(key => {
-          const column = query.table.columns[key]
-          const exprData = data[key]
-          return identifier(key)
-            .add('=')
-            .add(
-              this.formatExpr(ExprData.create(data[key]), {
-                ...ctx,
-                formatAsJson: true
-              })
-            )
-        })
+    stmt.add('UPDATE').addIdentifier(query.table.name).add('SET').space()
+    for (const key of stmt.separate(Object.keys(data))) {
+      stmt.identifier(key).add('=').space()
+      this.formatExpr(
+        {
+          ...ctx,
+          formatAsJson: true
+        },
+        ExprData.create(data[key])
       )
-      .add(this.formatWhere(query.where, ctx))
-      .add(this.formatLimit(query, ctx))
+    }
+    this.formatWhere(ctx, query.where)
+    this.formatLimit(ctx, query)
+    return stmt
   }
 
-  formatDelete(query: Query.Delete, ctx: FormatContext) {
-    return raw('DELETE FROM')
-      .addIdentifier(query.table.name)
-      .add(this.formatWhere(query.where, ctx))
-      .add(this.formatLimit(query, ctx))
+  formatDelete(ctx: FormatContext, query: Query.Delete): Statement {
+    const {stmt} = ctx
+    stmt.add('DELETE FROM').addIdentifier(query.table.name)
+    stmt.space()
+    this.formatWhere(ctx, query.where)
+    stmt.space()
+    this.formatLimit(ctx, query)
+    return stmt
   }
 
-  formatCreateTable(query: Query.CreateTable, ctx: FormatContext) {
-    return raw('CREATE TABLE')
-      .addIf(query.ifNotExists, 'IF NOT EXISTS')
-      .addCall(
-        query.table.name,
-        ...Object.values(query.table.columns).map(column => {
-          return this.formatColumn(column)
-        })
-      )
+  formatCreateTable(ctx: FormatContext, query: Query.CreateTable): Statement {
+    const {stmt} = ctx
+    stmt.add('CREATE TABLE')
+    if (query.ifNotExists) stmt.add('IF NOT EXISTS')
+    stmt.addIdentifier(query.table.name)
+    for (const column of stmt.call(Object.values(query.table.columns))) {
+      this.formatColumn(ctx, column)
+    }
+    return stmt
   }
 
-  formatCreateIndex(query: Query.CreateIndex, ctx: FormatContext = {}) {
-    return raw('CREATE')
-      .addIf(query.index.unique, 'UNIQUE')
-      .add('INDEX')
-      .addIf(query.ifNotExists, 'IF NOT EXISTS')
+  formatCreateIndex(ctx: FormatContext, query: Query.CreateIndex): Statement {
+    const {stmt} = ctx
+    stmt.add('CREATE')
+    if (query.index.unique) stmt.add('UNIQUE')
+    stmt.add('INDEX')
+    if (query.ifNotExists) stmt.add('IF NOT EXISTS')
+    stmt
       .addIdentifier(query.index.name)
       .add('ON')
       .addIdentifier(query.table.name)
-      .parenthesis(
-        separated(
-          query.index.on.map(expr =>
-            this.formatExprValue(expr, {
-              ...ctx,
-              skipTableName: true,
-              forceInline: true
-            })
-          )
-        )
+    for (const expr of stmt.call(query.index.on)) {
+      this.formatExprValue(
+        {
+          ...ctx,
+          skipTableName: true,
+          forceInline: true
+        },
+        expr
       )
-      .add(this.formatWhere(query.where, ctx))
+    }
+    this.formatWhere(ctx, query.where)
+    return stmt
   }
 
-  formatDropIndex(query: Query.DropIndex, ctx: FormatContext) {
-    return raw('DROP INDEX')
-      .addIf(query.ifExists, 'IF EXISTS')
-      .addIdentifier(query.name)
+  formatDropIndex(ctx: FormatContext, query: Query.DropIndex): Statement {
+    const {stmt} = ctx
+    stmt.add('DROP INDEX')
+    if (query.ifExists) stmt.add('IF EXISTS')
+    stmt.addIdentifier(query.name)
+    return stmt
   }
 
-  formatAlterTable(query: Query.AlterTable, ctx: FormatContext) {
-    let stmt = raw('ALTER TABLE').addIdentifier(query.table.name)
+  formatAlterTable(ctx: FormatContext, query: Query.AlterTable): Statement {
+    const {stmt} = ctx
+    stmt.add('ALTER TABLE').addIdentifier(query.table.name)
     if (query.addColumn) {
-      stmt = stmt.add('ADD COLUMN').add(this.formatColumn(query.addColumn))
+      stmt.add('ADD COLUMN')
+      this.formatColumn(ctx, query.addColumn)
     } else if (query.dropColumn) {
-      stmt = stmt.add('DROP COLUMN').addIdentifier(query.dropColumn)
+      stmt.add('DROP COLUMN').addIdentifier(query.dropColumn)
     } else if (query.alterColumn) {
       throw new Error(`Not available in this formatter: alter column`)
     }
     return stmt
   }
 
-  formatTransaction({op, id}: Query.Transaction, ctx: FormatContext) {
+  formatTransaction(
+    ctx: FormatContext,
+    {op, id}: Query.Transaction
+  ): Statement {
+    const {stmt} = ctx
     switch (op) {
       case Query.TransactionOperation.Begin:
-        return raw('SAVEPOINT').addIdentifier(id)
+        return stmt.raw('SAVEPOINT').addIdentifier(id)
       case Query.TransactionOperation.Commit:
-        return raw('RELEASE').addIdentifier(id)
+        return stmt.raw('RELEASE').addIdentifier(id)
       case Query.TransactionOperation.Rollback:
-        return raw('ROLLBACK TO').addIdentifier(id)
+        return stmt.raw('ROLLBACK TO').addIdentifier(id)
     }
   }
 
-  formatBatch(queries: Query[], ctx: FormatContext) {
-    return separated(
-      queries.map(query => this.format(query, ctx)),
-      '; '
-    )
+  formatBatch(ctx: FormatContext, queries: Query[]): Statement {
+    const {stmt} = ctx
+    for (const query of stmt.separate(queries, ';')) this.format(ctx, query)
+    return stmt
   }
 
-  formatRaw({strings, params}: Query.Raw, ctx: FormatContext) {
-    return Statement.tag(
-      strings,
-      params.map(param => {
-        if (param instanceof Expr) return this.formatExpr(param.expr, ctx)
-        return this.formatValue(param, ctx)
-      })
-    )
+  formatRaw(ctx: FormatContext, {strings, params}: Query.Raw): Statement {
+    const {stmt} = ctx
+    for (let i = 0; i < strings.length; i++) {
+      ctx.stmt.raw(strings[i])
+      if (i < params.length) {
+        const param = params[i]
+        if (param instanceof Expr) this.formatExpr(ctx, param.expr)
+        else this.formatValue(ctx, param)
+      }
+    }
+    return stmt
   }
 
-  formatColumn(column: ColumnData) {
-    return identifier(column.name!)
-      .add(this.formatType(column.type))
-      .addIf(column.unique, 'UNIQUE')
-      .addIf(column.autoIncrement, 'AUTOINCREMENT')
-      .addIf(column.primaryKey, 'PRIMARY KEY')
-      .addIf(!column.nullable, 'NOT NULL')
-      .addIf(column.defaultValue, () =>
-        raw('DEFAULT').addParenthesis(
-          this.formatExpr(column.defaultValue!, {
-            formatAsJson: true,
-            forceInline: true
-          })
-        )
+  formatColumn(ctx: FormatContext, column: ColumnData): Statement {
+    const {stmt} = ctx
+    stmt.identifier(column.name).space()
+    this.formatType(ctx, column.type)
+    if (column.unique) stmt.add('UNIQUE')
+    if (column.autoIncrement) stmt.add('AUTOINCREMENT')
+    if (column.primaryKey) stmt.add('PRIMARY KEY')
+    if (!column.nullable) stmt.add('NOT NULL')
+    if (column.defaultValue !== undefined) {
+      stmt.add('DEFAULT').space()
+      stmt.openParenthesis()
+      this.formatExpr(
+        {
+          ...ctx,
+          formatAsJson: true,
+          forceInline: true
+        },
+        column.defaultValue!
       )
-      .addIf(column.references, () => {
-        return this.formatContraintReference(column.references!)
-      })
+      stmt.closeParenthesis()
+    }
+    if (column.references) this.formatContraintReference(ctx, column.references)
+    return stmt
   }
 
-  formatContraintReference(reference: ExprData) {
+  formatContraintReference(ctx: FormatContext, reference: ExprData): Statement {
+    const {stmt} = ctx
     if (
       reference.type !== ExprType.Field ||
       reference.expr.type !== ExprType.Row
     )
       throw new Error('not supported')
     const from = reference.expr.target
-    return raw('REFERENCES')
+    return stmt
+      .add('REFERENCES')
       .addIdentifier(Target.source(from)!.name)
-      .parenthesis(identifier(reference.field))
+      .openParenthesis()
+      .identifier(reference.field)
+      .closeParenthesis()
   }
 
-  formatType(type: ColumnType): Statement {
+  formatType(ctx: FormatContext, type: ColumnType): Statement {
+    const {stmt} = ctx
     switch (type) {
       case ColumnType.String:
-        return raw('TEXT')
+        return stmt.raw('TEXT')
       case ColumnType.Json:
-        return raw('JSON')
+        return stmt.raw('JSON')
       case ColumnType.Number:
-        return raw('NUMERIC')
+        return stmt.raw('NUMERIC')
       case ColumnType.Boolean:
-        return raw('BOOLEAN')
+        return stmt.raw('BOOLEAN')
       case ColumnType.Integer:
-        return raw('INTEGER')
+        return stmt.raw('INTEGER')
     }
   }
 
   formatInsertRow(
+    ctx: FormatContext,
     columns: Record<string, ColumnData>,
     row: Record<string, any>
-  ) {
-    return parenthesis(
-      separated(
-        Object.entries(columns).map(([property, column]) => {
-          const columnValue = row[property]
-          return this.formatColumnValue(column, columnValue)
-        })
-      )
-    )
+  ): Statement {
+    const {stmt} = ctx
+    for (const [property, column] of stmt.call(Object.entries(columns))) {
+      const columnValue = row[property]
+      this.formatColumnValue(ctx, column, columnValue)
+    }
+    return stmt
   }
 
-  formatColumnValue(column: ColumnData, columnValue: any) {
+  formatColumnValue(
+    ctx: FormatContext,
+    column: ColumnData,
+    columnValue: any
+  ): Statement {
+    const {stmt} = ctx
     if (columnValue instanceof Expr)
-      return this.formatExprValue(columnValue.expr, {})
+      return this.formatExprValue(ctx, columnValue.expr)
     const isNull = columnValue === undefined || columnValue === null
     const isOptional =
       column.nullable || column.autoIncrement || column.primaryKey
     if (isNull) {
       if (column.defaultValue !== undefined)
-        return this.formatExpr(column.defaultValue, {formatAsJson: true})
+        return this.formatExprJson(ctx, column.defaultValue)
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
-      return raw('NULL')
+      return stmt.raw('NULL')
     }
     switch (column.type) {
       case ColumnType.String:
         if (typeof columnValue !== 'string')
           throw new TypeError(`Expected string for column ${column.name}`)
-        return value(columnValue)
+        return stmt.value(columnValue)
       case ColumnType.Integer:
       case ColumnType.Number:
         if (typeof columnValue !== 'number')
           throw new TypeError(`Expected number for column ${column.name}`)
-        return value(columnValue)
+        return stmt.value(columnValue)
       case ColumnType.Boolean:
         if (typeof columnValue !== 'boolean')
           throw new TypeError(`Expected boolean for column ${column.name}`)
-        return raw(this.escapeValue(columnValue))
+        return stmt.raw(this.escapeValue(columnValue))
       case ColumnType.Json:
         if (typeof columnValue !== 'object')
           throw new TypeError(`Expected object for column ${column.name}`)
-        return value(JSON.stringify(columnValue))
+        return stmt.value(JSON.stringify(columnValue))
     }
   }
 
-  formatTarget(target: Target, ctx: FormatContext): Statement {
+  formatTarget(ctx: FormatContext, target: Target): Statement {
+    const {stmt} = ctx
     switch (target.type) {
       case TargetType.Table:
-        return identifier(target.table.name).addIf(target.table.alias, () =>
-          raw('AS').addIdentifier(target.table.alias!)
-        )
+        stmt.identifier(target.table.name)
+        if (target.table.alias) stmt.add('AS').addIdentifier(target.table.alias)
+        return stmt
       case TargetType.Join:
         const {left, right, joinType} = target
-        return this.formatTarget(left, ctx)
-          .addLine(joins[joinType])
-          .add('JOIN')
-          .add(this.formatTarget(right, ctx))
-          .add('ON')
-          .add(this.formatExprValue(target.on, ctx))
+        this.formatTarget(ctx, left)
+        stmt.addLine(joins[joinType]).add('JOIN')
+        this.formatTarget(ctx, right)
+        stmt.add('ON')
+        this.formatExprValue(ctx, target.on)
+        return stmt
       default:
         throw new Error(`Cannot format target of type ${target.type}`)
     }
   }
 
-  formatWhere(expr: ExprData | undefined, ctx: FormatContext) {
-    if (!expr) return
-    return newline().raw('WHERE').add(this.formatExprValue(expr, ctx))
+  formatWhere(ctx: FormatContext, expr: ExprData | undefined): Statement {
+    const {stmt} = ctx
+    if (!expr) return stmt
+    stmt.newline().raw('WHERE')
+    this.formatExprValue(ctx, expr)
+    return stmt
   }
 
-  formatHaving(expr: ExprData | undefined, ctx: FormatContext) {
-    if (!expr) return
-    return newline().raw('HAVING').add(this.formatExprValue(expr, ctx))
+  formatHaving(ctx: FormatContext, expr: ExprData | undefined): Statement {
+    const {stmt} = ctx
+    if (!expr) return stmt
+    stmt.newline().raw('HAVING')
+    this.formatExprValue(ctx, expr)
+    return stmt
   }
 
-  formatGroupBy(groupBy: Array<ExprData> | undefined, ctx: FormatContext) {
-    if (!groupBy) return
-    return newline()
-      .raw('GROUP BY')
-      .addSeparated(groupBy.map(expr => this.formatExprValue(expr, ctx)))
+  formatGroupBy(
+    ctx: FormatContext,
+    groupBy: Array<ExprData> | undefined
+  ): Statement {
+    const {stmt} = ctx
+    if (!groupBy) return stmt
+    stmt.newline().raw('GROUP BY')
+    for (const expr of stmt.separate(groupBy)) this.formatExprValue(ctx, expr)
+    return stmt
   }
 
-  formatOrderBy(orderBy: Array<OrderBy> | undefined, ctx: FormatContext) {
-    if (!orderBy) return
-    return newline()
-      .raw('ORDER BY')
-      .addSeparated(
-        orderBy.map(({expr, order}) =>
-          this.formatExprValue(expr, ctx).add(
-            order === OrderDirection.Asc ? 'ASC' : 'DESC'
-          )
-        )
-      )
+  formatOrderBy(
+    ctx: FormatContext,
+    orderBy: Array<OrderBy> | undefined
+  ): Statement {
+    const {stmt} = ctx
+    if (!orderBy) return stmt
+    stmt.newline().raw('ORDER BY')
+    for (const {expr, order} of stmt.separate(orderBy)) {
+      this.formatExprValue(ctx, expr)
+      stmt.add(order === OrderDirection.Asc ? 'ASC' : 'DESC')
+    }
+    return stmt
   }
 
   formatLimit(
-    {limit, offset, singleResult}: Query.QueryBase,
-    ctx: FormatContext
-  ) {
-    if (!limit && !offset && !singleResult) return
-    return newline()
+    ctx: FormatContext,
+    {limit, offset, singleResult}: Query.QueryBase
+  ): Statement {
+    const {stmt} = ctx
+    if (!limit && !offset && !singleResult) return stmt
+    stmt
+      .newline()
       .raw('LIMIT')
       .addValue(singleResult ? 1 : limit)
-      .addIf(offset && offset > 0, raw('OFFSET').addValue(offset))
+    if (offset && offset > 0) stmt.raw('OFFSET').addValue(offset)
+    return stmt
   }
 
-  formatSelection(selection: ExprData, ctx: FormatContext): Statement {
-    const {formatSubject} = ctx
-    const subject = this.formatExpr(selection, {
-      ...ctx,
-      formatSubject: undefined,
-      formatAsJson: true
-    })
-    return (formatSubject ? formatSubject(subject) : subject).addIf(
-      ctx.nameResult,
-      raw('AS').addIdentifier(ctx.nameResult!)
-    )
+  formatSelection(ctx: FormatContext, selection: ExprData): Statement {
+    const {stmt, formatSubject} = ctx
+    const mkSubject = () =>
+      this.formatExpr(
+        {
+          ...ctx,
+          formatSubject: undefined,
+          formatAsJson: true
+        },
+        selection
+      )
+    if (formatSubject) formatSubject(mkSubject)
+    else mkSubject()
+    if (ctx.nameResult) stmt.add('AS').addIdentifier(ctx.nameResult)
+    return stmt
   }
 
-  formatExprValue(expr: ExprData, ctx: FormatContext): Statement {
-    return this.formatExpr(expr, {...ctx, formatAsJson: false})
+  formatExprJson(ctx: FormatContext, expr: ExprData): Statement {
+    return this.formatExpr({...ctx, formatAsJson: true}, expr)
   }
 
-  formatIn(expr: ExprData, ctx: FormatContext): Statement {
+  formatExprValue(ctx: FormatContext, expr: ExprData): Statement {
+    return this.formatExpr({...ctx, formatAsJson: false}, expr)
+  }
+
+  formatIn(ctx: FormatContext, expr: ExprData): Statement {
+    const {stmt} = ctx
     switch (expr.type) {
       case ExprType.Field:
-        return this.formatUnwrapArray(this.formatExprValue(expr, ctx))
+        stmt.openParenthesis()
+        stmt.raw('SELECT value FROM json_each')
+        stmt.openParenthesis()
+        this.formatExprJson(ctx, expr)
+        stmt.closeParenthesis()
+        stmt.closeParenthesis()
+        return stmt
       default:
-        return this.formatExprValue(expr, ctx)
+        return this.formatExprValue(ctx, expr)
     }
-  }
-
-  formatUnwrapArray(stmt: Statement): Statement {
-    return parenthesis(raw('SELECT value FROM').addCall('json_each', stmt))
   }
 
   retrieveField(expr: ExprData, field: string): ExprData | undefined {
@@ -442,108 +488,111 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatField(expr: ExprData, field: string, ctx: FormatContext): Statement {
+  formatField(ctx: FormatContext, expr: ExprData, field: string): Statement {
+    const {stmt} = ctx
     const fieldExpr = this.retrieveField(expr, field)
-    if (fieldExpr) return this.formatExpr(fieldExpr, ctx)
+    if (fieldExpr) return this.formatExpr(ctx, fieldExpr)
     switch (expr.type) {
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Table:
-            const selection = ctx.skipTableName
-              ? identifier(field)
-              : identifier(expr.target.table.alias || expr.target.table.name)
-                  .raw('.')
-                  .identifier(field)
             const column = expr.target.table.columns[field]
-            switch (column?.type) {
-              case ColumnType.Json:
-                if (ctx.formatAsJson) return call('json', selection)
-              default:
-                return selection
+            const asJson = column?.type === ColumnType.Json && ctx.formatAsJson
+            if (asJson) {
+              stmt.add('json')
+              stmt.openParenthesis()
             }
+            if (!ctx.skipTableName) {
+              stmt
+                .identifier(expr.target.table.alias || expr.target.table.name)
+                .raw('.')
+            }
+            stmt.identifier(field)
+            if (asJson) stmt.closeParenthesis()
+            return stmt
         }
       default:
-        return this.formatAccess(
-          this.formatExpr(expr, ctx),
-          field,
-          ctx.formatAsJson
-        )
+        return this.formatAccess(ctx, () => this.formatExpr(ctx, expr), field)
     }
   }
 
-  formatString(input: string): Statement {
-    return raw(this.escapeValue(String(input)))
+  formatString(ctx: FormatContext, input: string): Statement {
+    const {stmt} = ctx
+    return stmt.raw(this.escapeValue(String(input)))
   }
 
-  formatInlineValue(rawValue: any): Statement {
+  formatInlineValue(ctx: FormatContext, rawValue: any): Statement {
+    const {stmt} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
-        return raw('NULL')
+        return stmt.raw('NULL')
       case typeof rawValue === 'boolean':
-        return rawValue ? raw('TRUE') : raw('FALSE')
+        return rawValue ? stmt.raw('TRUE') : stmt.raw('FALSE')
       case typeof rawValue === 'string' || typeof rawValue === 'number':
-        return this.formatString(rawValue)
+        return this.formatString(ctx, rawValue)
       default:
-        return this.formatString(JSON.stringify(rawValue))
+        return this.formatString(ctx, JSON.stringify(rawValue))
     }
   }
 
-  formatValue(rawValue: any, ctx: FormatContext): Statement {
-    const {formatAsJson, forceInline} = ctx
+  formatValue(ctx: FormatContext, rawValue: any): Statement {
+    const {stmt, formatAsJson, forceInline} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
-        return raw('NULL')
+        return stmt.raw('NULL')
       case !formatAsJson && typeof rawValue === 'boolean':
-        return rawValue ? raw('1') : raw('0')
+        return rawValue ? stmt.raw('1') : stmt.raw('0')
       case Array.isArray(rawValue):
-        const res = parenthesis(
-          separated(
-            rawValue.map((v: any) =>
-              this.formatValue(v, {...ctx, formatAsJson: false})
-            )
-          )
-        )
-        return formatAsJson ? raw('json_array').concat(res) : res
+        if (formatAsJson) {
+          stmt.raw('json_array')
+          stmt.openParenthesis()
+        }
+        for (const v of stmt.separate(rawValue))
+          this.formatValue({...ctx, formatAsJson: false}, v)
+        if (formatAsJson) stmt.closeParenthesis()
+        return stmt
       case typeof rawValue === 'string' || typeof rawValue === 'number':
-        if (forceInline) return raw(this.escapeValue(rawValue))
-        return value(rawValue)
+        if (forceInline) return stmt.raw(this.escapeValue(rawValue))
+        return stmt.value(rawValue)
       default:
-        const expr = this.formatString(JSON.stringify(rawValue))
-        if (formatAsJson) return call('json', expr)
-        return expr
+        if (formatAsJson) {
+          stmt.raw('json')
+          stmt.openParenthesis()
+        }
+        this.formatString(ctx, JSON.stringify(rawValue))
+        if (formatAsJson) stmt.closeParenthesis()
+        return stmt
     }
   }
 
-  formatExpr(expr: ExprData, ctx: FormatContext): Statement {
+  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+    const {stmt} = ctx
     switch (expr.type) {
       case ExprType.UnOp:
         switch (expr.op) {
           case UnOp.IsNull:
-            return this.formatExprValue(expr.expr, ctx).add('IS NULL')
+            return this.formatExprValue(ctx, expr.expr).add('IS NULL')
           case UnOp.Not:
-            return raw('NOT').addParenthesis(
-              this.formatExprValue(expr.expr, ctx)
-            )
+            stmt.raw('NOT').openParenthesis()
+            this.formatExprValue(ctx, expr.expr)
+            return stmt.closeParenthesis()
         }
       case ExprType.BinOp:
-        return parenthesis(
-          this.formatExprValue(expr.a, ctx)
-            .add(binOps[expr.op])
-            .add(
-              expr.op === BinOp.In || expr.op === BinOp.NotIn
-                ? this.formatIn(expr.b, ctx)
-                : this.formatExprValue(expr.b, ctx)
-            )
-        )
+        stmt.openParenthesis()
+        this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
+        if (expr.op === BinOp.In || expr.op === BinOp.NotIn)
+          this.formatIn(ctx, expr.b)
+        else this.formatExprValue(ctx, expr.b)
+        return stmt.closeParenthesis()
       case ExprType.Param:
         switch (expr.param.type) {
           case ParamType.Value:
-            return this.formatValue(expr.param.value, ctx)
+            return this.formatValue(ctx, expr.param.value)
           case ParamType.Named:
-            return param(expr.param.name)
+            return stmt.param(expr.param.name)
         }
       case ExprType.Field:
-        return this.formatField(expr.expr, expr.field, ctx)
+        return this.formatField(ctx, expr.expr, expr.field)
       case ExprType.Call: {
         if (expr.method === 'cast') {
           const [e, type] = expr.params
@@ -551,34 +600,43 @@ export abstract class Formatter implements Sanitizer {
             type.type === ExprType.Param &&
             type.param.type === ParamType.Value &&
             type.param.value
-          return raw('cast').parenthesis(
-            this.formatExprValue(e, ctx)
-              .add('as')
-              .add(this.formatString(typeName))
-          )
+          stmt.raw('cast').openParenthesis()
+          this.formatExprValue(ctx, e).add('as').space()
+          this.formatString(ctx, typeName)
+          return stmt.closeParenthesis()
         } else {
-          const params = expr.params.map(expr =>
-            this.formatExprValue(expr, ctx)
-          )
-          return call(expr.method, ...params)
+          stmt.addIdentifier(expr.method).openParenthesis()
+          for (const param of stmt.separate(expr.params))
+            this.formatExprValue(ctx, param)
+          return stmt.closeParenthesis()
         }
       }
       case ExprType.Query:
-        if (!ctx.formatAsJson) return parenthesis(this.format(expr.query, ctx))
-        const subQuery = this.format(expr.query, {...ctx, nameResult: 'result'})
-        if (expr.query.singleResult) return call('json', parenthesis(subQuery))
-        return parenthesis(
-          raw('SELECT json_group_array(json(result))')
-            .newline()
-            .raw('FROM')
-            .addParenthesis(subQuery)
-        )
+        if (!ctx.formatAsJson) {
+          stmt.openParenthesis()
+          this.format(ctx, expr.query)
+          return stmt.closeParenthesis()
+        }
+        if (expr.query.singleResult) {
+          stmt.raw('json').openParenthesis().openParenthesis()
+          this.format({...ctx, nameResult: 'result'}, expr.query)
+          return stmt.closeParenthesis().closeParenthesis()
+        }
+        stmt
+          .openParenthesis()
+          .raw('SELECT json_group_array(json(result))')
+          .newline()
+          .raw('FROM')
+          .openParenthesis()
+        this.format({...ctx, nameResult: 'result'}, expr.query)
+        return stmt.closeParenthesis().closeParenthesis()
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Table:
             const table = Target.source(expr.target)
             if (!table) throw new Error(`Cannot select empty target`)
             return this.formatExpr(
+              ctx,
               ExprData.Record(
                 Object.fromEntries(
                   Object.entries(table.columns).map(([key, column]) => [
@@ -586,47 +644,46 @@ export abstract class Formatter implements Sanitizer {
                     ExprData.Field(ExprData.Row(expr.target), column.name!)
                   ])
                 )
-              ),
-              ctx
+              )
             )
           case TargetType.Each:
-            return identifier(expr.target.alias).raw('.value')
+            return stmt.identifier(expr.target.alias).raw('.value')
           default:
             throw new Error(`Cannot select from ${expr.target.type}`)
         }
       case ExprType.Merge:
-        return call(
-          'json_patch',
-          this.formatExpr(expr.a, {...ctx, formatAsJson: true}),
-          this.formatExpr(expr.b, {...ctx, formatAsJson: true})
-        )
+        stmt.identifier('json_patch').openParenthesis()
+        this.formatExpr({...ctx, formatAsJson: true}, expr.a)
+        stmt.raw(', ')
+        this.formatExpr({...ctx, formatAsJson: true}, expr.b)
+        return stmt.closeParenthesis()
       case ExprType.Record:
-        return call(
-          'json_object',
-          ...Object.entries(expr.fields).map(([key, value]) => {
-            return this.formatString(key)
-              .raw(', ')
-              .concat(this.formatExpr(value, {...ctx, formatAsJson: true}))
-          })
-        )
+        stmt.identifier('json_object')
+        for (const [key, value] of stmt.call(Object.entries(expr.fields))) {
+          this.formatString(ctx, key).raw(', ')
+          this.formatExprJson(ctx, value)
+        }
+        return stmt
       case ExprType.Filter: {
         const {target, condition} = expr
         switch (target.type) {
           case TargetType.Each:
-            return parenthesis(
-              raw('SELECT json_group_array(json(result)) FROM').addParenthesis(
-                raw('SELECT value AS result')
-                  .add('FROM')
-                  .addCall(
-                    'json_each',
-                    this.formatExpr(target.expr, {...ctx, formatAsJson: true})
-                  )
-                  .add('AS')
-                  .addIdentifier(target.alias)
-                  .add('WHERE')
-                  .add(this.formatExprValue(condition, ctx))
-              )
-            )
+            stmt
+              .openParenthesis()
+              .raw('SELECT json_group_array(json(result)) FROM ')
+              .openParenthesis()
+              .raw('SELECT value AS result')
+              .add('FROM json_each')
+              .openParenthesis()
+            this.formatExpr(ctx, target.expr)
+            stmt
+              .closeParenthesis()
+              .add('AS')
+              .addIdentifier(target.alias)
+              .add('WHERE')
+              .space()
+            this.formatExprValue(ctx, condition)
+            return stmt.closeParenthesis().closeParenthesis()
           default:
             throw new Error('todo')
         }
@@ -635,21 +692,23 @@ export abstract class Formatter implements Sanitizer {
         const {target, result} = expr
         switch (target.type) {
           case TargetType.Each:
-            return parenthesis(
-              raw('SELECT json_group_array(json(result)) FROM').addParenthesis(
-                raw('SELECT')
-                  .add(this.formatExpr(result, {...ctx, formatAsJson: true}))
-                  .add('AS')
-                  .addIdentifier('result')
-                  .add('FROM')
-                  .addCall(
-                    'json_each',
-                    this.formatExpr(target.expr, {...ctx, formatAsJson: true})
-                  )
-                  .add('AS')
-                  .addIdentifier(target.alias)
-              )
-            )
+            stmt
+              .openParenthesis()
+              .raw('SELECT json_group_array(json(result)) FROM ')
+              .openParenthesis()
+              .raw('SELECT')
+              .space()
+            this.formatExprJson(ctx, result)
+              .add('AS result')
+              .add('FROM json_each')
+              .openParenthesis()
+            this.formatExprJson(ctx, target.expr)
+            return stmt
+              .closeParenthesis()
+              .add('AS')
+              .addIdentifier(target.alias)
+              .closeParenthesis()
+              .closeParenthesis()
           default:
             throw new Error('todo')
         }
