@@ -604,6 +604,9 @@ export abstract class Formatter implements Sanitizer {
           this.formatExprValue(ctx, e).add('as').space()
           this.formatString(ctx, typeName)
           return stmt.closeParenthesis()
+        } else if (expr.method === 'exists') {
+          stmt.raw('exists').space()
+          return this.formatExprValue(ctx, expr.params[0])
         } else {
           stmt.addIdentifier(expr.method).openParenthesis()
           for (const param of stmt.separate(expr.params))

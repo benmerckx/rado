@@ -1,10 +1,22 @@
+import {Cursor} from '../lib/Cursor'
 import {EV, Expr} from '../lib/Expr'
 import {Functions} from '../lib/Functions'
 import {Table} from '../lib/Table'
 
-export const SqliteFunctions = Functions as SqliteFunctions
+export const SqliteFunctions: SqliteFunctions = Functions as any
 
 export type SqliteFunctions = {
+  /** The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
+  count(x?: Expr<any>): Expr<number>
+
+  /** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE Expr "CASE WHEN X THEN Y ELSE Z END".*/
+  iif<T>(x: EV<boolean>, y: EV<T>, z: EV<T>): Expr<T>
+
+  /**
+   * The EXISTS operator always evaluates to one of the integer values 0 and 1. If executing the SELECT statement specified as the right-hand operand of the EXISTS operator would return one or more rows, then the EXISTS operator evaluates to 1. If executing the SELECT would return no rows at all, then the EXISTS operator evaluates to 0.
+   */
+  exists(cursor: Cursor<any>): Expr<boolean>
+
   /** Use the match operator for the FTS5 module */
   match(table: Table<any>, searchTerm: EV<string>): Expr<boolean>
 
@@ -36,9 +48,6 @@ export type SqliteFunctions = {
 
   /** The ifnull() function returns a copy of its first non-NULL argument, or NULL if both arguments are NULL. Ifnull() must have exactly 2 arguments. The ifnull() function is equivalent to coalesce() with two arguments.*/
   ifnull<T>(x: EV<T>, y: EV<T>): Expr<T>
-
-  /** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE Expr "CASE WHEN X THEN Y ELSE Z END".*/
-  iif<T>(x: EV<boolean>, y: EV<T>, z: EV<T>): Expr<T>
 
   /** The instr(X,Y) function finds the first occurrence of string Y within string X and returns the number of prior characters plus 1, or 0 if Y is nowhere found within X. Or, if X and Y are both BLOBs, then instr(X,Y) returns one more than the number bytes prior to the first occurrence of Y, or 0 if Y does not occur anywhere within X. If both arguments X and Y to instr(X,Y) are non-NULL and are not BLOBs then both are numbererpreted as strings. If either X or Y are NULL in instr(X,Y) then the result is NULL.*/
   instr(x: EV<string>, y: EV<string>): Expr<number>
@@ -130,9 +139,6 @@ export type SqliteFunctions = {
 
   /** The avg() function returns the average value of all non-NULL X within a group. string and BLOB values that do not look like numbers are numbererpreted as 0. The result of avg() is always a numbering ponumber value as long as at there is at least one non-NULL input even if all inputs are numberegers. The result of avg() is NULL if and only if there are no non-NULL inputs. */
   avg(x: Expr<number>): Expr<number>
-
-  /** The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
-  count(x?: Expr<any>): Expr<number>
 
   /** The group_concat() function returns a string which is the concatenation of all non-NULL values of X. If parameter Y is present then it is used as the separator between instances of X. A comma (",") is used as the separator if Y is omitted. The order of the concatenated elements is arbitrary. */
   group_concat(x: EV<string>, y: EV<string>): Expr<string>
@@ -250,6 +256,9 @@ export type SqliteFunctions = {
 }
 
 export const {
+  count,
+  iif,
+  exists,
   match,
   cast,
   abs,
@@ -257,7 +266,6 @@ export const {
   char,
   coalesce,
   ifnull,
-  iif,
   instr,
   last_insert_rowid,
   length,
@@ -284,7 +292,6 @@ export const {
   unlikely,
   upper,
   avg,
-  count,
   group_concat,
   sum,
   acos,
