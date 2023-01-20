@@ -39,6 +39,10 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
     })
   }
 
+  fetch(id: EV<T extends {id: Column.IsPrimary<infer V, any>} ? V : never>) {
+    return this.where(this.get('id').is(id)).first()
+  }
+
   insertOne(record: Table.Insert<T>) {
     return new Cursor<Table.Normalize<T>>(
       Query.Insert({
