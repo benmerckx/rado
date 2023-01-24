@@ -364,7 +364,7 @@ export abstract class Formatter implements Sanitizer {
     switch (target.type) {
       case TargetType.Table:
         stmt.identifier(target.table.name)
-        if (target.table.alias) stmt.add('AS').addIdentifier(target.table.alias)
+        if (target.table.alias) stmt.raw('AS').addIdentifier(target.table.alias)
         return stmt
       case TargetType.Join:
         const {left, right, joinType} = target
@@ -374,8 +374,14 @@ export abstract class Formatter implements Sanitizer {
         stmt.add('ON')
         this.formatExprValue(ctx, target.on)
         return stmt
-      default:
-        throw new Error(`Cannot format target of type ${target.type}`)
+      case TargetType.Query:
+        stmt.openParenthesis()
+        this.format(ctx, target.query)
+        stmt.closeParenthesis()
+        if (target.alias) stmt.raw('AS').addIdentifier(target.alias)
+        return stmt
+      case TargetType.Expr:
+        throw new Error('Cannot format expression as target')
     }
   }
 
@@ -608,10 +614,10 @@ export abstract class Formatter implements Sanitizer {
           stmt.raw('exists').space()
           return this.formatExprValue(ctx, expr.params[0])
         } else {
-          stmt.addIdentifier(expr.method).openParenthesis()
-          for (const param of stmt.separate(expr.params))
+          stmt.identifier(expr.method)
+          for (const param of stmt.call(expr.params))
             this.formatExprValue(ctx, param)
-          return stmt.closeParenthesis()
+          return stmt
         }
       }
       case ExprType.Query:
@@ -649,8 +655,8 @@ export abstract class Formatter implements Sanitizer {
                 )
               )
             )
-          case TargetType.Each:
-            return stmt.identifier(expr.target.alias).raw('.value')
+          case TargetType.Query:
+            return stmt.identifier(expr.target.alias!).raw('.value')
           default:
             throw new Error(`Cannot select from ${expr.target.type}`)
         }
@@ -670,7 +676,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Filter: {
         const {target, condition} = expr
         switch (target.type) {
-          case TargetType.Each:
+          case TargetType.Expr:
             stmt
               .openParenthesis()
               .raw('SELECT json_group_array(json(result)) FROM ')
@@ -678,13 +684,10 @@ export abstract class Formatter implements Sanitizer {
               .raw('SELECT value AS result')
               .add('FROM json_each')
               .openParenthesis()
-            this.formatExpr(ctx, target.expr)
-            stmt
-              .closeParenthesis()
-              .add('AS')
-              .addIdentifier(target.alias)
-              .add('WHERE')
-              .space()
+            this.formatExprJson(ctx, target.expr)
+            stmt.closeParenthesis()
+            if (target.alias) stmt.add('AS').addIdentifier(target.alias)
+            stmt.add('WHERE').space()
             this.formatExprValue(ctx, condition)
             return stmt.closeParenthesis().closeParenthesis()
           default:
@@ -694,7 +697,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Map: {
         const {target, result} = expr
         switch (target.type) {
-          case TargetType.Each:
+          case TargetType.Expr:
             stmt
               .openParenthesis()
               .raw('SELECT json_group_array(json(result)) FROM ')
@@ -706,12 +709,9 @@ export abstract class Formatter implements Sanitizer {
               .add('FROM json_each')
               .openParenthesis()
             this.formatExprJson(ctx, target.expr)
-            return stmt
-              .closeParenthesis()
-              .add('AS')
-              .addIdentifier(target.alias)
-              .closeParenthesis()
-              .closeParenthesis()
+            stmt.closeParenthesis()
+            if (target.alias) stmt.add('AS').addIdentifier(target.alias)
+            return stmt.closeParenthesis().closeParenthesis()
           default:
             throw new Error('todo')
         }

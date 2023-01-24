@@ -1,14 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {
-  Expr,
-  PrimaryKey,
-  column,
-  create,
-  insertInto,
-  selectFirst,
-  table
-} from '../src'
+import {Expr, PrimaryKey, column, create, from, insertInto, table} from '../src'
 import {connect} from './DbSuite'
 
 test('basic', async () => {
@@ -164,7 +156,7 @@ test('each', async () => {
 
   await query(create(Test, Entry))
   await query(insertInto(Test).values(a))
-  const res = await query(selectFirst(Test).select({refs: Test.refs}))
+  const res = await query(from(Test).select({refs: Test.refs}).first())
   assert.equal(res!, a)
 
   const b = {title: 'Entry B'}
