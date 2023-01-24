@@ -656,6 +656,7 @@ export abstract class Formatter implements Sanitizer {
               )
             )
           case TargetType.Query:
+          case TargetType.Expr:
             return stmt.identifier(expr.target.alias!).raw('.value')
           default:
             throw new Error(`Cannot select from ${expr.target.type}`)
