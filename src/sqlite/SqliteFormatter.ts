@@ -1,6 +1,6 @@
 import {ExprData, ExprType} from '../lib/Expr'
 import {FormatContext, Formatter} from '../lib/Formatter'
-import {Statement, identifier} from '../lib/Statement'
+import {Statement} from '../lib/Statement'
 import {TargetType} from '../lib/Target'
 
 function escapeWithin(input: string, outer: string) {
@@ -38,17 +38,19 @@ export class SqliteFormatter extends Formatter {
     return escapeWithin(input, "'")
   }
 
-  formatSqlAccess(on: Statement, field: string): Statement {
-    const target = this.formatString(`$.${field}`)
-    return on.raw('->>').concat(target)
+  formatAccess(
+    ctx: FormatContext,
+    mkSubject: () => void,
+    field: string
+  ): Statement {
+    const {stmt, formatAsJson} = ctx
+    mkSubject()
+    stmt.raw(formatAsJson ? '->' : '->>')
+    return this.formatString(ctx, `$.${field}`)
   }
 
-  formatJsonAccess(on: Statement, field: string): Statement {
-    const target = this.formatString(`$.${field}`)
-    return on.raw('->').concat(target)
-  }
-
-  formatExpr(expr: ExprData, ctx: FormatContext): Statement {
+  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+    const {stmt} = ctx
     switch (expr.type) {
       case ExprType.Call:
         if (expr.method === 'match') {
@@ -56,12 +58,14 @@ export class SqliteFormatter extends Formatter {
           if (from.type !== ExprType.Row) throw new Error('not implemented')
           if (from.target.type !== TargetType.Table)
             throw new Error('not implemented')
-          return identifier(from.target.table.alias || from.target.table.name)
+          stmt
+            .identifier(from.target.table.alias || from.target.table.name)
             .raw(' MATCH ')
-            .concat(this.formatExprValue(query, ctx))
+          this.formatExprValue(ctx, query)
+          return stmt
         }
       default:
-        return super.formatExpr(expr, ctx)
+        return super.formatExpr(ctx, expr)
     }
   }
 }

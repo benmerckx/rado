@@ -1,6 +1,14 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, column, create, insertInto, selectFirst, table} from '../src'
+import {
+  Expr,
+  PrimaryKey,
+  column,
+  create,
+  insertInto,
+  selectFirst,
+  table
+} from '../src'
 import {connect} from './DbSuite'
 
 test('basic', async () => {
@@ -131,16 +139,16 @@ test('each', async () => {
   const query = await connect()
   const a = {
     refs: [
-      {id: 1, type: 'entry'},
-      {id: 0, type: 'nonsense'},
-      {id: 2, type: 'entry'}
+      {id: 1 as PrimaryKey<number, 'Entry'>, type: 'entry'},
+      {id: 0 as PrimaryKey<number, 'Entry'>, type: 'nonsense'},
+      {id: 2 as PrimaryKey<number, 'Entry'>, type: 'entry'}
     ]
   }
   const Test = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey<'test'>(),
-      refs: column.array<{id: number; type: string}>()
+      refs: column.array<{id: PrimaryKey<number, 'Entry'>; type: string}>()
     }
   })
   type Test = table.infer<typeof Test>
@@ -171,9 +179,7 @@ test('each', async () => {
         return ref.type.is('entry')
       })
       .map(ref => {
-        return Link.select({id: Link.id, title: Link.title})
-          .where(Link.id.is(ref.id))
-          .first()
+        return Link.fetch(ref.id).select({id: Link.id, title: Link.title})
       })
   }).sure()
 

@@ -2,6 +2,7 @@ import {ColumnData} from './Column'
 import {Formatter} from './Formatter'
 import {IndexData} from './Index'
 import {Query} from './Query'
+import {Statement} from './Statement'
 
 export interface Schema {
   name: string
@@ -47,7 +48,10 @@ export namespace Schema {
         res.push(Query.AlterTable({table: schema, dropColumn: columnName}))
       } else {
         const {sql: instruction} = formatter
-          .formatColumn({...schemaCol, references: undefined})
+          .formatColumn(
+            {stmt: new Statement()},
+            {...schemaCol, references: undefined}
+          )
           .compile(formatter)
         if (
           removeLeadingWhitespace(localInstruction) !==
@@ -71,6 +75,7 @@ export namespace Schema {
       } else {
         const {sql: instruction} = formatter
           .formatCreateIndex(
+            {stmt: new Statement()},
             Query.CreateIndex({table: schema, index: schemaIndex})
           )
           .compile(formatter)

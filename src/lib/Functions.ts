@@ -1,4 +1,4 @@
-import {EV, Expr, ExprData} from './Expr'
+import {Expr, ExprData} from './Expr'
 
 function get(_: any, method: string) {
   return (...args: any[]) => {
@@ -8,8 +8,6 @@ function get(_: any, method: string) {
 
 export const Functions = new Proxy({}, {get}) as Functions
 
-/** These will have to be supported in every driver */
 export type Functions = {
-  count(x?: Expr<any>): Expr<number>
-  iif<T>(x: EV<boolean>, y: EV<T>, z: EV<T>): Expr<T>
+  [key: string]: (...args: Array<any>) => Expr<any>
 }

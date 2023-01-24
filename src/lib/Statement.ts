@@ -38,7 +38,7 @@ class Token {
   }
 }
 
-const SEPARATE = ','
+const SEPARATE = ', '
 const WHITESPACE = ' '
 const NEWLINE = '\n'
 
@@ -48,18 +48,11 @@ export interface CompileOptions {
 }
 
 export class Statement {
-  constructor(public tokens: Array<Token>) {}
+  constructor(public tokens: Array<Token> = []) {}
 
-  concat(...tokens: Array<Token | Statement>) {
-    return new Statement(
-      this.tokens.concat(
-        ...tokens.flatMap(t => (t instanceof Statement ? t.tokens : [t]))
-      )
-    )
-  }
-
-  static create(from: string | Statement) {
-    return typeof from === 'string' ? raw(from) : from
+  concat(...tokens: Array<Token>) {
+    this.tokens.push(...tokens)
+    return this
   }
 
   static tag(strings: ReadonlyArray<string>, params: Array<Statement>) {
@@ -72,35 +65,18 @@ export class Statement {
   }
 
   space() {
-    return this.concat(Token.Raw(WHITESPACE))
+    if (this.tokens.length === 0) return this
+    return this.raw(WHITESPACE)
   }
 
-  call(method: string, ...args: Array<Statement>) {
-    return this.identifier(method).parenthesis(separated(args))
-  }
-
-  addCall(method: string, ...args: Array<Statement>) {
-    return this.space().call(method, ...args)
-  }
-
-  add(addition: undefined | string | Statement) {
+  add(addition: undefined | string) {
     if (!addition) return this
-    if (addition instanceof Statement && addition.isEmpty()) return this
-    return this.space().concat(Statement.create(addition))
+    return this.space().raw(addition)
   }
 
-  addLine(addition: undefined | string | Statement) {
+  addLine(addition: undefined | string) {
     if (!addition) return this
-    if (addition instanceof Statement && addition.isEmpty()) return this
-    return this.newline().concat(Statement.create(addition))
-  }
-
-  addIf(
-    condition: any,
-    addition: string | Statement | (() => string | Statement)
-  ) {
-    if (!condition) return this
-    return this.add(typeof addition === 'function' ? addition() : addition)
+    return this.newline().add(addition)
   }
 
   indent() {
@@ -145,32 +121,25 @@ export class Statement {
     return this.concat(Token.Raw(query))
   }
 
-  parenthesis(inner: string | Statement) {
-    return this.raw('(')
-      .indent()
-      .newline()
-      .concat(Statement.create(inner))
-      .dedent()
-      .newline()
-      .raw(')')
+  openParenthesis() {
+    return this.raw('(').indent().newline()
   }
 
-  addParenthesis(stmnt: string | Statement) {
-    return this.space().parenthesis(stmnt)
+  closeParenthesis() {
+    return this.dedent().newline().raw(')')
   }
 
-  separated(input: Array<Statement>, separator = SEPARATE) {
-    return this.concat(
-      ...input.flatMap((stmt, i) =>
-        i === 0
-          ? stmt.tokens
-          : [Token.Raw(separator), Token.Raw(NEWLINE), ...stmt.tokens]
-      )
-    )
+  *call<T>(parts: Array<T>, separator = SEPARATE) {
+    this.openParenthesis()
+    yield* this.separate(parts, separator)
+    this.closeParenthesis()
   }
 
-  addSeparated(input: Array<Statement>, separator = SEPARATE) {
-    return this.space().separated(input, separator)
+  *separate<T>(parts: Array<T>, separator = SEPARATE) {
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) this.raw(separator).newline()
+      yield parts[i]
+    }
   }
 
   isEmpty() {
@@ -240,40 +209,4 @@ export class CompiledStatement {
   toString() {
     return this.sql
   }
-}
-
-export function newline() {
-  return new Statement([Token.Raw(NEWLINE)])
-}
-
-export function raw(raw: string) {
-  return new Statement([Token.Raw(raw)])
-}
-
-export function identifier(name: string) {
-  return new Statement([Token.Identifier(name)])
-}
-
-export function value(value: any) {
-  return new Statement([Token.Value(value)])
-}
-
-export function param(name: string) {
-  return new Statement([Token.Param(name)])
-}
-
-export function empty() {
-  return new Statement([])
-}
-
-export function parenthesis(stmnt: Statement) {
-  return empty().parenthesis(stmnt)
-}
-
-export function call(method: string, ...args: Array<Statement>) {
-  return identifier(method).parenthesis(separated(args))
-}
-
-export function separated(input: Array<Statement>, separator = SEPARATE) {
-  return empty().separated(input, separator)
 }

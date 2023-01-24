@@ -23,7 +23,7 @@ test('Functions', async () => {
     )
   const me = await query(User.insertOne({birthdate: '1900-01-01'}))
   assert.is(
-    (await query(User.first().select({age}).where(User.id.is(me.id))))!.age,
+    (await query(User.sure().select({age}).where(User.id.is(me.id)))).age,
     20
   )
 })
