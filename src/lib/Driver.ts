@@ -410,6 +410,8 @@ interface AsyncPreparedStatement {
   execute(params?: Array<any>): Promise<void>
 }
 
+export type Driver = SyncDriver | AsyncDriver
+
 export namespace Driver {
   export type Sync = SyncDriver
   export const Sync = SyncDriver

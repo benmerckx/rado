@@ -1,3 +1,4 @@
+import {Driver} from './Driver'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
@@ -29,6 +30,12 @@ export class Cursor<T> {
 
   query(): Query<T> {
     throw new Error('Not implemented')
+  }
+
+  run(driver: Driver.Sync): T
+  run(driver: Driver.Async): Promise<T>
+  run(driver: Driver): T | Promise<T> {
+    return driver.executeQuery(this.query())
   }
 
   toJSON(): Query<T> {
