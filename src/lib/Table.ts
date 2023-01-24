@@ -71,7 +71,7 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
   }
 
   createTable() {
-    return new Cursor.Create(this.schema())
+    return new Cursor.CreateTable(this.schema())
   }
 
   as(alias: string): this {
