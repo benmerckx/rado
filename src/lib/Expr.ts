@@ -230,11 +230,11 @@ export class Expr<T> {
     return binop(this, BinOp.Equals, that)
   }
 
-  isIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
+  in(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
     return binop(this, BinOp.In, that)
   }
 
-  isNotIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
+  notIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
     return binop(this, BinOp.NotIn, that)
   }
 
