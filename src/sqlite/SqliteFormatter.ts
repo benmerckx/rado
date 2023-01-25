@@ -1,7 +1,6 @@
 import {ExprData, ExprType} from '../lib/Expr'
 import {FormatContext, Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
-import {TargetType} from '../lib/Target'
 
 function escapeWithin(input: string, outer: string) {
   let buf = outer
@@ -53,16 +52,19 @@ export class SqliteFormatter extends Formatter {
     const {stmt} = ctx
     switch (expr.type) {
       case ExprType.Call:
-        if (expr.method === 'match') {
-          const [from, query] = expr.params
-          if (from.type !== ExprType.Row) throw new Error('not implemented')
-          if (from.target.type !== TargetType.Table)
-            throw new Error('not implemented')
-          stmt
-            .identifier(from.target.table.alias || from.target.table.name)
-            .raw(' MATCH ')
-          this.formatExprValue(ctx, query)
-          return stmt
+        switch (expr.method) {
+          case 'match':
+            const [from, query] = expr.params
+            this.formatExprValue({...ctx, tableAsExpr: true}, from)
+            stmt.raw(' MATCH ')
+            this.formatExprValue(ctx, query)
+            return stmt
+          case 'highlight':
+          case 'snippet':
+            stmt.identifier(expr.method)
+            for (const param of stmt.call(expr.params))
+              this.formatExprValue({...ctx, tableAsExpr: true}, param)
+            return stmt
         }
       default:
         return super.formatExpr(ctx, expr)

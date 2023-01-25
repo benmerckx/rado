@@ -37,7 +37,15 @@ const joins = {
 export interface FormatContext {
   stmt: Statement
   nameResult?: string
+  /** Skip prefixing fields with their table name */
   skipTableName?: boolean
+  /**
+   * In SQLite table names are used as expressions in the FTS5 plugin.
+   * To distinguish between formatting a row of the table and just the table name
+   * this flag can be used.
+   **/
+  tableAsExpr?: boolean
+  /** Inline all parameters */
   forceInline?: boolean
   formatAsJson?: boolean
   formatSubject?: (mkSubject: () => void) => void
@@ -644,6 +652,8 @@ export abstract class Formatter implements Sanitizer {
           case TargetType.Table:
             const table = Target.source(expr.target)
             if (!table) throw new Error(`Cannot select empty target`)
+            if (ctx.tableAsExpr)
+              return stmt.identifier(table.alias || table.name)
             return this.formatExpr(
               ctx,
               ExprData.Record(

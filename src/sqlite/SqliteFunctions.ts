@@ -20,6 +20,24 @@ export type SqliteFunctions = {
   /** Use the match operator for the FTS5 module */
   match(table: Table<any>, searchTerm: EV<string>): Expr<boolean>
 
+  /** The highlight() function returns a copy of the text from a specified column of the current row with extra markup text inserted to mark the start and end of phrase matches. */
+  highlight(
+    table: Table<any>,
+    index: EV<number>,
+    insertBefore: EV<string>,
+    insertAfter: EV<string>
+  ): Expr<string>
+
+  /** The snippet() function is similar to highlight(), except that instead of returning entire column values, it automatically selects and extracts a short fragment of document text to process and return. */
+  snippet(
+    table: Table<any>,
+    index: EV<number>,
+    insertBefore: EV<string>,
+    insertAfter: EV<string>,
+    snip: EV<string>,
+    maxTokens: EV<number>
+  ): Expr<string>
+
   cast(x: EV<any>, type: 'text'): Expr<string>
   cast(x: EV<any>, type: 'real'): Expr<number>
   cast(x: EV<any>, type: 'integer'): Expr<number>
