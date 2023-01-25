@@ -278,6 +278,8 @@ export const {
   iif,
   exists,
   match,
+  highlight,
+  snippet,
   cast,
   abs,
   changes,
