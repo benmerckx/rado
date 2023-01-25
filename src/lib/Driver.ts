@@ -4,7 +4,7 @@ import {Formatter} from './Formatter'
 import {ParamData} from './Param'
 import {Query, QueryType} from './Query'
 import {Schema, SchemaInstructions} from './Schema'
-import {CompiledStatement} from './Statement'
+import {Statement} from './Statement'
 import {Table} from './Table'
 
 class Callable extends Function {
@@ -42,7 +42,7 @@ abstract class DriverBase extends Callable {
 
   compile<T extends Array<Expr<any>>, R>(
     create: (...params: T) => Cursor<R>
-  ): [Query<T>, CompiledStatement] {
+  ): [Query<T>, Statement] {
     const {length} = create
     const paramNames = Array.from({length}, (_, i) => `p${i}`)
     const params = paramNames.map(
@@ -97,14 +97,17 @@ interface SyncDriver {
 abstract class SyncDriver extends DriverBase {
   transactionId = 0
 
-  abstract prepareStatement(stmt: CompiledStatement): SyncPreparedStatement
+  abstract prepareStatement(
+    stmt: Statement,
+    discardAfter: boolean
+  ): SyncPreparedStatement
   abstract schemaInstructions(tableName: string): SchemaInstructions | undefined
 
   prepare<T extends Array<Expr<any>>, R>(
     create: (...params: T) => Cursor<R>
   ): (...params: ParamTypes<T>) => R {
     const [query, compiled] = this.compile(create)
-    const prepared = this.prepareStatement(compiled)
+    const prepared = this.prepareStatement(compiled, false)
     return (...params: ParamTypes<T>) => {
       const namedParams = Object.fromEntries(
         params.map((value, i) => [`p${i}`, value])
@@ -145,7 +148,7 @@ abstract class SyncDriver extends DriverBase {
         })
       default:
         const compiled = stmt ? undefined : this.formatter.compile(query)
-        stmt = stmt || this.prepareStatement(compiled!)
+        stmt = stmt || this.prepareStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query) {
           const res = stmt
@@ -228,7 +231,10 @@ abstract class AsyncDriver extends DriverBase {
   transactionId = 0
 
   abstract isolate(): [connection: AsyncDriver, release: () => Promise<void>]
-  abstract prepareStatement(stmt: CompiledStatement): AsyncPreparedStatement
+  abstract prepareStatement(
+    stmt: Statement,
+    discardAfter: boolean
+  ): AsyncPreparedStatement
   abstract schemaInstructions(
     tableName: string
   ): Promise<SchemaInstructions | undefined>
@@ -237,7 +243,7 @@ abstract class AsyncDriver extends DriverBase {
     create: (...params: T) => Cursor<R>
   ): (...params: ParamTypes<T>) => Promise<R> {
     const [query, compiled] = this.compile(create)
-    const prepared = this.prepareStatement(compiled)
+    const prepared = this.prepareStatement(compiled, false)
     return (...params: ParamTypes<T>) => {
       const namedParams = Object.fromEntries(
         params.map((value, i) => [`p${i}`, value])
@@ -278,7 +284,7 @@ abstract class AsyncDriver extends DriverBase {
         })
       default:
         const compiled = stmt ? undefined : this.formatter.compile(query)
-        stmt = stmt || this.prepareStatement(compiled!)
+        stmt = stmt || this.prepareStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query) {
           const res = (await stmt.all<{result: string}>(params)).map(
@@ -382,8 +388,13 @@ class SyncWrapper extends AsyncDriver {
     return super.executeQuery(query, stmt, params)
   }
 
-  prepareStatement(stmt: CompiledStatement): AsyncPreparedStatement {
-    return new SyncPreparedStatementWrapper(this.sync.prepareStatement(stmt))
+  prepareStatement(
+    stmt: Statement,
+    discardAfter: boolean
+  ): AsyncPreparedStatement {
+    return new SyncPreparedStatementWrapper(
+      this.sync.prepareStatement(stmt, discardAfter)
+    )
   }
 
   async schemaInstructions(

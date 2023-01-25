@@ -1,22 +1,28 @@
 import type {Database} from 'sql.js'
 import {Driver} from '../lib/Driver'
 import {SchemaInstructions} from '../lib/Schema'
-import {CompiledStatement} from '../lib/Statement'
+import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
 
 class PreparedStatement implements Driver.Sync.PreparedStatement {
-  constructor(private db: Database, private stmt: any) {}
+  constructor(
+    private db: Database,
+    private stmt: any,
+    private discardAfter: boolean
+  ) {}
 
   all<T>(params?: Array<any>): Array<T> {
     this.stmt.bind(params)
     const res = []
     while (this.stmt.step()) res.push(this.stmt.getAsObject())
+    if (this.discardAfter) this.stmt.free()
     return res
   }
 
   run(params?: Array<any>): {rowsAffected: number} {
     this.stmt.run(params)
+    if (this.discardAfter) this.stmt.free()
     return {rowsAffected: this.db.getRowsModified()}
   }
 
@@ -26,6 +32,7 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
 
   execute(params?: Array<any>): void {
     this.stmt.run(params)
+    if (this.discardAfter) this.stmt.free()
   }
 }
 
@@ -39,8 +46,15 @@ export class SqlJsDriver extends Driver.Sync {
     this.indexData = this.prepare(SqliteSchema.indexData)
   }
 
-  prepareStatement(stmt: CompiledStatement): Driver.Sync.PreparedStatement {
-    return new PreparedStatement(this.db, this.db.prepare(stmt.sql))
+  prepareStatement(
+    stmt: Statement,
+    discardAfter: boolean
+  ): Driver.Sync.PreparedStatement {
+    return new PreparedStatement(
+      this.db,
+      this.db.prepare(stmt.sql),
+      discardAfter
+    )
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {

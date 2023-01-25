@@ -2,7 +2,7 @@ import type {Database, Statement as NativeStatement} from 'sqlite3'
 import {Driver} from '../lib/Driver'
 import {Query} from '../lib/Query'
 import {SchemaInstructions} from '../lib/Schema'
-import {CompiledStatement} from '../lib/Statement'
+import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
 
@@ -66,7 +66,7 @@ export class Sqlite3Driver extends Driver.Async {
     return super.executeQuery(query, stmt, params)
   }
 
-  prepareStatement(stmt: CompiledStatement): Driver.Async.PreparedStatement {
+  prepareStatement(stmt: Statement): Driver.Async.PreparedStatement {
     return new PreparedStatement(this.db.prepare(stmt.sql))
   }
 
