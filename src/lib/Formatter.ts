@@ -102,7 +102,7 @@ export abstract class Formatter implements Sanitizer {
       case QueryType.Transaction:
         return this.formatTransaction(ctx, query)
       case QueryType.Batch:
-        return this.formatBatch(ctx, query.queries)
+        return this.formatBatch(ctx, query)
       case QueryType.Raw:
         return this.formatRaw(ctx, query)
     }
@@ -239,7 +239,7 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatBatch(ctx: FormatContext, queries: Query[]): Statement {
+  formatBatch(ctx: FormatContext, {queries}: Query.Batch): Statement {
     const {stmt} = ctx
     for (const query of stmt.separate(queries, ';')) this.format(ctx, query)
     return stmt
