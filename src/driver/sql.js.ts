@@ -8,11 +8,13 @@ import {SqliteSchema} from '../sqlite/SqliteSchema'
 class PreparedStatement implements Driver.Sync.PreparedStatement {
   constructor(private db: Database, private stmt: any) {}
 
-  all<T>(params?: Array<any>): Array<T> {
+  *iterate<T>(params?: Array<any>): IterableIterator<T> {
     this.stmt.bind(params)
-    const res = []
-    while (this.stmt.step()) res.push(this.stmt.getAsObject())
-    return res
+    while (this.stmt.step()) yield this.stmt.getAsObject()
+  }
+
+  all<T>(params?: Array<any>): Array<T> {
+    return Array.from(this.iterate(params))
   }
 
   run(params?: Array<any>): {rowsAffected: number} {

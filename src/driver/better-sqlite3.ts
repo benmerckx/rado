@@ -8,6 +8,10 @@ import {SqliteSchema} from '../sqlite/SqliteSchema'
 class PreparedStatement implements Driver.Sync.PreparedStatement {
   constructor(private stmt: NativeStatement) {}
 
+  iterate<T>(params: Array<any> = []): IterableIterator<T> {
+    return this.stmt.iterate(...params)
+  }
+
   all<T>(params: Array<any> = []): Array<T> {
     return this.stmt.all(...params)
   }

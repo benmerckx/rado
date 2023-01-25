@@ -9,6 +9,34 @@ import {SqliteSchema} from '../sqlite/SqliteSchema'
 class PreparedStatement implements Driver.Async.PreparedStatement {
   constructor(private stmt: NativeStatement) {}
 
+  async *iterate<T>(params?: any[] | undefined): AsyncIterable<T> {
+    let rows: Array<T> = [],
+      done = false,
+      error: Error | undefined
+    let resolve: () => void
+    let promise = new Promise<void>(r => (resolve = r))
+    this.stmt.each(
+      params,
+      (err, row) => {
+        if (err) error = err
+        else rows.push(row)
+        resolve()
+      },
+      () => {
+        done = true
+        resolve()
+      }
+    )
+    while (true) {
+      const mustWait = !(rows.length || error || done)
+      if (mustWait) await promise
+      promise = new Promise<void>(r => (resolve = r))
+      if (error) throw error
+      if (rows.length) yield rows.shift()!
+      if (done) return
+    }
+  }
+
   all<T>(params?: Array<any>): Promise<Array<T>> {
     return new Promise((resolve, reject) => {
       this.stmt.all(params, (err, rows) => {
