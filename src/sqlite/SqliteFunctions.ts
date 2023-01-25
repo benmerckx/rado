@@ -90,10 +90,10 @@ export type SqliteFunctions = {
   ltrim(x: EV<string>, y?: EV<string>): Expr<string>
 
   /** The multi-argument max() function returns the argument with the maximum value, or return NULL if any argument is NULL. The multi-argument max() function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If none of the arguments to max() define a collating function, then the BINARY collating function is used. Note that max() is a simple function when it has 2 or more arguments but operates as an aggregate function if given only a single argument.*/
-  max<T>(x: EV<T>, y: EV<T>, ...rest: Array<EV<T>>): Expr<T>
+  max<T>(x: EV<T>, ...rest: Array<EV<T>>): Expr<T>
 
   /** The multi-argument min() function returns the argument with the minimum value. The multi-argument min() function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If none of the arguments to min() define a collating function, then the BINARY collating function is used. Note that min() is a simple function when it has 2 or more arguments but operates as an aggregate function if given only a single argument.*/
-  min<T>(x: EV<T>, y: EV<T>, ...rest: Array<EV<T>>): Expr<T>
+  min<T>(x: EV<T>, ...rest: Array<EV<T>>): Expr<T>
 
   /** The nullif(X,Y) function returns its first argument if the arguments are different and NULL if the arguments are the same. The nullif(X,Y) function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If neither argument to nullif() defines a collating function then the BINARY is used.*/
   nullif<T>(x: EV<T>, y: EV<T>): Expr<T | null>
