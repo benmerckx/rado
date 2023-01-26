@@ -72,7 +72,9 @@ export namespace Cursor {
   }
 
   export class Update<T> extends Cursor<{rowsAffected: number}> {
-    declare query: () => Query.Update
+    query(): Query.Update {
+      return super.query() as Query.Update
+    }
 
     set(set: UpdateSet<T>): Update<T> {
       return new Update({...this.query(), set})
