@@ -191,7 +191,10 @@ abstract class SyncDriver extends DriverBase {
   }
 
   *iterate<T>(cursor: Cursor.SelectMultiple<T>): Iterable<T> {
-    const stmt = this.prepareStatement(this.formatter.compile(cursor.query()))
+    const stmt = this.prepareStatement(
+      this.formatter.compile(cursor.query()),
+      true
+    )
     for (const row of stmt.iterate<{result: string}>()) {
       yield JSON.parse(row.result).result
     }
@@ -338,7 +341,10 @@ abstract class AsyncDriver extends DriverBase {
   }
 
   async *iterate<T>(cursor: Cursor.SelectMultiple<T>): AsyncIterable<T> {
-    const stmt = this.prepareStatement(this.formatter.compile(cursor.query()))
+    const stmt = this.prepareStatement(
+      this.formatter.compile(cursor.query()),
+      true
+    )
     for await (const row of stmt.iterate<{result: string}>()) {
       yield JSON.parse(row.result).result
     }
