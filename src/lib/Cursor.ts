@@ -1,3 +1,4 @@
+import {Driver} from './Driver'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
@@ -31,45 +32,62 @@ export class Cursor<T> {
     throw new Error('Not implemented')
   }
 
+  run(driver: Driver.Sync): T
+  run(driver: Driver.Async): Promise<T>
+  run(driver: Driver): T | Promise<T> {
+    return driver.executeQuery(this.query())
+  }
+
   toJSON(): Query<T> {
     return this.query()
   }
 }
 
+function addWhere<T>(query: Query<T>, where: Array<EV<boolean>>): Query<T> {
+  const conditions: Array<any> = where.slice()
+  if (query.where) conditions.push(query.where)
+  return {
+    ...query,
+    where: Expr.and(...conditions).expr
+  }
+}
+
 export namespace Cursor {
-  export class Limitable<T> extends Cursor<T> {
-    take(limit: number | undefined): Limitable<T> {
-      return new Limitable({...this.query(), limit})
-    }
-
-    skip(offset: number | undefined): Limitable<T> {
-      return new Limitable({...this.query(), offset})
-    }
-  }
-
-  export class Filterable<T> extends Limitable<T> {
-    where(...where: Array<EV<boolean>>): Filterable<T> {
-      const condition = Expr.and(...where)
-      const query = this.query()
-      return new Filterable({
-        ...query,
-        where: (query.where ? condition.and(new Expr(query.where)) : condition)
-          .expr
-      })
-    }
-  }
-
-  export class Delete extends Filterable<{rowsAffected: number}> {
+  export class Delete extends Cursor<{rowsAffected: number}> {
     query(): Query.Delete {
       return super.query() as Query.Delete
     }
+
+    where(...where: Array<EV<boolean>>): Delete {
+      return new Delete(addWhere(this.query(), where))
+    }
+
+    take(limit: number | undefined): Delete {
+      return new Delete({...this.query(), limit})
+    }
+
+    skip(offset: number | undefined): Delete {
+      return new Delete({...this.query(), offset})
+    }
   }
 
-  export class Update<T> extends Filterable<{rowsAffected: number}> {
+  export class Update<T> extends Cursor<{rowsAffected: number}> {
     declare query: () => Query.Update
 
     set(set: UpdateSet<T>): Update<T> {
       return new Update({...this.query(), set})
+    }
+
+    where(...where: Array<EV<boolean>>): Update<T> {
+      return new Update(addWhere(this.query(), where))
+    }
+
+    take(limit: number | undefined): Update<T> {
+      return new Update({...this.query(), limit})
+    }
+
+    skip(offset: number | undefined): Update<T> {
+      return new Update({...this.query(), offset})
     }
   }
 
@@ -97,7 +115,7 @@ export namespace Cursor {
     }
   }
 
-  export class Create extends Cursor<void> {
+  export class CreateTable extends Cursor<void> {
     constructor(protected table: Schema) {
       super(Schema.create(table))
     }
@@ -109,7 +127,7 @@ export namespace Cursor {
     }
   }
 
-  export class SelectMultiple<T> extends Filterable<Array<T>> {
+  export class SelectMultiple<T> extends Cursor<Array<T>> {
     query(): Query.Select {
       return super.query() as Query.Select
     }
@@ -186,7 +204,15 @@ export namespace Cursor {
     }
 
     where(...where: Array<EV<boolean>>): SelectMultiple<T> {
-      return new SelectMultiple(super.where(...where).query())
+      return new SelectMultiple(addWhere(this.query(), where))
+    }
+
+    take(limit: number | undefined): SelectMultiple<T> {
+      return new SelectMultiple({...this.query(), limit})
+    }
+
+    skip(offset: number | undefined): SelectMultiple<T> {
+      return new SelectMultiple({...this.query(), offset})
     }
 
     toExpr(): Expr<T> {
@@ -194,7 +220,7 @@ export namespace Cursor {
     }
   }
 
-  export class SelectSingle<T> extends Filterable<T> {
+  export class SelectSingle<T> extends Cursor<T> {
     query(): Query.Select {
       return super.query() as Query.Select
     }
@@ -249,7 +275,15 @@ export namespace Cursor {
     }
 
     where(...where: Array<EV<boolean>>): SelectSingle<T> {
-      return new SelectSingle(super.where(...where).query())
+      return new SelectSingle(addWhere(this.query(), where))
+    }
+
+    take(limit: number | undefined): SelectSingle<T> {
+      return new SelectSingle({...this.query(), limit})
+    }
+
+    skip(offset: number | undefined): SelectSingle<T> {
+      return new SelectSingle({...this.query(), offset})
     }
 
     all(): SelectMultiple<T> {

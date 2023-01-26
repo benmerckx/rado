@@ -1,1 +1,1 @@
-export type Id<T extends {id: any}> = T['id']
+export type Id<T> = T extends {id: any} ? T['id'] : never

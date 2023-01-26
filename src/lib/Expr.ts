@@ -230,11 +230,11 @@ export class Expr<T> {
     return binop(this, BinOp.Equals, that)
   }
 
-  isIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
+  in(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
     return binop(this, BinOp.In, that)
   }
 
-  isNotIn(that: EV<Array<T>> | Cursor<T>): Expr<boolean> {
+  notIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
     return binop(this, BinOp.NotIn, that)
   }
 
@@ -305,7 +305,7 @@ export class Expr<T> {
     fn: (cursor: Fields<T>) => Expr<boolean>
   ): Expr<Array<T>> {
     const alias = `__${Math.random().toString(36).slice(2, 9)}`
-    const target = Target.Each(this.expr, alias)
+    const target = Target.Expr(this.expr, alias)
     return new Expr(
       ExprData.Filter(
         target,
@@ -319,7 +319,7 @@ export class Expr<T> {
     fn: (cursor: Fields<T>) => X
   ): Expr<Array<Selection.Infer<X>>> {
     const alias = `__${Math.random().toString(36).slice(2, 9)}`
-    const target = Target.Each(this.expr, alias)
+    const target = Target.Expr(this.expr, alias)
     return new Expr(
       ExprData.Map(
         target,

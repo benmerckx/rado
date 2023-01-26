@@ -5,21 +5,17 @@ import {Schema} from './Schema'
 import {Table} from './Table'
 import {Target} from './Target'
 
-export function selectAll<Row>(table: Table<Row>): Cursor.SelectMultiple<Row> {
+export function from<Row>(
+  source: Table<Row> | Cursor.SelectMultiple<Row>
+): Cursor.SelectMultiple<Row> {
+  const target =
+    'schema' in source
+      ? Target.Table(source.schema())
+      : Target.Query(source.query())
   return new Cursor.SelectMultiple<Row>(
     Query.Select({
-      from: Target.Table(table.schema()),
-      selection: ExprData.Row(Target.Table(table.schema()))
-    })
-  )
-}
-
-export function selectFirst<Row>(table: Table<Row>): Cursor.SelectSingle<Row> {
-  return new Cursor.SelectSingle<Row>(
-    Query.Select({
-      from: Target.Table(table.schema()),
-      selection: ExprData.Row(Target.Table(table.schema())),
-      singleResult: true
+      from: target,
+      selection: ExprData.Row(target)
     })
   )
 }

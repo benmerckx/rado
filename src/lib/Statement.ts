@@ -85,6 +85,7 @@ export class Statement {
   }
 
   *call<T>(parts: Array<T>, separator = SEPARATE) {
+    if (parts.length === 0) return this.raw('()')
     this.openParenthesis()
     yield* this.separate(parts, separator)
     this.closeParenthesis()

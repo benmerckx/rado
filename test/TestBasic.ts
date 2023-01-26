@@ -5,14 +5,14 @@ import {
   PrimaryKey,
   column,
   create,
+  from,
   insertInto,
-  selectFirst,
   table
 } from '../src/index'
 import {connect} from './DbSuite'
 
 test('basic', async () => {
-  const query = await connect()
+  const db = await connect()
   const Node = table({
     name: 'node',
     columns: {
@@ -20,29 +20,26 @@ test('basic', async () => {
       index: column.number()
     }
   })
-  await query(create(Node))
+  await create(Node).run(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
-  await query(Node.insertAll(objects))
-  assert.equal((await query(Node)).length, amount)
-  const stored = await query(Node)
+  await Node.insertAll(objects).run(db)
+  assert.equal((await Node.run(db)).length, amount)
+  const stored = await Node.run(db)
   const id = stored[amount - 1].id
   assert.equal(
     (
-      await query(
-        Node.sure().where(
-          Node.index.greaterOrEqual(amount - 1),
-          Node.index.less(amount)
-        )
-      )
+      await Node.sure()
+        .where(Node.index.greaterOrEqual(amount - 1), Node.index.less(amount))
+        .run(db)
     ).id,
     id
   )
 })
 
 test('filters', async () => {
-  const query = await connect()
+  const db = await connect()
   const Test = table({
     name: 'test',
     columns: {
@@ -50,16 +47,16 @@ test('filters', async () => {
       prop: column.number()
     }
   })
-  await query(create(Test))
+  await create(Test).run(db)
   const a = {prop: 10}
   const b = {prop: 20}
-  await query(Test.insertAll([a, b]))
-  const gt10 = (await query.get(Test.where(Test.prop.greater(10))))!
+  await Test.insertAll([a, b]).run(db)
+  const gt10 = await Test.where(Test.prop.greater(10)).sure().run(db)
   assert.equal(gt10.prop, 20)
 })
 
 test('select', async () => {
-  const query = await connect()
+  const db = await connect()
   const Test = table({
     name: 'test',
     columns: {
@@ -68,25 +65,26 @@ test('select', async () => {
       propB: column.number()
     }
   })
-  await query(create(Test))
+  await create(Test).run(db)
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
-  await query(Test.insertAll([a, b]))
-  const res = await query(Test.select({a: Test.propA, b: Test.propB}))
+  await Test.insertAll([a, b]).run(db)
+  const res = await Test.select({a: Test.propA, b: Test.propB}).run(db)
   assert.equal(res, [
     {a: 10, b: 5},
     {a: 20, b: 5}
   ])
-  const res2 = await query(
-    Test.select({
-      ...Test,
-      testProp: Expr.value(123)
-    }).sure()
-  )
+  const res2 = await Test.select({
+    ...Test,
+    testProp: Expr.value(123)
+  })
+    .sure()
+    .run(db)
+
   assert.is(res2.testProp, 123)
-  const res3 = await query(Test.sure().select(Expr.value('test')))
+  const res3 = await Test.sure().select(Expr.value('test')).run(db)
   assert.is(res3, 'test')
-  const res4 = await query(Test.sure().select(Expr.value(true)))
+  const res4 = await Test.sure().select(Expr.value(true)).run(db)
   assert.is(res4, true)
 })
 
@@ -164,7 +162,7 @@ test('each', async () => {
 
   await query(create(Test, Entry))
   await query(insertInto(Test).values(a))
-  const res = await query(selectFirst(Test).select({refs: Test.refs}))
+  const res = await query(from(Test).select({refs: Test.refs}).first())
   assert.equal(res!, a)
 
   const b = {title: 'Entry B'}

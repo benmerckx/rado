@@ -12,12 +12,14 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
     private discardAfter: boolean
   ) {}
 
-  all<T>(params?: Array<any>): Array<T> {
+  *iterate<T>(params?: Array<any>): IterableIterator<T> {
     this.stmt.bind(params)
-    const res = []
-    while (this.stmt.step()) res.push(this.stmt.getAsObject())
+    while (this.stmt.step()) yield this.stmt.getAsObject()
     if (this.discardAfter) this.stmt.free()
-    return res
+  }
+
+  all<T>(params?: Array<any>): Array<T> {
+    return Array.from(this.iterate(params))
   }
 
   run(params?: Array<any>): {rowsAffected: number} {

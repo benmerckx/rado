@@ -190,6 +190,13 @@ abstract class SyncDriver extends DriverBase {
     return super.get(...args)
   }
 
+  *iterate<T>(cursor: Cursor.SelectMultiple<T>): Iterable<T> {
+    const stmt = this.prepareStatement(this.formatter.compile(cursor.query()))
+    for (const row of stmt.iterate<{result: string}>()) {
+      yield JSON.parse(row.result).result
+    }
+  }
+
   transaction<T>(run: (query: SyncDriver) => T): T {
     const id = `t${this.transactionId++}`
     this.executeQuery(
@@ -216,6 +223,7 @@ abstract class SyncDriver extends DriverBase {
 
 interface SyncPreparedStatement {
   run(params?: Array<any>): {rowsAffected: number}
+  iterate<T>(params?: Array<any>): Iterable<T>
   all<T>(params?: Array<any>): Array<T>
   get<T>(params?: Array<any>): T
   execute(params?: Array<any>): void
@@ -329,6 +337,13 @@ abstract class AsyncDriver extends DriverBase {
     return super.get(...args)
   }
 
+  async *iterate<T>(cursor: Cursor.SelectMultiple<T>): AsyncIterable<T> {
+    const stmt = this.prepareStatement(this.formatter.compile(cursor.query()))
+    for await (const row of stmt.iterate<{result: string}>()) {
+      yield JSON.parse(row.result).result
+    }
+  }
+
   async transaction<T>(run: (query: AsyncDriver) => T): Promise<T> {
     const id = `t${this.transactionId++}`
     const [connection, release] = this.isolate()
@@ -354,6 +369,10 @@ abstract class AsyncDriver extends DriverBase {
 
 class SyncPreparedStatementWrapper implements AsyncPreparedStatement {
   constructor(private stmt: SyncPreparedStatement) {}
+
+  async *iterate<T>(params?: Array<any>): AsyncIterable<T> {
+    for (const row of this.stmt.iterate<T>(params)) yield row
+  }
 
   async run(params?: Array<any>): Promise<{rowsAffected: number}> {
     return this.stmt.run(params)
@@ -416,10 +435,13 @@ class SyncWrapper extends AsyncDriver {
 
 interface AsyncPreparedStatement {
   run(params?: Array<any>): Promise<{rowsAffected: number}>
+  iterate<T>(params?: Array<any>): AsyncIterable<T>
   all<T>(params?: Array<any>): Promise<Array<T>>
   get<T>(params?: Array<any>): Promise<T>
   execute(params?: Array<any>): Promise<void>
 }
+
+export type Driver = SyncDriver | AsyncDriver
 
 export namespace Driver {
   export type Sync = SyncDriver

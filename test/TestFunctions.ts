@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, column, table} from '../src/index'
-import {cast, strftime} from '../src/sqlite'
+import {Expr, column, from, table} from '../src/index'
+import {cast, count, strftime} from '../src/sqlite'
 import {connect} from './DbSuite'
 
 test('Functions', async () => {
@@ -25,6 +25,14 @@ test('Functions', async () => {
   assert.is(
     (await query(User.sure().select({age}).where(User.id.is(me.id)))).age,
     20
+  )
+  assert.is(
+    await query(
+      from(User.where(User.id.is(me.id)))
+        .select(count())
+        .first()
+    ),
+    1
   )
 })
 

@@ -36,7 +36,16 @@ const joins = {
 
 export interface FormatContext {
   stmt: Statement
+  nameResult?: string
+  /** Skip prefixing fields with their table name */
   skipTableName?: boolean
+  /**
+   * In SQLite table names are used as expressions in the FTS5 plugin.
+   * To distinguish between formatting a row of the table and just the table name
+   * this flag can be used.
+   **/
+  tableAsExpr?: boolean
+  /** Inline all parameters */
   forceInline?: boolean
   formatAsJson?: boolean
   topLevel?: boolean
@@ -90,7 +99,7 @@ export abstract class Formatter implements Sanitizer {
       case QueryType.Transaction:
         return this.formatTransaction(ctx, query)
       case QueryType.Batch:
-        return this.formatBatch(ctx, query.queries)
+        return this.formatBatch(ctx, query)
       case QueryType.Raw:
         return this.formatRaw(ctx, query)
     }
@@ -231,7 +240,7 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatBatch(ctx: FormatContext, queries: Query[]): Statement {
+  formatBatch(ctx: FormatContext, {queries}: Query.Batch): Statement {
     const {stmt} = ctx
     for (const query of stmt.separate(queries, ';')) this.format(ctx, query)
     return stmt
@@ -364,7 +373,7 @@ export abstract class Formatter implements Sanitizer {
     switch (target.type) {
       case TargetType.Table:
         stmt.identifier(target.table.name)
-        if (target.table.alias) stmt.add('AS').addIdentifier(target.table.alias)
+        if (target.table.alias) stmt.raw('AS').addIdentifier(target.table.alias)
         return stmt
       case TargetType.Join:
         const {left, right, joinType} = target
@@ -374,8 +383,14 @@ export abstract class Formatter implements Sanitizer {
         stmt.add('ON')
         this.formatExprValue(ctx, target.on)
         return stmt
-      default:
-        throw new Error(`Cannot format target of type ${target.type}`)
+      case TargetType.Query:
+        stmt.openParenthesis()
+        this.format(ctx, target.query)
+        stmt.closeParenthesis()
+        if (target.alias) stmt.raw('AS').addIdentifier(target.alias)
+        return stmt
+      case TargetType.Expr:
+        throw new Error('Cannot format expression as target')
     }
   }
 
@@ -611,10 +626,10 @@ export abstract class Formatter implements Sanitizer {
           stmt.raw('exists').space()
           return this.formatExprValue(ctx, expr.params[0])
         } else {
-          stmt.addIdentifier(expr.method).openParenthesis()
-          for (const param of stmt.separate(expr.params))
+          stmt.identifier(expr.method)
+          for (const param of stmt.call(expr.params))
             this.formatExprValue(ctx, param)
-          return stmt.closeParenthesis()
+          return stmt
         }
       }
       case ExprType.Query:
@@ -641,6 +656,8 @@ export abstract class Formatter implements Sanitizer {
           case TargetType.Table:
             const table = Target.source(expr.target)
             if (!table) throw new Error(`Cannot select empty target`)
+            if (ctx.tableAsExpr)
+              return stmt.identifier(table.alias || table.name)
             stmt.identifier('json_object')
             for (const [key, column] of stmt.call(
               Object.entries(table.columns)
@@ -649,8 +666,9 @@ export abstract class Formatter implements Sanitizer {
               this.formatField(ctx, expr, column.name!)
             }
             return stmt
-          case TargetType.Each:
-            return stmt.identifier(expr.target.alias).raw('.value')
+          case TargetType.Query:
+          case TargetType.Expr:
+            return stmt.identifier(expr.target.alias!).raw('.value')
           default:
             throw new Error(`Cannot select from ${expr.target.type}`)
         }
@@ -670,7 +688,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Filter: {
         const {target, condition} = expr
         switch (target.type) {
-          case TargetType.Each:
+          case TargetType.Expr:
             stmt
               .openParenthesis()
               .raw('SELECT json_group_array(json(result)) FROM ')
@@ -678,13 +696,10 @@ export abstract class Formatter implements Sanitizer {
               .raw('SELECT value AS result')
               .add('FROM json_each')
               .openParenthesis()
-            this.formatExpr(ctx, target.expr)
-            stmt
-              .closeParenthesis()
-              .add('AS')
-              .addIdentifier(target.alias)
-              .add('WHERE')
-              .space()
+            this.formatExprJson(ctx, target.expr)
+            stmt.closeParenthesis()
+            if (target.alias) stmt.add('AS').addIdentifier(target.alias)
+            stmt.add('WHERE').space()
             this.formatExprValue(ctx, condition)
             return stmt.closeParenthesis().closeParenthesis()
           default:
@@ -694,7 +709,7 @@ export abstract class Formatter implements Sanitizer {
       case ExprType.Map: {
         const {target, result} = expr
         switch (target.type) {
-          case TargetType.Each:
+          case TargetType.Expr:
             stmt
               .openParenthesis()
               .raw('SELECT json_group_array(json(result)) FROM ')
@@ -706,12 +721,9 @@ export abstract class Formatter implements Sanitizer {
               .add('FROM json_each')
               .openParenthesis()
             this.formatExprJson(ctx, target.expr)
-            return stmt
-              .closeParenthesis()
-              .add('AS')
-              .addIdentifier(target.alias)
-              .closeParenthesis()
-              .closeParenthesis()
+            stmt.closeParenthesis()
+            if (target.alias) stmt.add('AS').addIdentifier(target.alias)
+            return stmt.closeParenthesis().closeParenthesis()
           default:
             throw new Error('todo')
         }

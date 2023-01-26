@@ -1,22 +1,32 @@
 import {ExprData} from './Expr'
+import {Query as QueryData} from './Query'
 import {Schema} from './Schema'
 
 export enum TargetType {
-  Each = 'Each',
+  Expr = 'Expr',
+  Query = 'Query',
   Table = 'Table',
   Join = 'Join'
 }
 
-export type Target = Target.Each | Target.Table | Target.Join
+export type Target = Target.Expr | Target.Query | Target.Table | Target.Join
 
 export namespace Target {
-  export interface Each {
-    type: TargetType.Each
+  export interface Expr {
+    type: TargetType.Expr
     expr: ExprData
-    alias: string
+    alias?: string
   }
-  export function Each(expr: ExprData, alias: string): Each {
-    return {type: TargetType.Each, expr, alias}
+  export function Expr(expr: ExprData, alias?: string): Expr {
+    return {type: TargetType.Expr, expr, alias}
+  }
+  export interface Query {
+    type: TargetType.Query
+    query: QueryData
+    alias?: string
+  }
+  export function Query(query: QueryData, alias?: string): Query {
+    return {type: TargetType.Query, query, alias}
   }
   export interface Table {
     type: TargetType.Table
