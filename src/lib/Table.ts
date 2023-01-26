@@ -29,14 +29,14 @@ export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
       for (const column of Object.keys(schema.columns)) {
         Object.defineProperty(this, column, {
           enumerable: true,
-          get: () => this.get(column)
+          value: this.get(column)
         })
       }
-    return new Proxy(this, {
+    /*return new Proxy(this, {
       get(target: any, key) {
         return key in target ? target[key] : target.get(key)
       }
-    })
+    })*/
   }
 
   fetch(id: EV<T extends {id: Column.IsPrimary<infer V, any>} ? V : never>) {

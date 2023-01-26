@@ -17,6 +17,7 @@ interface PartialColumnData {
   primaryKey?: boolean
   unique?: boolean
   references?: ExprData
+  enumerable?: boolean
 }
 
 export interface ColumnData extends PartialColumnData {
@@ -24,8 +25,10 @@ export interface ColumnData extends PartialColumnData {
   name: string
 }
 
-export class Column<T> {
-  constructor(public data: PartialColumnData) {}
+export class Column<T> extends Expr<T> {
+  constructor(public data: PartialColumnData) {
+    super(undefined!)
+  }
 
   name(name: string): Column<T> {
     return new Column({...this.data, name})
