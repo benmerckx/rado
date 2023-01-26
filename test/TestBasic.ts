@@ -20,19 +20,19 @@ test('basic', async () => {
       index: column.number()
     }
   })
-  await create(Node).run(db)
+  await create(Node).on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
-  await Node.insertAll(objects).run(db)
-  assert.equal((await Node.run(db)).length, amount)
-  const stored = await Node.run(db)
+  await Node.insertAll(objects).on(db)
+  assert.equal((await Node.on(db)).length, amount)
+  const stored = await Node.on(db)
   const id = stored[amount - 1].id
   assert.equal(
     (
       await Node.sure()
         .where(Node.index.greaterOrEqual(amount - 1), Node.index.less(amount))
-        .run(db)
+        .on(db)
     ).id,
     id
   )
@@ -47,11 +47,11 @@ test('filters', async () => {
       prop: column.number()
     }
   })
-  await create(Test).run(db)
+  await create(Test).on(db)
   const a = {prop: 10}
   const b = {prop: 20}
-  await Test.insertAll([a, b]).run(db)
-  const gt10 = await Test.where(Test.prop.greater(10)).sure().run(db)
+  await Test.insertAll([a, b]).on(db)
+  const gt10 = await Test.where(Test.prop.greater(10)).sure().on(db)
   assert.equal(gt10.prop, 20)
 })
 
@@ -65,11 +65,11 @@ test('select', async () => {
       propB: column.number()
     }
   })
-  await create(Test).run(db)
+  await create(Test).on(db)
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
-  await Test.insertAll([a, b]).run(db)
-  const res = await Test.select({a: Test.propA, b: Test.propB}).run(db)
+  await Test.insertAll([a, b]).on(db)
+  const res = await Test.select({a: Test.propA, b: Test.propB}).on(db)
   assert.equal(res, [
     {a: 10, b: 5},
     {a: 20, b: 5}
@@ -79,12 +79,12 @@ test('select', async () => {
     testProp: Expr.value(123)
   })
     .sure()
-    .run(db)
+    .on(db)
 
   assert.is(res2.testProp, 123)
-  const res3 = await Test.sure().select(Expr.value('test')).run(db)
+  const res3 = await Test.sure().select(Expr.value('test')).on(db)
   assert.is(res3, 'test')
-  const res4 = await Test.sure().select(Expr.value(true)).run(db)
+  const res4 = await Test.sure().select(Expr.value(true)).on(db)
   assert.is(res4, true)
 })
 

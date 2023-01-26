@@ -32,9 +32,9 @@ export class Cursor<T> {
     throw new Error('Not implemented')
   }
 
-  run(driver: Driver.Sync): T
-  run(driver: Driver.Async): Promise<T>
-  run(driver: Driver): T | Promise<T> {
+  on(driver: Driver.Sync): T
+  on(driver: Driver.Async): Promise<T>
+  on(driver: Driver): T | Promise<T> {
     return driver.executeQuery(this.query())
   }
 

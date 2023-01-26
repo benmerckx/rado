@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, table} from '../src'
+import {column, create, table} from '../src/index'
 import {connect} from './DbSuite'
 
 test('Iterate', async () => {
@@ -12,10 +12,10 @@ test('Iterate', async () => {
       index: column.number()
     }
   })
-  await create(Node).run(db)
+  await create(Node).on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
-  await Node.insertAll(objects).run(db)
+  await Node.insertAll(objects).on(db)
   for await (const node of db.iterate(Node)) {
     assert.is(node.index, objects.shift()?.index)
   }

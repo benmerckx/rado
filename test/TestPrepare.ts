@@ -13,7 +13,7 @@ const Node = table({
 
 test('prepare', async () => {
   const db = await connect()
-  await Node.createTable().run(db)
+  await Node.createTable().on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, i) => ({index: i}))
   const insert = db.prepare((index: Expr<number>) => {
@@ -22,7 +22,7 @@ test('prepare', async () => {
   for (const object of objects) {
     await insert(object.index)
   }
-  const total = await Node.count().run(db)
+  const total = await Node.count().on(db)
   assert.is(amount, total)
 })
 
