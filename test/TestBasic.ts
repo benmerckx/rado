@@ -8,7 +8,7 @@ import {
   insertInto,
   selectFirst,
   table
-} from '../src'
+} from '../src/index'
 import {connect} from './DbSuite'
 
 test('basic', async () => {

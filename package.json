@@ -21,6 +21,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsx build.ts",
     "test": "tsx test",
+    "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
     "prepublishOnly": "tsc -p tsconfig.build.json && tsx build.ts"
   },
   "devDependencies": {
@@ -28,9 +29,12 @@
     "@types/glob": "^8.0.0",
     "@types/sql.js": "^1.4.2",
     "better-sqlite3": "^7.5.1",
+    "cross-env": "^7.0.3",
     "esbuild": "^0.16.16",
     "glob": "^8.0.3",
+    "rimraf": "^4.1.2",
     "sade": "^1.8.1",
+    "speedscope": "^1.15.0",
     "sql.js": "^1.8.0",
     "sqlite3": "^5.1.4",
     "tsx": "^3.12.1",

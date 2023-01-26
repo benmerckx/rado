@@ -1,7 +1,7 @@
 /.yarn/*
 !/.yarn/plugins
 !/.yarn/releases
-
 /node_modules
-
 /dist
+/bin
+/*.cpuprofile

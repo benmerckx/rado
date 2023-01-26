@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, table} from '../src'
+import {column, create, table} from '../src/index'
 import {connect} from './DbSuite'
 
 test('IncludeMany', async () => {

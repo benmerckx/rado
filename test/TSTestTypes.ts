@@ -1,4 +1,4 @@
-import {Expr, Fields} from '../src'
+import {Expr, Fields} from '../src/index'
 
 type Location = {lat: number; lng: number}
 
