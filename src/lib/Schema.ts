@@ -47,12 +47,10 @@ export namespace Schema {
       } else if (!schemaCol) {
         res.push(Query.AlterTable({table: schema, dropColumn: columnName}))
       } else {
-        const {sql: instruction} = formatter
-          .formatColumn(
-            {stmt: new Statement()},
-            {...schemaCol, references: undefined}
-          )
-          .compile(formatter)
+        const {sql: instruction} = formatter.formatColumn(
+          {stmt: new Statement(formatter)},
+          {...schemaCol, references: undefined}
+        )
         if (
           removeLeadingWhitespace(localInstruction) !==
           removeLeadingWhitespace(instruction)
@@ -73,12 +71,9 @@ export namespace Schema {
       } else if (!schemaIndex) {
         res.unshift(Query.DropIndex({table: schema, name: indexName}))
       } else {
-        const {sql: instruction} = formatter
-          .formatCreateIndex(
-            {stmt: new Statement()},
-            Query.CreateIndex({table: schema, index: schemaIndex})
-          )
-          .compile(formatter)
+        const {sql: instruction} = formatter.compile(
+          Query.CreateIndex({table: schema, index: schemaIndex})
+        )
         if (
           removeLeadingWhitespace(localInstruction) !==
           removeLeadingWhitespace(instruction)

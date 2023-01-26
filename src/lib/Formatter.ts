@@ -36,11 +36,18 @@ const joins = {
 
 export interface FormatContext {
   stmt: Statement
-  nameResult?: string
   skipTableName?: boolean
   forceInline?: boolean
   formatAsJson?: boolean
-  formatSubject?: (mkSubject: () => void) => void
+  topLevel?: boolean
+}
+
+type FormatSubject = (stmt: Statement, mkSubject: () => void) => void
+
+function formatAsResultObject(stmt: Statement, mkSubject: () => void) {
+  stmt.raw("json_object('result', ")
+  mkSubject()
+  stmt.raw(')')
 }
 
 export abstract class Formatter implements Sanitizer {
@@ -55,20 +62,9 @@ export abstract class Formatter implements Sanitizer {
     field: string
   ): Statement
 
-  compile<T>(query: Query<T>, formatInline = false) {
-    const stmt = new Statement()
-    const result = this.format(
-      {
-        stmt,
-        formatSubject: mkSubject => {
-          stmt.raw("json_object('result', ")
-          mkSubject()
-          stmt.raw(')')
-        },
-        nameResult: 'result'
-      },
-      query
-    ).compile(this, formatInline)
+  compile<T>(query: Query<T>) {
+    const stmt = new Statement(this)
+    const result = this.format({stmt, topLevel: true}, query)
     // console.log(result.sql)
     return result
   }
@@ -101,9 +97,13 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatSelect(ctx: FormatContext, query: Query.Select): Statement {
-    const {stmt} = ctx
+    const {stmt, topLevel} = ctx
     stmt.add('SELECT').space()
-    this.formatSelection(ctx, query.selection)
+    this.formatSelection(
+      {...ctx, topLevel: false},
+      query.selection,
+      topLevel ? formatAsResultObject : undefined
+    )
     stmt.addLine('FROM').space()
     this.formatTarget(ctx, query.from)
     this.formatWhere(ctx, query.where)
@@ -125,7 +125,7 @@ export abstract class Formatter implements Sanitizer {
       this.formatInsertRow(ctx, query.into.columns, row)
     if (query.selection) {
       stmt.add('RETURNING').space()
-      this.formatSelection(ctx, query.selection)
+      this.formatSelection(ctx, query.selection, formatAsResultObject)
     }
     return stmt
   }
@@ -382,7 +382,7 @@ export abstract class Formatter implements Sanitizer {
   formatWhere(ctx: FormatContext, expr: ExprData | undefined): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
-    stmt.newline().raw('WHERE')
+    stmt.newline().raw('WHERE').space()
     this.formatExprValue(ctx, expr)
     return stmt
   }
@@ -434,20 +434,23 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatSelection(ctx: FormatContext, selection: ExprData): Statement {
-    const {stmt, formatSubject} = ctx
+  formatSelection(
+    ctx: FormatContext,
+    selection: ExprData,
+    formatSubject?: FormatSubject
+  ): Statement {
+    const {stmt} = ctx
     const mkSubject = () =>
       this.formatExpr(
         {
           ...ctx,
-          formatSubject: undefined,
           formatAsJson: true
         },
         selection
       )
-    if (formatSubject) formatSubject(mkSubject)
+    if (formatSubject) formatSubject(stmt, mkSubject)
     else mkSubject()
-    if (ctx.nameResult) stmt.add('AS').addIdentifier(ctx.nameResult)
+    stmt.add('AS').addIdentifier('result')
     return stmt
   }
 
@@ -622,7 +625,7 @@ export abstract class Formatter implements Sanitizer {
         }
         if (expr.query.singleResult) {
           stmt.raw('json').openParenthesis().openParenthesis()
-          this.format({...ctx, nameResult: 'result'}, expr.query)
+          this.format(ctx, expr.query)
           return stmt.closeParenthesis().closeParenthesis()
         }
         stmt
@@ -631,24 +634,21 @@ export abstract class Formatter implements Sanitizer {
           .newline()
           .raw('FROM')
           .openParenthesis()
-        this.format({...ctx, nameResult: 'result'}, expr.query)
+        this.format(ctx, expr.query)
         return stmt.closeParenthesis().closeParenthesis()
       case ExprType.Row:
         switch (expr.target.type) {
           case TargetType.Table:
             const table = Target.source(expr.target)
             if (!table) throw new Error(`Cannot select empty target`)
-            return this.formatExpr(
-              ctx,
-              ExprData.Record(
-                Object.fromEntries(
-                  Object.entries(table.columns).map(([key, column]) => [
-                    key,
-                    ExprData.Field(ExprData.Row(expr.target), column.name!)
-                  ])
-                )
-              )
-            )
+            stmt.identifier('json_object')
+            for (const [key, column] of stmt.call(
+              Object.entries(table.columns)
+            )) {
+              this.formatString(ctx, key).raw(', ')
+              this.formatField(ctx, expr, column.name!)
+            }
+            return stmt
           case TargetType.Each:
             return stmt.identifier(expr.target.alias).raw('.value')
           default:

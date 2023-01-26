@@ -3,15 +3,12 @@ import {FormatContext, Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
 import {TargetType} from '../lib/Target'
 
-function escapeWithin(input: string, outer: string) {
-  let buf = outer
-  for (const char of input) {
-    if (char === outer) buf += outer + outer
-    else buf += char
-  }
-  buf += outer
-  return buf
-}
+const BACKTICK = '`'
+const ESCAPE_BACKTICK = '``'
+const SINGLE_QUOTE = "'"
+const ESCAPE_SINGLE_QUOTE = "''"
+const MATCH_BACKTICK = /`/g
+const MATCH_SINGLE_QUOTE = /'/g
 
 export class SqliteFormatter extends Formatter {
   formatParamValue(paramValue: any): any {
@@ -23,7 +20,7 @@ export class SqliteFormatter extends Formatter {
   }
 
   escapeValue(value: any): string {
-    if (value === null || value === undefined) return 'null'
+    if (value === null || value === undefined) return 'NULL'
     if (typeof value === 'boolean') return value ? '1' : '0'
     if (typeof value === 'number') return String(value)
     if (typeof value === 'string') return this.escapeString(value)
@@ -31,11 +28,15 @@ export class SqliteFormatter extends Formatter {
   }
 
   escapeIdentifier(input: string): string {
-    return escapeWithin(input, '`')
+    return BACKTICK + input.replace(MATCH_BACKTICK, ESCAPE_BACKTICK) + BACKTICK
   }
 
   escapeString(input: string) {
-    return escapeWithin(input, "'")
+    return (
+      SINGLE_QUOTE +
+      input.replace(MATCH_SINGLE_QUOTE, ESCAPE_SINGLE_QUOTE) +
+      SINGLE_QUOTE
+    )
   }
 
   formatAccess(

@@ -1,71 +1,22 @@
 import {ParamData, ParamType} from './Param'
 import {Sanitizer} from './Sanitizer'
 
-enum TokenType {
-  Raw = 'Raw',
-  Identifier = 'Identifier',
-  Value = 'Value',
-  Param = 'Param',
-  Indent = 'Indent',
-  Dedent = 'Dedent'
-}
-
-class Token {
-  constructor(public type: TokenType, public data: any) {}
-
-  static Raw(data: string) {
-    return new Token(TokenType.Raw, data)
-  }
-
-  static Indent() {
-    return new Token(TokenType.Indent, null)
-  }
-
-  static Dedent() {
-    return new Token(TokenType.Dedent, null)
-  }
-
-  static Identifier(data: string) {
-    return new Token(TokenType.Identifier, data)
-  }
-
-  static Value(data: any) {
-    return new Token(TokenType.Value, data)
-  }
-
-  static Param(name: string) {
-    return new Token(TokenType.Param, name)
-  }
-}
-
 const SEPARATE = ', '
 const WHITESPACE = ' '
 const NEWLINE = '\n'
-
-export interface CompileOptions {
-  formatInline?: boolean
-  spaces?: number
-}
+const INSERT_PARAM = '?'
 
 export class Statement {
-  constructor(public tokens: Array<Token> = []) {}
+  currentIndent = ''
 
-  concat(...tokens: Array<Token>) {
-    this.tokens.push(...tokens)
-    return this
-  }
-
-  static tag(strings: ReadonlyArray<string>, params: Array<Statement>) {
-    return new Statement(
-      strings.flatMap((s, i) => {
-        const param = params[i]
-        return [Token.Raw(s)].concat(param ? param.tokens : [])
-      })
-    )
-  }
+  constructor(
+    public sanitizer: Sanitizer,
+    public sql: string = '',
+    private paramData: Array<ParamData> = []
+  ) {}
 
   space() {
-    if (this.tokens.length === 0) return this
+    if (this.sql === '') return this
     return this.raw(WHITESPACE)
   }
 
@@ -80,20 +31,21 @@ export class Statement {
   }
 
   indent() {
-    return this.concat(Token.Indent())
+    this.currentIndent = this.currentIndent + '  '
+    return this
   }
 
   dedent() {
-    return this.concat(Token.Dedent())
+    this.currentIndent = this.currentIndent.slice(0, -2)
+    return this
   }
 
-  newline(ignore = false) {
-    if (ignore) return this
-    return this.raw(NEWLINE)
+  newline() {
+    return this.raw(NEWLINE + this.currentIndent)
   }
 
   identifier(name: string) {
-    return this.concat(Token.Identifier(name))
+    return this.raw(this.sanitizer.escapeIdentifier(name))
   }
 
   addIdentifier(name: string) {
@@ -101,7 +53,8 @@ export class Statement {
   }
 
   value(value: any) {
-    return this.concat(Token.Value(value))
+    this.paramData.push(ParamData.Value(value))
+    return this.raw(INSERT_PARAM)
   }
 
   addValue(value: any) {
@@ -109,7 +62,8 @@ export class Statement {
   }
 
   param(name: string) {
-    return this.concat(Token.Param(name))
+    this.paramData.push(ParamData.Named(name))
+    return this.raw(INSERT_PARAM)
   }
 
   addParam(name: string) {
@@ -118,7 +72,8 @@ export class Statement {
 
   raw(query: string) {
     if (!query) return this
-    return this.concat(Token.Raw(query))
+    this.sql += query
+    return this
   }
 
   openParenthesis() {
@@ -143,57 +98,8 @@ export class Statement {
   }
 
   isEmpty() {
-    return (
-      this.tokens.length === 0 ||
-      (this.tokens.length === 1 &&
-        this.tokens[0].type === TokenType.Raw &&
-        this.tokens[0].data === '')
-    )
+    return this.sql === ''
   }
-
-  compile(sanitizer: Sanitizer, formatInline = false): CompiledStatement {
-    let sql = '',
-      paramData: Array<ParamData> = [],
-      indent = ''
-    for (const token of this.tokens) {
-      switch (token.type) {
-        case TokenType.Raw:
-          if (token.data === NEWLINE) sql += NEWLINE + indent
-          else sql += token.data
-          break
-        case TokenType.Identifier:
-          sql += sanitizer.escapeIdentifier(token.data)
-          break
-        case TokenType.Value:
-          if (formatInline) {
-            sql += sanitizer.escapeValue(token.data)
-          } else {
-            sql += '?'
-            paramData.push(ParamData.Value(token.data))
-          }
-          break
-        case TokenType.Param:
-          sql += '?'
-          paramData.push(ParamData.Named(token.data))
-          break
-        case TokenType.Indent:
-          indent += '  '
-          break
-        case TokenType.Dedent:
-          indent = indent.slice(0, -2)
-          break
-      }
-    }
-    return new CompiledStatement(sanitizer, sql, paramData)
-  }
-}
-
-export class CompiledStatement {
-  constructor(
-    public sanitizer: Sanitizer,
-    public sql: string,
-    private paramData: Array<ParamData>
-  ) {}
 
   params(input?: Record<string, any>): Array<any> {
     return this.paramData.map(param => {

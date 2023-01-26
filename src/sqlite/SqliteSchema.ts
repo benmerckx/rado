@@ -50,7 +50,7 @@ export namespace SqliteSchema {
   }
 
   export function columnInstruction(column: Column): [string, string] {
-    const stmt = new Statement()
+    const stmt = new Statement(formatter)
     stmt.identifier(column.name).add(column.type)
     if (column.pk === 1) stmt.add('PRIMARY KEY')
     if (column.notnull === 1) stmt.add('NOT NULL')
@@ -62,7 +62,7 @@ export namespace SqliteSchema {
         .raw(column.dflt_value)
         .closeParenthesis()
     }
-    return [column.name, stmt.compile(formatter).sql]
+    return [column.name, stmt.sql]
   }
 
   export function indexInstruction(index: Index): [string, string] {
