@@ -12,6 +12,16 @@
     "dist"
   ],
   "sideEffects": false,
+  "typesVersions": {
+    "*": {
+      "driver/bun:sqlite": [
+        "./dist/driver/bun-sqlite.d.ts"
+      ],
+      "*": [
+        "./dist/*"
+      ]
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsx build.ts",
     "test": "tsx test",
