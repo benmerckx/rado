@@ -48,6 +48,7 @@ export interface FormatContext {
   /** Inline all parameters */
   forceInline?: boolean
   formatAsJson?: boolean
+  formatAsDefault?: boolean
   topLevel?: boolean
 }
 
@@ -74,7 +75,7 @@ export abstract class Formatter implements Sanitizer {
   compile<T>(query: Query<T>, options?: Partial<FormatContext>): Statement {
     const stmt = new Statement(this)
     const result = this.format({stmt, topLevel: true, ...options}, query)
-    // console.log(result.sql)
+    console.log(result.sql)
     return result
   }
 
@@ -215,7 +216,7 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     stmt.add('ALTER TABLE').addIdentifier(query.table.name)
     if (query.addColumn) {
-      stmt.add('ADD COLUMN')
+      stmt.add('ADD COLUMN').space()
       this.formatColumn(ctx, query.addColumn)
     } else if (query.dropColumn) {
       stmt.add('DROP COLUMN').addIdentifier(query.dropColumn)
@@ -274,7 +275,7 @@ export abstract class Formatter implements Sanitizer {
         this.formatExpr(
           {
             ...ctx,
-            formatAsJson: true,
+            formatAsDefault: true,
             forceInline: true
           },
           column.defaultValue!
@@ -346,8 +347,14 @@ export abstract class Formatter implements Sanitizer {
     if (isNull) {
       if (column.defaultValue !== undefined) {
         if (typeof column.defaultValue === 'function')
-          return this.formatExprJson(ctx, column.defaultValue())
-        return this.formatExprJson(ctx, column.defaultValue)
+          return this.formatExprJson(
+            {...ctx, formatAsDefault: true},
+            column.defaultValue()
+          )
+        return this.formatExprJson(
+          {...ctx, formatAsDefault: true},
+          column.defaultValue
+        )
       }
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
@@ -560,20 +567,20 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatValue(ctx: FormatContext, rawValue: any): Statement {
-    const {stmt, formatAsJson, forceInline} = ctx
+    const {stmt, formatAsJson, formatAsDefault, forceInline} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
         return stmt.raw('NULL')
-      case !formatAsJson && typeof rawValue === 'boolean':
+      case (formatAsDefault || !formatAsJson) && typeof rawValue === 'boolean':
         return rawValue ? stmt.raw('1') : stmt.raw('0')
       case Array.isArray(rawValue):
-        if (formatAsJson) {
+        if (formatAsDefault || formatAsJson) {
           stmt.raw('json_array')
           stmt.openParenthesis()
         }
         for (const v of stmt.separate(rawValue))
           this.formatValue({...ctx, formatAsJson: false}, v)
-        if (formatAsJson) stmt.closeParenthesis()
+        if (formatAsDefault || formatAsJson) stmt.closeParenthesis()
         return stmt
       case typeof rawValue === 'string' || typeof rawValue === 'number':
         if (forceInline) return stmt.raw(this.escapeValue(rawValue))

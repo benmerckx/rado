@@ -51,7 +51,8 @@ test('Add col', async () => {
       id: column.integer().primaryKey(),
       createdAt,
       newCol: column.string(),
-      def: column.string().defaultValue(() => 'test')
+      def: column.string().defaultValue(() => 'test'),
+      isFalse: column.boolean().defaultValue(false)
     },
     indexes() {
       return {
