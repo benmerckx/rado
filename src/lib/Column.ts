@@ -43,8 +43,13 @@ export class Column<T> {
     return new Column({...this.data, primaryKey: true})
   }
 
-  references<X extends T>(column: Expr<X>): Column<X> {
-    return new Column({...this.data, references: ExprData.create(column)})
+  references<X extends T>(column: Expr<X> | (() => Expr<X>)): Column<X> {
+    return new Column({
+      ...this.data,
+      get references() {
+        return ExprData.create(typeof column === 'function' ? column() : column)
+      }
+    })
   }
 
   unique(): Column<T> {
