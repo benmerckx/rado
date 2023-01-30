@@ -16,7 +16,7 @@ interface PartialColumnData {
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
-  references?: ExprData
+  references?: () => ExprData
 }
 
 export interface ColumnData extends PartialColumnData {
@@ -46,7 +46,7 @@ export class Column<T> {
   references<X extends T>(column: Expr<X> | (() => Expr<X>)): Column<X> {
     return new Column({
       ...this.data,
-      get references() {
+      references() {
         return ExprData.create(typeof column === 'function' ? column() : column)
       }
     })

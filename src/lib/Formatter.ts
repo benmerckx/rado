@@ -280,7 +280,8 @@ export abstract class Formatter implements Sanitizer {
       )
       stmt.closeParenthesis()
     }
-    if (column.references) this.formatContraintReference(ctx, column.references)
+    if (column.references)
+      this.formatContraintReference(ctx, column.references())
     return stmt
   }
 
