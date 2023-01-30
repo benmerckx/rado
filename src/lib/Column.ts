@@ -39,8 +39,16 @@ export class Column<T> {
     return new Column({...this.data, autoIncrement: true})
   }
 
-  primaryKey<K extends string>(): Column<Column.IsPrimary<T, K>> {
-    return new Column({...this.data, primaryKey: true})
+  primaryKey<K extends string>(
+    create?: () => EV<T>
+  ): Column<Column.IsPrimary<T, K>> {
+    return new Column({
+      ...this.data,
+      primaryKey: true,
+      defaultValue: create
+        ? () => ExprData.create(create())
+        : this.data.defaultValue
+    })
   }
 
   references<X extends T>(column: Expr<X> | (() => Expr<X>)): Column<X> {
