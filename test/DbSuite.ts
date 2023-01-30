@@ -5,7 +5,7 @@ export async function connect(): Promise<Driver.Async> {
     case 'bun:sqlite': {
       const {Database} = await import('bun:sqlite')
       const {connect: createConnection} = await import(
-        '../src/driver/bun:sqlite'
+        '../src/driver/bun-sqlite'
       )
       return createConnection(new Database(':memory:')).toAsync()
     }

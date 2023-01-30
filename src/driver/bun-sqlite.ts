@@ -64,12 +64,6 @@ export class BunSqliteDriver extends Driver.Sync {
     const indexData = this.indexData(tableName)
     return SqliteSchema.createInstructions(columnData, indexData)
   }
-
-  export(): Uint8Array {
-    // This is missing from the type definitions
-    // @ts-ignore
-    return this.db.serialize()
-  }
 }
 
 export function connect(db: Database) {
