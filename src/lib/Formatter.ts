@@ -71,9 +71,9 @@ export abstract class Formatter implements Sanitizer {
     field: string
   ): Statement
 
-  compile<T>(query: Query<T>) {
+  compile<T>(query: Query<T>, options?: Partial<FormatContext>): Statement {
     const stmt = new Statement(this)
-    const result = this.format({stmt, topLevel: true}, query)
+    const result = this.format({stmt, topLevel: true, ...options}, query)
     // console.log(result.sql)
     return result
   }
