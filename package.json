@@ -5,19 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
-    "./*": "./dist/*.js"
+    "./*": "./dist/*.js",
+    "./driver/bun:sqlite": "./dist/driver/bun-sqlite.js"
   },
   "files": [
     "dist"
   ],
   "sideEffects": false,
-  "typesVersions": {
-    "*": {
-      "*": [
-        "./dist/*"
-      ]
-    }
-  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsx build.ts",
     "test": "tsx test",
