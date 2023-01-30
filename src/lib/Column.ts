@@ -12,7 +12,7 @@ interface PartialColumnData {
   type: ColumnType
   name?: string
   nullable?: boolean
-  defaultValue?: ExprData
+  defaultValue?: ExprData | (() => ExprData)
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
@@ -56,8 +56,16 @@ export class Column<T> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(value: EV<T>): Column<Column.IsOptional<T>> {
-    return new Column({...this.data, defaultValue: ExprData.create(value)})
+  defaultValue(create: () => EV<T>): Column<Column.IsOptional<T>>
+  defaultValue(value: EV<T>): Column<Column.IsOptional<T>>
+  defaultValue(value: any): Column<Column.IsOptional<T>> {
+    return new Column({
+      ...this.data,
+      defaultValue:
+        typeof value === 'function'
+          ? () => ExprData.create(value())
+          : ExprData.create(value)
+    })
   }
 }
 

@@ -50,7 +50,8 @@ test('Add col', async () => {
     columns: {
       id: column.integer().primaryKey(),
       createdAt,
-      newCol: column.string()
+      newCol: column.string(),
+      def: column.string().defaultValue(() => 'test')
     },
     indexes() {
       return {
@@ -66,9 +67,13 @@ test('Add col', async () => {
     })
   )
   const rowOne = await query(
-    AddCol.select({id: AddCol.id, newCol: AddCol.newCol}).first()
+    AddCol.select({
+      id: AddCol.id,
+      newCol: AddCol.newCol,
+      def: AddCol.def
+    }).first()
   )
-  assert.equal(rowOne, {id: 1, newCol: 'new'})
+  assert.equal(rowOne, {id: 1, newCol: 'new', def: 'test'})
 })
 
 test.run()

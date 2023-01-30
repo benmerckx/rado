@@ -268,17 +268,19 @@ export abstract class Formatter implements Sanitizer {
     if (column.primaryKey) stmt.add('PRIMARY KEY')
     if (!column.nullable) stmt.add('NOT NULL')
     if (column.defaultValue !== undefined) {
-      stmt.add('DEFAULT').space()
-      stmt.openParenthesis()
-      this.formatExpr(
-        {
-          ...ctx,
-          formatAsJson: true,
-          forceInline: true
-        },
-        column.defaultValue!
-      )
-      stmt.closeParenthesis()
+      if (typeof column.defaultValue !== 'function') {
+        stmt.add('DEFAULT').space()
+        stmt.openParenthesis()
+        this.formatExpr(
+          {
+            ...ctx,
+            formatAsJson: true,
+            forceInline: true
+          },
+          column.defaultValue!
+        )
+        stmt.closeParenthesis()
+      }
     }
     if (column.references)
       this.formatContraintReference(ctx, column.references())
@@ -342,8 +344,11 @@ export abstract class Formatter implements Sanitizer {
     const isOptional =
       column.nullable || column.autoIncrement || column.primaryKey
     if (isNull) {
-      if (column.defaultValue !== undefined)
+      if (column.defaultValue !== undefined) {
+        if (typeof column.defaultValue === 'function')
+          return this.formatExprJson(ctx, column.defaultValue())
         return this.formatExprJson(ctx, column.defaultValue)
+      }
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
       return stmt.raw('NULL')
