@@ -1,8 +1,8 @@
+import {Formatter} from '../lib/Formatter'
+import {Statement} from '../lib/Statement'
 import {ColumnData} from './Column'
-import {Formatter} from './Formatter'
 import {IndexData} from './Index'
 import {Query} from './Query'
-import {Statement} from './Statement'
 
 export interface Schema {
   name: string

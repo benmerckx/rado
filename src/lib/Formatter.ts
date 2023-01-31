@@ -1,11 +1,11 @@
-import {ColumnData, ColumnType} from './Column'
-import {BinOp, Expr, ExprData, ExprType, UnOp} from './Expr'
-import {OrderBy, OrderDirection} from './OrderBy'
-import {ParamType} from './Param'
-import {Query, QueryType} from './Query'
+import {ColumnData, ColumnType} from '../define/Column'
+import {BinOp, Expr, ExprData, ExprType, UnOp} from '../define/Expr'
+import {OrderBy, OrderDirection} from '../define/OrderBy'
+import {ParamType} from '../define/Param'
+import {Query, QueryType} from '../define/Query'
+import {Target, TargetType} from '../define/Target'
 import {Sanitizer} from './Sanitizer'
 import {Statement} from './Statement'
-import {Target, TargetType} from './Target'
 
 const binOps = {
   [BinOp.Add]: '+',

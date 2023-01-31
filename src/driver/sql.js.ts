@@ -1,6 +1,6 @@
 import type {Database} from 'sql.js'
+import {SchemaInstructions} from '../define/Schema'
 import {Driver} from '../lib/Driver'
-import {SchemaInstructions} from '../lib/Schema'
 import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'

@@ -1,11 +1,11 @@
-import {Cursor} from './Cursor'
-import {Expr, ExprData} from './Expr'
+import {Cursor} from '../define/Cursor'
+import {Expr, ExprData} from '../define/Expr'
+import {ParamData} from '../define/Param'
+import {Query, QueryType} from '../define/Query'
+import {Schema, SchemaInstructions} from '../define/Schema'
+import {Table} from '../define/Table'
 import {Formatter} from './Formatter'
-import {ParamData} from './Param'
-import {Query, QueryType} from './Query'
-import {Schema, SchemaInstructions} from './Schema'
 import {Statement} from './Statement'
-import {Table} from './Table'
 
 class Callable extends Function {
   constructor(fn: Function) {

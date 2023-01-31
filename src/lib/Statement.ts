@@ -1,4 +1,4 @@
-import {ParamData, ParamType} from './Param'
+import {ParamData, ParamType} from '../define/Param'
 import {Sanitizer} from './Sanitizer'
 
 const SEPARATE = ', '

@@ -1,4 +1,4 @@
-import {Driver} from './Driver'
+import {Driver} from '../lib/Driver'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
