@@ -493,7 +493,9 @@ export abstract class Formatter implements Sanitizer {
   formatIn(ctx: FormatContext, expr: ExprData): Statement {
     const {stmt} = ctx
     switch (expr.type) {
-      case ExprType.Field:
+      case ExprType.Query:
+        return this.formatExprValue(ctx, expr)
+      default:
         stmt.openParenthesis()
         stmt.raw('SELECT value FROM json_each')
         stmt.openParenthesis()
@@ -501,8 +503,6 @@ export abstract class Formatter implements Sanitizer {
         stmt.closeParenthesis()
         stmt.closeParenthesis()
         return stmt
-      default:
-        return this.formatExprValue(ctx, expr)
     }
   }
 
