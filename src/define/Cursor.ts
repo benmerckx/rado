@@ -45,7 +45,7 @@ export class Cursor<T> {
 
 function addWhere<T>(query: Query<T>, where: Array<EV<boolean>>): Query<T> {
   const conditions: Array<any> = where.slice()
-  if (query.where) conditions.push(query.where)
+  if (query.where) conditions.push(new Expr(query.where))
   return {
     ...query,
     where: Expr.and(...conditions).expr
