@@ -4,25 +4,27 @@
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
     "./*": "./dist/*.js",
     "./driver/bun:sqlite": "./dist/driver/bun-sqlite.js"
   },
-  "files": [
-    "dist"
-  ],
-  "sideEffects": false,
   "typesVersions": {
     "*": {
       "driver/bun:sqlite": [
         "./dist/driver/bun-sqlite.d.ts"
       ],
       "*": [
-        "./dist/*"
+        "./dist/*",
+        "./dist/index.d.ts"
       ]
     }
   },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsx build.ts",
     "test": "tsx test",
