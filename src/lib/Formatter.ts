@@ -131,8 +131,10 @@ export abstract class Formatter implements Sanitizer {
     if (query.into.alias) stmt.raw('AS').addIdentifier(query.into.alias)
     for (const column of stmt.call(columns)) this.formatString(ctx, column.name)
     stmt.add('VALUES')
-    for (const row of stmt.separate(query.data))
-      this.formatInsertRow(ctx, query.into.columns, row)
+    if (query.data.length === 0) stmt.add('()')
+    else
+      for (const row of stmt.separate(query.data))
+        this.formatInsertRow(ctx, query.into.columns, row)
     if (query.selection) {
       stmt.add('RETURNING').space()
       this.formatSelection(ctx, query.selection, formatAsResultObject)
