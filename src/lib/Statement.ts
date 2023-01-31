@@ -27,7 +27,7 @@ export class Statement {
 
   addLine(addition: undefined | string) {
     if (!addition) return this
-    return this.newline().add(addition)
+    return this.newline().raw(addition)
   }
 
   indent() {

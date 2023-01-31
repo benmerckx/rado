@@ -108,7 +108,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatSelect(ctx: FormatContext, query: Query.Select): Statement {
     const {stmt, topLevel} = ctx
-    stmt.add('SELECT').space()
+    stmt.raw('SELECT').space()
     this.formatSelection(
       {...ctx, topLevel: false},
       query.selection,
@@ -386,7 +386,7 @@ export abstract class Formatter implements Sanitizer {
     switch (target.type) {
       case TargetType.Table:
         stmt.identifier(target.table.name)
-        if (target.table.alias) stmt.raw('AS').addIdentifier(target.table.alias)
+        if (target.table.alias) stmt.add('AS').addIdentifier(target.table.alias)
         return stmt
       case TargetType.Join:
         const {left, right, joinType} = target
@@ -400,7 +400,7 @@ export abstract class Formatter implements Sanitizer {
         stmt.openParenthesis()
         this.format(ctx, target.query)
         stmt.closeParenthesis()
-        if (target.alias) stmt.raw('AS').addIdentifier(target.alias)
+        if (target.alias) stmt.add('AS').addIdentifier(target.alias)
         return stmt
       case TargetType.Expr:
         throw new Error('Cannot format expression as target')
@@ -440,7 +440,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!orderBy) return stmt
-    stmt.newline().raw('ORDER BY')
+    stmt.newline().raw('ORDER BY').space()
     for (const {expr, order} of stmt.separate(orderBy)) {
       this.formatExprValue(ctx, expr)
       stmt.add(order === OrderDirection.Asc ? 'ASC' : 'DESC')
@@ -661,6 +661,7 @@ export abstract class Formatter implements Sanitizer {
           .raw('SELECT json_group_array(json(result))')
           .newline()
           .raw('FROM')
+          .space()
           .openParenthesis()
         this.format(ctx, expr.query)
         return stmt.closeParenthesis().closeParenthesis()

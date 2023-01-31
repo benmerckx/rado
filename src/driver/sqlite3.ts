@@ -2,6 +2,7 @@ import type {Database, Statement as NativeStatement} from 'sqlite3'
 import {Query} from '../define/Query'
 import {SchemaInstructions} from '../define/Schema'
 import {Driver} from '../lib/Driver'
+import {SqlError} from '../lib/SqlError'
 import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
@@ -95,7 +96,11 @@ export class Sqlite3Driver extends Driver.Async {
   }
 
   prepareStatement(stmt: Statement): Driver.Async.PreparedStatement {
-    return new PreparedStatement(this.db.prepare(stmt.sql))
+    try {
+      return new PreparedStatement(this.db.prepare(stmt.sql))
+    } catch (e: any) {
+      throw new SqlError(e, stmt.sql)
+    }
   }
 
   async schemaInstructions(
