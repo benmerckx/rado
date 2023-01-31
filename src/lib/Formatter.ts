@@ -393,9 +393,9 @@ export abstract class Formatter implements Sanitizer {
       case TargetType.Join:
         const {left, right, joinType} = target
         this.formatTarget(ctx, left)
-        stmt.addLine(joins[joinType]).add('JOIN')
+        stmt.addLine(joins[joinType]).add('JOIN').space()
         this.formatTarget(ctx, right)
-        stmt.add('ON')
+        stmt.add('ON').space()
         this.formatExprValue(ctx, target.on)
         return stmt
       case TargetType.Query:
