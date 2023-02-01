@@ -1,4 +1,5 @@
 import {Driver} from '../lib/Driver'
+import {CompileOptions} from '../lib/Formatter'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
@@ -38,8 +39,8 @@ export class Cursor<T> {
     return driver.executeQuery(this.query())
   }
 
-  compile(driver: Driver) {
-    return driver.formatter.compile(this.query())
+  compile(driver: Driver, options?: CompileOptions) {
+    return driver.formatter.compile(this.query(), options)
   }
 
   toJSON(): Query<T> {

@@ -60,6 +60,10 @@ function formatAsResultObject(stmt: Statement, mkSubject: () => void) {
   stmt.raw(')')
 }
 
+export interface CompileOptions
+  extends Partial<FormatContext>,
+    StatementOptions {}
+
 export abstract class Formatter implements Sanitizer {
   constructor() {}
 
@@ -72,7 +76,7 @@ export abstract class Formatter implements Sanitizer {
     field: string
   ): Statement
 
-  compile<T>(query: Query<T>, options?: Partial<FormatContext>): Statement {
+  compile<T>(query: Query<T>, options?: CompileOptions): Statement {
     const result = this.format(
       this.createContext({topLevel: true, ...options}),
       query
@@ -81,7 +85,7 @@ export abstract class Formatter implements Sanitizer {
     return result
   }
 
-  createContext(options?: Partial<FormatContext> & StatementOptions) {
+  createContext(options?: CompileOptions) {
     return {stmt: new Statement(this, options), ...options}
   }
 
