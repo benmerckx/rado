@@ -4,7 +4,7 @@ import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamType} from './Param'
 import {Query, QueryType} from './Query'
 import {Sanitizer} from './Sanitizer'
-import {Statement} from './Statement'
+import {Statement, StatementOptions} from './Statement'
 import {Target, TargetType} from './Target'
 
 const binOps = {
@@ -73,10 +73,16 @@ export abstract class Formatter implements Sanitizer {
   ): Statement
 
   compile<T>(query: Query<T>, options?: Partial<FormatContext>): Statement {
-    const stmt = new Statement(this)
-    const result = this.format({stmt, topLevel: true, ...options}, query)
+    const result = this.format(
+      this.createContext({topLevel: true, ...options}),
+      query
+    )
     // console.log(result.sql)
     return result
+  }
+
+  createContext(options?: Partial<FormatContext> & StatementOptions) {
+    return {stmt: new Statement(this, options), ...options}
   }
 
   format<T>(ctx: FormatContext, query: Query<T>): Statement {
@@ -576,11 +582,11 @@ export abstract class Formatter implements Sanitizer {
       case Array.isArray(rawValue):
         if (formatAsDefault || formatAsJson) {
           stmt.raw('json_array')
-          stmt.openParenthesis()
         }
+        stmt.openParenthesis()
         for (const v of stmt.separate(rawValue))
           this.formatValue({...ctx, formatAsJson: false}, v)
-        if (formatAsDefault || formatAsJson) stmt.closeParenthesis()
+        stmt.closeParenthesis()
         return stmt
       case typeof rawValue === 'string' || typeof rawValue === 'number':
         if (forceInline) return stmt.raw(this.escapeValue(rawValue))
@@ -620,7 +626,7 @@ export abstract class Formatter implements Sanitizer {
           case ParamType.Value:
             return this.formatValue(ctx, expr.param.value)
           case ParamType.Named:
-            return stmt.param(expr.param.name)
+            return stmt.param(expr.param)
         }
       case ExprType.Field:
         return this.formatField(ctx, expr.expr, expr.field)

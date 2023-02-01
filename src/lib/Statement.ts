@@ -6,13 +6,18 @@ const WHITESPACE = ' '
 const NEWLINE = '\n'
 const INSERT_PARAM = '?'
 
+export interface StatementOptions {
+  skipNewlines?: boolean
+}
+
 export class Statement {
+  sql: string = ''
+  paramData: Array<ParamData> = []
   currentIndent = ''
 
   constructor(
     public sanitizer: Sanitizer,
-    public sql: string = '',
-    private paramData: Array<ParamData> = []
+    public options: StatementOptions = {}
   ) {}
 
   space() {
@@ -41,6 +46,7 @@ export class Statement {
   }
 
   newline() {
+    if (this.options.skipNewlines) return this
     return this.raw(NEWLINE + this.currentIndent)
   }
 
@@ -61,13 +67,13 @@ export class Statement {
     return this.space().value(value)
   }
 
-  param(name: string) {
-    this.paramData.push(ParamData.Named(name))
+  param(data: ParamData) {
+    this.paramData.push(data)
     return this.raw(INSERT_PARAM)
   }
 
-  addParam(name: string) {
-    return this.space().param(name)
+  addParam(data: ParamData) {
+    return this.space().param(data)
   }
 
   raw(query: string) {
