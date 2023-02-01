@@ -48,7 +48,7 @@ export interface FormatContext {
   /** Inline all parameters */
   forceInline?: boolean
   formatAsJson?: boolean
-  formatAsDefault?: boolean
+  formatAsInsert?: boolean
   topLevel?: boolean
 }
 
@@ -157,7 +157,7 @@ export abstract class Formatter implements Sanitizer {
       const value = data[key]
       if (value instanceof Expr)
         this.formatExprJson(ctx, ExprData.create(data[key]))
-      else this.formatValue({...ctx, formatAsJson: true}, value)
+      else this.formatValue({...ctx, formatAsInsert: true}, value)
     }
     this.formatWhere(ctx, query.where)
     this.formatLimit(ctx, query)
@@ -280,7 +280,7 @@ export abstract class Formatter implements Sanitizer {
         this.formatExpr(
           {
             ...ctx,
-            formatAsDefault: true,
+            formatAsInsert: true,
             forceInline: true
           },
           column.defaultValue!
@@ -353,11 +353,11 @@ export abstract class Formatter implements Sanitizer {
       if (column.defaultValue !== undefined) {
         if (typeof column.defaultValue === 'function')
           return this.formatExprJson(
-            {...ctx, formatAsDefault: true},
+            {...ctx, formatAsInsert: true},
             column.defaultValue()
           )
         return this.formatExprJson(
-          {...ctx, formatAsDefault: true},
+          {...ctx, formatAsInsert: true},
           column.defaultValue
         )
       }
@@ -533,17 +533,21 @@ export abstract class Formatter implements Sanitizer {
         switch (expr.target.type) {
           case TargetType.Table:
             const column = expr.target.table.columns[field]
+            const asBoolean =
+              column?.type === ColumnType.Boolean && ctx.formatAsJson
             const asJson = column?.type === ColumnType.Json && ctx.formatAsJson
             if (asJson) {
               stmt.add('json')
               stmt.openParenthesis()
             }
+            if (asBoolean) stmt.add(`json(iif(`)
             if (!ctx.skipTableName) {
               stmt
                 .identifier(expr.target.table.alias || expr.target.table.name)
                 .raw('.')
             }
             stmt.identifier(field)
+            if (asBoolean) stmt.add(`, 'true', 'false'))`)
             if (asJson) stmt.closeParenthesis()
             return stmt
         }
@@ -572,14 +576,14 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatValue(ctx: FormatContext, rawValue: any): Statement {
-    const {stmt, formatAsJson, formatAsDefault, forceInline} = ctx
+    const {stmt, formatAsJson, formatAsInsert, forceInline} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
         return stmt.raw('NULL')
-      case (formatAsDefault || !formatAsJson) && typeof rawValue === 'boolean':
+      case (formatAsInsert || !formatAsJson) && typeof rawValue === 'boolean':
         return rawValue ? stmt.raw('1') : stmt.raw('0')
       case Array.isArray(rawValue):
-        const asJson = formatAsJson || formatAsDefault
+        const asJson = formatAsJson || formatAsInsert
         if (asJson) stmt.raw('json_array')
         stmt.openParenthesis()
         for (const v of stmt.separate(rawValue))

@@ -8,6 +8,7 @@ const User = table({
   columns: {
     id: column.integer().primaryKey<'user'>(),
     name: column.object<{given: string; last: string}>(),
+    booleanValue: column.boolean().defaultValue(false),
     email: column.string().nullable(),
     roles: column.array<string>().nullable(),
     deep: column.array<{prop: number}>().defaultValue([])
@@ -50,6 +51,9 @@ test('Update', async () => {
   )
   assert.is(res3.rowsAffected, 1)
   assert.is((await query(User.first()))!.name.given, 'def')
+
+  await User.set({booleanValue: true}).on(query)
+  assert.is((await User.sure().on(query)).booleanValue, true)
 })
 
 test('Update object', async () => {
