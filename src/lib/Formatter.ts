@@ -421,7 +421,10 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatWhere(ctx: FormatContext, expr: ExprData | undefined): Statement {
+  formatWhere(
+    {topLevel, ...ctx}: FormatContext,
+    expr: ExprData | undefined
+  ): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
     stmt.newline().raw('WHERE').space()
@@ -429,7 +432,10 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatHaving(ctx: FormatContext, expr: ExprData | undefined): Statement {
+  formatHaving(
+    {topLevel, ...ctx}: FormatContext,
+    expr: ExprData | undefined
+  ): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
     stmt.newline().raw('HAVING')
