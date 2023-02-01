@@ -497,7 +497,7 @@ export abstract class Formatter implements Sanitizer {
         selection
       )
     if (formatSubject) formatSubject(stmt, mkSubject)
-    else mkSubject()
+    else this.formatExpr(ctx, selection)
     stmt.add('AS').addIdentifier('result')
     return stmt
   }
@@ -728,7 +728,7 @@ export abstract class Formatter implements Sanitizer {
               .raw('SELECT value AS result')
               .add('FROM json_each')
               .openParenthesis()
-            this.formatExprJson(ctx, target.expr)
+            this.formatExpr(ctx, target.expr)
             stmt.closeParenthesis()
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
             stmt.add('WHERE').space()
@@ -752,7 +752,7 @@ export abstract class Formatter implements Sanitizer {
                 .openParenthesis()
             }
             stmt.raw('SELECT').space()
-            this.formatExprJson(ctx, result)
+            this.formatExpr(ctx, result)
               .add('AS result')
               .add('FROM json_each')
               .openParenthesis()

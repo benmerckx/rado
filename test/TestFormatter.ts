@@ -42,7 +42,7 @@ test('x in y.map(_)', async () => {
   )
   assert.is(
     stmt.sql,
-    "(? IN (SELECT `map`.value->'$.num' AS result FROM json_each(json(`example`.`array`)) AS `map`))"
+    "(? IN (SELECT `map`.value->>'$.num' AS result FROM json_each(json(`example`.`array`)) AS `map`))"
   )
 })
 
