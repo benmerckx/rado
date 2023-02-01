@@ -154,13 +154,10 @@ export abstract class Formatter implements Sanitizer {
     stmt.add('UPDATE').addIdentifier(query.table.name).add('SET').space()
     for (const key of stmt.separate(Object.keys(data))) {
       stmt.identifier(key).add('=').space()
-      this.formatExpr(
-        {
-          ...ctx,
-          formatAsJson: true
-        },
-        ExprData.create(data[key])
-      )
+      const value = data[key]
+      if (value instanceof Expr)
+        this.formatExprJson(ctx, ExprData.create(data[key]))
+      else this.formatValue({...ctx, formatAsJson: true}, value)
     }
     this.formatWhere(ctx, query.where)
     this.formatLimit(ctx, query)
