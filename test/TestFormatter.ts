@@ -21,7 +21,7 @@ test('x in y', async () => {
       ExprData.Param(ParamData.Value([1, 2, 3]))
     )
   )
-  assert.is(stmt.sql, `(? in (?, ?, ?))`)
+  assert.is(stmt.sql, `(? IN (?, ?, ?))`)
 })
 
 const Example = table({
@@ -42,7 +42,7 @@ test('x in y.map(_)', async () => {
   )
   assert.is(
     stmt.sql,
-    "(? in (SELECT `map`.value->'$.num' AS result FROM json_each(json(`example`.`array`)) AS `map`))"
+    "(? IN (SELECT `map`.value->'$.num' AS result FROM json_each(json(`example`.`array`)) AS `map`))"
   )
 })
 
