@@ -472,13 +472,14 @@ export abstract class Formatter implements Sanitizer {
     ctx: FormatContext,
     {limit, offset, singleResult}: Query.QueryBase
   ): Statement {
-    const {stmt} = ctx
+    const {stmt, forceInline} = ctx
     if (!limit && !offset && !singleResult) return stmt
-    stmt
-      .newline()
-      .raw('LIMIT')
-      .addValue(singleResult ? 1 : limit)
-    if (offset && offset > 0) stmt.raw('OFFSET').addValue(offset)
+    stmt.newline().raw('LIMIT')
+    this.formatValue(ctx, singleResult ? 1 : limit)
+    if (offset && offset > 0) {
+      stmt.raw('OFFSET')
+      this.formatValue(ctx, offset)
+    }
     return stmt
   }
 
