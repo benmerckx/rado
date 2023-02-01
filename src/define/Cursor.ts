@@ -38,6 +38,10 @@ export class Cursor<T> {
     return driver.executeQuery(this.query())
   }
 
+  compile(driver: Driver) {
+    return driver.formatter.compile(this.query())
+  }
+
   toJSON(): Query<T> {
     return this.query()
   }
