@@ -577,13 +577,13 @@ export abstract class Formatter implements Sanitizer {
 
   formatValue(ctx: FormatContext, rawValue: any): Statement {
     const {stmt, formatAsJson, formatAsInsert, forceInline} = ctx
+    const asJson = formatAsJson || formatAsInsert
     switch (true) {
       case rawValue === null || rawValue === undefined:
         return stmt.raw('NULL')
       case (formatAsInsert || !formatAsJson) && typeof rawValue === 'boolean':
         return rawValue ? stmt.raw('1') : stmt.raw('0')
-      case Array.isArray(rawValue):
-        const asJson = formatAsJson || formatAsInsert
+      case !formatAsInsert && Array.isArray(rawValue):
         if (asJson) stmt.raw('json_array')
         stmt.openParenthesis()
         for (const v of stmt.separate(rawValue))
@@ -598,7 +598,8 @@ export abstract class Formatter implements Sanitizer {
           stmt.raw('json')
           stmt.openParenthesis()
         }
-        this.formatString(ctx, JSON.stringify(rawValue))
+        if (forceInline) this.formatString(ctx, JSON.stringify(rawValue))
+        else stmt.value(JSON.stringify(rawValue))
         if (formatAsJson) stmt.closeParenthesis()
         return stmt
     }
