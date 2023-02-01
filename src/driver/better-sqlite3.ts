@@ -1,6 +1,7 @@
 import type {Database, Statement as NativeStatement} from 'better-sqlite3'
+import {SchemaInstructions} from '../define/Schema'
 import {Driver} from '../lib/Driver'
-import {SchemaInstructions} from '../lib/Schema'
+import {SqlError} from '../lib/SqlError'
 import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
@@ -40,7 +41,11 @@ export class BetterSqlite3Driver extends Driver.Sync {
   }
 
   prepareStatement(stmt: Statement): Driver.Sync.PreparedStatement {
-    return new PreparedStatement(this.db.prepare(stmt.sql))
+    try {
+      return new PreparedStatement(this.db.prepare(stmt.sql))
+    } catch (e: any) {
+      throw new SqlError(e, stmt.sql)
+    }
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {

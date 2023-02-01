@@ -1,6 +1,7 @@
 import type {Database} from 'sql.js'
+import {SchemaInstructions} from '../define/Schema'
 import {Driver} from '../lib/Driver'
-import {SchemaInstructions} from '../lib/Schema'
+import {SqlError} from '../lib/SqlError'
 import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter'
 import {SqliteSchema} from '../sqlite/SqliteSchema'
@@ -52,11 +53,15 @@ export class SqlJsDriver extends Driver.Sync {
     stmt: Statement,
     discardAfter: boolean
   ): Driver.Sync.PreparedStatement {
-    return new PreparedStatement(
-      this.db,
-      this.db.prepare(stmt.sql),
-      discardAfter
-    )
+    try {
+      return new PreparedStatement(
+        this.db,
+        this.db.prepare(stmt.sql),
+        discardAfter
+      )
+    } catch (e: any) {
+      throw new SqlError(e, stmt.sql)
+    }
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {

@@ -1,4 +1,4 @@
-import {ParamData, ParamType} from './Param'
+import {ParamData, ParamType} from '../define/Param'
 import {Sanitizer} from './Sanitizer'
 
 const SEPARATE = ', '
@@ -32,7 +32,7 @@ export class Statement {
 
   addLine(addition: undefined | string) {
     if (!addition) return this
-    return this.newline().add(addition)
+    return this.newline().raw(addition)
   }
 
   indent() {

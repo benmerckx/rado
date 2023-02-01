@@ -1,11 +1,11 @@
-import {ColumnData, ColumnType} from './Column'
-import {BinOp, Expr, ExprData, ExprType, UnOp} from './Expr'
-import {OrderBy, OrderDirection} from './OrderBy'
-import {ParamType} from './Param'
-import {Query, QueryType} from './Query'
+import {ColumnData, ColumnType} from '../define/Column'
+import {BinOp, Expr, ExprData, ExprType, UnOp} from '../define/Expr'
+import {OrderBy, OrderDirection} from '../define/OrderBy'
+import {ParamType} from '../define/Param'
+import {Query, QueryType} from '../define/Query'
+import {Target, TargetType} from '../define/Target'
 import {Sanitizer} from './Sanitizer'
 import {Statement, StatementOptions} from './Statement'
-import {Target, TargetType} from './Target'
 
 const binOps = {
   [BinOp.Add]: '+',
@@ -114,7 +114,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatSelect(ctx: FormatContext, query: Query.Select): Statement {
     const {stmt, topLevel} = ctx
-    stmt.add('SELECT').space()
+    stmt.raw('SELECT').space()
     this.formatSelection(
       {...ctx, topLevel: false},
       query.selection,
@@ -137,8 +137,10 @@ export abstract class Formatter implements Sanitizer {
     if (query.into.alias) stmt.raw('AS').addIdentifier(query.into.alias)
     for (const column of stmt.call(columns)) this.formatString(ctx, column.name)
     stmt.add('VALUES')
-    for (const row of stmt.separate(query.data))
-      this.formatInsertRow(ctx, query.into.columns, row)
+    if (query.data.length === 0) stmt.add('()')
+    else
+      for (const row of stmt.separate(query.data))
+        this.formatInsertRow(ctx, query.into.columns, row)
     if (query.selection) {
       stmt.add('RETURNING').space()
       this.formatSelection(ctx, query.selection, formatAsResultObject)
@@ -392,21 +394,21 @@ export abstract class Formatter implements Sanitizer {
     switch (target.type) {
       case TargetType.Table:
         stmt.identifier(target.table.name)
-        if (target.table.alias) stmt.raw('AS').addIdentifier(target.table.alias)
+        if (target.table.alias) stmt.add('AS').addIdentifier(target.table.alias)
         return stmt
       case TargetType.Join:
         const {left, right, joinType} = target
         this.formatTarget(ctx, left)
-        stmt.addLine(joins[joinType]).add('JOIN')
+        stmt.addLine(joins[joinType]).add('JOIN').space()
         this.formatTarget(ctx, right)
-        stmt.add('ON')
+        stmt.add('ON').space()
         this.formatExprValue(ctx, target.on)
         return stmt
       case TargetType.Query:
         stmt.openParenthesis()
         this.format(ctx, target.query)
         stmt.closeParenthesis()
-        if (target.alias) stmt.raw('AS').addIdentifier(target.alias)
+        if (target.alias) stmt.add('AS').addIdentifier(target.alias)
         return stmt
       case TargetType.Expr:
         throw new Error('Cannot format expression as target')
@@ -446,7 +448,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!orderBy) return stmt
-    stmt.newline().raw('ORDER BY')
+    stmt.newline().raw('ORDER BY').space()
     for (const {expr, order} of stmt.separate(orderBy)) {
       this.formatExprValue(ctx, expr)
       stmt.add(order === OrderDirection.Asc ? 'ASC' : 'DESC')
@@ -667,6 +669,7 @@ export abstract class Formatter implements Sanitizer {
           .raw('SELECT json_group_array(json(result))')
           .newline()
           .raw('FROM')
+          .space()
           .openParenthesis()
         this.format(ctx, expr.query)
         return stmt.closeParenthesis().closeParenthesis()
