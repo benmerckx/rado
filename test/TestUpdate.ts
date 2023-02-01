@@ -9,7 +9,8 @@ const User = table({
     id: column.integer().primaryKey<'user'>(),
     name: column.object<{given: string; last: string}>(),
     email: column.string().nullable(),
-    roles: column.array<string>().nullable()
+    roles: column.array<string>().nullable(),
+    deep: column.array<{prop: number}>().defaultValue([])
   }
 })
 type User = table.infer<typeof User>
@@ -89,12 +90,14 @@ test('Update array', async () => {
   )
   const res = await query(
     User.set({
-      roles: ['a', 'b']
+      roles: ['a', 'b'],
+      deep: [{prop: 1}]
     }).where(User.id.is(user.id))
   )
   assert.is(res.rowsAffected, 1)
   const user2 = (await query(User.first().where(User.id.is(user.id))))!
   assert.equal(user2.roles, ['a', 'b'])
+  assert.equal(user2.deep, [{prop: 1}])
 })
 
 test.run()
