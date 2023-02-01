@@ -153,6 +153,9 @@ export abstract class Formatter implements Sanitizer {
     const data = query.set || {}
     stmt.add('UPDATE').addIdentifier(query.table.name).add('SET').space()
     for (const key of stmt.separate(Object.keys(data))) {
+      const column = query.table.columns[key]
+      // Should this error?
+      if (!column) continue
       stmt.identifier(key).add('=').space()
       const value = data[key]
       if (value instanceof Expr)
