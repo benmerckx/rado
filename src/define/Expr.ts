@@ -6,12 +6,12 @@ import {Query} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
-export enum UnOp {
+export enum UnOpType {
   Not = 'Not',
   IsNull = 'IsNull'
 }
 
-export enum BinOp {
+export enum BinOpType {
   Add = 'Add',
   Subt = 'Subt',
   Mult = 'Mult',
@@ -49,29 +49,60 @@ export enum ExprType {
 }
 
 export type ExprData =
-  | {type: ExprType.UnOp; op: UnOp; expr: ExprData}
-  | {type: ExprType.BinOp; op: BinOp; a: ExprData; b: ExprData}
-  | {type: ExprType.Field; expr: ExprData; field: string}
-  | {type: ExprType.Param; param: ParamData}
-  | {type: ExprType.Call; method: string; params: Array<ExprData>}
-  | {type: ExprType.Query; query: Query.Select}
-  | {type: ExprType.Record; fields: Record<string, ExprData>}
-  | {type: ExprType.Merge; a: ExprData; b: ExprData}
-  | {type: ExprType.Row; target: Target}
-  | {type: ExprType.Map; target: Target; result: ExprData}
-  | {type: ExprType.Filter; target: Target; condition: ExprData}
-  | {
-      type: ExprType.Case
-      expr: ExprData
-      cases: Record<string, ExprData>
-      defaultCase?: ExprData
-    }
+  | ExprData.UnOp
+  | ExprData.BinOp
+  | ExprData.Field
+  | ExprData.Param
+  | ExprData.Call
+  | ExprData.Query
+  | ExprData.Record
+  | ExprData.Merge
+  | ExprData.Row
+  | ExprData.Map
+  | ExprData.Filter
+  | ExprData.Case
+
+export namespace ExprData {
+  export type UnOp = {type: ExprType.UnOp; op: UnOpType; expr: ExprData}
+  export type BinOp = {
+    type: ExprType.BinOp
+    op: BinOpType
+    a: ExprData
+    b: ExprData
+  }
+  export type Field = {type: ExprType.Field; expr: ExprData; field: string}
+  export type Param = {type: ExprType.Param; param: ParamData}
+  export type Call = {
+    type: ExprType.Call
+    method: string
+    params: Array<ExprData>
+  }
+  export type Query = {type: ExprType.Query; query: Query.Select}
+  export type Record = {
+    type: ExprType.Record
+    fields: {[key: string]: ExprData}
+  }
+  export type Merge = {type: ExprType.Merge; a: ExprData; b: ExprData}
+  export type Row = {type: ExprType.Row; target: Target}
+  export type Map = {type: ExprType.Map; target: Target; result: ExprData}
+  export type Filter = {
+    type: ExprType.Filter
+    target: Target
+    condition: ExprData
+  }
+  export type Case = {
+    type: ExprType.Case
+    expr: ExprData
+    cases: {[key: string]: ExprData}
+    defaultCase?: ExprData
+  }
+}
 
 export const ExprData = {
-  UnOp(op: UnOp, expr: ExprData): ExprData {
+  UnOp(op: UnOpType, expr: ExprData): ExprData {
     return {type: ExprType.UnOp, op, expr}
   },
-  BinOp(op: BinOp, a: ExprData, b: ExprData): ExprData {
+  BinOp(op: BinOpType, a: ExprData, b: ExprData): ExprData {
     return {type: ExprType.BinOp, op, a, b}
   },
   Field(expr: ExprData, field: string): ExprData {
@@ -141,7 +172,7 @@ function isConstant<T>(e: ExprData, value: T): boolean {
     case ExprType.Param:
       switch (e.param.type) {
         case ParamType.Value:
-          return e.param.value == value
+          return e.param.value === value
         default:
           return false
       }
@@ -191,7 +222,7 @@ export class Expr<T> {
   }
 
   not(): Expr<boolean> {
-    return unop(this, UnOp.Not)
+    return unop(this, UnOpType.Not)
   }
 
   or(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
@@ -199,7 +230,7 @@ export class Expr<T> {
     const b = toExpr(that)
     if (isConstant(b, true) || isConstant(a, false)) return new Expr(b)
     if (isConstant(a, true) || isConstant(b, false)) return this
-    return new Expr(ExprData.BinOp(BinOp.Or, a, b))
+    return new Expr(ExprData.BinOp(BinOpType.Or, a, b))
   }
 
   and(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
@@ -207,11 +238,11 @@ export class Expr<T> {
     const b = toExpr(that)
     if (isConstant(b, true) || isConstant(a, false)) return this
     if (isConstant(a, true) || isConstant(b, false)) return new Expr(b)
-    return new Expr(ExprData.BinOp(BinOp.And, a, b))
+    return new Expr(ExprData.BinOp(BinOpType.And, a, b))
   }
 
   isNull(): Expr<boolean> {
-    return unop(this, UnOp.IsNull)
+    return unop(this, UnOpType.IsNull)
   }
 
   isNotNull(): Expr<boolean> {
@@ -219,75 +250,75 @@ export class Expr<T> {
   }
 
   isNot(that: EV<T>): Expr<boolean> {
-    if (that == null || (that instanceof Expr && isConstant(that.expr, null)))
+    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
       return this.isNotNull()
-    return binop(this, BinOp.NotEquals, that)
+    return binop(this, BinOpType.NotEquals, that)
   }
 
   is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
     if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
       return this.isNull()
-    return binop(this, BinOp.Equals, that)
+    return binop(this, BinOpType.Equals, that)
   }
 
   in(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
-    return binop(this, BinOp.In, that)
+    return binop(this, BinOpType.In, that)
   }
 
   notIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
-    return binop(this, BinOp.NotIn, that)
+    return binop(this, BinOpType.NotIn, that)
   }
 
   add(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOp.Add, that)
+    return binop(this, BinOpType.Add, that)
   }
 
   substract(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOp.Subt, that)
+    return binop(this, BinOpType.Subt, that)
   }
 
   multiply(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOp.Mult, that)
+    return binop(this, BinOpType.Mult, that)
   }
 
   remainder(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOp.Mod, that)
+    return binop(this, BinOpType.Mod, that)
   }
 
   divide(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOp.Div, that)
+    return binop(this, BinOpType.Div, that)
   }
 
   greater(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOp.Greater, that)
+    return binop(this, BinOpType.Greater, that)
   }
 
   greaterOrEqual(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOp.GreaterOrEqual, that)
+    return binop(this, BinOpType.GreaterOrEqual, that)
   }
 
   less(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOp.Less, that)
+    return binop(this, BinOpType.Less, that)
   }
 
   lessOrEqual(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOp.LessOrEqual, that)
+    return binop(this, BinOpType.LessOrEqual, that)
   }
 
   concat(this: Expr<string>, that: EV<string>): Expr<string> {
-    return binop(this, BinOp.Concat, that)
+    return binop(this, BinOpType.Concat, that)
   }
 
   like(this: Expr<string>, that: EV<string>): Expr<boolean> {
-    return binop(this, BinOp.Like, that)
+    return binop(this, BinOpType.Like, that)
   }
 
   glob(this: Expr<string>, that: EV<string>): Expr<boolean> {
-    return binop(this, BinOp.Glob, that)
+    return binop(this, BinOpType.Glob, that)
   }
 
   match(this: Expr<string>, that: EV<string>): Expr<boolean> {
-    return binop(this, BinOp.Match, that)
+    return binop(this, BinOpType.Match, that)
   }
 
   with<X extends Selection>(that: X): Selection.With<T, X> {
@@ -337,11 +368,11 @@ export class Expr<T> {
   }
 }
 
-function unop<This, Res>(self: Expr<This>, type: UnOp) {
+function unop<This, Res>(self: Expr<This>, type: UnOpType) {
   return new Expr<Res>(ExprData.UnOp(type, self.expr))
 }
 
-function binop<This, That, Res>(self: Expr<This>, type: BinOp, that: That) {
+function binop<This, That, Res>(self: Expr<This>, type: BinOpType, that: That) {
   return new Expr<Res>(ExprData.BinOp(type, self.expr, toExpr(that)))
 }
 
