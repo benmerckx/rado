@@ -19,19 +19,19 @@ const binOps = {
   [BinOpType.LessOrEqual]: '<=',
   [BinOpType.Equals]: '=',
   [BinOpType.NotEquals]: '!=',
-  [BinOpType.And]: 'and',
-  [BinOpType.Or]: 'or',
-  [BinOpType.Like]: 'like',
-  [BinOpType.Glob]: 'glob',
-  [BinOpType.Match]: 'match',
-  [BinOpType.In]: 'in',
-  [BinOpType.NotIn]: 'not in',
+  [BinOpType.And]: 'AND',
+  [BinOpType.Or]: 'OR',
+  [BinOpType.Like]: 'LIKE',
+  [BinOpType.Glob]: 'GLOB',
+  [BinOpType.Match]: 'MATCH',
+  [BinOpType.In]: 'IN',
+  [BinOpType.NotIn]: 'NOT IN',
   [BinOpType.Concat]: '||'
 }
 
 const joins = {
-  left: 'left',
-  inner: 'inner'
+  left: 'LEFT',
+  inner: 'INNER'
 }
 
 export interface FormatContext {
@@ -117,11 +117,14 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatSelect(ctx: FormatContext, query: Query.Select): Statement {
-    const {stmt, topLevel} = ctx
+  formatSelect(
+    {topLevel, ...ctx}: FormatContext,
+    query: Query.Select
+  ): Statement {
+    const {stmt} = ctx
     stmt.raw('SELECT').space()
     this.formatSelection(
-      {...ctx, topLevel: false},
+      ctx,
       query.selection,
       topLevel ? formatAsResultObject : undefined
     )
@@ -595,7 +598,7 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+  formatExpr({formatAsIn, ...ctx}: FormatContext, expr: ExprData): Statement {
     const {stmt} = ctx
     switch (expr.type) {
       case ExprType.UnOp:
@@ -620,18 +623,16 @@ export abstract class Formatter implements Sanitizer {
           case ParamType.Named:
             return stmt.param(expr.param)
         }
-      case ExprType.Field: {
-        const {formatAsIn, ...rest} = ctx
+      case ExprType.Field:
         if (formatAsIn) {
           stmt.openParenthesis()
           stmt.raw('SELECT value FROM json_each')
           stmt.openParenthesis()
-          this.formatExprJson(rest, expr)
+          this.formatExprJson(ctx, expr)
           stmt.closeParenthesis()
           return stmt.closeParenthesis()
         }
-        return this.formatField(rest, expr.expr, expr.field)
-      }
+        return this.formatField(ctx, expr.expr, expr.field)
       case ExprType.Call: {
         if (expr.method === 'cast') {
           const [e, type] = expr.params
@@ -708,7 +709,6 @@ export abstract class Formatter implements Sanitizer {
         }
         return stmt
       case ExprType.Filter: {
-        const {formatAsIn, ...rest} = ctx
         const {target, condition} = expr
         switch (target.type) {
           case TargetType.Expr:
@@ -722,11 +722,11 @@ export abstract class Formatter implements Sanitizer {
               .raw('SELECT value AS result')
               .add('FROM json_each')
               .openParenthesis()
-            this.formatExprJson(rest, target.expr)
+            this.formatExprJson(ctx, target.expr)
             stmt.closeParenthesis()
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
             stmt.add('WHERE').space()
-            this.formatExprValue(rest, condition)
+            this.formatExprValue(ctx, condition)
             if (!formatAsIn) {
               stmt.closeParenthesis()
             }
@@ -736,7 +736,6 @@ export abstract class Formatter implements Sanitizer {
         }
       }
       case ExprType.Map: {
-        const {formatAsIn, ...rest} = ctx
         const {target, result} = expr
         switch (target.type) {
           case TargetType.Expr:
@@ -747,11 +746,11 @@ export abstract class Formatter implements Sanitizer {
                 .openParenthesis()
             }
             stmt.raw('SELECT').space()
-            this.formatExprJson(rest, result)
+            this.formatExprJson(ctx, result)
               .add('AS result')
               .add('FROM json_each')
               .openParenthesis()
-            this.formatExprJson(rest, target.expr)
+            this.formatExprJson(ctx, target.expr)
             stmt.closeParenthesis()
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
             if (!formatAsIn) {
