@@ -2,8 +2,19 @@ import {Cursor} from './Cursor'
 import {ExprData} from './Expr'
 import {Query} from './Query'
 import {Schema} from './Schema'
+import {Selection} from './Selection'
 import {Table} from './Table'
 import {Target} from './Target'
+
+export function select<X extends Selection>(
+  selection: X
+): Cursor.SelectMultiple<Selection.Infer<X>> {
+  return new Cursor.SelectMultiple(
+    Query.Select({
+      selection: ExprData.create(selection)
+    })
+  )
+}
 
 export function from<Row>(
   source: Table<Row> | Cursor.SelectMultiple<Row>

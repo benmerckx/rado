@@ -128,8 +128,10 @@ export abstract class Formatter implements Sanitizer {
       query.selection,
       topLevel ? formatAsResultObject : undefined
     )
-    stmt.addLine('FROM').space()
-    this.formatTarget(ctx, query.from)
+    if (query.from) {
+      stmt.addLine('FROM').space()
+      this.formatTarget(ctx, query.from)
+    }
     this.formatWhere(ctx, query.where)
     this.formatGroupBy(ctx, query.groupBy)
     this.formatHaving(ctx, query.having)

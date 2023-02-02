@@ -31,7 +31,10 @@ test('basic', async () => {
   assert.equal(
     (
       await Node.sure()
-        .where(Node.index.greaterOrEqual(amount - 1), Node.index.less(amount))
+        .where(
+          Node.index.isGreaterOrEqual(amount - 1),
+          Node.index.isLess(amount)
+        )
         .on(db)
     ).id,
     id
@@ -51,7 +54,7 @@ test('filters', async () => {
   const a = {prop: 10}
   const b = {prop: 20}
   await Test.insertAll([a, b]).on(db)
-  const gt10 = await Test.where(Test.prop.greater(10)).sure().on(db)
+  const gt10 = await Test.where(Test.prop.isGreater(10)).sure().on(db)
   assert.equal(gt10.prop, 20)
 })
 

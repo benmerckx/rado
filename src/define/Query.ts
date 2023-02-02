@@ -56,7 +56,7 @@ export namespace Query {
   export interface Select extends QueryBase {
     type: QueryType.Select
     selection: ExprData
-    from: Target
+    from?: Target
   }
   export function Select(select: Omit<Select, 'type'>): Query.Select {
     return {type: QueryType.Select, ...select}

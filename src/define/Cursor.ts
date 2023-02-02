@@ -141,6 +141,7 @@ export namespace Cursor {
 
     leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
         from: Target.Join(
@@ -154,6 +155,7 @@ export namespace Cursor {
 
     innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
         from: Target.Join(
@@ -234,6 +236,7 @@ export namespace Cursor {
 
     leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
         from: Target.Join(
@@ -247,6 +250,7 @@ export namespace Cursor {
 
     innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
         from: Target.Join(

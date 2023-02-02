@@ -222,7 +222,7 @@ export class Expr<T> {
   }
 
   not(): Expr<boolean> {
-    return unop(this, UnOpType.Not)
+    return new Expr(ExprData.UnOp(UnOpType.Not, this.expr))
   }
 
   or(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
@@ -241,84 +241,90 @@ export class Expr<T> {
     return new Expr(ExprData.BinOp(BinOpType.And, a, b))
   }
 
+  is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
+    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
+      return this.isNull()
+    return new Expr(ExprData.BinOp(BinOpType.Equals, this.expr, toExpr(that)))
+  }
+
+  isNot(that: EV<T>): Expr<boolean> {
+    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
+      return this.isNotNull()
+    return new Expr(
+      ExprData.BinOp(BinOpType.NotEquals, this.expr, toExpr(that))
+    )
+  }
+
   isNull(): Expr<boolean> {
-    return unop(this, UnOpType.IsNull)
+    return new Expr(ExprData.UnOp(UnOpType.IsNull, this.expr))
   }
 
   isNotNull(): Expr<boolean> {
     return this.isNull().not()
   }
 
-  isNot(that: EV<T>): Expr<boolean> {
-    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
-      return this.isNotNull()
-    return binop(this, BinOpType.NotEquals, that)
+  isIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
+    return new Expr(ExprData.BinOp(BinOpType.In, this.expr, toExpr(that)))
   }
 
-  is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
-    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
-      return this.isNull()
-    return binop(this, BinOpType.Equals, that)
+  isNotIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
+    return new Expr(ExprData.BinOp(BinOpType.NotIn, this.expr, toExpr(that)))
   }
 
-  in(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
-    return binop(this, BinOpType.In, that)
+  isGreater(that: EV<any>): Expr<boolean> {
+    return new Expr(ExprData.BinOp(BinOpType.Greater, this.expr, toExpr(that)))
   }
 
-  notIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
-    return binop(this, BinOpType.NotIn, that)
+  isGreaterOrEqual(that: EV<any>): Expr<boolean> {
+    return new Expr(
+      ExprData.BinOp(BinOpType.GreaterOrEqual, this.expr, toExpr(that))
+    )
+  }
+
+  isLess(that: EV<any>): Expr<boolean> {
+    return new Expr(ExprData.BinOp(BinOpType.Less, this.expr, toExpr(that)))
+  }
+
+  isLessOrEqual(that: EV<any>): Expr<boolean> {
+    return new Expr(
+      ExprData.BinOp(BinOpType.LessOrEqual, this.expr, toExpr(that))
+    )
   }
 
   add(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOpType.Add, that)
+    return new Expr(ExprData.BinOp(BinOpType.Add, this.expr, toExpr(that)))
   }
 
   substract(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOpType.Subt, that)
+    return new Expr(ExprData.BinOp(BinOpType.Subt, this.expr, toExpr(that)))
   }
 
   multiply(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOpType.Mult, that)
+    return new Expr(ExprData.BinOp(BinOpType.Mult, this.expr, toExpr(that)))
   }
 
   remainder(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOpType.Mod, that)
+    return new Expr(ExprData.BinOp(BinOpType.Mod, this.expr, toExpr(that)))
   }
 
   divide(this: Expr<number>, that: EV<number>): Expr<number> {
-    return binop(this, BinOpType.Div, that)
-  }
-
-  greater(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOpType.Greater, that)
-  }
-
-  greaterOrEqual(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOpType.GreaterOrEqual, that)
-  }
-
-  less(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOpType.Less, that)
-  }
-
-  lessOrEqual(that: EV<any>): Expr<boolean> {
-    return binop(this, BinOpType.LessOrEqual, that)
+    return new Expr(ExprData.BinOp(BinOpType.Div, this.expr, toExpr(that)))
   }
 
   concat(this: Expr<string>, that: EV<string>): Expr<string> {
-    return binop(this, BinOpType.Concat, that)
+    return new Expr(ExprData.BinOp(BinOpType.Concat, this.expr, toExpr(that)))
   }
 
   like(this: Expr<string>, that: EV<string>): Expr<boolean> {
-    return binop(this, BinOpType.Like, that)
+    return new Expr(ExprData.BinOp(BinOpType.Like, this.expr, toExpr(that)))
   }
 
   glob(this: Expr<string>, that: EV<string>): Expr<boolean> {
-    return binop(this, BinOpType.Glob, that)
+    return new Expr(ExprData.BinOp(BinOpType.Glob, this.expr, toExpr(that)))
   }
 
   match(this: Expr<string>, that: EV<string>): Expr<boolean> {
-    return binop(this, BinOpType.Match, that)
+    return new Expr(ExprData.BinOp(BinOpType.Match, this.expr, toExpr(that)))
   }
 
   with<X extends Selection>(that: X): Selection.With<T, X> {
@@ -329,6 +335,10 @@ export class Expr<T> {
 
   at<T>(this: Expr<Array<T>>, index: number): Expr<T | null> {
     return this.get(`[${Number(index)}]`)
+  }
+
+  includes<T>(this: Expr<Array<T>>, value: EV<T>): Expr<boolean> {
+    return Expr.create(value).isIn(this)
   }
 
   filter<T>(
@@ -366,14 +376,6 @@ export class Expr<T> {
   get<T>(name: string): Expr<T> {
     return new Expr(ExprData.Field(this.expr, name as string))
   }
-}
-
-function unop<This, Res>(self: Expr<This>, type: UnOpType) {
-  return new Expr<Res>(ExprData.UnOp(type, self.expr))
-}
-
-function binop<This, That, Res>(self: Expr<This>, type: BinOpType, that: That) {
-  return new Expr<Res>(ExprData.BinOp(type, self.expr, toExpr(that)))
 }
 
 export namespace Expr {

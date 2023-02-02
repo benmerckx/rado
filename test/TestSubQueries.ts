@@ -52,7 +52,7 @@ test('IncludeMany', async () => {
         name: RoleAlias.name
       })
         .orderBy(RoleAlias.name.asc())
-        .where(RoleAlias.id.in(UserAlias.roles))
+        .where(RoleAlias.id.isIn(UserAlias.roles))
     })
   )!
   assert.equal(bundled.roles, [{name: 'role1'}, {name: 'role2'}])

@@ -19,7 +19,7 @@ test('Functions', async () => {
   const age: Expr<number> = int(strftime('%Y', now))
     .substract(int(strftime('%Y', User.birthdate)))
     .substract(
-      int(strftime('%m-%d', now).less(strftime('%m-%d', User.birthdate)))
+      int(strftime('%m-%d', now).isLess(strftime('%m-%d', User.birthdate)))
     )
   const me = await query(User.insertOne({birthdate: '1900-01-01'}))
   assert.is(
