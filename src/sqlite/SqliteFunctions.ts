@@ -5,7 +5,34 @@ import {Table} from '../define/Table'
 
 export const SqliteFunctions: SqliteFunctions = Functions as any
 
+type JSON = string
+
 export type SqliteFunctions = {
+  json<T>(input: EV<JSON>): Expr<T>
+  json_array<T>(...args: Array<EV<T>>): Expr<Array<T>>
+  json_array_length(input: EV<JSON>): Expr<number>
+  json_extract(
+    input: EV<JSON>,
+    path: EV<string>,
+    ...rest: Array<EV<string>>
+  ): Expr<any>
+  json_insert(input: EV<JSON>, path: EV<string>, value: EV<any>): Expr<string>
+  json_set(input: EV<JSON>, path: EV<string>, value: EV<any>): Expr<string>
+  json_replace(input: EV<JSON>, path: EV<string>, value: EV<any>): Expr<string>
+  json_patch(input: EV<JSON>, patch: EV<any>): Expr<string>
+  json_remove(
+    input: EV<JSON>,
+    path: EV<string>,
+    ...rest: Array<EV<string>>
+  ): Expr<string>
+  json_type(input: EV<JSON>): Expr<string>
+  json_valid(input: EV<JSON>): Expr<boolean>
+  json_quote(input: EV<JSON>): Expr<string>
+  json_group_array<T>(input: Cursor.SelectMultiple<T>): Expr<Array<T>>
+  json_group_object(name: EV<string>, value: EV<any>): Expr<Record<string, any>>
+  json_each(input: EV<string>): Expr<any>
+  json_tree(input: EV<string>): Expr<any>
+
   /** The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
   count(x?: Expr<any>): Expr<number>
 
