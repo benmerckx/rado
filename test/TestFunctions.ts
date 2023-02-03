@@ -1,8 +1,15 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, column, from, table} from '../src/index'
+import {Expr, Functions, column, from, select, table} from '../src/index'
 import {cast, count, strftime} from '../src/sqlite'
 import {connect} from './DbSuite'
+
+test('dynamic', async () => {
+  const query = await connect()
+  const {json_patch} = Functions
+  const patched = await query(select(json_patch({a: 1}, {a: 0, b: 2})).sure())
+  assert.equal(patched, {a: 0, b: 2})
+})
 
 test('Functions', async () => {
   const query = await connect()
