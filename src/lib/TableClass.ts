@@ -1,12 +1,14 @@
 import {Column, column} from './Column'
 import {Cursor} from './Cursor'
 import {ExprData} from './Expr'
+import {Index, index} from './Index'
 import {Query} from './Query'
 import {Schema} from './Schema'
 import {Target} from './Target'
 
-const name = Symbol('name')
-const indexes = Symbol('indexes')
+interface Meta {
+  indexes?: Record<string, Index>
+}
 
 type Definition<T> = {
   [K in keyof T as K extends string ? K : never]: Column<any> | (() => any)
@@ -14,10 +16,6 @@ type Definition<T> = {
 
 interface Define<T> {
   new (): T
-}
-
-type DefinitionOf<Row> = {
-  [K in keyof Row]: Column<Row[K]>
 }
 
 type Row<Def> = {
@@ -49,45 +47,51 @@ class TableCursor<Def> extends Cursor.SelectMultiple<Row<Def>> {
   get<K extends string>(field: K): K extends keyof Def ? Def[K] : Column<any> {
     return undefined!
   }
-
-  /*private get [table.meta]() {
-    return undefined!
-  }*/
 }
 
-type table<T> = Row<T>
-
-interface Meta<T> {
-  name?: string
-  indexes?: (this: T) => Record<string, any>
-}
+type table<T> = T extends Table<infer D> ? Row<D> : never
 
 const {entries, fromEntries, getOwnPropertyDescriptors} = Object
 
-function table<T extends Definition<T>>(
-  define: Define<T> | T,
-  extra: Meta<T> = {}
-) {
-  const definition = 'prototype' in define ? new define() : define
-  const columns = definition as Record<string, Column<any>>
-  console.log(getOwnPropertyDescriptors(columns))
-  const schema: Schema = {
-    name: extra.name!,
-    columns: fromEntries(
-      entries(getOwnPropertyDescriptors(columns)).map(([name, descriptor]) => {
-        const column = columns[name]
-        if (!(column instanceof Column))
-          throw new Error(`Property ${name} is not a column`)
-        const {data} = column
-        return [
-          name,
-          {...data, name: data.name || name, enumerable: descriptor.enumerable}
-        ]
-      })
-    ),
-    indexes: extra.indexes?.call(definition) || {}
+type DefineTable = <
+  T extends Definition<T> & {
+    [table.meta]?: Meta
   }
-  return new TableCursor(schema) as Table<T>
+>(
+  define: T | Define<T>
+) => Table<T>
+
+function table(templateStrings: TemplateStringsArray): DefineTable
+function table(name: string): DefineTable
+function table(input: string | TemplateStringsArray) {
+  return function define<T extends Definition<T>>(define: Define<T> | T) {
+    const name = typeof input === 'string' ? input : input[0]
+    const definition = 'prototype' in define ? new define() : define
+    const columns = definition as Record<string, Column<any>>
+    const schema: Schema = {
+      name: name,
+      columns: fromEntries(
+        entries(getOwnPropertyDescriptors(columns)).map(
+          ([name, descriptor]) => {
+            const column = columns[name]
+            if (!(column instanceof Column))
+              throw new Error(`Property ${name} is not a column`)
+            const {data} = column
+            return [
+              name,
+              {
+                ...data,
+                name: data.name || name,
+                enumerable: descriptor.enumerable
+              }
+            ]
+          }
+        )
+      ),
+      indexes: {} // extra.indexes?.call(definition) || {}
+    }
+    return new TableCursor(schema) as Table<T>
+  }
 }
 
 type Table<T> = T & TableCursor<T>
@@ -99,8 +103,7 @@ namespace table {
   export const meta = Symbol('meta')
 }
 
-type User = table<typeof User>
-const User = table(
+const User = table('User')(
   class User {
     id = column.string().primaryKey<User>()
     name = column.string()
@@ -111,49 +114,43 @@ const User = table(
     }
 
     patients() {
-      return Patient.where().select({p: Patient})
+      return Patient.select({p: Patient})
     }
 
-    protected [table.meta] = {
-      name: 'Test',
+    [table.meta] = {
       indexes: {
-        id: this.id
+        id: index(this.id)
       }
     }
   }
 )
+type User = table<typeof User>
 
 const y = {...User, thing: User.thing}
+const zeirj = User[table.meta]
 
 const z = User.get('leftJoin')
 
 interface Patient extends table<typeof Patient> {}
-const Patient = table(
-  {
-    id: column.string().primaryKey<Patient>(),
-    lastName: column.string(),
-    thing: column.string(),
+const Patient = table('Patient')({
+  id: column.string().primaryKey<Patient>(),
+  lastName: column.string(),
+  thing: column.string(),
 
-    firstName() {
-      return column.string()
-    },
-
-    users() {
-      return User.id
-    }
+  firstName() {
+    return column.string()
   },
-  {
-    name: 'Patient',
-    indexes() {
-      return {
-        id: this.users
-      }
-    }
+
+  users() {
+    return User.id
   }
-)
+})
 
 const x = {...Patient}
 
 function test<T extends {id: string}>(table: Table<T>, entry: T) {
   return table.id
 }
+
+const seofj = User.where(true)
+const xyz = Patient.where(true)

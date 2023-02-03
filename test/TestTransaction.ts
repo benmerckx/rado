@@ -12,18 +12,19 @@ const User = table({
 })
 
 test('Transaction', async () => {
-  const query = await connect()
+  const db = await connect()
   // For the current drivers we just want to check here that the connection
   // stays locked during the transaction. Once we add pooled drivers the
   // transaction should run on an isolated connection and then this test stops
   // making sense.
   const [_, bob] = await Promise.all([
-    query.transaction(async function (query) {
-      await query(User.createTable())
-      await query(User.insertOne({name: 'Alice'}))
-      await query(User.insertOne({name: 'Bob'}))
+    db.transaction(async function (query) {
+      return User.createTable()
+        .next(User.insertOne({name: 'Alice'}))
+        .next(User.insertOne({name: 'Bob'}))
+        .on(query)
     }),
-    query(User.first().where(User.name.is('Bob')))
+    db(User.first().where(User.name.is('Bob')))
   ])
   assert.equal(bob?.name, 'Bob')
 })

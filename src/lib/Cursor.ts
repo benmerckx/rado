@@ -32,6 +32,14 @@ export class Cursor<T> {
     throw new Error('Not implemented')
   }
 
+  next<T>(cursor: Cursor<T>): Cursor<T> {
+    return new Cursor<T>(
+      Query.Batch({
+        queries: [this.query(), cursor.query()]
+      })
+    )
+  }
+
   on(driver: Driver.Sync): T
   on(driver: Driver.Async): Promise<T>
   on(driver: Driver): T | Promise<T> {
@@ -122,8 +130,20 @@ export namespace Cursor {
   }
 
   export class Batch<T = void> extends Cursor<T> {
+    query(): Query.Batch {
+      return super.query() as Query.Batch
+    }
+
     constructor(protected queries: Array<Query>) {
       super(Query.Batch({queries}))
+    }
+
+    next<T>(cursor: Cursor<T>): Cursor<T> {
+      return new Cursor<T>(
+        Query.Batch({
+          queries: [...this.query().queries, cursor.query()]
+        })
+      )
     }
   }
 
