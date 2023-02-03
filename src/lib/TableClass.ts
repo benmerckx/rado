@@ -45,22 +45,34 @@ class TableCursor<Def> extends Cursor.SelectMultiple<Row<Def>> {
   as(alias: string): this {
     return new TableCursor({...this[table.schema], alias}) as this
   }
+
+  get<K extends string>(field: K): K extends keyof Def ? Def[K] : Column<any> {
+    return undefined!
+  }
+
+  /*private get [table.meta]() {
+    return undefined!
+  }*/
 }
 
 type table<T> = Row<T>
 
 interface Meta<T> {
-  name: string
-  indexes(this: T): Record<string, any>
+  name?: string
+  indexes?: (this: T) => Record<string, any>
 }
 
 const {entries, fromEntries, getOwnPropertyDescriptors} = Object
 
-function table<T extends Definition<T>>(define: Define<T>, extra: Meta<T>) {
-  const definition = new define()
+function table<T extends Definition<T>>(
+  define: Define<T> | T,
+  extra: Meta<T> = {}
+) {
+  const definition = 'prototype' in define ? new define() : define
   const columns = definition as Record<string, Column<any>>
-  const schema = {
-    name: extra.name,
+  console.log(getOwnPropertyDescriptors(columns))
+  const schema: Schema = {
+    name: extra.name!,
     columns: fromEntries(
       entries(getOwnPropertyDescriptors(columns)).map(([name, descriptor]) => {
         const column = columns[name]
@@ -73,62 +85,72 @@ function table<T extends Definition<T>>(define: Define<T>, extra: Meta<T>) {
         ]
       })
     ),
-    indexes: extra.indexes.call(definition)
+    indexes: extra.indexes?.call(definition) || {}
   }
-  return new TableCursor(schema) as T & TableCursor<T>
+  return new TableCursor(schema) as Table<T>
 }
+
+type Table<T> = T & TableCursor<T>
 
 namespace table {
+  export const name = Symbol('name')
+  export const indexes = Symbol('indexes')
   export const schema = Symbol('schema')
+  export const meta = Symbol('meta')
 }
 
-type Table<Row> = DefinitionOf<Row> & TableCursor<DefinitionOf<Row>>
+type User = table<typeof User>
+const User = table(
+  class User {
+    id = column.string().primaryKey<User>()
+    name = column.string()
+    leftJoin = column.string()
 
-class UserTable {
-  id = column.string().primaryKey<'User'>()
-  name = column.string()
-  thing = Patient.id
+    get thing() {
+      return Patient.id
+    }
 
-  patients() {
-    return Patient.where().select({p: Patient})
-  }
-}
+    patients() {
+      return Patient.where().select({p: Patient})
+    }
 
-type User = table<UserTable>
-const User = table(UserTable, {
-  name: 'User',
-  indexes() {
-    return {
-      id: this.id
+    protected [table.meta] = {
+      name: 'Test',
+      indexes: {
+        id: this.id
+      }
     }
   }
-})
+)
 
-const y = {...User, test: User.patients}
+const y = {...User, thing: User.thing}
 
-class PatientTable {
-  id = column.string().primaryKey<'Patient'>()
-  lastName = column.string()
-  thing = column.string()
+const z = User.get('leftJoin')
 
-  get firstName() {
-    return column.string()
-  }
+interface Patient extends table<typeof Patient> {}
+const Patient = table(
+  {
+    id: column.string().primaryKey<Patient>(),
+    lastName: column.string(),
+    thing: column.string(),
 
-  users() {
-    return User.id
-  }
-}
+    firstName() {
+      return column.string()
+    },
 
-type Patient = table<PatientTable>
-const Patient = table(PatientTable, {
-  name: 'Patient',
-  indexes() {
-    return {
-      id: this.users
+    users() {
+      return User.id
+    }
+  },
+  {
+    name: 'Patient',
+    indexes() {
+      return {
+        id: this.users
+      }
     }
   }
-})
+)
 
 const x = {...Patient}
 

@@ -42,7 +42,7 @@ export class Column<T> extends Expr<T> {
     return new Column({...this.data, autoIncrement: true})
   }
 
-  primaryKey<K extends string>(): Column<Column.IsPrimary<T, K>> {
+  primaryKey<K>(): Column<Column.IsPrimary<T, K>> {
     return new Column({...this.data, primaryKey: true})
   }
 
