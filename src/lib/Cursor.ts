@@ -243,6 +243,23 @@ export namespace Cursor {
     }
   }
 
+  export class TableSelect<T> extends SelectMultiple<T> {
+    constructor(protected table: Schema, conditions: Array<EV<boolean>> = []) {
+      const target = Target.Table(table)
+      super(
+        Query.Select({
+          from: target,
+          selection: ExprData.Row(target),
+          where: Expr.and(...conditions).expr
+        })
+      )
+    }
+
+    delete() {
+      return new Cursor.Delete(Query.Delete({table: this.schema()}))
+    }
+  }
+
   export class SelectSingle<T> extends Cursor<T> {
     query(): Query.Select {
       return super.query() as Query.Select

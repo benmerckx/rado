@@ -101,6 +101,7 @@ type Table<T> = T & {
   call: unknown
   apply: unknown
   bind: unknown
+  prototype: unknown
 }
 
 namespace table {
@@ -134,9 +135,8 @@ const User = table('User')(
   }
 )
 type User = table<typeof User>
-User.prototype
 
-const y = {...User, thing: User.thing}
+const y = User().select({...User, thing: User.thing})
 const zeirj = User[table.meta]
 
 const z = User.leftJoin

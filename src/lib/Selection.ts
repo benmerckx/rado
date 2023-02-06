@@ -2,6 +2,10 @@ import type {Cursor} from './Cursor'
 import type {Expr} from './Expr'
 
 type SelectionBase =
+  // Side-effect of tables having a callable signature is that they expose
+  // the Function prototype which we cancel out by marking them as unknown.
+  // However this also marks them as enumerable...
+  | unknown
   | (() => any)
   | Expr<any>
   | Cursor.SelectMultiple<any>
@@ -21,6 +25,8 @@ export namespace Selection {
     : T extends Record<string, Selection>
     ? {[K in keyof T as T[K] extends () => any ? never : K]: Infer<T[K]>}
     : T extends () => any
+    ? never
+    : T extends unknown
     ? never
     : T
   export type With<A, B> = Expr<Combine<A, B>>
