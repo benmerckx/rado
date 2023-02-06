@@ -6,9 +6,8 @@ import {OrderBy} from './OrderBy'
 import {Query} from './Query'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
-import {Table} from './Table'
+import {Table, TableData, createTable, table} from './Table'
 import {Target} from './Target'
-import {Update as UpdateSet} from './Update'
 
 export class Cursor<T> {
   [Selection.__cursorType](): T {
@@ -47,8 +46,8 @@ export class Cursor<T> {
     return driver.executeQuery(this.query())
   }
 
-  compile(driver: Driver, options?: CompileOptions) {
-    return driver.formatter.compile(this.query(), options)
+  toSql(driver: Driver, options: CompileOptions = {forceInline: true}) {
+    return driver.formatter.compile(this.query(), options).sql
   }
 
   toJSON(): Query<T> {
@@ -84,24 +83,24 @@ export namespace Cursor {
     }
   }
 
-  export class Update<T> extends Cursor<{rowsAffected: number}> {
+  export class Update<Definition> extends Cursor<{rowsAffected: number}> {
     query(): Query.Update {
       return super.query() as Query.Update
     }
 
-    set(set: UpdateSet<T>): Update<T> {
+    set(set: Table.Update<Definition>): Update<Definition> {
       return new Update({...this.query(), set})
     }
 
-    where(...where: Array<EV<boolean>>): Update<T> {
+    where(...where: Array<EV<boolean>>): Update<Definition> {
       return new Update(addWhere(this.query(), where))
     }
 
-    take(limit: number | undefined): Update<T> {
+    take(limit: number | undefined): Update<Definition> {
       return new Update({...this.query(), limit})
     }
 
-    skip(offset: number | undefined): Update<T> {
+    skip(offset: number | undefined): Update<Definition> {
       return new Update({...this.query(), offset})
     }
   }
@@ -122,22 +121,24 @@ export namespace Cursor {
     }
   }
 
-  export class Insert<T> {
-    constructor(protected into: Schema) {}
+  export class Insert<Definition> {
+    constructor(protected into: TableData) {}
 
-    selection(query: Cursor.SelectMultiple<T>): Inserted {
+    selection(
+      query: Cursor.SelectMultiple<Table.Select<Definition>>
+    ): Inserted {
       return new Inserted(
         Query.Insert({into: this.into, select: query.query()})
       )
     }
 
-    values(...data: Array<Table.Insert<T>>): Inserted {
+    values(...data: Array<Table.Insert<Definition>>): Inserted {
       return new Inserted(Query.Insert({into: this.into, data}))
     }
   }
 
   export class CreateTable extends Cursor<void> {
-    constructor(protected table: Schema) {
+    constructor(protected table: TableData) {
       super(Schema.create(table))
     }
   }
@@ -160,33 +161,39 @@ export namespace Cursor {
     }
   }
 
-  export class SelectMultiple<T> extends Cursor<Array<T>> {
+  export class SelectMultiple<Row> extends Cursor<Array<Row>> {
     query(): Query.Select {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
+    leftJoin<C>(
+      that: Table<C>,
+      ...on: Array<EV<boolean>>
+    ): SelectMultiple<Row> {
       const query = this.query()
       if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.schema()),
+          Target.Table(that[table.data]),
           'left',
           Expr.and(...on).expr
         )
       })
     }
 
-    innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
+    innerJoin<C>(
+      that: Table<C>,
+      ...on: Array<EV<boolean>>
+    ): SelectMultiple<Row> {
       const query = this.query()
       if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.schema()),
+          Target.Table(that[table.data]),
           'inner',
           Expr.and(...on).expr
         )
@@ -210,7 +217,7 @@ export namespace Cursor {
       })
     }
 
-    orderBy(...orderBy: Array<Expr<any> | OrderBy>): SelectMultiple<T> {
+    orderBy(...orderBy: Array<Expr<any> | OrderBy>): SelectMultiple<Row> {
       return new SelectMultiple({
         ...this.query(),
         orderBy: orderBy.map(e => {
@@ -219,18 +226,18 @@ export namespace Cursor {
       })
     }
 
-    groupBy(...groupBy: Array<Expr<any>>): SelectMultiple<T> {
+    groupBy(...groupBy: Array<Expr<any>>): SelectMultiple<Row> {
       return new SelectMultiple({
         ...this.query(),
         groupBy: groupBy.map(ExprData.create)
       })
     }
 
-    first(): SelectSingle<T | undefined> {
+    first(): SelectSingle<Row | undefined> {
       return new SelectSingle({...this.query(), singleResult: true})
     }
 
-    sure(): SelectSingle<T> {
+    sure(): SelectSingle<Row> {
       return new SelectSingle({
         ...this.query(),
         singleResult: true,
@@ -238,25 +245,30 @@ export namespace Cursor {
       })
     }
 
-    where(...where: Array<EV<boolean>>): SelectMultiple<T> {
+    where(...where: Array<EV<boolean>>): SelectMultiple<Row> {
       return new SelectMultiple(addWhere(this.query(), where))
     }
 
-    take(limit: number | undefined): SelectMultiple<T> {
+    take(limit: number | undefined): SelectMultiple<Row> {
       return new SelectMultiple({...this.query(), limit})
     }
 
-    skip(offset: number | undefined): SelectMultiple<T> {
+    skip(offset: number | undefined): SelectMultiple<Row> {
       return new SelectMultiple({...this.query(), offset})
     }
 
-    toExpr(): Expr<T> {
-      return new Expr<T>(ExprData.Query(this.query()))
+    [Expr.toExpr](): Expr<Row> {
+      return new Expr<Row>(ExprData.Query(this.query()))
     }
   }
 
-  export class TableSelect<T> extends SelectMultiple<T> {
-    constructor(protected table: Schema, conditions: Array<EV<boolean>> = []) {
+  export class TableSelect<Definition> extends SelectMultiple<
+    Table.Select<Definition>
+  > {
+    constructor(
+      protected table: TableData,
+      conditions: Array<EV<boolean>> = []
+    ) {
       const target = Target.Table(table)
       super(
         Query.Select({
@@ -267,16 +279,16 @@ export namespace Cursor {
       )
     }
 
-    as(alias: string): this {
-      return undefined! // return new Table({...this.schema(), alias}) as this
+    as(alias: string): Table<Definition> {
+      return createTable({...this.table, alias})
     }
 
     create() {
       return new Cursor.CreateTable(this.table)
     }
 
-    insertOne(record: Table.Insert<T>) {
-      return new Cursor<Table.Normalize<T>>(
+    insertOne(record: Table.Insert<Definition>) {
+      return new Cursor<Table.Select<Definition>>(
         Query.Insert({
           into: this.table,
           data: [record],
@@ -286,12 +298,12 @@ export namespace Cursor {
       )
     }
 
-    insertAll(data: Array<Table.Insert<T>>) {
-      return new Cursor.Insert<T>(this.table).values(...data)
+    insertAll(data: Array<Table.Insert<Definition>>) {
+      return new Cursor.Insert<Definition>(this.table).values(...data)
     }
 
-    set(data: UpdateSet<T>) {
-      return new Cursor.Update<T>(
+    set(data: Table.Update<Definition>) {
+      return new Cursor.Update<Definition>(
         Query.Update({
           table: this.table,
           where: this.query().where
@@ -309,33 +321,33 @@ export namespace Cursor {
     }
   }
 
-  export class SelectSingle<T> extends Cursor<T> {
+  export class SelectSingle<Row> extends Cursor<Row> {
     query(): Query.Select {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
+    leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<Row> {
       const query = this.query()
       if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.schema()),
+          Target.Table(that[table.data]),
           'left',
           Expr.and(...on).expr
         )
       })
     }
 
-    innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
+    innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<Row> {
       const query = this.query()
       if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
         from: Target.Join(
           query.from,
-          Target.Table(that.schema()),
+          Target.Table(that[table.data]),
           'inner',
           Expr.and(...on).expr
         )
@@ -351,38 +363,38 @@ export namespace Cursor {
       })
     }
 
-    orderBy(...orderBy: Array<OrderBy>): SelectSingle<T> {
+    orderBy(...orderBy: Array<OrderBy>): SelectSingle<Row> {
       return new SelectSingle({
         ...this.query(),
         orderBy
       })
     }
 
-    groupBy(...groupBy: Array<Expr<any>>): SelectSingle<T> {
+    groupBy(...groupBy: Array<Expr<any>>): SelectSingle<Row> {
       return new SelectSingle({
         ...this.query(),
         groupBy: groupBy.map(ExprData.create)
       })
     }
 
-    where(...where: Array<EV<boolean>>): SelectSingle<T> {
+    where(...where: Array<EV<boolean>>): SelectSingle<Row> {
       return new SelectSingle(addWhere(this.query(), where))
     }
 
-    take(limit: number | undefined): SelectSingle<T> {
+    take(limit: number | undefined): SelectSingle<Row> {
       return new SelectSingle({...this.query(), limit})
     }
 
-    skip(offset: number | undefined): SelectSingle<T> {
+    skip(offset: number | undefined): SelectSingle<Row> {
       return new SelectSingle({...this.query(), offset})
     }
 
-    all(): SelectMultiple<T> {
+    all(): SelectMultiple<Row> {
       return new SelectMultiple({...this.query(), singleResult: false})
     }
 
-    toExpr(): Expr<T> {
-      return new Expr<T>(ExprData.Query(this.query()))
+    [Expr.toExpr](): Expr<Row> {
+      return new Expr<Row>(ExprData.Query(this.query()))
     }
   }
 }

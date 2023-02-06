@@ -4,13 +4,10 @@ import {column, table} from '../src/index'
 import {match} from '../src/sqlite'
 import {connect} from './DbSuite'
 
-type Search = table.infer<typeof Search>
-const Search = table({
-  name: 'Search',
-  columns: {
-    name: column.string(),
-    col2: column.string().nullable()
-  }
+type Search = table<typeof Search>
+const Search = table('Search')({
+  name: column.string(),
+  col2: column.string().nullable()
 })
 
 test('Search', async () => {
@@ -24,13 +21,13 @@ test('Search', async () => {
     create virtual table if not exists Search using fts5(name, col2)
   `
   await query(
-    Search.insertAll([
+    Search().insertAll([
       {name: 'test'},
       {name: 'hello'},
       {name: 'world', col2: 'test ok'}
     ])
   )
-  const results = await query(Search.where(match(Search, 'test')))
+  const results = await query(Search().where(match(Search, 'test')))
   assert.equal(
     results.map(res => res.name),
     ['test', 'world']

@@ -142,12 +142,8 @@ export const ExprData = {
   create(input: any): ExprData {
     if (input === null || input === undefined)
       return ExprData.Param(ParamData.Value(null))
-    if (
-      input &&
-      typeof input === 'object' &&
-      typeof input.toExpr === 'function'
-    )
-      input = input.toExpr()
+    if (input && typeof input[Expr.toExpr] === 'function')
+      input = input[Expr.toExpr]()
     if (input instanceof Expr) return input.expr
     if (input && typeof input === 'object' && !Array.isArray(input))
       return ExprData.Record(
@@ -183,6 +179,7 @@ function isConstant<T>(e: ExprData, value: T): boolean {
 
 export class Expr<T> {
   static NULL = Expr.create(null)
+  static toExpr = Symbol('toExpr')
 
   static value<T>(value: T): Expr<T> {
     return new Expr<T>(ExprData.Param(ParamData.Value(value)))

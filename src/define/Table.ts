@@ -1,211 +1,214 @@
-import {Column, PrimaryKey} from './Column'
+import {Column, ColumnData, OptionalColumn, PrimaryColumn} from './Column'
 import {Cursor} from './Cursor'
-import {EV, Expr, ExprData} from './Expr'
-import {Fields} from './Fields'
+import {BinOpType, EV, Expr, ExprData} from './Expr'
 import {Index, IndexData} from './Index'
-import {Query} from './Query'
-import {Schema} from './Schema'
 import {Selection} from './Selection'
 import {Target} from './Target'
-import {Update} from './Update'
 
-export class Table<T> extends Cursor.SelectMultiple<Table.Normalize<T>> {
-  [Selection.__tableType](): Table.Normalize<T> {
-    throw 'assert'
-  }
+const {
+  keys,
+  entries,
+  fromEntries,
+  getOwnPropertyDescriptors,
+  assign,
+  getPrototypeOf,
+  setPrototypeOf
+} = Object
 
-  constructor(schema: Schema) {
-    super(
-      Query.Select({
-        from: Target.Table(schema),
-        selection: ExprData.Row(Target.Table(schema))
-      })
-    )
-    Object.defineProperty(this, 'schema', {
-      enumerable: false,
-      value: () => schema
-    })
-    if (schema.columns)
-      for (const column of Object.keys(schema.columns)) {
-        Object.defineProperty(this, column, {
-          enumerable: true,
-          value: this.get(column)
-        })
-      }
-    /*return new Proxy(this, {
-      get(target: any, key) {
-        return key in target ? target[key] : target.get(key)
-      }
-    })*/
-  }
-
-  fetch(id: EV<T extends {id: Column.IsPrimary<infer V, any>} ? V : never>) {
-    return this.where(this.get('id').is(id)).first()
-  }
-
-  insertOne(record: Table.Insert<T>) {
-    return new Cursor<Table.Normalize<T>>(
-      Query.Insert({
-        into: this.schema(),
-        data: [record],
-        selection: ExprData.Row(Target.Table(this.schema())),
-        singleResult: true
-      })
-    )
-  }
-
-  insertAll(data: Array<Table.Insert<T>>) {
-    return new Cursor.Insert<T>(this.schema()).values(...data)
-  }
-
-  set(data: Update<Table.Normalize<T>>) {
-    return new Cursor.Update<Table.Normalize<T>>(
-      Query.Update({
-        table: this.schema()
-      })
-    ).set(data)
-  }
-
-  delete() {
-    return new Cursor.Delete(Query.Delete({table: this.schema()}))
-  }
-
-  createTable() {
-    return new Cursor.CreateTable(this.schema())
-  }
-
-  as(alias: string): this {
-    return new Table({...this.schema(), alias}) as this
-  }
-
-  alias(): Record<string, this> {
-    return new Proxy(
-      {},
-      {
-        get: (_, key) => {
-          return this.as(key as string)
-        }
-      }
-    )
-  }
-
-  get(name: string): Expr<any> {
-    return new Expr(ExprData.Field(this.toExpr().expr, name as string))
-  }
-
-  toExpr(): Expr<Table.Normalize<T>> {
-    return new Expr<Table.Normalize<T>>(
-      ExprData.Row(Target.Table(this.schema()))
-    )
-  }
-
-  schema(): Schema {
-    throw new Error('Not implemented')
-  }
+interface TableDefinition {
+  [table.meta]?: Meta
 }
 
-export namespace Table {
-  // Source: https://stackoverflow.com/a/67577722
-  type Intersection<A, B> = A & B extends infer U
-    ? {[P in keyof U]: EV<U[P]>}
-    : never
-  type OptionalKeys<T> = {
-    [K in keyof T]: null extends T[K]
-      ? K
-      : T[K] extends Column.IsPrimary<any, any>
-      ? K
-      : T[K] extends Column.IsOptional<any>
-      ? K
-      : never
-  }[keyof T]
-  type RequiredKeys<T> = {
-    [K in keyof T]: null extends T[K]
-      ? never
-      : T[K] extends Column.IsPrimary<any, any>
-      ? never
-      : T[K] extends Column.IsOptional<any>
-      ? never
-      : K
-  }[keyof T]
-  type Optionals<T> = {
-    [K in keyof T]?: T[K] extends Column.IsOptional<infer V>
-      ? V
-      : T[K] extends Column.IsPrimary<infer V, infer K>
-      ? PrimaryKey<V, K>
-      : T[K]
-  }
-  export type Insert<T> = Intersection<
-    Optionals<Pick<T, OptionalKeys<T>>>,
-    Pick<T, RequiredKeys<T>>
-  >
-  export type Normalize<T> = {
-    [K in keyof T]: T[K] extends Column.IsOptional<infer V>
-      ? V
-      : T[K] extends Column.IsPrimary<infer V, infer K>
-      ? PrimaryKey<V, K>
-      : T[K]
-  }
-  export type Infer<T> = T extends Table<infer U> ? Normalize<U> : never
-}
-
-export type TableOptions<T, R> = {
+export interface TableData {
   name: string
   alias?: string
-  columns: {
-    [K in keyof T]: Column<T[K]>
-  }
-  indexes?: (this: Fields<T>) => Record<string, Index>
+  definition: TableDefinition
+  columns: Record<string, ColumnData>
+  indexes: Record<string, IndexData>
 }
 
-export function table<T extends {}, R>(
-  options: TableOptions<T, R>
-): Table<T> & Fields<T> {
-  const schema = {
-    ...options,
-    columns: Object.fromEntries(
-      Object.entries(options.columns).map(([key, column]) => {
-        const {data} = column as Column<any>
-        return [key, {...data, name: data.name || key}]
-      })
-    ),
-    indexes: {}
+interface TableProto<Definition> {
+  (conditions: {
+    [K in keyof Definition]?: Definition[K] extends Column<infer V>
+      ? EV<V>
+      : never
+  }): Cursor.TableSelect<Definition>
+  (...conditions: Array<EV<boolean>>): Cursor.TableSelect<Definition>
+}
+
+class TableProto<Definition> {
+  [Selection.__tableType](): Table.Select<Definition> {
+    throw 'assert'
   }
-  const indexes: Record<string, IndexData> = Object.fromEntries(
-    Object.entries(
-      options.indexes
-        ? options.indexes.call(
-            new Expr(ExprData.Row(Target.Table(schema))) as Fields<T>
-          )
-        : {}
-    ).map(([key, index]) => {
-      const indexName = `${schema.name}.${key}`
-      return [indexName, {name: indexName, ...index.data}]
-    })
+  get [table.data](): TableData {
+    throw 'assert'
+  }
+  get [table.meta](): Meta {
+    throw 'assert'
+  }
+  // Clear the Function prototype, not sure if there's a better way
+  // as mapped types (Omit) will remove the callable signature. We define them
+  // in a class getter since it's the only way to also mark them as non-enumarable
+  // Seems open: Microsoft/TypeScript#27575
+  get name(): unknown {
+    throw 'assert'
+  }
+  get length(): unknown {
+    throw 'assert'
+  }
+  get call(): unknown {
+    throw 'assert'
+  }
+  get apply(): unknown {
+    throw 'assert'
+  }
+  get bind(): unknown {
+    throw 'assert'
+  }
+  get prototype(): unknown {
+    throw 'assert'
+  }
+}
+
+export type Table<Definition> = Definition & TableProto<Definition>
+
+export namespace Table {
+  export type Select<Definition> = {
+    [K in keyof Definition as Definition[K] extends Column<any>
+      ? K
+      : never]: Definition[K] extends Column<infer T> ? T : never
+  }
+
+  export type Update<Definition> = Partial<{
+    [K in keyof Definition as Definition[K] extends Column<any>
+      ? K
+      : never]: Definition[K] extends Column<infer T> ? EV<T> : never
+  }>
+
+  type IsOptional<K> = K extends PrimaryColumn<any, any>
+    ? true
+    : K extends OptionalColumn<any>
+    ? true
+    : K extends Column<infer V>
+    ? null extends V
+      ? true
+      : false
+    : false
+
+  export type Insert<Definition> = {
+    [K in keyof Definition as IsOptional<Definition[K]> extends true
+      ? K
+      : never]?: Definition[K] extends Column<infer V> ? EV<V> : never
+  } & {
+    [K in keyof Definition as IsOptional<Definition[K]> extends false
+      ? K
+      : never]: Definition[K] extends Column<infer V> ? EV<V> : never
+  }
+}
+
+interface Meta {
+  indexes?: Record<string, Index>
+}
+
+type Definition<T> = {
+  [K in keyof T as K extends string ? K : never]: Column<any> | (() => any)
+}
+
+interface Define<T> {
+  new (): T
+}
+
+type Blueprint<T> = Definition<T> // & {[table.meta]?: Meta}
+
+type DefineTable = <T extends Blueprint<T>>(define: T | Define<T>) => Table<T>
+
+export type table<T> = T extends Table<infer D> ? Table.Select<D> : never
+
+export function createTable<Definition>(data: TableData): Table<Definition> {
+  const target = Target.Table(data)
+  const call = {
+    [data.name]: function (...args: Array<any>) {
+      const isConditionalRecord =
+        args.length === 1 &&
+        typeof args[0] === 'object' &&
+        !(args[0] instanceof Expr)
+      const conditions = isConditionalRecord
+        ? entries(args[0]).map(([key, value]) => {
+            const column = data.columns[key]
+            if (!column) throw new Error(`Column ${key} not found`)
+            return new Expr(
+              ExprData.BinOp(
+                BinOpType.Equals,
+                ExprData.Field(ExprData.Row(target), key),
+                ExprData.create(value)
+              )
+            )
+          })
+        : args
+      return new Cursor.TableSelect<Definition>(data, conditions)
+    }
+  }[data.name]
+  const cols = keys(data.columns)
+  const hasKeywords = cols.some(name => name in Function)
+  const expressions = fromEntries(
+    cols.map(name => [
+      name,
+      new Expr(ExprData.Field(ExprData.Row(target), name))
+    ])
   )
-  return new Table({
-    ...schema,
-    indexes
-  }) as Table<T> & Fields<T>
+  const toExpr = () => new Expr(ExprData.Row(target))
+  const res: any = new Proxy(call, {
+    get(target: any, key: string | symbol) {
+      if (key === table.data) return data
+      if (key === Expr.toExpr) return toExpr
+      return expressions[key as string] || (data.definition as any)[key]
+    }
+  })
+  return res
+}
+
+export function table(templateStrings: TemplateStringsArray): DefineTable
+export function table(name: string): DefineTable
+export function table(input: string | TemplateStringsArray) {
+  return function define<T extends Blueprint<T>>(
+    define: T | Define<T>
+  ): Table<T> {
+    const name = typeof input === 'string' ? input : input[0]
+    const definition = 'prototype' in define ? new define() : define
+    const columns = definition as Record<string, Column<any>>
+    const meta = (definition as any)[table.meta]
+    return createTable({
+      name,
+      definition,
+      columns: fromEntries(
+        entries(getOwnPropertyDescriptors(columns)).map(
+          ([name, descriptor]) => {
+            const column = columns[name]
+            if (!(column instanceof Column))
+              throw new Error(`Property ${name} is not a column`)
+            const {data} = column
+            return [
+              name,
+              {
+                ...data,
+                name: data.name || name,
+                enumerable: descriptor.enumerable
+              }
+            ]
+          }
+        )
+      ),
+      indexes: Object.fromEntries(
+        Object.entries((meta?.indexes as Meta) || {}).map(([key, index]) => {
+          const indexName = `${name}.${key}`
+          return [indexName, {name: indexName, ...index.data}]
+        })
+      )
+    })
+  }
 }
 
 export namespace table {
-  export type infer<T> = Table.Infer<T>
-
-  type Extensions<T> = {
-    [key: string]: (this: T, ...args: any[]) => any
-  }
-
-  export function extend<T extends Table<any>, E extends Extensions<T>>(
-    target: T,
-    extensions: E
-  ): T & E {
-    return new Proxy(target, {
-      get(target: any, key: string) {
-        if (key === 'as')
-          return (...args: Array<any>) =>
-            extend(target.as(...args), extensions as any)
-        return key in extensions ? extensions[key].bind(target) : target[key]
-      }
-    })
-  }
+  export const data = Symbol('data')
+  export const meta = Symbol('meta')
 }

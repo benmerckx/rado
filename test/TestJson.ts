@@ -3,24 +3,22 @@ import * as assert from 'uvu/assert'
 import {Cursor, Expr, column, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const Node = table({
-  name: 'node',
-  columns: {
-    id: column.integer().primaryKey<'node'>(),
-    index: column.integer()
-  }
+const Node = table('Node')({
+  id: column.integer().primaryKey<'node'>(),
+  index: column.integer()
 })
 
 test('json', async () => {
   const query = await connect()
-  await query(Node.createTable())
+  await query(Node().create())
   const amount = 10
   const objects = Array.from({length: amount}).map((_, i) => ({index: i}))
   assert.is(objects.length, amount)
-  await query(Node.insertAll(objects))
-  const count = await query(Node.count())
+  await query(Node().insertAll(objects))
+  const count = await query(Node().count())
   assert.is(count, amount)
-  const q = Node.first()
+  const q = Node()
+    .first()
     .select({
       fieldA: Expr.value(12),
       fieldB: Node.index

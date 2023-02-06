@@ -23,54 +23,51 @@ const columns = {
   createdAt: column.string().defaultValue(datetime('now', 'localtime'))
 }
 
-const TestTable = table({
-  name: 'test',
-  columns
-})
+const TestTable = table('Test')(columns)
 
 test('Create table', async () => {
   const db = await connect()
-  await TestTable.createTable().on(db)
+  await TestTable().create().on(db)
 })
 
 test('Add col', async () => {
   const db = await connect()
-  await TestTable.createTable().on(db)
+  await TestTable().create().on(db)
   const createdAt = column.string().defaultValue(datetime('now', 'localtime'))
-  const Start = table({
-    name: 'test',
-    columns: {
-      id: column.integer().primaryKey(),
-      createdAt,
-      text: column.string().nullable()
-    }
+  const Start = table('test')({
+    id: column.integer().primaryKey(),
+    createdAt,
+    text: column.string().nullable()
   })
   await db.migrateSchema(Start)
-  await Start.insertOne({text: '123'}).on(db)
-  const AddCol = table({
-    name: 'test',
-    columns: {
-      id: column.integer().primaryKey(),
-      createdAt,
-      text: column.number().defaultValue(2),
-      newCol: column.string().defaultValue('def'),
-      def: column.string().defaultValue(() => 'test'),
-      isFalse: column.boolean().defaultValue(false)
-    },
-    indexes() {
-      return {
-        newCol: index(this.newCol),
-        multiple: index(this.newCol.concat('inline parameter test'))
+  await Start().insertOne({text: '123'}).on(db)
+  const AddCol = table('test')(
+    class AddCol {
+      id = column.integer().primaryKey()
+      createdAt = createdAt
+      text = column.number().defaultValue(2)
+      newCol = column.string().defaultValue('def')
+      def = column.string().defaultValue(() => 'test')
+      isFalse = column.boolean().defaultValue(false)
+
+      protected [table.meta] = {
+        indexes: {
+          newCol: index(this.newCol),
+          multiple: index(this.newCol.concat('inline parameter test'))
+        }
       }
     }
-  })
+  )
   await db.migrateSchema(AddCol)
-  await AddCol.delete().on(db)
-  await AddCol.insertOne({
-    text: 1,
-    newCol: 'new'
-  }).on(db)
-  const rowOne = await AddCol.select({id: AddCol.id, newCol: AddCol.newCol})
+  await AddCol().delete().on(db)
+  await AddCol()
+    .insertOne({
+      text: 1,
+      newCol: 'new'
+    })
+    .on(db)
+  const rowOne = await AddCol()
+    .select({id: AddCol.id, newCol: AddCol.newCol})
     .first()
     .on(db)
   assert.equal(rowOne, {id: 1, newCol: 'new'})
