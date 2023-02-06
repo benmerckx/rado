@@ -1,10 +1,10 @@
-import {Column, column} from './Column'
-import {Cursor} from './Cursor'
-import {EV, Expr, ExprData} from './Expr'
-import {Index, index} from './Index'
-import {Query} from './Query'
-import {Schema} from './Schema'
-import {Target} from './Target'
+import {Column, column} from '../define/Column'
+import {Cursor} from '../define/Cursor'
+import {EV, Expr, ExprData} from '../define/Expr'
+import {Index, index} from '../define/Index'
+import {Query} from '../define/Query'
+import {Schema} from '../define/Schema'
+import {Target} from '../define/Target'
 
 interface Meta {
   indexes?: Record<string, Index>
