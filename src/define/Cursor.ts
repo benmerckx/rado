@@ -267,8 +267,45 @@ export namespace Cursor {
       )
     }
 
+    as(alias: string): this {
+      return undefined! // return new Table({...this.schema(), alias}) as this
+    }
+
+    create() {
+      return new Cursor.CreateTable(this.table)
+    }
+
+    insertOne(record: Table.Insert<T>) {
+      return new Cursor<Table.Normalize<T>>(
+        Query.Insert({
+          into: this.table,
+          data: [record],
+          selection: ExprData.Row(Target.Table(this.table)),
+          singleResult: true
+        })
+      )
+    }
+
+    insertAll(data: Array<Table.Insert<T>>) {
+      return new Cursor.Insert<T>(this.table).values(...data)
+    }
+
+    set(data: UpdateSet<T>) {
+      return new Cursor.Update<T>(
+        Query.Update({
+          table: this.table,
+          where: this.query().where
+        })
+      ).set(data)
+    }
+
     delete() {
-      return new Cursor.Delete(Query.Delete({table: this.schema()}))
+      return new Cursor.Delete(
+        Query.Delete({
+          table: this.table,
+          where: this.query().where
+        })
+      )
     }
   }
 
