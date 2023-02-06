@@ -1,6 +1,6 @@
 import {Column, column} from './Column'
 import {Cursor} from './Cursor'
-import {ExprData} from './Expr'
+import {EV, Expr, ExprData} from './Expr'
 import {Index, index} from './Index'
 import {Query} from './Query'
 import {Schema} from './Schema'
@@ -24,34 +24,9 @@ type Row<Def> = {
     : never]: Def[K] extends Column<infer T> ? T : never
 }
 
-class TableCursor<Def> extends Cursor.SelectMultiple<Row<Def>> {
-  constructor(schema: Schema) {
-    const from = Target.Table(schema)
-    super(Query.Select({from, selection: ExprData.Row(from)}))
-    return new Proxy(this, {
-      get(target: any, key: string | symbol) {
-        if (key === table.schema) return schema
-        return key in target ? target[key] : schema.columns[key as string]
-      }
-    })
-  }
-
-  get [table.schema](): Schema {
-    throw 'assert'
-  }
-
-  as(alias: string): this {
-    return new TableCursor({...this[table.schema], alias}) as this
-  }
-
-  get<K extends string>(field: K): K extends keyof Def ? Def[K] : Column<any> {
-    return undefined!
-  }
-}
-
 type table<T> = T extends Table<infer D> ? Row<D> : never
 
-const {entries, fromEntries, getOwnPropertyDescriptors} = Object
+const {keys, entries, fromEntries, getOwnPropertyDescriptors} = Object
 
 type DefineTable = <
   T extends Definition<T> & {
@@ -90,11 +65,43 @@ function table(input: string | TemplateStringsArray) {
       ),
       indexes: {} // extra.indexes?.call(definition) || {}
     }
-    return new TableCursor(schema) as Table<T>
+    function cursor(...conditions: Array<EV<boolean>>) {
+      const from = Target.Table(schema)
+      return new Cursor.SelectMultiple(
+        Query.Select({
+          from,
+          selection: ExprData.Row(from),
+          where: Expr.and(...conditions).expr
+        })
+      )
+    }
+    const cols = keys(schema.columns)
+    const hasKeywords = cols.some(name => name in Function)
+    if (hasKeywords) {
+      return new Proxy(cursor, {
+        get(_, key: string | symbol) {
+          return schema.columns[key as string]
+        }
+      })
+    }
+    return Object.assign(
+      cursor,
+      fromEntries(cols.map(name => [name, schema.columns[name]]))
+    )
   }
 }
 
-type Table<T> = T & TableCursor<T>
+type Table<T> = T & {
+  (...conditions: Array<EV<boolean>>): Cursor.SelectMultiple<Row<T>>
+  // Clear the Function prototype, not sure if there's a better way
+  // as mapped types (Omit) will remove the callable signature
+  // Seems open: Microsoft/TypeScript#27575
+  name: unknown
+  length: unknown
+  call: unknown
+  apply: unknown
+  bind: unknown
+}
 
 namespace table {
   export const name = Symbol('name')
@@ -107,6 +114,8 @@ const User = table('User')(
   class User {
     id = column.string().primaryKey<User>()
     name = column.string()
+    length = column.string()
+    apply = column.string()
     leftJoin = column.string()
 
     get thing() {
@@ -114,7 +123,7 @@ const User = table('User')(
     }
 
     patients() {
-      return Patient.select({p: Patient})
+      return Patient().select({p: Patient})
     }
 
     [table.meta] = {
@@ -125,15 +134,15 @@ const User = table('User')(
   }
 )
 type User = table<typeof User>
+User.prototype
 
 const y = {...User, thing: User.thing}
 const zeirj = User[table.meta]
 
-const z = User.get('leftJoin')
+const z = User.leftJoin
 
-interface Patient extends table<typeof Patient> {}
 const Patient = table('Patient')({
-  id: column.string().primaryKey<Patient>(),
+  id: column.string().primaryKey<'Patient'>(),
   lastName: column.string(),
   thing: column.string(),
 
@@ -145,12 +154,15 @@ const Patient = table('Patient')({
     return User.id
   }
 })
+type Patient = table<typeof Patient>
 
 const x = {...Patient}
+
+Patient().where(true)
 
 function test<T extends {id: string}>(table: Table<T>, entry: T) {
   return table.id
 }
 
-const seofj = User.where(true)
-const xyz = Patient.where(true)
+const seofj = User(User.length.is('sdf'))
+const xyz = Patient().where(true)

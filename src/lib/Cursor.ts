@@ -51,16 +51,19 @@ export class Cursor<T> {
   }
 }
 
-function addWhere<T>(query: Query<T>, where: Array<EV<boolean>>): Query<T> {
-  const conditions: Array<any> = where.slice()
-  if (query.where) conditions.push(query.where)
-  return {
-    ...query,
-    where: Expr.and(...conditions).expr
-  }
-}
-
 export namespace Cursor {
+  export function addWhere<T>(
+    query: Query<T>,
+    where: Array<EV<boolean>>
+  ): Query<T> {
+    const conditions: Array<any> = where.slice()
+    if (query.where) conditions.push(query.where)
+    return {
+      ...query,
+      where: Expr.and(...conditions).expr
+    }
+  }
+
   export class Delete extends Cursor<{rowsAffected: number}> {
     query(): Query.Delete {
       return super.query() as Query.Delete
