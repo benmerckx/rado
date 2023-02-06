@@ -1,4 +1,5 @@
-import {Driver} from './Driver'
+import {Driver} from '../lib/Driver'
+import {CompileOptions} from '../lib/Formatter'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {OrderBy} from './OrderBy'
@@ -46,24 +47,25 @@ export class Cursor<T> {
     return driver.executeQuery(this.query())
   }
 
+  compile(driver: Driver, options?: CompileOptions) {
+    return driver.formatter.compile(this.query(), options)
+  }
+
   toJSON(): Query<T> {
     return this.query()
   }
 }
 
-export namespace Cursor {
-  export function addWhere<T>(
-    query: Query<T>,
-    where: Array<EV<boolean>>
-  ): Query<T> {
-    const conditions: Array<any> = where.slice()
-    if (query.where) conditions.push(query.where)
-    return {
-      ...query,
-      where: Expr.and(...conditions).expr
-    }
+function addWhere<T>(query: Query<T>, where: Array<EV<boolean>>): Query<T> {
+  const conditions: Array<any> = where.slice()
+  if (query.where) conditions.push(new Expr(query.where))
+  return {
+    ...query,
+    where: Expr.and(...conditions).expr
   }
+}
 
+export namespace Cursor {
   export class Delete extends Cursor<{rowsAffected: number}> {
     query(): Query.Delete {
       return super.query() as Query.Delete
@@ -83,7 +85,9 @@ export namespace Cursor {
   }
 
   export class Update<T> extends Cursor<{rowsAffected: number}> {
-    declare query: () => Query.Update
+    query(): Query.Update {
+      return super.query() as Query.Update
+    }
 
     set(set: UpdateSet<T>): Update<T> {
       return new Update({...this.query(), set})
@@ -104,7 +108,7 @@ export namespace Cursor {
 
   export class InsertValuesReturning<T> extends Cursor<T> {}
 
-  export class InsertValues extends Cursor<{rowsAffected: number}> {
+  export class Inserted extends Cursor<{rowsAffected: number}> {
     query(): Query.Insert {
       return super.query() as Query.Insert
     }
@@ -121,8 +125,14 @@ export namespace Cursor {
   export class Insert<T> {
     constructor(protected into: Schema) {}
 
-    values(...data: Array<Table.Insert<T>>): InsertValues {
-      return new InsertValues(Query.Insert({into: this.into, data}))
+    selection(query: Cursor.SelectMultiple<T>): Inserted {
+      return new Inserted(
+        Query.Insert({into: this.into, select: query.query()})
+      )
+    }
+
+    values(...data: Array<Table.Insert<T>>): Inserted {
+      return new Inserted(Query.Insert({into: this.into, data}))
     }
   }
 
@@ -157,6 +167,7 @@ export namespace Cursor {
 
     leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
         from: Target.Join(
@@ -170,6 +181,7 @@ export namespace Cursor {
 
     innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectMultiple<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
         from: Target.Join(
@@ -267,6 +279,7 @@ export namespace Cursor {
 
     leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
         from: Target.Join(
@@ -280,6 +293,7 @@ export namespace Cursor {
 
     innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<T> {
       const query = this.query()
+      if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
         from: Target.Join(

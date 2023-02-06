@@ -11,9 +11,10 @@ export enum QueryType {
   Update = 'Update',
   Delete = 'Delete',
   CreateTable = 'CreateTable',
+  AlterTable = 'AlterTable',
+  DropTable = 'DropTable',
   CreateIndex = 'CreateIndex',
   DropIndex = 'DropIndex',
-  AlterTable = 'AlterTable',
   Batch = 'Batch',
   Transaction = 'Transaction',
   Raw = 'Raw'
@@ -25,9 +26,10 @@ export type Query<T = any> =
   | Query.Update
   | Query.Delete
   | Query.CreateTable
+  | Query.AlterTable
+  | Query.DropTable
   | Query.CreateIndex
   | Query.DropIndex
-  | Query.AlterTable
   | Query.Batch
   | Query.Transaction
   | Query.Raw
@@ -48,7 +50,8 @@ export namespace Query {
   export interface Insert extends QueryBase {
     type: QueryType.Insert
     into: Schema
-    data: Array<any>
+    data?: Array<any>
+    select?: Query.Select
   }
   export function Insert(insert: Omit<Insert, 'type'>): Query.Insert {
     return {type: QueryType.Insert, ...insert}
@@ -56,7 +59,7 @@ export namespace Query {
   export interface Select extends QueryBase {
     type: QueryType.Select
     selection: ExprData
-    from: Target
+    from?: Target
   }
   export function Select(select: Omit<Select, 'type'>): Query.Select {
     return {type: QueryType.Select, ...select}
@@ -85,6 +88,28 @@ export namespace Query {
     create: Omit<CreateTable, 'type'>
   ): Query.CreateTable {
     return {type: QueryType.CreateTable, ...create}
+  }
+  export interface AlterTable extends QueryBase {
+    type: QueryType.AlterTable
+    table: Schema
+    alterColumn?: ColumnData
+    renameColumn?: {from: string; to: string}
+    addColumn?: ColumnData
+    dropColumn?: string
+    renameTable?: {from: string}
+  }
+  export function AlterTable(
+    alter: Omit<AlterTable, 'type'>
+  ): Query.AlterTable {
+    return {type: QueryType.AlterTable, ...alter}
+  }
+  export interface DropTable extends QueryBase {
+    type: QueryType.DropTable
+    table: Schema
+    ifExists?: boolean
+  }
+  export function DropTable(drop: Omit<DropTable, 'type'>): Query.DropTable {
+    return {type: QueryType.DropTable, ...drop}
   }
   export interface CreateIndex extends QueryBase {
     type: QueryType.CreateIndex
@@ -139,17 +164,5 @@ export namespace Query {
     if (raw.strings.some(chunk => chunk.includes('?')))
       throw new TypeError('SQL injection hazard')
     return {type: QueryType.Raw, ...raw}
-  }
-  export interface AlterTable extends QueryBase {
-    type: QueryType.AlterTable
-    table: Schema
-    alterColumn?: ColumnData
-    addColumn?: ColumnData
-    dropColumn?: string
-  }
-  export function AlterTable(
-    alter: Omit<AlterTable, 'type'>
-  ): Query.AlterTable {
-    return {type: QueryType.AlterTable, ...alter}
   }
 }

@@ -12,11 +12,11 @@ interface PartialColumnData {
   type: ColumnType
   name?: string
   nullable?: boolean
-  defaultValue?: ExprData
+  defaultValue?: ExprData | (() => ExprData)
   autoIncrement?: boolean
   primaryKey?: boolean
   unique?: boolean
-  references?: ExprData
+  references?: () => ExprData
   enumerable?: boolean
 }
 
@@ -42,20 +42,39 @@ export class Column<T> extends Expr<T> {
     return new Column({...this.data, autoIncrement: true})
   }
 
-  primaryKey<K>(): Column<Column.IsPrimary<T, K>> {
-    return new Column({...this.data, primaryKey: true})
+  primaryKey<K>(create?: () => EV<T>): Column<Column.IsPrimary<T, K>> {
+    return new Column({
+      ...this.data,
+      primaryKey: true,
+      defaultValue: create
+        ? () => ExprData.create(create())
+        : this.data.defaultValue
+    })
   }
 
-  references<X extends T>(column: Expr<X>): Column<X> {
-    return new Column({...this.data, references: ExprData.create(column)})
+  references<X extends T>(column: Expr<X> | (() => Expr<X>)): Column<X> {
+    return new Column({
+      ...this.data,
+      references() {
+        return ExprData.create(typeof column === 'function' ? column() : column)
+      }
+    })
   }
 
   unique(): Column<T> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(value: EV<T>): Column<Column.IsOptional<T>> {
-    return new Column({...this.data, defaultValue: ExprData.create(value)})
+  defaultValue(create: () => EV<T>): Column<Column.IsOptional<T>>
+  defaultValue(value: EV<T>): Column<Column.IsOptional<T>>
+  defaultValue(value: any): Column<Column.IsOptional<T>> {
+    return new Column({
+      ...this.data,
+      defaultValue:
+        typeof value === 'function'
+          ? () => ExprData.create(value())
+          : ExprData.create(value)
+    })
   }
 }
 
@@ -82,6 +101,9 @@ export const column = {
   },
   boolean<T extends boolean = boolean>(): Column<T> {
     return new Column({type: ColumnType.Boolean})
+  },
+  json<T = any>(): Column<T> {
+    return new Column({type: ColumnType.Json})
   },
   object<T extends object = object>(): Column<T> {
     return new Column({type: ColumnType.Json})

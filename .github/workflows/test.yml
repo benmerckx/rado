@@ -29,8 +29,12 @@ jobs:
       - run: yarn test --driver=better-sqlite3
       - run: yarn test --driver=sql.js
       - run: yarn test --driver=sqlite3
+      - uses: oven-sh/setup-bun@v0.1.8
+        with:
+          bun-version: latest
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: bun test/index.ts --driver=bun:sqlite || true
       - if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          yarn build
           npm config set //registry.npmjs.org/:_authToken ${{secrets.NPM_AUTH_TOKEN}}
           npm publish

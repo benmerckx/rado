@@ -1,4 +1,4 @@
-import {ExprData, ExprType} from '../lib/Expr'
+import {ExprData, ExprType} from '../define/Expr'
 import {FormatContext, Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
 

@@ -1,6 +1,6 @@
-import {Cursor} from '../lib/Cursor'
-import {Expr} from '../lib/Expr'
-import {SchemaInstructions} from '../lib/Schema'
+import {Cursor} from '../define/Cursor'
+import {Expr} from '../define/Expr'
+import {SchemaInstructions} from '../define/Schema'
 import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from './SqliteFormatter'
 

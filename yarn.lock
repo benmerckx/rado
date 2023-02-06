@@ -478,6 +478,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"bun-types@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "bun-types@npm:0.5.0"
+  checksum: dfabcf1544bcbe03f85bdf5b12b180d360133451ee2cfa6d56e9757829acdbe46dcc0fb373d10dca3ae030c0b70ea29edef85bf58b39e041e6f8c727acbc7d86
+  languageName: node
+  linkType: hard
+
 "cacache@npm:^15.2.0":
   version: 15.3.0
   resolution: "cacache@npm:15.3.0"
@@ -1556,6 +1563,7 @@ __metadata:
     "@types/glob": ^8.0.0
     "@types/sql.js": ^1.4.2
     better-sqlite3: ^7.5.1
+    bun-types: ^0.5.0
     cross-env: ^7.0.3
     esbuild: ^0.16.16
     glob: ^8.0.3

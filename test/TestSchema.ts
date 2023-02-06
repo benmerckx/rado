@@ -28,29 +28,34 @@ const TestTable = table({
   columns
 })
 
-const query = await connect()
-
 test('Create table', async () => {
-  await query(TestTable.createTable())
+  const db = await connect()
+  await TestTable.createTable().on(db)
 })
 
 test('Add col', async () => {
+  const db = await connect()
+  await TestTable.createTable().on(db)
   const createdAt = column.string().defaultValue(datetime('now', 'localtime'))
   const Start = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
       createdAt,
-      text: column.string()
+      text: column.string().nullable()
     }
   })
-  await query(Start.createTable())
+  await db.migrateSchema(Start)
+  await Start.insertOne({text: '123'}).on(db)
   const AddCol = table({
     name: 'test',
     columns: {
       id: column.integer().primaryKey(),
       createdAt,
-      newCol: column.string()
+      text: column.number().defaultValue(2),
+      newCol: column.string().defaultValue('def'),
+      def: column.string().defaultValue(() => 'test'),
+      isFalse: column.boolean().defaultValue(false)
     },
     indexes() {
       return {
@@ -59,15 +64,15 @@ test('Add col', async () => {
       }
     }
   })
-  await query.migrateSchema(AddCol)
-  await query(
-    AddCol.insertOne({
-      newCol: 'new'
-    })
-  )
-  const rowOne = await query(
-    AddCol.select({id: AddCol.id, newCol: AddCol.newCol}).first()
-  )
+  await db.migrateSchema(AddCol)
+  await AddCol.delete().on(db)
+  await AddCol.insertOne({
+    text: 1,
+    newCol: 'new'
+  }).on(db)
+  const rowOne = await AddCol.select({id: AddCol.id, newCol: AddCol.newCol})
+    .first()
+    .on(db)
   assert.equal(rowOne, {id: 1, newCol: 'new'})
 })
 

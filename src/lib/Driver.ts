@@ -1,11 +1,11 @@
-import {Cursor} from './Cursor'
-import {Expr, ExprData} from './Expr'
+import {Cursor} from '../define/Cursor'
+import {Expr, ExprData} from '../define/Expr'
+import {ParamData} from '../define/Param'
+import {Query, QueryType} from '../define/Query'
+import {Schema, SchemaInstructions} from '../define/Schema'
+import {Table} from '../define/Table'
 import {Formatter} from './Formatter'
-import {ParamData} from './Param'
-import {Query, QueryType} from './Query'
-import {Schema, SchemaInstructions} from './Schema'
 import {Statement} from './Statement'
-import {Table} from './Table'
 
 class Callable extends Function {
   constructor(fn: Function) {
@@ -156,7 +156,8 @@ abstract class SyncDriver extends DriverBase {
             .map(row => JSON.parse(row.result).result)
           if (query.singleResult) {
             const row = res[0] as T
-            if (query.validate && !row) throw new Error('No row found')
+            if (query.validate && row === undefined)
+              throw new Error('No row found')
             return row
           }
           return res as T
@@ -303,7 +304,8 @@ abstract class AsyncDriver extends DriverBase {
           )
           if (query.singleResult) {
             const row = res[0] as T
-            if (query.validate && !row) throw new Error('No row found')
+            if (query.validate && row === undefined)
+              throw new Error('No row found')
             return row
           }
           return res as T

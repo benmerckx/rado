@@ -14,7 +14,11 @@ const Search = table({
 })
 
 test('Search', async () => {
-  if (process.env.TEST_DRIVER === 'sql.js') return
+  if (
+    process.env.TEST_DRIVER === 'sql.js' ||
+    process.env.TEST_DRIVER === 'bun:sqlite'
+  )
+    return
   const query = await connect()
   await query`
     create virtual table if not exists Search using fts5(name, col2)
