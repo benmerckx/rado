@@ -182,7 +182,7 @@ function isConstant<T>(e: ExprData, value: T): boolean {
 }
 
 export class Expr<T> {
-  static NULL = toExpr(null)
+  static NULL = Expr.create(null)
 
   static value<T>(value: T): Expr<T> {
     return new Expr<T>(ExprData.Param(ParamData.Value(value)))

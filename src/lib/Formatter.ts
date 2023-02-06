@@ -51,6 +51,7 @@ export interface FormatContext {
   formatAsInsert?: boolean
   formatAsIn?: boolean
   topLevel?: boolean
+  selectAsColumns?: boolean
 }
 
 type FormatSubject = (stmt: Statement, mkSubject: () => void) => void
@@ -102,12 +103,14 @@ export abstract class Formatter implements Sanitizer {
         return this.formatDelete(ctx, query)
       case QueryType.CreateTable:
         return this.formatCreateTable(ctx, query)
+      case QueryType.AlterTable:
+        return this.formatAlterTable(ctx, query)
+      case QueryType.DropTable:
+        return this.formatDropTable(ctx, query)
       case QueryType.CreateIndex:
         return this.formatCreateIndex(ctx, query)
       case QueryType.DropIndex:
         return this.formatDropIndex(ctx, query)
-      case QueryType.AlterTable:
-        return this.formatAlterTable(ctx, query)
       case QueryType.Transaction:
         return this.formatTransaction(ctx, query)
       case QueryType.Batch:
@@ -142,15 +145,26 @@ export abstract class Formatter implements Sanitizer {
 
   formatInsert(ctx: FormatContext, query: Query.Insert): Statement {
     const {stmt} = ctx
-    const columns = Object.values(query.into.columns)
+    const columns = Object.values(query.into.columns).map(c => c.name)
     stmt.add('INSERT INTO').addIdentifier(query.into.name)
     if (query.into.alias) stmt.raw('AS').addIdentifier(query.into.alias)
-    for (const column of stmt.call(columns)) this.formatString(ctx, column.name)
-    stmt.add('VALUES')
-    if (query.data.length === 0) stmt.add('()')
-    else
+    for (const column of stmt.call(columns)) this.formatString(ctx, column)
+    if (query.data) {
+      stmt.add('VALUES').space()
       for (const row of stmt.separate(query.data))
         this.formatInsertRow(ctx, query.into.columns, row)
+    }
+    if (query.select) {
+      stmt.space()
+      this.formatSelect(
+        {
+          ...ctx,
+          topLevel: false,
+          selectAsColumns: true
+        },
+        query.select
+      )
+    }
     if (query.selection) {
       stmt.add('RETURNING').space()
       this.formatSelection(ctx, query.selection, formatAsResultObject)
@@ -230,15 +244,33 @@ export abstract class Formatter implements Sanitizer {
 
   formatAlterTable(ctx: FormatContext, query: Query.AlterTable): Statement {
     const {stmt} = ctx
-    stmt.add('ALTER TABLE').addIdentifier(query.table.name)
+    stmt
+      .add('ALTER TABLE')
+      .addIdentifier(
+        query.renameTable ? query.renameTable.from : query.table.name
+      )
     if (query.addColumn) {
       stmt.add('ADD COLUMN').space()
       this.formatColumn(ctx, query.addColumn)
     } else if (query.dropColumn) {
       stmt.add('DROP COLUMN').addIdentifier(query.dropColumn)
+    } else if (query.renameColumn) {
+      stmt.add('RENAME COLUMN')
+      stmt.addIdentifier(query.renameColumn.from).add('TO')
+      stmt.addIdentifier(query.renameColumn.to)
+    } else if (query.renameTable) {
+      stmt.add('RENAME TO').addIdentifier(query.table.name)
     } else if (query.alterColumn) {
       throw new Error(`Not available in this formatter: alter column`)
     }
+    return stmt
+  }
+
+  formatDropTable(ctx: FormatContext, query: Query.DropTable): Statement {
+    const {stmt} = ctx
+    stmt.add('DROP TABLE')
+    if (query.ifExists) stmt.add('IF EXISTS')
+    stmt.addIdentifier(query.table.name)
     return stmt
   }
 
@@ -499,7 +531,7 @@ export abstract class Formatter implements Sanitizer {
       )
     if (formatSubject) formatSubject(stmt, mkSubject)
     else this.formatExpr(ctx, selection)
-    stmt.add('AS').addIdentifier('result')
+    if (!ctx.selectAsColumns) stmt.add('AS').addIdentifier('result')
     return stmt
   }
 
@@ -711,12 +743,21 @@ export abstract class Formatter implements Sanitizer {
         this.formatExpr({...ctx, formatAsJson: true}, expr.b)
         return stmt.closeParenthesis()
       case ExprType.Record:
-        stmt.identifier('json_object')
-        for (const [key, value] of stmt.call(Object.entries(expr.fields))) {
+        if (ctx.selectAsColumns) {
+          const inner = {...ctx, selectAsColumns: false}
+          for (const [key, value] of stmt.separate(
+            Object.entries(expr.fields)
+          )) {
+            this.formatExprJson(inner, value)
+          }
+          return stmt
+        }
+        stmt.identifier('json_object').openParenthesis()
+        for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
           this.formatString(ctx, key).raw(', ')
           this.formatExprJson(ctx, value)
         }
-        return stmt
+        return stmt.closeParenthesis()
       case ExprType.Filter: {
         const {target, condition} = expr
         switch (target.type) {

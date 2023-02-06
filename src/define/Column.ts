@@ -101,6 +101,9 @@ export const column = {
   boolean<T extends boolean = boolean>(): Column<T> {
     return new Column({type: ColumnType.Boolean})
   },
+  json<T = any>(): Column<T> {
+    return new Column({type: ColumnType.Json})
+  },
   object<T extends object = object>(): Column<T> {
     return new Column({type: ColumnType.Json})
   },

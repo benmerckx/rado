@@ -100,7 +100,7 @@ export namespace Cursor {
 
   export class InsertValuesReturning<T> extends Cursor<T> {}
 
-  export class InsertValues extends Cursor<{rowsAffected: number}> {
+  export class Inserted extends Cursor<{rowsAffected: number}> {
     query(): Query.Insert {
       return super.query() as Query.Insert
     }
@@ -117,8 +117,14 @@ export namespace Cursor {
   export class Insert<T> {
     constructor(protected into: Schema) {}
 
-    values(...data: Array<Table.Insert<T>>): InsertValues {
-      return new InsertValues(Query.Insert({into: this.into, data}))
+    selection(query: Cursor.SelectMultiple<T>): Inserted {
+      return new Inserted(
+        Query.Insert({into: this.into, select: query.query()})
+      )
+    }
+
+    values(...data: Array<Table.Insert<T>>): Inserted {
+      return new Inserted(Query.Insert({into: this.into, data}))
     }
   }
 

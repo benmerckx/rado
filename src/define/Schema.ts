@@ -1,8 +1,10 @@
 import {Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
 import {ColumnData} from './Column'
+import {Expr, ExprData} from './Expr'
 import {IndexData} from './Index'
-import {Query} from './Query'
+import {Query, QueryType} from './Query'
+import {Target} from './Target'
 
 export interface Schema {
   name: string
@@ -29,6 +31,57 @@ export namespace Schema {
     return str.replace(/\n\s+/g, '\n')
   }
 
+  // This is placed here but is SQLite specific, so we'll eventually move it
+  function recreateTable(
+    table: Schema,
+    addedColumns: Set<string>
+  ): Array<Query> {
+    const queries: Array<Query> = []
+
+    // Create a new temporary table with the new definition
+    const tempTable = {...table, name: `$$new_${table.name}`}
+    queries.push(Query.CreateTable({table: tempTable}))
+
+    // Copy the data from the old table to the new table
+    queries.push(
+      Query.Insert({
+        into: tempTable,
+        select: Query.Select({
+          from: Target.Table(table),
+          selection: ExprData.Record(
+            Object.fromEntries(
+              Object.entries(table.columns).map(([key, column]) => [
+                key,
+                addedColumns.has(key)
+                  ? (typeof column.defaultValue === 'function'
+                      ? column.defaultValue()
+                      : column.defaultValue) || Expr.NULL.expr
+                  : ExprData.Field(ExprData.Row(Target.Table(table)), key)
+              ])
+            )
+          )
+        })
+      })
+    )
+
+    // Drop the old table
+    queries.push(Query.DropTable({table, ifExists: true}))
+
+    // Rename the temporary table to the old table name
+    queries.push(
+      Query.AlterTable({
+        table: table,
+        renameTable: {from: tempTable.name}
+      })
+    )
+
+    // Create missing indexes
+    for (const index of Object.values(table.indexes))
+      queries.push(Query.CreateIndex({table, index}))
+
+    return queries
+  }
+
   export function upgrade(
     formatter: Formatter,
     local: SchemaInstructions,
@@ -39,6 +92,7 @@ export namespace Schema {
       ...Object.keys(schema.columns)
     ])
     const res: Array<Query> = []
+    let recreate = false
     for (const columnName of columnNames) {
       const localInstruction = local.columns[columnName]
       const schemaCol = schema.columns[columnName]
@@ -55,10 +109,22 @@ export namespace Schema {
           removeLeadingWhitespace(localInstruction) !==
           removeLeadingWhitespace(instruction)
         ) {
-          res.push(Query.AlterTable({table: schema, alterColumn: schemaCol}))
+          recreate = true
         }
       }
     }
+
+    // Indexes will be dropped and created again
+    if (recreate) {
+      const added = res
+        .filter(
+          (query): query is Query.AlterTable =>
+            query.type === QueryType.AlterTable && Boolean(query.addColumn)
+        )
+        .map(query => query.addColumn!.name)
+      return recreateTable(schema, new Set(added))
+    }
+
     const indexNames = new Set([
       ...Object.keys(local.indexes),
       ...Object.keys(schema.indexes)
