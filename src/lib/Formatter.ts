@@ -391,8 +391,6 @@ export abstract class Formatter implements Sanitizer {
           throw new TypeError(`Expected boolean for column ${column.name}`)
         return stmt.raw(this.escapeValue(columnValue))
       case ColumnType.Json:
-        if (typeof columnValue !== 'object')
-          throw new TypeError(`Expected object for column ${column.name}`)
         return stmt.value(JSON.stringify(columnValue))
     }
   }
@@ -537,7 +535,8 @@ export abstract class Formatter implements Sanitizer {
             const column = expr.target.table.columns[field]
             const asBoolean =
               column?.type === ColumnType.Boolean && ctx.formatAsJson
-            const asJson = column?.type === ColumnType.Json && ctx.formatAsJson
+            const jsonColumn = column?.type === ColumnType.Json
+            const asJson = jsonColumn && ctx.formatAsJson
             if (asJson) {
               stmt.raw('json')
               stmt.openParenthesis()
@@ -551,6 +550,7 @@ export abstract class Formatter implements Sanitizer {
             stmt.identifier(field)
             if (asBoolean) stmt.add(`, 'true', 'false'))`)
             if (asJson) stmt.closeParenthesis()
+            if (jsonColumn && !asJson) stmt.raw("->>'$'")
             return stmt
         }
       default:
