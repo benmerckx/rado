@@ -14,60 +14,9 @@ npm install rado
 - No code generation step
 - No dependencies
 
-### Usage
+## Queries
 
-#### Table definition
-
-```ts
-import {table, column} from 'rado'
-
-const User = table({
-  // Pass a definition under a key with the actual name of the table in database
-  user: class {
-    id = column.integer().primaryKey()
-    username = column.string()
-
-    // Define helper methods directly on the model
-    posts() {
-      return Post({userId: this.id})
-    }
-  }
-})
-
-const Post = table({
-  post: class {
-    id = column.integer().primaryKey()
-    userId = column.integer().references(() => User.id)
-    content = column.string()
-
-    author() {
-      return User({id: this.userId}).sure()
-    }
-
-    tags() {
-      return Tag({id: PostTags.tagId}).innerJoin(PostTags({postId: this.id}))
-    }
-  }
-})
-
-const Tag = table({
-  tag: class {
-    id = column.integer().primaryKey()
-    name = column.string()
-  }
-})
-
-const PostTags = table({
-  post_tag: class {
-    postId = column.integer().references(() => Post.id)
-    tagId = column.integer().references(() => Tag.id)
-  }
-})
-```
-
-#### Queries
-
-##### Where
+#### Where
 
 Conditions can be created by accessing the fields of the table
 instances and using the operators of `Expr`:
@@ -104,7 +53,7 @@ User({id: 1}).innerJoin(Post({userId: User.id}))
 User().innerJoin(Post, Post.userId.is(User.id)).where(User.id.is(1))
 ```
 
-##### Select
+#### Select
 
 Retrieve a single field
 
@@ -175,7 +124,7 @@ User()
   .take(10)
 ```
 
-##### Insert
+#### Insert
 
 Insert a single row and return the result:
 
@@ -189,7 +138,7 @@ Insert multiple rows:
 User().insertAll([{username: 'Mario'}, {username: 'Luigi'}])
 ```
 
-##### Update
+#### Update
 
 Set values
 
@@ -205,7 +154,7 @@ User()
   .where(User.deleted)
 ```
 
-##### Delete
+#### Delete
 
 Delete rows
 
@@ -213,13 +162,61 @@ Delete rows
 User({id: 1}).delete()
 ```
 
-#### Connections
+## Schema definition
+
+```ts
+import {table, column} from 'rado'
+
+const User = table({
+  // Pass a definition under a key with the actual name of the table in database
+  user: class {
+    id = column.integer().primaryKey()
+    username = column.string()
+
+    // Define helper methods directly on the model
+    posts() {
+      return Post({userId: this.id})
+    }
+  }
+})
+
+const Post = table({
+  post: class {
+    id = column.integer().primaryKey()
+    userId = column.integer().references(() => User.id)
+    content = column.string()
+
+    author() {
+      return User({id: this.userId}).sure()
+    }
+
+    tags() {
+      return Tag({id: PostTags.tagId}).innerJoin(PostTags({postId: this.id}))
+    }
+  }
+})
+
+const Tag = table({
+  tag: class {
+    id = column.integer().primaryKey()
+    name = column.string()
+  }
+})
+
+const PostTags = table({
+  post_tag: class {
+    postId = column.integer().references(() => Post.id)
+    tagId = column.integer().references(() => Tag.id)
+  }
+})
+```
+
+## Connections
 
 Currently supported SQLite drivers:
 `better-sqlite3`, `sql.js`, `sqlite3`, `bun:sqlite`
 
-Import the correct driver and pass an instance of the database to the `connect`
-function to get started:
+Pass an instance of the database to the `connect` function to get started:
 
 ```ts
 import Database from 'better-sqlite3'
@@ -231,7 +228,7 @@ const db = connect(new Database('foobar.db'))
 Currently all drivers are synchronous except for the `sqlite3` driver which is
 async.
 
-##### Run queries
+#### Run queries
 
 Call the connection with a query to retrieve its results:
 
@@ -241,7 +238,7 @@ const posts = db(Post())
 const posts = await db(Post())
 ```
 
-##### Iterate results
+#### Iterate results
 
 Iterate over query results:
 
@@ -256,7 +253,7 @@ for await (const row of db.iterate(allPosts)) {
 }
 ```
 
-##### Transactions
+#### Transactions
 
 Run transactions within the `transaction` method which will isolate a connection
 for you and can optionally return a result:
