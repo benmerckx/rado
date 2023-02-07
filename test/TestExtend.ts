@@ -3,9 +3,9 @@ import * as assert from 'uvu/assert'
 import {TableMeta, column, create, index, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const User = table('user')(
-  class User {
-    id = column.integer().primaryKey<'user'>()
+const User = table({
+  user: class {
+    id = column.integer().primaryKey()
     firstName = column.string()
     lastName = column.string()
 
@@ -19,11 +19,11 @@ const User = table('user')(
       )
     }
   }
-)
+})
 
-const Role = table('role')(
-  class Role {
-    id = column.integer().primaryKey<Role>()
+const Role = table({
+  role: class {
+    id = column.integer().primaryKey<'role'>()
     name = column.string()
 
     users() {
@@ -32,10 +32,10 @@ const Role = table('role')(
       )
     }
   }
-)
+})
 
-const UserRoles = table('user_roles')(
-  class UserRoles {
+const UserRoles = table({
+  user_roles: class {
     userId = column.integer().references(() => User.id)
     roleId = column.integer().references(() => Role.id)
 
@@ -48,7 +48,7 @@ const UserRoles = table('user_roles')(
       }
     }
   }
-)
+})
 
 test('Extend', async () => {
   const db = await connect()

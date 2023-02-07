@@ -13,9 +13,11 @@ test('dynamic', async () => {
 
 test('Functions', async () => {
   const db = await connect()
-  const User = table('User')({
-    id: column.integer().primaryKey(),
-    birthdate: column.string()
+  const User = table({
+    User: class {
+      id = column.integer().primaryKey()
+      birthdate = column.string()
+    }
   })
   await User().create().on(db)
   const now = '1920-01-01'

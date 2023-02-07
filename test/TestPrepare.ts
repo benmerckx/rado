@@ -3,9 +3,11 @@ import * as assert from 'uvu/assert'
 import {Expr, column, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const Node = table('Node')({
-  id: column.integer().primaryKey<'node'>(),
-  index: column.integer()
+const Node = table({
+  Node: {
+    id: column.integer().primaryKey<'node'>(),
+    index: column.integer()
+  }
 })
 
 test('prepare', async () => {

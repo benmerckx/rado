@@ -5,9 +5,11 @@ import {match} from '../src/sqlite'
 import {connect} from './DbSuite'
 
 type Search = table<typeof Search>
-const Search = table('Search')({
-  name: column.string(),
-  col2: column.string().nullable()
+const Search = table({
+  Search: class {
+    name = column.string()
+    col2 = column.string().nullable()
+  }
 })
 
 test('Search', async () => {

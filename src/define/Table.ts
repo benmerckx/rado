@@ -200,51 +200,48 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   return res
 }
 
-export function table(templateStrings: TemplateStringsArray): DefineTable
-export function table(name: string): DefineTable
-export function table(input: string | TemplateStringsArray) {
-  return function define<T extends Blueprint<T>>(
-    define: T | Define<T>
-  ): Table<T> {
-    const name = typeof input === 'string' ? input : input[0]
-    const definition = 'prototype' in define ? new define() : define
-    const columns = definition as Record<string, Column<any>>
-    const res: Table<T> = createTable({
-      name,
-      definition,
-      columns: fromEntries(
-        entries(getOwnPropertyDescriptors(columns)).map(
-          ([name, descriptor]) => {
-            const column = columns[name]
-            if (!(column instanceof Column))
-              throw new Error(`Property ${name} is not a column`)
-            const {data} = column
-            return [
-              name,
-              {
-                ...data,
-                name: data.name || name,
-                enumerable: descriptor.enumerable
-              }
-            ]
+export function table<T extends Blueprint<T>>(
+  define: Record<string, T | Define<T>>
+): Table<T> {
+  const names = keys(define)
+  if (names.length !== 1) throw new Error('Table must have a single name')
+  const name = names[0]
+  const target = define[name]
+  const definition = 'prototype' in target ? new target() : target
+  const columns = definition as Record<string, Column<any>>
+  const res: Table<T> = createTable({
+    name,
+    definition,
+    columns: fromEntries(
+      entries(getOwnPropertyDescriptors(columns)).map(([name, descriptor]) => {
+        const column = columns[name]
+        if (!(column instanceof Column))
+          throw new Error(`Property ${name} is not a column`)
+        const {data} = column
+        return [
+          name,
+          {
+            ...data,
+            name: data.name || name,
+            enumerable: descriptor.enumerable
           }
+        ]
+      })
+    ),
+    meta() {
+      const createMeta = res[table.meta]
+      const meta = createMeta ? createMeta.apply(res) : {}
+      return {
+        indexes: fromEntries(
+          entries((meta?.indexes as TableMeta) || {}).map(([key, index]) => {
+            const indexName = `${name}.${key}`
+            return [indexName, {name: indexName, ...index.data}]
+          })
         )
-      ),
-      meta() {
-        const createMeta = res[table.meta]
-        const meta = createMeta ? createMeta.apply(res) : {}
-        return {
-          indexes: fromEntries(
-            entries((meta?.indexes as TableMeta) || {}).map(([key, index]) => {
-              const indexName = `${name}.${key}`
-              return [indexName, {name: indexName, ...index.data}]
-            })
-          )
-        }
       }
-    })
-    return res
-  }
+    }
+  })
+  return res
 }
 
 export namespace table {

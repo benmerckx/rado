@@ -4,20 +4,20 @@ import {Id, column, create, table} from '../src/index'
 import {connect} from './DbSuite'
 
 type User = table<typeof User>
-const User = table('User')(
-  class User {
+const User = table({
+  User: class {
     id = column.integer().primaryKey<'User'>()
     name = column.string()
   }
-)
+})
 
 type Contact = table<typeof Contact>
-const Contact = table('Contact')(
-  class Contact {
-    id = column.integer().primaryKey<Contact>()
+const Contact = table({
+  Contact: class {
+    id = column.integer().primaryKey<'Contact'>()
     user = column.integer<Id<User>>()
   }
-)
+})
 
 test('OrderBy', async () => {
   const query = await connect()

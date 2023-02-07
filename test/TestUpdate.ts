@@ -3,13 +3,15 @@ import * as assert from 'uvu/assert'
 import {column, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const User = table('User')({
-  id: column.integer().primaryKey<'user'>(),
-  name: column.object<{given: string; last: string}>(),
-  booleanValue: column.boolean().defaultValue(false),
-  email: column.string().nullable(),
-  roles: column.array<string>().nullable(),
-  deep: column.array<{prop: number}>().defaultValue([])
+const User = table({
+  User: class {
+    id = column.integer().primaryKey<'user'>()
+    name = column.object<{given: string; last: string}>()
+    booleanValue = column.boolean().defaultValue(false)
+    email = column.string().nullable()
+    roles = column.array<string>().nullable()
+    deep = column.array<{prop: number}>().defaultValue([])
+  }
 })
 type User = table<typeof User>
 

@@ -5,24 +5,34 @@ import {connect} from './DbSuite'
 
 test('IncludeMany', async () => {
   const query = await connect()
-  const Role = table('Role')({
-    id: column.integer().primaryKey(),
-    name: column.string()
+  const Role = table({
+    Role: class {
+      id = column.integer().primaryKey()
+      name = column.string()
+    }
   })
-  const User = table('User')({
-    id: column.integer().primaryKey(),
-    roles: column.array<number>()
+  const User = table({
+    User: class {
+      id = column.integer().primaryKey()
+      roles = column.array<number>()
+    }
   })
-  const Entry = table('Entry')({
-    id: column.integer().primaryKey()
+  const Entry = table({
+    Entry: class {
+      id = column.integer().primaryKey()
+    }
   })
-  const Language = table('Language')({
-    id: column.integer().primaryKey(),
-    entry: column.integer()
+  const Language = table({
+    Language: class {
+      id = column.integer().primaryKey()
+      entry = column.integer()
+    }
   })
-  const Version = table('Version')({
-    id: column.integer().primaryKey(),
-    language: column.integer()
+  const Version = table({
+    Version: class {
+      id = column.integer().primaryKey()
+      language = column.integer()
+    }
   })
   await query(create(Role, User, Entry, Language, Version))
   const role1 = await query(Role().insertOne({name: 'role1'}))

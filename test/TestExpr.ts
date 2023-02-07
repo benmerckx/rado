@@ -12,9 +12,11 @@ test('Expr<Array<_>>.includes', async () => {
 
 test('Expr<any>.is(_)', async () => {
   const db = await connect()
-  const Table = table('test')({
-    id: column.integer().primaryKey<'test'>(),
-    jsonColumn: column.object<any>()
+  const Table = table({
+    test: {
+      id: column.integer().primaryKey<'test'>(),
+      jsonColumn: column.object<any>()
+    }
   })
   await Table().create().on(db)
   await Table().insertOne({jsonColumn: 'test'}).on(db)

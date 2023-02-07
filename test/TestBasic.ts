@@ -13,12 +13,12 @@ import {connect} from './DbSuite'
 
 test('basic', async () => {
   const db = await connect()
-  const Node = table('Node')(
-    class Node {
-      id = column.integer().primaryKey<Node>()
+  const Node = table({
+    Node: class {
+      id = column.integer().primaryKey<'node'>()
       index = column.number()
     }
-  )
+  })
   await create(Node).on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
@@ -43,9 +43,11 @@ test('basic', async () => {
 
 test('filters', async () => {
   const db = await connect()
-  const Test = table('Test')({
-    id: column.integer().primaryKey(),
-    prop: column.number()
+  const Test = table({
+    Test: {
+      id: column.integer().primaryKey(),
+      prop: column.number()
+    }
   })
   await create(Test).on(db)
   const a = {prop: 10}
@@ -57,10 +59,12 @@ test('filters', async () => {
 
 test('select', async () => {
   const db = await connect()
-  const Test = table('test')({
-    id: column.integer().primaryKey(),
-    propA: column.number(),
-    propB: column.number()
+  const Test = table({
+    test: {
+      id: column.integer().primaryKey(),
+      propA: column.number(),
+      propB: column.number()
+    }
   })
   await db(Test().create())
   const a = {propA: 10, propB: 5}
@@ -88,10 +92,12 @@ test('select', async () => {
 
 test('update', async () => {
   const query = await connect()
-  const Test = table('test')({
-    id: column.integer().primaryKey<'test'>(),
-    propA: column.number(),
-    propB: column.number()
+  const Test = table({
+    test: {
+      id: column.integer().primaryKey<'test'>(),
+      propA: column.number(),
+      propB: column.number()
+    }
   })
   Test.id
 
@@ -105,10 +111,12 @@ test('update', async () => {
 
 test('json', async () => {
   const query = await connect()
-  const Test = table('test')({
-    id: column.integer().primaryKey(),
-    prop: column.number(),
-    propB: column.number()
+  const Test = table({
+    test: {
+      id: column.integer().primaryKey(),
+      prop: column.number(),
+      propB: column.number()
+    }
   })
   await query(create(Test))
   const a = {prop: 10, propB: 5}
@@ -136,18 +144,22 @@ test('each', async () => {
       {id: 2 as PrimaryKey<number, 'Entry'>, type: 'entry'}
     ]
   }
-  const Test = table('test')({
-    id: column.integer().primaryKey<'test'>(),
-    refs: column.array<{
-      id: PrimaryKey<number, 'Entry'>
-      type: string
-    }>()
+  const Test = table({
+    test: {
+      id: column.integer().primaryKey<'test'>(),
+      refs: column.array<{
+        id: PrimaryKey<number, 'Entry'>
+        type: string
+      }>()
+    }
   })
   type Test = table<typeof Test>
 
-  const Entry = table('Entry')({
-    id: column.integer().primaryKey<'Entry'>(),
-    title: column.string()
+  const Entry = table({
+    Entry: class {
+      id = column.integer().primaryKey<'Entry'>()
+      title = column.string()
+    }
   })
   type Entry = table<typeof Entry>
 

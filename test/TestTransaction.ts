@@ -3,9 +3,11 @@ import * as assert from 'uvu/assert'
 import {column, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const User = table('User')({
-  id: column.integer().primaryKey(),
-  name: column.string()
+const User = table({
+  User: {
+    id: column.integer().primaryKey(),
+    name: column.string()
+  }
 })
 
 test('Transaction', async () => {

@@ -23,7 +23,7 @@ const columns = {
   createdAt: column.string().defaultValue(datetime('now', 'localtime'))
 }
 
-const TestTable = table('Test')(columns)
+const TestTable = table({Test: columns})
 
 test('Create table', async () => {
   const db = await connect()
@@ -34,15 +34,17 @@ test('Add col', async () => {
   const db = await connect()
   await TestTable().create().on(db)
   const createdAt = column.string().defaultValue(datetime('now', 'localtime'))
-  const Start = table('test')({
-    id: column.integer().primaryKey(),
-    createdAt,
-    text: column.string().nullable()
+  const Start = table({
+    test: {
+      id: column.integer().primaryKey(),
+      createdAt,
+      text: column.string().nullable()
+    }
   })
   await db.migrateSchema(Start)
   await Start().insertOne({text: '123'}).on(db)
-  const AddCol = table('test')(
-    class AddCol {
+  const AddCol = table({
+    test: class AddCol {
       id = column.integer().primaryKey<AddCol>()
       createdAt = createdAt
       text = column.number().defaultValue(2)
@@ -59,7 +61,7 @@ test('Add col', async () => {
         }
       }
     }
-  )
+  })
   await db.migrateSchema(AddCol)
   await AddCol().delete().on(db)
   await AddCol()

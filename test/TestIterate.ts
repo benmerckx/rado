@@ -5,9 +5,11 @@ import {connect} from './DbSuite'
 
 test('Iterate', async () => {
   const db = await connect()
-  const Node = table('Node')({
-    id: column.integer().primaryKey<'node'>(),
-    index: column.number()
+  const Node = table({
+    Node: {
+      id: column.integer().primaryKey<'node'>(),
+      index: column.number()
+    }
   })
   await create(Node).on(db)
   const amount = 10
