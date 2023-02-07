@@ -84,6 +84,7 @@ Retrieve all posts with their author and tags and count the tag usage in other
 posts:
 
 ```ts
+import {count} from 'rado/sqlite'
 // Alias tables using `as`
 const pt = PostTags().as('pt')
 Post().select({

@@ -702,9 +702,9 @@ export abstract class Formatter implements Sanitizer {
           return stmt.closeParenthesis()
         }
         if (expr.query.singleResult) {
-          stmt.raw('json').openParenthesis().openParenthesis()
-          this.format(ctx, expr.query)
-          return stmt.closeParenthesis().closeParenthesis()
+          stmt.openParenthesis()
+          this.format({...ctx, topLevel: true}, expr.query)
+          return stmt.closeParenthesis().raw(`->'$.result'`)
         }
         stmt
           .openParenthesis()

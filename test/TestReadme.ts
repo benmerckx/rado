@@ -1,6 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {column, create, table} from '../src/index'
+import {count} from '../src/sqlite'
 import {connect} from './DbSuite'
 
 const User = table({
@@ -90,6 +91,29 @@ test('Get stuff', async () => {
         userId: user.id,
         tags: ['hello', 'world']
       }
+    ]
+  })
+  const pt = PostTags().as('pt')
+  const example = await db(
+    Post()
+      .select({
+        ...Post,
+        author: Post.author().select(User.username),
+        tags: Post.tags().select({
+          count: pt({tagId: Tag.id}).select(count()).sure(),
+          name: Tag.name
+        })
+      })
+      .sure()
+  )
+  assert.equal(example, {
+    id: 1,
+    userId: 1,
+    content: 'Hello world',
+    author: 'Mario',
+    tags: [
+      {count: 1, name: 'hello'},
+      {count: 1, name: 'world'}
     ]
   })
 })
