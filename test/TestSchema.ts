@@ -43,7 +43,7 @@ test('Add col', async () => {
   await Start().insertOne({text: '123'}).on(db)
   const AddCol = table('test')(
     class AddCol {
-      id = column.integer().primaryKey()
+      id = column.integer().primaryKey<AddCol>()
       createdAt = createdAt
       text = column.number().defaultValue(2)
       newCol = column.string().defaultValue('def')

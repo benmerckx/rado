@@ -57,13 +57,10 @@ test('Extend', async () => {
     ])
     .on(db)
   const Aliased = User().as('Aliased')
-  const query = Aliased()
-    .first()
-    .select({
-      ...Aliased,
-      name: Aliased.name(),
-      roles: Aliased.roles()
-    })
+  const query = Aliased().first().select({
+    name: Aliased.name(),
+    roles: Aliased.roles()
+  })
   const user = await query.on(db)
   assert.equal(user, {
     name: 'a b',

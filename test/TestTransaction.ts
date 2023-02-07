@@ -3,12 +3,9 @@ import * as assert from 'uvu/assert'
 import {column, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const User = table({
-  name: 'User',
-  columns: {
-    id: column.integer().primaryKey(),
-    name: column.string()
-  }
+const User = table('User')({
+  id: column.integer().primaryKey(),
+  name: column.string()
 })
 
 test('Transaction', async () => {
@@ -19,45 +16,46 @@ test('Transaction', async () => {
   // making sense.
   const [_, bob] = await Promise.all([
     db.transaction(async function (query) {
-      return User.createTable()
-        .next(User.insertOne({name: 'Alice'}))
-        .next(User.insertOne({name: 'Bob'}))
+      return User()
+        .create()
+        .next(User().insertOne({name: 'Alice'}))
+        .next(User().insertOne({name: 'Bob'}))
         .on(query)
     }),
-    db(User.first().where(User.name.is('Bob')))
+    db(User().first().where(User.name.is('Bob')))
   ])
   assert.equal(bob?.name, 'Bob')
 })
 
 test('Rollback', async () => {
   const query = await connect()
-  await query(User.createTable())
+  await query(User().create())
   await query
     .transaction(async function (query) {
-      await query(User.insertOne({name: 'Bob'}))
+      await query(User().insertOne({name: 'Bob'}))
       throw new Error('Rollback')
     })
     .catch(() => {})
-  const bob = await query(User.first().where(User.name.is('Bob')))
+  const bob = await query(User().first().where(User.name.is('Bob')))
   assert.is(bob, undefined)
 })
 
 test('Savepoints', async () => {
   const query = await connect()
-  await query(User.createTable())
+  await query(User().create())
   await query.transaction(async function (query) {
-    await query(User.insertOne({name: 'Bob'}))
+    await query(User().insertOne({name: 'Bob'}))
 
     await query
       .transaction(async function (query) {
-        await query(User.insertOne({name: 'Ted'}))
+        await query(User().insertOne({name: 'Ted'}))
         throw new Error('Rollback')
       })
       .catch(() => {})
 
-    await query(User.insertOne({name: 'Alice'}))
+    await query(User().insertOne({name: 'Alice'}))
   })
-  const users = await query(User)
+  const users = await query(User())
   assert.equal(users, [
     {id: 1, name: 'Bob'},
     {id: 2, name: 'Alice'}

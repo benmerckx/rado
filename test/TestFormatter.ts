@@ -24,7 +24,7 @@ test('x in y', async () => {
   assert.is(stmt.sql, `(? IN (?, ?, ?))`)
 })
 
-const Example = table('Example')({
+const Example = table('example')({
   array: column.array<{num: number}>()
 })
 

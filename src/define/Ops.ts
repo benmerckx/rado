@@ -20,9 +20,9 @@ export function from<Row>(
   source: Table<Row> | Cursor.SelectMultiple<Row>
 ): Cursor.SelectMultiple<Row> {
   const target =
-    createTable.data in source
-      ? Target.Table(source[createTable.data])
-      : Target.Query(source.query())
+    source instanceof Cursor
+      ? Target.Query(source.query())
+      : Target.Table(source[createTable.data])
   return new Cursor.SelectMultiple<Row>(
     Query.Select({
       from: target,

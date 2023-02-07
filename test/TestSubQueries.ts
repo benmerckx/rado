@@ -5,74 +5,68 @@ import {connect} from './DbSuite'
 
 test('IncludeMany', async () => {
   const query = await connect()
-  const Role = table({
-    name: 'Role',
-    columns: {
-      id: column.integer().primaryKey(),
-      name: column.string()
-    }
+  const Role = table('Role')({
+    id: column.integer().primaryKey(),
+    name: column.string()
   })
-  const User = table({
-    name: 'User',
-    columns: {
-      id: column.integer().primaryKey(),
-      roles: column.array<number>()
-    }
+  const User = table('User')({
+    id: column.integer().primaryKey(),
+    roles: column.array<number>()
   })
-  const Entry = table({
-    name: 'Entry',
-    columns: {
-      id: column.integer().primaryKey()
-    }
+  const Entry = table('Entry')({
+    id: column.integer().primaryKey()
   })
-  const Language = table({
-    name: 'Language',
-    columns: {
-      id: column.integer().primaryKey(),
-      entry: column.integer()
-    }
+  const Language = table('Language')({
+    id: column.integer().primaryKey(),
+    entry: column.integer()
   })
-  const Version = table({
-    name: 'Version',
-    columns: {
-      id: column.integer().primaryKey(),
-      language: column.integer()
-    }
+  const Version = table('Version')({
+    id: column.integer().primaryKey(),
+    language: column.integer()
   })
   await query(create(Role, User, Entry, Language, Version))
-  const role1 = await query(Role.insertOne({name: 'role1'}))
-  const role2 = await query(Role.insertOne({name: 'role2'}))
-  const user = await query(User.insertOne({roles: [role1.id, role2.id]}))
-  const UserAlias = User.as('user1')
-  const RoleAlias = Role.as('role')
+  const role1 = await query(Role().insertOne({name: 'role1'}))
+  const role2 = await query(Role().insertOne({name: 'role2'}))
+  const user = await query(User().insertOne({roles: [role1.id, role2.id]}))
+  const UserAlias = User().as('user1')
+  const RoleAlias = Role().as('role')
   const bundled = await query(
-    UserAlias.first().select({
-      ...UserAlias,
-      roles: RoleAlias.select({
-        name: RoleAlias.name
+    UserAlias()
+      .first()
+      .select({
+        ...UserAlias,
+        roles: RoleAlias()
+          .select({
+            name: RoleAlias.name
+          })
+          .orderBy(RoleAlias.name.asc())
+          .where(RoleAlias.id.isIn(UserAlias.roles))
       })
-        .orderBy(RoleAlias.name.asc())
-        .where(RoleAlias.id.isIn(UserAlias.roles))
-    })
   )!
   assert.equal(bundled.roles, [{name: 'role1'}, {name: 'role2'}])
-  const entry = await query(Entry.insertOne({}))
-  const language = await query(Language.insertOne({entry: entry.id}))
+  const entry = await query(Entry().insertOne({}))
+  const language = await query(Language().insertOne({entry: entry.id}))
   const version1 = await query(
-    Version.insertOne({
+    Version().insertOne({
       language: language.id
     })
   )
   const version2 = await query(
-    Version.insertOne({
+    Version().insertOne({
       language: language.id
     })
   )
-  const languages = Language.where(Language.entry.is(Entry.id)).select({
-    ...Language,
-    versions: Version.where(Version.language.is(Language.id))
-  })
-  const page = await query(Entry.select({...Entry, languages}).first())
+  const languages = Language()
+    .where(Language.entry.is(Entry.id))
+    .select({
+      ...Language,
+      versions: Version().where(Version.language.is(Language.id))
+    })
+  const page = await query(
+    Entry()
+      .select({...Entry, languages})
+      .first()
+  )
   assert.equal(page, {
     ...entry,
     languages: [{...language, versions: [version1, version2]}]

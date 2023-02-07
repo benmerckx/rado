@@ -12,8 +12,11 @@ const {
   getOwnPropertyDescriptors,
   assign,
   getPrototypeOf,
-  setPrototypeOf
+  setPrototypeOf,
+  getOwnPropertyDescriptor
 } = Object
+
+const {ownKeys} = Reflect
 
 interface TableDefinition {
   [table.meta]?: Meta
@@ -93,14 +96,14 @@ export namespace Table {
     ? null extends V
       ? true
       : false
-    : false
+    : never
 
   export type Insert<Definition> = {
-    [K in keyof Definition as IsOptional<Definition[K]> extends true
+    [K in keyof Definition as true extends IsOptional<Definition[K]>
       ? K
       : never]?: Definition[K] extends Column<infer V> ? EV<V> : never
   } & {
-    [K in keyof Definition as IsOptional<Definition[K]> extends false
+    [K in keyof Definition as false extends IsOptional<Definition[K]>
       ? K
       : never]: Definition[K] extends Column<infer V> ? EV<V> : never
   }
@@ -123,6 +126,15 @@ type Blueprint<T> = Definition<T> // & {[table.meta]?: Meta}
 type DefineTable = <T extends Blueprint<T>>(define: T | Define<T>) => Table<T>
 
 export type table<T> = T extends Table<infer D> ? Table.Select<D> : never
+
+function keysOf(input: any) {
+  const methods = []
+  while ((input = getPrototypeOf(input))) {
+    const keys = ownKeys(input)
+    for (const key of keys) if (typeof key === 'string') methods.push(key)
+  }
+  return methods
+}
 
 export function createTable<Definition>(data: TableData): Table<Definition> {
   const target = Target.Table(data)
@@ -149,7 +161,9 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
     }
   }[data.name]
   const cols = keys(data.columns)
-  const hasKeywords = cols.some(name => name in Function)
+  const hasKeywords = cols
+    .concat(keysOf(data.definition))
+    .some(name => name in Function)
   const expressions = fromEntries(
     cols.map(name => [
       name,
@@ -157,13 +171,34 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
     ])
   )
   const toExpr = () => new Expr(ExprData.Row(target))
-  const res: any = new Proxy(call, {
-    get(target: any, key: string | symbol) {
-      if (key === table.data) return data
-      if (key === Expr.toExpr) return toExpr
-      return expressions[key as string] || (data.definition as any)[key]
+  const ownKeys = ['prototype', ...cols]
+  let res: any
+  if (!hasKeywords) {
+    res = assign(call, expressions, {[table.data]: data})
+    setPrototypeOf(call, getPrototypeOf(data.definition))
+  } else {
+    function get(key: string) {
+      return expressions[key] || (data.definition as any)[key]
     }
-  })
+    res = new Proxy(call, {
+      get(target: any, key: string | symbol) {
+        if (key === table.data) return data
+        if (key === Expr.toExpr) return toExpr
+        return get(key as string)
+      },
+      ownKeys(target) {
+        return ownKeys
+      },
+      getOwnPropertyDescriptor(target, key) {
+        if (key === 'prototype') return getOwnPropertyDescriptor(target, key)
+        return {
+          value: get(key as string),
+          enumerable: true,
+          configurable: true
+        }
+      }
+    })
+  }
   return res
 }
 

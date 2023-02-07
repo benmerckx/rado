@@ -11,7 +11,7 @@ import {
 } from '../src/index'
 import {connect} from './DbSuite'
 
-test.only('basic', async () => {
+test('basic', async () => {
   const db = await connect()
   const Node = table('Node')(
     class Node {
@@ -51,7 +51,7 @@ test('filters', async () => {
   const a = {prop: 10}
   const b = {prop: 20}
   await Test().insertAll([a, b]).on(db)
-  const gt10 = await Test().where(Test.prop.isGreater(10)).sure().on(db)
+  const gt10 = await Test(Test.prop.isGreater(10)).sure().on(db)
   assert.equal(gt10.prop, 20)
 })
 
@@ -167,7 +167,7 @@ test('each', async () => {
           return ref.type.is('entry')
         })
         .map(ref => {
-          return Link(Link.id.is(ref.id)).select({
+          return Link({id: ref.id}).sure().select({
             id: Link.id,
             title: Link.title
           })

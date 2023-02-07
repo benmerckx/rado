@@ -3,24 +3,21 @@ import * as assert from 'uvu/assert'
 import {column, table} from '../src/index'
 import {connect} from './DbSuite'
 
-const User = table({
-  name: 'user',
-  columns: {
-    id: column.integer().primaryKey<'user'>(),
-    name: column.object<{given: string; last: string}>(),
-    booleanValue: column.boolean().defaultValue(false),
-    email: column.string().nullable(),
-    roles: column.array<string>().nullable(),
-    deep: column.array<{prop: number}>().defaultValue([])
-  }
+const User = table('User')({
+  id: column.integer().primaryKey<'user'>(),
+  name: column.object<{given: string; last: string}>(),
+  booleanValue: column.boolean().defaultValue(false),
+  email: column.string().nullable(),
+  roles: column.array<string>().nullable(),
+  deep: column.array<{prop: number}>().defaultValue([])
 })
-type User = table.infer<typeof User>
+type User = table<typeof User>
 
 test('Update', async () => {
   const query = await connect()
-  await query(User.createTable())
+  await query(User().create())
   const user = await query(
-    User.insertOne({
+    User().insertOne({
       name: {
         given: 'abc',
         last: 'test'
@@ -28,39 +25,39 @@ test('Update', async () => {
     })
   )
   const res = await query(
-    User.set({
+    User({id: user.id}).set({
       email: 'test'
-    }).where(User.id.is(user.id))
+    })
   )
   assert.is(res.rowsAffected, 1)
-  assert.is((await query(User.first()))!.email, 'test')
+  assert.is((await query(User().sure())).email, 'test')
   const res2 = await query(
-    User.set({
+    User({id: user.id}).set({
       email: User.email.concat('@example.com')
-    }).where(User.id.is(user.id))
+    })
   )
   assert.is(res2.rowsAffected, 1)
-  assert.is((await query(User.first()))!.email, 'test@example.com')
+  assert.is((await query(User().sure())).email, 'test@example.com')
   const res3 = await query(
-    User.set({
+    User({id: user.id}).set({
       name: {
         given: 'def',
         last: 'okay'
       }
-    }).where(User.id.is(user.id))
+    })
   )
   assert.is(res3.rowsAffected, 1)
-  assert.is((await query(User.first()))!.name.given, 'def')
+  assert.is((await query(User().sure())).name.given, 'def')
 
-  await User.set({booleanValue: true}).on(query)
-  assert.is((await User.sure().on(query)).booleanValue, true)
+  await User().set({booleanValue: true}).on(query)
+  assert.is((await User().sure().on(query)).booleanValue, true)
 })
 
 test('Update object', async () => {
   const query = await connect()
-  await query(User.createTable())
+  await query(User().create())
   const user = await query(
-    User.insertOne({
+    User().insertOne({
       name: {
         given: 'abc',
         last: 'test'
@@ -68,24 +65,24 @@ test('Update object', async () => {
     })
   )
   const res = await query(
-    User.set({
+    User({id: user.id}).set({
       name: {
         given: '123',
         last: '456'
       }
-    }).where(User.id.is(user.id))
+    })
   )
   assert.is(res.rowsAffected, 1)
-  const user2 = (await query(User.where(User.id.is(user.id)).first()))!
+  const user2 = await query(User({id: user.id}).sure())
   assert.is(user2.name.given, '123')
   assert.is(user2.name.last, '456')
 })
 
 test('Update array', async () => {
   const query = await connect()
-  await query(User.createTable())
+  await query(User().create())
   const user = await query(
-    User.insertOne({
+    User().insertOne({
       name: {
         given: 'abc',
         last: 'test'
@@ -93,13 +90,13 @@ test('Update array', async () => {
     })
   )
   const res = await query(
-    User.set({
+    User({id: user.id}).set({
       roles: ['a', 'b'],
       deep: [{prop: 1}]
-    }).where(User.id.is(user.id))
+    })
   )
   assert.is(res.rowsAffected, 1)
-  const user2 = (await query(User.first().where(User.id.is(user.id))))!
+  const user2 = (await query(User().first().where(User.id.is(user.id))))!
   assert.equal(user2.roles, ['a', 'b'])
   assert.equal(user2.deep, [{prop: 1}])
 })
