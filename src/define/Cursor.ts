@@ -298,6 +298,12 @@ export namespace Cursor {
       return new Cursor.CreateTable(this.table)
     }
 
+    insertSelect(query: SelectMultiple<Table.Insert<Definition>>) {
+      return new Cursor.Inserted(
+        Query.Insert({into: this.table, select: query.query()})
+      )
+    }
+
     insertOne(record: Table.Insert<Definition>) {
       return new Cursor<Table.Select<Definition>>(
         Query.Insert({

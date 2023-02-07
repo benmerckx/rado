@@ -506,10 +506,10 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt, forceInline} = ctx
     if (!limit && !offset && !singleResult) return stmt
-    stmt.newline().raw('LIMIT')
+    stmt.newline().raw('LIMIT').space()
     this.formatValue(ctx, singleResult ? 1 : limit)
     if (offset && offset > 0) {
-      stmt.raw('OFFSET')
+      stmt.add('OFFSET').space()
       this.formatValue(ctx, offset)
     }
     return stmt
@@ -708,12 +708,12 @@ export abstract class Formatter implements Sanitizer {
         }
         stmt
           .openParenthesis()
-          .raw('SELECT json_group_array(json(result))')
+          .raw(`SELECT json_group_array(result->'$.result')`)
           .newline()
           .raw('FROM')
           .space()
           .openParenthesis()
-        this.format(ctx, expr.query)
+        this.format({...ctx, topLevel: true}, expr.query)
         return stmt.closeParenthesis().closeParenthesis()
       case ExprType.Row:
         switch (expr.target.type) {
