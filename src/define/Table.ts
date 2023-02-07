@@ -18,16 +18,14 @@ const {
 
 const {ownKeys} = Reflect
 
-interface TableDefinition {
-  [table.meta]?: Meta
-}
+interface TableDefinition {}
 
 export interface TableData {
   name: string
   alias?: string
   definition: TableDefinition
   columns: Record<string, ColumnData>
-  indexes: Record<string, IndexData>
+  meta(): {indexes: Record<string, IndexData>}
 }
 
 interface TableProto<Definition> {
@@ -46,7 +44,7 @@ class TableProto<Definition> {
   get [table.data](): TableData {
     throw 'assert'
   }
-  get [table.meta](): Meta {
+  [table.meta](): Meta {
     throw 'assert'
   }
   // Clear the Function prototype, not sure if there's a better way
@@ -121,7 +119,7 @@ interface Define<T> {
   new (): T
 }
 
-type Blueprint<T> = Definition<T> // & {[table.meta]?: Meta}
+type Blueprint<T> = Definition<T> // & {[table.meta]?: () => Meta}
 
 type DefineTable = <T extends Blueprint<T>>(define: T | Define<T>) => Table<T>
 
@@ -211,8 +209,7 @@ export function table(input: string | TemplateStringsArray) {
     const name = typeof input === 'string' ? input : input[0]
     const definition = 'prototype' in define ? new define() : define
     const columns = definition as Record<string, Column<any>>
-    const meta = (definition as any)[table.meta]
-    return createTable({
+    const res: Table<T> = createTable({
       name,
       definition,
       columns: fromEntries(
@@ -233,13 +230,20 @@ export function table(input: string | TemplateStringsArray) {
           }
         )
       ),
-      indexes: Object.fromEntries(
-        Object.entries((meta?.indexes as Meta) || {}).map(([key, index]) => {
-          const indexName = `${name}.${key}`
-          return [indexName, {name: indexName, ...index.data}]
-        })
-      )
+      meta() {
+        const createMeta = res[table.meta]
+        const meta = createMeta ? createMeta.apply(res) : {}
+        return {
+          indexes: fromEntries(
+            entries((meta?.indexes as Meta) || {}).map(([key, index]) => {
+              const indexName = `${name}.${key}`
+              return [indexName, {name: indexName, ...index.data}]
+            })
+          )
+        }
+      }
     })
+    return res
   }
 }
 

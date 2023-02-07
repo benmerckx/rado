@@ -29,7 +29,7 @@ test('OrderBy', async () => {
   })
   const results = await query(
     Contact()
-      .leftJoin(User, User.id.is(Contact.user))
+      .leftJoin(User({id: Contact.user}))
       .select({...Contact, user: User})
       .orderBy(User.name)
   )

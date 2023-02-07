@@ -50,10 +50,12 @@ test('Add col', async () => {
       def = column.string().defaultValue(() => 'test')
       isFalse = column.boolean().defaultValue(false)
 
-      protected [table.meta] = {
-        indexes: {
-          newCol: index(this.newCol),
-          multiple: index(this.newCol.concat('inline parameter test'))
+      protected [table.meta]() {
+        return {
+          indexes: {
+            newCol: index(this.newCol),
+            multiple: index(this.newCol.concat('inline parameter test'))
+          }
         }
       }
     }

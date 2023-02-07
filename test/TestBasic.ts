@@ -62,7 +62,7 @@ test('select', async () => {
     propA: column.number(),
     propB: column.number()
   })
-  await Test().create().on(db)
+  await db(Test().create())
   const a = {propA: 10, propB: 5}
   const b = {propA: 20, propB: 5}
   await Test().insertAll([a, b]).on(db)
@@ -114,13 +114,15 @@ test('json', async () => {
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
   await query(insertInto(Test).values(a, b))
-  const q = Test({prop: 10})
-    .select({
-      fieldA: Expr.value(12),
-      fieldB: Test.propB
-    })
-    .sure()
-  const res1 = await query(q)
+
+  const res1 = await query(
+    Test({prop: 10})
+      .select({
+        fieldA: Expr.value(12),
+        fieldB: Test.propB
+      })
+      .sure()
+  )
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 5)
 })
@@ -160,22 +162,23 @@ test('each', async () => {
   await query(Entry().insertAll([b, c]))
 
   const Link = Entry().as('Link')
-  const tests = Test()
-    .select({
-      links: Test.refs
-        .filter(ref => {
-          return ref.type.is('entry')
-        })
-        .map(ref => {
-          return Link({id: ref.id}).sure().select({
-            id: Link.id,
-            title: Link.title
-          })
-        })
-    })
-    .sure()
 
-  const res2 = await query(tests)
+  const res2 = await query(
+    Test()
+      .select({
+        links: Test.refs
+          .filter(ref => {
+            return ref.type.is('entry')
+          })
+          .map(ref => {
+            return Link({id: ref.id}).sure().select({
+              id: Link.id,
+              title: Link.title
+            })
+          })
+      })
+      .sure()
+  )
   assert.equal(res2.links, [
     {id: 1, title: 'Entry B'},
     {id: 2, title: 'Entry C'}

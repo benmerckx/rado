@@ -161,42 +161,53 @@ export namespace Cursor {
     }
   }
 
+  function joinTarget(
+    joinType: 'left' | 'inner',
+    query: Query.Select,
+    to: Table<any> | TableSelect<any>,
+    on: Array<EV<boolean>>
+  ) {
+    const toQuery =
+      to instanceof Cursor ? (to.query() as Query.Select) : undefined
+    const target = toQuery ? toQuery.from : Target.Table(to[table.data])
+    if (!query.from || !target) throw new Error('No from clause')
+    const conditions = [...on]
+    if (toQuery) {
+      const where = toQuery.where
+      if (where) conditions.push(new Expr(where))
+    }
+    return Target.Join(
+      query.from,
+      target,
+      joinType,
+      Expr.and(...conditions).expr
+    )
+  }
+
   export class SelectMultiple<Row> extends Cursor<Array<Row>> {
     query(): Query.Select {
       return super.query() as Query.Select
     }
 
     leftJoin<C>(
-      that: Table<C>,
+      that: Table<C> | TableSelect<C>,
       ...on: Array<EV<boolean>>
     ): SelectMultiple<Row> {
       const query = this.query()
-      if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
-        from: Target.Join(
-          query.from,
-          Target.Table(that[table.data]),
-          'left',
-          Expr.and(...on).expr
-        )
+        from: joinTarget('left', query, that, on)
       })
     }
 
     innerJoin<C>(
-      that: Table<C>,
+      that: Table<C> | TableSelect<C>,
       ...on: Array<EV<boolean>>
     ): SelectMultiple<Row> {
       const query = this.query()
-      if (!query.from) throw new Error('No from clause')
       return new SelectMultiple({
         ...query,
-        from: Target.Join(
-          query.from,
-          Target.Table(that[table.data]),
-          'inner',
-          Expr.and(...on).expr
-        )
+        from: joinTarget('inner', query, that, on)
       })
     }
 
@@ -326,31 +337,25 @@ export namespace Cursor {
       return super.query() as Query.Select
     }
 
-    leftJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<Row> {
+    leftJoin<C>(
+      that: Table<C> | TableSelect<C>,
+      ...on: Array<EV<boolean>>
+    ): SelectSingle<Row> {
       const query = this.query()
-      if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
-        from: Target.Join(
-          query.from,
-          Target.Table(that[table.data]),
-          'left',
-          Expr.and(...on).expr
-        )
+        from: joinTarget('left', query, that, on)
       })
     }
 
-    innerJoin<C>(that: Table<C>, ...on: Array<EV<boolean>>): SelectSingle<Row> {
+    innerJoin<C>(
+      that: Table<C> | TableSelect<C>,
+      ...on: Array<EV<boolean>>
+    ): SelectSingle<Row> {
       const query = this.query()
-      if (!query.from) throw new Error('No from clause')
       return new SelectSingle({
         ...query,
-        from: Target.Join(
-          query.from,
-          Target.Table(that[table.data]),
-          'inner',
-          Expr.and(...on).expr
-        )
+        from: joinTarget('inner', query, that, on)
       })
     }
 

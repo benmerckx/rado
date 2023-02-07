@@ -2,7 +2,7 @@ import {ColumnData} from './Column'
 import {ExprData} from './Expr'
 import {IndexData} from './Index'
 import {OrderBy} from './OrderBy'
-import {Schema} from './Schema'
+import {TableData} from './Table'
 import {Target} from './Target'
 
 export enum QueryType {
@@ -49,7 +49,7 @@ export namespace Query {
   }
   export interface Insert extends QueryBase {
     type: QueryType.Insert
-    into: Schema
+    into: TableData
     data?: Array<any>
     select?: Query.Select
   }
@@ -66,7 +66,7 @@ export namespace Query {
   }
   export interface Update extends QueryBase {
     type: QueryType.Update
-    table: Schema
+    table: TableData
     set?: Record<string, any>
   }
   export function Update(update: Omit<Update, 'type'>): Query.Update {
@@ -74,14 +74,14 @@ export namespace Query {
   }
   export interface Delete extends QueryBase {
     type: QueryType.Delete
-    table: Schema
+    table: TableData
   }
   export function Delete(del: Omit<Delete, 'type'>): Query.Delete {
     return {type: QueryType.Delete, ...del}
   }
   export interface CreateTable extends QueryBase {
     type: QueryType.CreateTable
-    table: Schema
+    table: TableData
     ifNotExists?: boolean
   }
   export function CreateTable(
@@ -91,7 +91,7 @@ export namespace Query {
   }
   export interface AlterTable extends QueryBase {
     type: QueryType.AlterTable
-    table: Schema
+    table: TableData
     alterColumn?: ColumnData
     renameColumn?: {from: string; to: string}
     addColumn?: ColumnData
@@ -105,7 +105,7 @@ export namespace Query {
   }
   export interface DropTable extends QueryBase {
     type: QueryType.DropTable
-    table: Schema
+    table: TableData
     ifExists?: boolean
   }
   export function DropTable(drop: Omit<DropTable, 'type'>): Query.DropTable {
@@ -113,7 +113,7 @@ export namespace Query {
   }
   export interface CreateIndex extends QueryBase {
     type: QueryType.CreateIndex
-    table: Schema
+    table: TableData
     index: IndexData
     ifNotExists?: boolean
   }
@@ -124,7 +124,7 @@ export namespace Query {
   }
   export interface DropIndex extends QueryBase {
     type: QueryType.DropIndex
-    table: Schema
+    table: TableData
     name: string
     ifExists?: boolean
   }

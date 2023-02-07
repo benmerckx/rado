@@ -3,6 +3,7 @@ import * as assert from 'uvu/assert'
 import {column, create, table} from '../src/index'
 import {connect} from './DbSuite'
 
+type User = table<typeof User>
 const User = table('user')(
   class User {
     id = column.integer().primaryKey<'user'>()
@@ -14,22 +15,26 @@ const User = table('user')(
     }
 
     roles() {
-      return UserRoles()
-        .where(UserRoles.userId.is(this.id))
-        .innerJoin(Role, Role.id.is(UserRoles.roleId))
-        .select(Role)
+      return Role({id: UserRoles.roleId}).innerJoin(
+        UserRoles({userId: this.id})
+      )
     }
   }
 )
-type User = table<typeof User>
 
+type Role = table<typeof Role>
 const Role = table('role')(
   class Role {
     id = column.integer().primaryKey<Role>()
     name = column.string()
+
+    users() {
+      return User({id: UserRoles.userId}).innerJoin(
+        UserRoles({roleId: this.id})
+      )
+    }
   }
 )
-type Role = table<typeof Role>
 
 const UserRoles = table('user_roles')(
   class UserRoles {
@@ -50,6 +55,7 @@ test('Extend', async () => {
 
   const role1 = await Role().insertOne({name: 'role1'}).on(db)
   const role2 = await Role().insertOne({name: 'role2'}).on(db)
+  const role3 = await Role().insertOne({name: 'role3'}).on(db)
   await UserRoles()
     .insertAll([
       {userId: user1.id, roleId: role1.id},
