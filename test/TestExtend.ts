@@ -1,9 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, table} from '../src/index'
+import {TableMeta, column, create, index, table} from '../src/index'
 import {connect} from './DbSuite'
 
-type User = table<typeof User>
 const User = table('user')(
   class User {
     id = column.integer().primaryKey<'user'>()
@@ -22,7 +21,6 @@ const User = table('user')(
   }
 )
 
-type Role = table<typeof Role>
 const Role = table('role')(
   class Role {
     id = column.integer().primaryKey<Role>()
@@ -40,6 +38,15 @@ const UserRoles = table('user_roles')(
   class UserRoles {
     userId = column.integer().references(() => User.id)
     roleId = column.integer().references(() => Role.id)
+
+    protected [table.meta](): TableMeta {
+      return {
+        indexes: {
+          userId: index(this.userId),
+          roleId: index(this.roleId)
+        }
+      }
+    }
   }
 )
 

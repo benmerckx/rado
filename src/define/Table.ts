@@ -44,7 +44,7 @@ class TableProto<Definition> {
   get [table.data](): TableData {
     throw 'assert'
   }
-  [table.meta](): Meta {
+  [table.meta](): TableMeta {
     throw 'assert'
   }
   // Clear the Function prototype, not sure if there's a better way
@@ -107,7 +107,7 @@ export namespace Table {
   }
 }
 
-interface Meta {
+export interface TableMeta {
   indexes?: Record<string, Index>
 }
 
@@ -235,7 +235,7 @@ export function table(input: string | TemplateStringsArray) {
         const meta = createMeta ? createMeta.apply(res) : {}
         return {
           indexes: fromEntries(
-            entries((meta?.indexes as Meta) || {}).map(([key, index]) => {
+            entries((meta?.indexes as TableMeta) || {}).map(([key, index]) => {
               const indexName = `${name}.${key}`
               return [indexName, {name: indexName, ...index.data}]
             })

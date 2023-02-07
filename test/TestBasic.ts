@@ -15,7 +15,7 @@ test('basic', async () => {
   const db = await connect()
   const Node = table('Node')(
     class Node {
-      id = column.integer().primaryKey<'node'>()
+      id = column.integer().primaryKey<Node>()
       index = column.number()
     }
   )
