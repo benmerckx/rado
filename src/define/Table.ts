@@ -28,7 +28,7 @@ export interface TableData {
   meta(): {indexes: Record<string, IndexData>}
 }
 
-interface TableProto<Definition> {
+export interface TableInstance<Definition> {
   (conditions: {
     [K in keyof Definition]?: Definition[K] extends Column<infer V>
       ? EV<V>
@@ -37,7 +37,7 @@ interface TableProto<Definition> {
   (...conditions: Array<EV<boolean>>): Cursor.TableSelect<Definition>
 }
 
-class TableProto<Definition> {
+export class TableInstance<Definition> {
   [Selection.__tableType](): Table.Select<Definition> {
     throw 'assert'
   }
@@ -71,7 +71,7 @@ class TableProto<Definition> {
   }
 }
 
-export type Table<Definition> = Definition & TableProto<Definition>
+export type Table<Definition> = Definition & TableInstance<Definition>
 
 export namespace Table {
   export type Of<Row> = Table<{
