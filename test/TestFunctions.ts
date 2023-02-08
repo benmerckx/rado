@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, Functions, column, from, select, table} from '../src/index'
+import {Expr, Functions, column, select, table} from '../src/index'
 import {cast, count, strftime} from '../src/sqlite'
 import {connect} from './DbSuite'
 
@@ -12,15 +12,14 @@ test('dynamic', async () => {
 })
 
 test('Functions', async () => {
-  const query = await connect()
+  const db = await connect()
   const User = table({
-    name: 'User',
-    columns: {
-      id: column.integer().primaryKey(),
-      birthdate: column.string()
+    User: class {
+      id = column.integer().primaryKey()
+      birthdate = column.string()
     }
   })
-  await query(User.createTable())
+  await User().create().on(db)
   const now = '1920-01-01'
   const int = (e: Expr<any>) => cast(e, 'integer')
   const age: Expr<number> = int(strftime('%Y', now))
@@ -28,19 +27,9 @@ test('Functions', async () => {
     .substract(
       int(strftime('%m-%d', now).isLess(strftime('%m-%d', User.birthdate)))
     )
-  const me = await query(User.insertOne({birthdate: '1900-01-01'}))
-  assert.is(
-    (await query(User.sure().select({age}).where(User.id.is(me.id)))).age,
-    20
-  )
-  assert.is(
-    await query(
-      from(User.where(User.id.is(me.id)))
-        .select(count())
-        .first()
-    ),
-    1
-  )
+  const me = await User().insertOne({birthdate: '1900-01-01'}).on(db)
+  assert.is((await User({id: me.id}).sure().select({age}).on(db)).age, 20)
+  assert.is(await User({id: me.id}).select(count()).first().on(db), 1)
 })
 
 test.run()

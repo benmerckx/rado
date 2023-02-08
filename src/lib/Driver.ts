@@ -3,7 +3,7 @@ import {Expr, ExprData} from '../define/Expr'
 import {ParamData} from '../define/Param'
 import {Query, QueryType} from '../define/Query'
 import {Schema, SchemaInstructions} from '../define/Schema'
-import {Table} from '../define/Table'
+import {Table, table} from '../define/Table'
 import {Formatter} from './Formatter'
 import {Statement} from './Statement'
 
@@ -118,8 +118,8 @@ abstract class SyncDriver extends DriverBase {
 
   migrateSchema(...tables: Array<Table<any>>) {
     const queries = []
-    for (const table of Object.values(tables)) {
-      const schema = table.schema()
+    for (const current of Object.values(tables)) {
+      const schema = current[table.data]
       const localSchema = this.schemaInstructions(schema.name)
       if (!localSchema) {
         queries.push(...Schema.create(schema).queries)
@@ -266,8 +266,8 @@ abstract class AsyncDriver extends DriverBase {
 
   async migrateSchema(...tables: Array<Table<any>>) {
     const queries = []
-    for (const table of Object.values(tables)) {
-      const schema = table.schema()
+    for (const current of Object.values(tables)) {
+      const schema = current[table.data]
       const localSchema = await this.schemaInstructions(schema.name)
       if (!localSchema) {
         queries.push(...Schema.create(schema).queries)

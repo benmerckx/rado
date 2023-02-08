@@ -1,17 +1,9 @@
 import {Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
-import {ColumnData} from './Column'
 import {Expr, ExprData} from './Expr'
-import {IndexData} from './Index'
 import {Query, QueryType} from './Query'
+import {TableData} from './Table'
 import {Target} from './Target'
-
-export interface Schema {
-  name: string
-  alias?: string
-  columns: Record<string, ColumnData>
-  indexes: Record<string, IndexData>
-}
 
 export interface SchemaInstructions {
   columns: Record<string, string>
@@ -19,11 +11,15 @@ export interface SchemaInstructions {
 }
 
 export namespace Schema {
-  export function create(schema: Schema) {
+  export function create(schema: TableData) {
     const queries = []
     queries.push(Query.CreateTable({table: schema, ifNotExists: true}))
-    for (const index of Object.values(schema.indexes))
-      queries.push(Query.CreateIndex({table: schema, index, ifNotExists: true}))
+    const meta = schema.meta()
+    if (meta.indexes)
+      for (const index of Object.values(meta.indexes))
+        queries.push(
+          Query.CreateIndex({table: schema, index, ifNotExists: true})
+        )
     return Query.Batch({queries})
   }
 
@@ -33,7 +29,7 @@ export namespace Schema {
 
   // This is placed here but is SQLite specific, so we'll eventually move it
   function recreateTable(
-    table: Schema,
+    table: TableData,
     addedColumns: Set<string>
   ): Array<Query> {
     const queries: Array<Query> = []
@@ -76,7 +72,7 @@ export namespace Schema {
     )
 
     // Create missing indexes
-    for (const index of Object.values(table.indexes))
+    for (const index of Object.values(table.meta().indexes))
       queries.push(Query.CreateIndex({table, index}))
 
     return queries
@@ -85,7 +81,7 @@ export namespace Schema {
   export function upgrade(
     formatter: Formatter,
     local: SchemaInstructions,
-    schema: Schema
+    schema: TableData
   ): Array<Query> {
     const columnNames = new Set([
       ...Object.keys(local.columns),
@@ -125,13 +121,14 @@ export namespace Schema {
       return recreateTable(schema, new Set(added))
     }
 
+    const meta = schema.meta()
     const indexNames = new Set([
       ...Object.keys(local.indexes),
-      ...Object.keys(schema.indexes)
+      ...Object.keys(meta.indexes)
     ])
     for (const indexName of indexNames) {
       const localInstruction = local.indexes[indexName]
-      const schemaIndex = schema.indexes[indexName]
+      const schemaIndex = meta.indexes[indexName]
       if (!localInstruction) {
         res.push(Query.CreateIndex({table: schema, index: schemaIndex}))
       } else if (!schemaIndex) {

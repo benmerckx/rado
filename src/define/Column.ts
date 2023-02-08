@@ -17,6 +17,7 @@ interface PartialColumnData {
   primaryKey?: boolean
   unique?: boolean
   references?: () => ExprData
+  enumerable?: boolean
 }
 
 export interface ColumnData extends PartialColumnData {
@@ -24,8 +25,10 @@ export interface ColumnData extends PartialColumnData {
   name: string
 }
 
-export class Column<T> {
-  constructor(public data: PartialColumnData) {}
+export class Column<T> extends Expr<T> {
+  constructor(public data: PartialColumnData) {
+    super(undefined!)
+  }
 
   name(name: string): Column<T> {
     return new Column({...this.data, name})
@@ -35,14 +38,12 @@ export class Column<T> {
     return new Column({...this.data, nullable: true})
   }
 
-  autoIncrement(): Column<Column.IsOptional<T>> {
-    return new Column({...this.data, autoIncrement: true})
+  autoIncrement(): OptionalColumn<T> {
+    return new OptionalColumn({...this.data, autoIncrement: true})
   }
 
-  primaryKey<K extends string>(
-    create?: () => EV<T>
-  ): Column<Column.IsPrimary<T, K>> {
-    return new Column({
+  primaryKey<K = string>(create?: () => EV<T>): PrimaryColumn<T, K> {
+    return new PrimaryColumn<T, K>({
       ...this.data,
       primaryKey: true,
       defaultValue: create
@@ -64,10 +65,10 @@ export class Column<T> {
     return new Column({...this.data, unique: true})
   }
 
-  defaultValue(create: () => EV<T>): Column<Column.IsOptional<T>>
-  defaultValue(value: EV<T>): Column<Column.IsOptional<T>>
-  defaultValue(value: any): Column<Column.IsOptional<T>> {
-    return new Column({
+  defaultValue(create: () => EV<T>): OptionalColumn<T>
+  defaultValue(value: EV<T>): OptionalColumn<T>
+  defaultValue(value: any): OptionalColumn<T> {
+    return new OptionalColumn({
       ...this.data,
       defaultValue:
         typeof value === 'function'
@@ -77,16 +78,22 @@ export class Column<T> {
   }
 }
 
+export namespace Column {
+  export declare const isOptional: unique symbol
+  export declare const isPrimary: unique symbol
+}
+
+export class OptionalColumn<T> extends Column<T> {
+  [Column.isOptional]!: true
+}
+
+export class PrimaryColumn<T, K> extends Column<T> {
+  [Column.isPrimary]!: K
+}
+
 export type PrimaryKey<T, K> = string extends K
   ? T
   : T & {[Column.isPrimary]: K}
-
-export namespace Column {
-  export declare const isOptional: unique symbol
-  export type IsOptional<T> = {[isOptional]: true; __t: T}
-  export declare const isPrimary: unique symbol
-  export type IsPrimary<T, K> = {[isPrimary]: K; __t: T}
-}
 
 export const column = {
   string<T extends string = string>(): Column<T> {

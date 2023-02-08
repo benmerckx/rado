@@ -3,21 +3,19 @@ import * as assert from 'uvu/assert'
 import {Id, column, create, table} from '../src/index'
 import {connect} from './DbSuite'
 
-type User = table.infer<typeof User>
+type User = table<typeof User>
 const User = table({
-  name: 'User',
-  columns: {
-    id: column.integer().primaryKey<'User'>(),
-    name: column.string()
+  User: class {
+    id = column.integer().primaryKey<'User'>()
+    name = column.string()
   }
 })
 
-type Contact = table.infer<typeof Contact>
+type Contact = table<typeof Contact>
 const Contact = table({
-  name: 'Contact',
-  columns: {
-    id: column.integer().primaryKey<'Contact'>(),
-    user: column.integer<Id<User>>()
+  Contact: class {
+    id = column.integer().primaryKey<'Contact'>()
+    user = column.integer<Id<User>>()
   }
 })
 
@@ -25,12 +23,13 @@ test('OrderBy', async () => {
   const query = await connect()
   await query.transaction(async query => {
     await query(create(User, Contact))
-    const user1 = await query(User.insertOne({name: 'b'}))
-    const user2 = await query(User.insertOne({name: 'a'}))
-    await query(Contact.insertAll([{user: user1.id}, {user: user2.id}]))
+    const user1 = await query(User().insertOne({name: 'b'}))
+    const user2 = await query(User().insertOne({name: 'a'}))
+    await query(Contact().insertAll([{user: user1.id}, {user: user2.id}]))
   })
   const results = await query(
-    Contact.leftJoin(User, User.id.is(Contact.user))
+    Contact()
+      .leftJoin(User({id: Contact.user}))
       .select({...Contact, user: User})
       .orderBy(User.name)
   )

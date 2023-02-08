@@ -1,6 +1,6 @@
 import {ExprData} from './Expr'
 import {Query as QueryData} from './Query'
-import {Schema} from './Schema'
+import {TableData} from './Table'
 
 export enum TargetType {
   Expr = 'Expr',
@@ -30,9 +30,9 @@ export namespace Target {
   }
   export interface Table {
     type: TargetType.Table
-    table: Schema
+    table: TableData
   }
-  export function Table(table: Schema): Table {
+  export function Table(table: TableData): Table {
     return {type: TargetType.Table, table: table}
   }
   export interface Join {
@@ -51,7 +51,7 @@ export namespace Target {
     return {type: TargetType.Join, left, right, joinType, on}
   }
 
-  export function source(from: Target): Schema | undefined {
+  export function source(from: Target): TableData | undefined {
     switch (from.type) {
       case TargetType.Table:
         return from.table
