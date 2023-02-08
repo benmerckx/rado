@@ -1,4 +1,3 @@
-import {OptionalColumn, PrimaryColumn, PrimaryKey} from './Column'
 import {Expr} from './Expr'
 
 // Source: https://www.steveruiz.me/posts/smooshed-object-union
@@ -15,10 +14,6 @@ type RecordField<T> = Expr<T> & FieldsOf<ObjectUnion<T>>
 // https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
 type Field<T> = [T] extends [Array<any>]
   ? Expr<T>
-  : [T] extends [PrimaryColumn<infer V, infer K>]
-  ? Expr<PrimaryKey<V, K>>
-  : [T] extends [OptionalColumn<infer V>]
-  ? Field<V>
   : [T] extends [number | string | boolean]
   ? Expr<T>
   : [T] extends [Record<string, any> | null]

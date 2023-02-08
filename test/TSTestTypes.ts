@@ -1,4 +1,4 @@
-import {Expr, Fields} from '../src/index'
+import {Expr, Fields, Table, column, table} from '../src/index'
 
 type Location = {lat: number; lng: number}
 
@@ -22,3 +22,23 @@ type TestTypes = Fields<{
 
 const test2: TestTypes = undefined!
 const typeAccessible: Expr<boolean> = test2.item.type.is('test')
+
+function definitionAndRow<T>(table: Table.Of<T>, row: T) {
+  return undefined!
+}
+
+const Example = table({
+  Example: class {
+    id = column.integer().primaryKey()
+    name = column.object<{
+      sub: {
+        sub: string
+      }
+    }>()
+  }
+})
+type Example = table<typeof Example>
+
+definitionAndRow<Example>(Example, {id: 1, name: {sub: {sub: 'test'}}})
+
+type Row = Table.Select<typeof Example>

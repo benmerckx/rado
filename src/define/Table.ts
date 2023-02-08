@@ -37,38 +37,20 @@ export interface TableInstance<Definition> {
   (...conditions: Array<EV<boolean>>): Cursor.TableSelect<Definition>
 }
 
-export class TableInstance<Definition> {
-  [Selection.__tableType](): Table.Select<Definition> {
-    throw 'assert'
-  }
-  get [table.data](): TableData {
-    throw 'assert'
-  }
-  [table.meta](): TableMeta {
-    throw 'assert'
-  }
+export declare class TableInstance<Definition> {
+  [Selection.__tableType](): Table.Select<Definition>
+  get [table.data](): TableData
+
   // Clear the Function prototype, not sure if there's a better way
   // as mapped types (Omit) will remove the callable signature. We define them
   // in a class getter since it's the only way to also mark them as non-enumarable
   // Seems open: Microsoft/TypeScript#27575
-  get name(): unknown {
-    throw 'assert'
-  }
-  get length(): unknown {
-    throw 'assert'
-  }
-  get call(): unknown {
-    throw 'assert'
-  }
-  get apply(): unknown {
-    throw 'assert'
-  }
-  get bind(): unknown {
-    throw 'assert'
-  }
-  get prototype(): unknown {
-    throw 'assert'
-  }
+  get name(): unknown
+  get length(): unknown
+  get call(): unknown
+  get apply(): unknown
+  get bind(): unknown
+  get prototype(): unknown
 }
 
 export type Table<Definition> = Definition & TableInstance<Definition>
@@ -233,7 +215,7 @@ export function table<T extends Blueprint<T>>(
       })
     ),
     meta() {
-      const createMeta = res[table.meta]
+      const createMeta = (res as any)[table.meta]
       const meta = createMeta ? createMeta.apply(res) : {}
       return {
         indexes: fromEntries(

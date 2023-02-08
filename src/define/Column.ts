@@ -1,4 +1,5 @@
 import {EV, Expr, ExprData} from './Expr'
+import {Fields} from './Fields'
 
 export enum ColumnType {
   String = 'String',
@@ -112,7 +113,7 @@ export const column = {
     return new Column({type: ColumnType.Json})
   },
   object<T extends object = object>() {
-    return new Column({type: ColumnType.Json}) as Column<T> & Expr.Record<T>
+    return new Column({type: ColumnType.Json}) as Column<T> & Fields<T>
   },
   array<T = any>(): Column<Array<T>> {
     return new Column({type: ColumnType.Json})
