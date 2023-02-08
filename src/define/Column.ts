@@ -61,8 +61,8 @@ export class Column<T> extends Expr<T> {
     })
   }
 
-  unique(): Column<T> {
-    return new Column({...this.data, unique: true})
+  unique() {
+    return new Column({...this.data, unique: true}) as this
   }
 
   defaultValue(create: () => EV<T>): OptionalColumn<T>
@@ -111,8 +111,8 @@ export const column = {
   json<T = any>(): Column<T> {
     return new Column({type: ColumnType.Json})
   },
-  object<T extends object = object>(): Column<T> {
-    return new Column({type: ColumnType.Json})
+  object<T extends object = object>() {
+    return new Column({type: ColumnType.Json}) as Column<T> & Expr.Record<T>
   },
   array<T = any>(): Column<Array<T>> {
     return new Column({type: ColumnType.Json})
