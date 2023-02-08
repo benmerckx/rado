@@ -336,6 +336,12 @@ export namespace Cursor {
         })
       )
     }
+
+    get(name: string): Expr<any> {
+      return new Expr(
+        ExprData.Field(ExprData.Row(Target.Table(this.table)), name)
+      )
+    }
   }
 
   export class SelectSingle<Row> extends Cursor<Row> {
