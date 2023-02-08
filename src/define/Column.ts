@@ -87,7 +87,7 @@ export class OptionalColumn<T> extends Column<T> {
   [Column.isOptional]!: true
 }
 
-export class PrimaryColumn<T, K> extends Column<T> {
+export class PrimaryColumn<T, K> extends Column<PrimaryKey<T, K>> {
   [Column.isPrimary]!: K
 }
 
