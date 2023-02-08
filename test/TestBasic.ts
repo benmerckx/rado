@@ -19,6 +19,7 @@ test('basic', async () => {
       index = column.number()
     }
   })
+  type Node = table<typeof Node>
   await create(Node).on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))

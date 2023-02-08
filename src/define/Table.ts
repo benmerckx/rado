@@ -1,4 +1,10 @@
-import {Column, ColumnData, OptionalColumn, PrimaryColumn} from './Column'
+import {
+  Column,
+  ColumnData,
+  OptionalColumn,
+  PrimaryColumn,
+  PrimaryKey
+} from './Column'
 import {Cursor} from './Cursor'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
 import {Index, IndexData} from './Index'
@@ -77,7 +83,11 @@ export namespace Table {
   export type Select<Definition> = {
     [K in keyof Definition as Definition[K] extends Column<any>
       ? K
-      : never]: Definition[K] extends Column<infer T> ? T : never
+      : never]: Definition[K] extends PrimaryColumn<infer T, infer K>
+      ? PrimaryKey<T, K>
+      : Definition[K] extends Column<infer T>
+      ? T
+      : never
   }
 
   export type Update<Definition> = Partial<{
