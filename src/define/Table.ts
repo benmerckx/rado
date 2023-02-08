@@ -80,6 +80,10 @@ class TableProto<Definition> {
 export type Table<Definition> = Definition & TableProto<Definition>
 
 export namespace Table {
+  export type Of<Row> = Table<{
+    [K in keyof Row]: Column<Row[K]>
+  }>
+
   export type Select<Definition> = {
     [K in keyof Definition as Definition[K] extends Column<any>
       ? K
