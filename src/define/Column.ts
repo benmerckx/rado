@@ -43,7 +43,7 @@ export namespace Column {
 interface ValueColumn<T> extends Expr<T> {
   <X = T>(): ValueColumn<
     T extends X
-      ? T
+      ? X
       : Array<any> | null extends T
       ? Array<X> | null
       : T extends Array<any>
@@ -124,7 +124,7 @@ export class PrimaryColumn<T, K> extends ValueColumn<PrimaryKey<T, K>> {
 }
 
 interface ObjectColumn<T> {
-  <X = T>(): Column<T extends X ? T : T extends null ? X | null : X> & Fields<X>
+  <X = T>(): Column<T extends X ? X : T extends null ? X | null : X> & Fields<X>
 }
 
 class ObjectColumn<T> extends Callable implements Column<T> {
