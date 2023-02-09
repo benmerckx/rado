@@ -158,7 +158,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   const ownKeys = ['prototype', ...cols]
   let res: any
   if (!hasKeywords) {
-    res = assign(call, expressions, {[table.data]: data})
+    res = assign(call, expressions, {[table.data]: data, [Expr.toExpr]: toExpr})
     setPrototypeOf(call, getPrototypeOf(data.definition))
   } else {
     function get(key: string) {
@@ -201,13 +201,13 @@ export function table<T extends Blueprint<T>>(
     columns: fromEntries(
       entries(getOwnPropertyDescriptors(columns)).map(([name, descriptor]) => {
         const column = columns[name]
-        if (!(column instanceof Column))
-          throw new Error(`Property ${name} is not a column`)
-        const {data} = column
+        const data = column[Column.data]
+        if (!data.type) throw new Error(`Column ${name} has no type`)
         return [
           name,
           {
             ...data,
+            type: data.type!,
             name: data.name || name,
             enumerable: descriptor.enumerable
           }

@@ -6,6 +6,8 @@ import {Query} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
+const {fromEntries, entries, getPrototypeOf} = Object
+
 export enum UnOpType {
   Not = 'Not',
   IsNull = 'IsNull'
@@ -142,16 +144,17 @@ export const ExprData = {
   create(input: any): ExprData {
     if (input === null || input === undefined)
       return ExprData.Param(ParamData.Value(null))
-    if (input && typeof input[Expr.toExpr] === 'function')
+    if (
+      input &&
+      (typeof input === 'function' || typeof input === 'object') &&
+      input[Expr.toExpr]
+    )
       input = input[Expr.toExpr]()
     if (input instanceof Expr) return input.expr
     if (input && typeof input === 'object' && !Array.isArray(input))
       return ExprData.Record(
-        Object.fromEntries(
-          Object.entries(input).map(([key, value]) => [
-            key,
-            ExprData.create(value)
-          ])
+        fromEntries(
+          entries(input).map(([key, value]) => [key, ExprData.create(value)])
         )
       )
     return ExprData.Param(ParamData.Value(input))
@@ -177,7 +180,33 @@ function isConstant<T>(e: ExprData, value: T): boolean {
   }
 }
 
-export class Expr<T> {
+function dotAccess(expr: Expr<any>, path: Array<string>) {
+  return new Expr(ExprData.Field(expr.expr, path.join('.')))
+}
+
+function exprAccess(expr: Expr<any>, ...path: Array<string>): any {
+  return new Proxy(expr, {
+    apply(target, thisArg, args) {
+      const proto = getPrototypeOf(expr)
+      const method = path.pop()!
+      const e: Record<string, any> =
+        path.length > 0 ? dotAccess(expr, path) : expr
+      return proto[method].apply(e, args)
+    },
+    get(_, key: string) {
+      const e = path.length > 0 ? dotAccess(expr, path) : expr
+      if (key === 'expr') return e.expr
+      if (typeof key !== 'string') return e[key]
+      return exprAccess(expr, ...path, key)
+    }
+  })
+}
+
+// Mask function here so we don't inherit its prototype in TypeScript
+declare class Empty {}
+const callable = Function as typeof Empty
+
+export class Expr<T> extends callable {
   static NULL = Expr.create(null)
   static toExpr = Symbol('toExpr')
 
@@ -203,11 +232,8 @@ export class Expr<T> {
   }
 
   constructor(public expr: ExprData) {
-    return new Proxy(this, {
-      get(target: any, key) {
-        return key in target ? target[key] : target.get(key)
-      }
-    })
+    super()
+    return exprAccess(this)
   }
 
   asc(): OrderBy {

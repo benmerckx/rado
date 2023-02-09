@@ -15,13 +15,24 @@ test('Expr<any>.is(_)', async () => {
   const Table = table({
     test: {
       id: column.integer().primaryKey<'test'>(),
-      jsonColumn: column.object<any>()
+      jsonColumn: column.json<any>()
     }
   })
   await Table().create().on(db)
   await Table().insertOne({jsonColumn: 'test'}).on(db)
   const res = await Table({jsonColumn: 'test'}).first().on(db)
   assert.ok(res)
+})
+
+test('JSON object columns', async () => {
+  const db = await connect()
+  const Table = table({
+    test: {
+      id: column.integer().primaryKey<'test'>(),
+      jsonColumn: column.object<{foo: {bar: string}}>()
+    }
+  })
+  console.log(Table.jsonColumn.foo.bar.is('test'))
 })
 
 test.run()

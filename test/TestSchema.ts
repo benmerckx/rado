@@ -5,22 +5,22 @@ import {datetime} from '../src/sqlite'
 import {connect} from './DbSuite'
 
 const columns = {
-  id: column.integer().primaryKey(),
-  index: column.integer(),
-  bool: column.boolean(),
-  string: column.string(),
-  number: column.number(),
-  array: column.array(),
-  object: column.object(),
-  nullableCol: column.string().nullable(),
-  defaultString: column.string().defaultValue("'with quotes'"),
-  defaultNumber: column.number().defaultValue(123),
-  defaultBoolean: column.boolean().defaultValue(true),
-  defaultBoolean2: column.boolean().defaultValue(false),
-  defaultFloat: column.number().defaultValue(1.23),
-  defaultArray: column.array().defaultValue([1, 2, 3]),
-  defaultObject: column.object().defaultValue({a: 1, b: 2, c: 3}),
-  createdAt: column.string().defaultValue(datetime('now', 'localtime'))
+  id: column.integer.primaryKey(),
+  index: column.integer,
+  bool: column.boolean,
+  string: column.string,
+  number: column.number,
+  array: column.array,
+  object: column.object,
+  nullableCol: column.string.nullable,
+  defaultString: column.string.defaultValue("'with quotes'"),
+  defaultNumber: column.number.defaultValue(123),
+  defaultBoolean: column.boolean.defaultValue(true),
+  defaultBoolean2: column.boolean.defaultValue(false),
+  defaultFloat: column.number.defaultValue(1.23),
+  defaultArray: column.array.defaultValue([1, 2, 3]),
+  defaultObject: column.object.defaultValue({a: 1, b: 2, c: 3}),
+  createdAt: column.string.defaultValue(datetime('now', 'localtime'))
 }
 
 const TestTable = table({Test: columns})

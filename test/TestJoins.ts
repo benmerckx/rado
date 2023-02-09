@@ -19,7 +19,7 @@ const Contact = table({
   }
 })
 
-test('OrderBy', async () => {
+test('Joins', async () => {
   const query = await connect()
   await query.transaction(async query => {
     await query(create(User, Contact))

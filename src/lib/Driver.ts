@@ -4,19 +4,9 @@ import {ParamData} from '../define/Param'
 import {Query, QueryType} from '../define/Query'
 import {Schema, SchemaInstructions} from '../define/Schema'
 import {Table, table} from '../define/Table'
+import {Callable} from '../util/Callable'
 import {Formatter} from './Formatter'
 import {Statement} from './Statement'
-
-class Callable extends Function {
-  constructor(fn: Function) {
-    super()
-    return new Proxy(this, {
-      apply(_, thisArg, input) {
-        return fn.apply(thisArg, input)
-      }
-    })
-  }
-}
 
 function isTemplateStringsArray(input: any): input is TemplateStringsArray {
   return Boolean(Array.isArray(input) && (input as any).raw)

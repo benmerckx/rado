@@ -158,8 +158,8 @@ test('each', async () => {
 
   const Entry = table({
     Entry: class {
-      id = column.integer().primaryKey<'Entry'>()
-      title = column.string()
+      id = column.integer.primaryKey<'Entry'>()
+      title = column.string
     }
   })
   type Entry = table<typeof Entry>
