@@ -180,7 +180,7 @@ export abstract class Formatter implements Sanitizer {
     for (const key of stmt.separate(keys)) {
       stmt.identifier(key).add('=').space()
       const value = data[key]
-      if (value instanceof Expr)
+      if (Expr.isExpr(value))
         this.formatExprJson(ctx, ExprData.create(data[key]))
       else this.formatValue({...ctx, formatAsInsert: true}, value)
     }
@@ -301,7 +301,7 @@ export abstract class Formatter implements Sanitizer {
       ctx.stmt.raw(strings[i])
       if (i < params.length) {
         const param = params[i]
-        if (param instanceof Expr) this.formatExpr(ctx, param.expr)
+        if (Expr.isExpr(param)) this.formatExpr(ctx, param.expr)
         else this.formatValue(ctx, param)
       }
     }
@@ -387,7 +387,7 @@ export abstract class Formatter implements Sanitizer {
     columnValue: any
   ): Statement {
     const {stmt} = ctx
-    if (columnValue instanceof Expr)
+    if (Expr.isExpr(columnValue))
       return this.formatExprValue(ctx, columnValue.expr)
     const isNull = columnValue === undefined || columnValue === null
     const isOptional =

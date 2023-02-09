@@ -124,10 +124,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   const target = Target.Table(data)
   const call = {
     [data.name]: function (...args: Array<any>) {
-      const isConditionalRecord =
-        args.length === 1 &&
-        typeof args[0] === 'object' &&
-        !(args[0] instanceof Expr)
+      const isConditionalRecord = args.length === 1 && !Expr.isExpr(args[0])
       const conditions = isConditionalRecord
         ? entries(args[0]).map(([key, value]) => {
             const column = data.columns[key]

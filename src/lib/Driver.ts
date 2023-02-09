@@ -4,7 +4,7 @@ import {ParamData} from '../define/Param'
 import {Query, QueryType} from '../define/Query'
 import {Schema, SchemaInstructions} from '../define/Schema'
 import {Table, table} from '../define/Table'
-import {Callable} from '../util/Callable'
+import {callable} from '../util/Callable'
 import {Formatter} from './Formatter'
 import {Statement} from './Statement'
 
@@ -12,9 +12,9 @@ function isTemplateStringsArray(input: any): input is TemplateStringsArray {
   return Boolean(Array.isArray(input) && (input as any).raw)
 }
 
-abstract class DriverBase extends Callable {
+abstract class DriverBase {
   constructor(public formatter: Formatter) {
-    super((...args: Array<any>) => {
+    return callable(this, (...args: Array<any>) => {
       const [input, ...rest] = args
       if (input instanceof Cursor && rest.length === 0)
         return this.executeQuery(input.query())

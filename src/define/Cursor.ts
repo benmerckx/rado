@@ -232,7 +232,7 @@ export namespace Cursor {
       return new SelectMultiple({
         ...this.query(),
         orderBy: orderBy.map(e => {
-          return e instanceof Expr ? e.asc() : e
+          return Expr.isExpr(e) ? e.asc() : e
         })
       })
     }

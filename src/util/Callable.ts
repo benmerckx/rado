@@ -1,10 +1,11 @@
-export class Callable extends Function {
-  constructor(fn: Function) {
-    super()
-    return new Proxy(this, {
-      apply(_, thisArg, input) {
-        return fn.apply(thisArg, input)
-      }
-    })
-  }
+export function callable(target: any, call: Function) {
+  return new Proxy<any>(call, {
+    set(_, prop, value) {
+      target[prop] = value
+      return true
+    },
+    get(_, prop) {
+      return target[prop]
+    }
+  })
 }

@@ -150,7 +150,7 @@ export const ExprData = {
       input[Expr.toExpr]
     )
       input = input[Expr.toExpr]()
-    if (input instanceof Expr) return input.expr
+    if (Expr.isExpr(input)) return input.expr
     if (input && typeof input === 'object' && !Array.isArray(input))
       return ExprData.Record(
         fromEntries(
@@ -185,28 +185,28 @@ function dotAccess(expr: Expr<any>, path: Array<string>) {
 }
 
 function exprAccess(expr: Expr<any>, ...path: Array<string>): any {
-  return new Proxy(expr, {
-    apply(target, thisArg, args) {
-      const proto = getPrototypeOf(expr)
+  return new Proxy(
+    (...args: Array<any>) => {
       const method = path.pop()!
+      const proto = Expr.prototype as any
       const e: Record<string, any> =
         path.length > 0 ? dotAccess(expr, path) : expr
-      return proto[method].apply(e, args)
+      return proto[method]?.apply(e, args)
     },
-    get(_, key: string) {
-      const e = path.length > 0 ? dotAccess(expr, path) : expr
-      if (key === 'expr') return e.expr
-      if (typeof key !== 'string') return e[key]
-      return exprAccess(expr, ...path, key)
+    {
+      get(_, key: string) {
+        const e = path.length > 0 ? dotAccess(expr, path) : expr
+        if (key === 'expr') return e.expr
+        if (typeof key !== 'string') return e[key]
+        return exprAccess(expr, ...path, key)
+      }
     }
-  })
+  )
 }
 
-// Mask function here so we don't inherit its prototype in TypeScript
-declare class Empty {}
-const callable = Function as typeof Empty
+const isExpr = Symbol('isExpr')
 
-export class Expr<T> extends callable {
+export class Expr<T> {
   static NULL = Expr.create(null)
   static toExpr = Symbol('toExpr')
 
@@ -215,7 +215,7 @@ export class Expr<T> extends callable {
   }
 
   static create<T>(input: EV<T>): Expr<T> {
-    if (input instanceof Expr) return input
+    if (Expr.isExpr(input)) return input
     return new Expr(ExprData.create(input))
   }
 
@@ -231,10 +231,19 @@ export class Expr<T> extends callable {
       .reduce((condition, expr) => condition.or(expr), Expr.value(false))
   }
 
+  static isExpr<T>(input: any): input is Expr<T> {
+    return (
+      input !== null &&
+      (typeof input === 'object' || typeof input === 'function') &&
+      input[isExpr]
+    )
+  }
+
   constructor(public expr: ExprData) {
-    super()
     return exprAccess(this)
   }
+
+  [isExpr] = true
 
   asc(): OrderBy {
     return {expr: this.expr, order: OrderDirection.Asc}
@@ -265,13 +274,13 @@ export class Expr<T> extends callable {
   }
 
   is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
-    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
+    if (that === null || (Expr.isExpr(that) && isConstant(that.expr, null)))
       return this.isNull()
     return new Expr(ExprData.BinOp(BinOpType.Equals, this.expr, toExpr(that)))
   }
 
   isNot(that: EV<T>): Expr<boolean> {
-    if (that === null || (that instanceof Expr && isConstant(that.expr, null)))
+    if (that === null || (Expr.isExpr(that) && isConstant(that.expr, null)))
       return this.isNotNull()
     return new Expr(
       ExprData.BinOp(BinOpType.NotEquals, this.expr, toExpr(that))
