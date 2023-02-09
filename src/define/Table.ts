@@ -1,7 +1,6 @@
 import {Column, ColumnData, OptionalColumn, PrimaryColumn} from './Column'
 import {Cursor} from './Cursor'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
-import {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import {Selection} from './Selection'
 import {Target} from './Target'
@@ -58,8 +57,7 @@ export type Table<Definition> = Definition & TableInstance<Definition>
 
 export namespace Table {
   export type Of<Row> = Table<{
-    [K in keyof Row as K extends string ? K : never]: Column<Row[K]> &
-      Fields<Row[K]>
+    [K in keyof Row as K extends string ? K : never]: Column<Row[K]>
   }>
 
   export type Select<Definition> = {
