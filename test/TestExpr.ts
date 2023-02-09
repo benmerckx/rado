@@ -24,6 +24,16 @@ test('Expr<any>.is(_)', async () => {
   assert.ok(res)
 })
 
+test('boolean selects', async () => {
+  const db = await connect()
+  const res = await db(select(Expr.create(true)).sure())
+  assert.is(res, true)
+  // Todo: if we keep a better context around during formatting we can cast
+  // this to a bool in the select itself
+  // const res2 = await db(select(Expr.create(true).is(true)).sure())
+  // assert.is(res2, true)
+})
+
 test('JSON object columns', async () => {
   const db = await connect()
   const Table = table({
@@ -32,7 +42,7 @@ test('JSON object columns', async () => {
       jsonColumn: column.object<{foo: {bar: string}}>()
     }
   })
-  console.log(Table.jsonColumn.foo.bar.is('test'))
+  // console.log(Table.jsonColumn.foo.bar.is('test'))
 })
 
 test.run()

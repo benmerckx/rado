@@ -3,9 +3,7 @@
 Fully typed, lightweight TypeScript query builder.
 Currently focused on SQLite.
 
-```
-npm install rado
-```
+<pre>npm install <a href="https://www.npmjs.com/package/rado">rado</a></pre>
 
 - Definition via TypeScript types
 - Composable queries
@@ -109,9 +107,12 @@ User({id: 1}).innerJoin(Post({userId: User.id})).select({
 Create expressions to select complex values:
 
 ```ts
+import {iif} from 'rado/sqlite'
 Person().select({
   name: Person.firstName.concat(' ').concat(Person.lastName),
-  isMario: Person.firstName.is('Mario')
+  isMario: Person.firstName.is('Mario'),
+  isActor: Person.id.isIn(Actor().select(Actor.personId)),
+  email: iif(Person.email.isNotNull(), Person.email, 'its.me@mario')
 })
 ```
 
