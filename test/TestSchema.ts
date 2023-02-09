@@ -13,13 +13,13 @@ const columns = {
   array: column.array,
   object: column.object,
   nullableCol: column.string.nullable,
-  nullableArray: column.array<number>().nullable(),
+  nullableArray: column.nullable.array<number[]>(),
   defaultString: column.string.defaultValue("'with quotes'"),
   defaultNumber: column.number.defaultValue(123),
   defaultBoolean: column.boolean.defaultValue(true),
   defaultBoolean2: column.boolean.defaultValue(false),
   defaultFloat: column.number.defaultValue(1.23),
-  defaultArray: column.array.defaultValue([1, 2, 3]),
+  defaultArray: column.array<number[]>().defaultValue([1, 2, 3]),
   defaultObject: column.object.defaultValue({a: 1, b: 2, c: 3}),
   createdAt: column.string.defaultValue(datetime('now', 'localtime'))
 }
@@ -50,7 +50,6 @@ test('Add col', async () => {
       createdAt = createdAt
       text = column.number().defaultValue(2)
       newCol = column.string().defaultValue('def')
-      def = column.string().defaultValue(() => 'test')
       isFalse = column.boolean().defaultValue(false)
 
       protected [table.meta]() {
