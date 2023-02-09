@@ -70,8 +70,8 @@ User().select({
 })
 ```
 
-You can call the `posts` helper method defined in the example schema to achieve
-the same:
+You can call the `posts` helper method defined in the example schema below
+to achieve the same:
 
 ```ts
 User().select({
@@ -171,8 +171,8 @@ import {table, column} from 'rado'
 const User = table({
   // Pass a definition under a key with the actual name of the table in database
   user: class {
-    id = column.integer().primaryKey()
-    username = column.string()
+    id = column.integer.primaryKey()
+    username = column.string
 
     // Define helper methods directly on the model
     posts() {
@@ -183,9 +183,9 @@ const User = table({
 
 const Post = table({
   post: class {
-    id = column.integer().primaryKey()
-    userId = column.integer().references(() => User.id)
-    content = column.string()
+    id = column.integer.primaryKey()
+    userId = column.integer.references(() => User.id)
+    content = column.string
 
     author() {
       return User({id: this.userId}).sure()
@@ -199,15 +199,15 @@ const Post = table({
 
 const Tag = table({
   tag: class {
-    id = column.integer().primaryKey()
-    name = column.string()
+    id = column.integer.primaryKey()
+    name = column.string
   }
 })
 
 const PostTags = table({
   post_tag: class {
-    postId = column.integer().references(() => Post.id)
-    tagId = column.integer().references(() => Tag.id)
+    postId = column.integer.references(() => Post.id)
+    tagId = column.integer.references(() => Tag.id)
   }
 })
 ```
@@ -257,7 +257,7 @@ for await (const row of db.iterate(allPosts)) {
 #### Transactions
 
 Run transactions within the `transaction` method which will isolate a connection
-for you and can optionally return a result:
+and can optionally return a result:
 
 ```ts
 const firstUserId = db.transaction(tx => {
