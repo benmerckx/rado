@@ -34,6 +34,10 @@ export namespace Schema {
   ): Array<Query> {
     const queries: Array<Query> = []
 
+    queries.push(
+      Query.Raw({strings: ['PRAGMA foreign_keys = OFF'], params: []})
+    )
+
     // Create a new temporary table with the new definition
     const tempTable = {...table, name: `$$new_${table.name}`}
     queries.push(Query.CreateTable({table: tempTable}))
@@ -74,6 +78,8 @@ export namespace Schema {
     // Create missing indexes
     for (const index of Object.values(table.meta().indexes))
       queries.push(Query.CreateIndex({table, index}))
+
+    queries.push(Query.Raw({strings: ['PRAGMA foreign_keys = ON'], params: []}))
 
     return queries
   }
