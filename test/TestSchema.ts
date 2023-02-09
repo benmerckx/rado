@@ -13,6 +13,7 @@ const columns = {
   array: column.array,
   object: column.object,
   nullableCol: column.string.nullable,
+  nullableArray: column.array<number>().nullable(),
   defaultString: column.string.defaultValue("'with quotes'"),
   defaultNumber: column.number.defaultValue(123),
   defaultBoolean: column.boolean.defaultValue(true),
