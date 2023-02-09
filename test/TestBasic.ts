@@ -148,10 +148,12 @@ test('each', async () => {
   const Test = table({
     test: {
       id: column.integer().primaryKey<'test'>(),
-      refs: column.array<{
-        id: PrimaryKey<number, 'Entry'>
-        type: string
-      }>()
+      refs: column.array<
+        {
+          id: PrimaryKey<number, 'Entry'>
+          type: string
+        }[]
+      >()
     }
   })
   type Test = table<typeof Test>

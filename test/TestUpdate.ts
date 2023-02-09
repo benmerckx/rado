@@ -9,8 +9,8 @@ const User = table({
     name = column.object<{given: string; last: string}>()
     booleanValue = column.boolean().defaultValue(false)
     email = column.string().nullable()
-    roles = column.array<string>().nullable()
-    deep = column.array<{prop: number}>().defaultValue([])
+    roles = column.array<string[]>().nullable()
+    deep = column.array<{prop: number}[]>().defaultValue([])
   }
 })
 type User = table<typeof User>

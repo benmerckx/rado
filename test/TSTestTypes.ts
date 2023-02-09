@@ -23,7 +23,7 @@ type TestTypes = Fields<{
 const test2: TestTypes = undefined!
 const typeAccessible: Expr<boolean> = test2.item.type.is('test')
 
-function definitionAndRow<T>(table: Table.Of<T>, row: T) {
+function definitionAndRow<T extends {id: number}>(table: Table.Of<T>, row: T) {
   return undefined!
 }
 

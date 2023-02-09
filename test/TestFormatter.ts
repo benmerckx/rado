@@ -26,7 +26,7 @@ test('x in y', async () => {
 
 const Example = table({
   example: {
-    array: column.array<{num: number}>()
+    array: column.array<{num: number}[]>()
   }
 })
 

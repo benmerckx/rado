@@ -14,7 +14,7 @@ test('IncludeMany', async () => {
   const User = table({
     User: class {
       id = column.integer().primaryKey()
-      roles = column.array<number>()
+      roles = column.array<number[]>()
     }
   })
   const Entry = table({
