@@ -185,17 +185,17 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
       getOwnPropertyDescriptor(target, key) {
         const value = get(key as string)
         const descriptor = getOwnPropertyDescriptor(call, key)
-        if (descriptor)
-          return {
-            ...descriptor,
-            enumerable: cols.includes(key as string),
-            value
-          }
-        return {
-          value,
-          enumerable: true,
-          configurable: true
-        }
+        const res = descriptor
+          ? {
+              ...descriptor,
+              enumerable: cols.includes(key as string)
+            }
+          : {
+              enumerable: true,
+              configurable: true
+            }
+        if (value !== undefined) res.value = value
+        return res
       }
     })
   }
