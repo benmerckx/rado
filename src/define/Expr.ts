@@ -352,16 +352,14 @@ export class Expr<T> {
   dynamic<X = T>(...path: Array<string>): Fields<X> {
     return new Proxy<any>(
       (...args: Array<any>) => {
-        const method = path.pop()!
-        const e: Record<string, any> =
-          path.length > 0 ? this.get(path.join('.')) : this
+        const method = path[path.length - 1]
+        const e: any =
+          path.length > 1 ? this.get(path.slice(0, -1).join('.')) : this
         return e[method]?.apply(e, args)
       },
       {
-        get: (_, key: string) => {
-          const e = path.length > 0 ? this.get(path.join('.')) : this
-          // Todo: expr should be replaced by a Symbol
-          if (key === 'expr') return e[DATA]
+        get: (_, key) => {
+          const e: any = path.length > 0 ? this.get(path.join('.')) : this
           if (typeof key !== 'string') return e[key]
           return this.dynamic(...path, key)
         }
