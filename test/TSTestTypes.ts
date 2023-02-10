@@ -1,4 +1,8 @@
+import * as publicApi from '../src/index'
 import {Expr, Fields, Table, column, table} from '../src/index'
+
+type Hoverable<T> = {[K in keyof T]: T[K]}
+type ShowApi = Hoverable<typeof publicApi>
 
 type Location = {lat: number; lng: number}
 

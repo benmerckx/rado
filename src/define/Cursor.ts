@@ -237,11 +237,11 @@ export namespace Cursor {
       })
     }
 
-    first(): SelectSingle<Row | undefined> {
+    maybeFirst(): SelectSingle<Row | undefined> {
       return new SelectSingle({...this[QUERY], singleResult: true})
     }
 
-    sure(): SelectSingle<Row> {
+    first(): SelectSingle<Row> {
       return new SelectSingle({
         ...this[QUERY],
         singleResult: true,

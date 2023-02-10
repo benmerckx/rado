@@ -6,8 +6,8 @@ import {connect} from './DbSuite'
 test('Expr<Array<_>>.includes', async () => {
   const db = await connect()
   const expr = Expr.create([1, 2, 3])
-  assert.ok(await select(expr.includes(1)).sure().on(db))
-  assert.not(await select(expr.includes(4)).sure().on(db))
+  assert.ok(await select(expr.includes(1)).first().on(db))
+  assert.not(await select(expr.includes(4)).first().on(db))
 })
 
 test('Expr<any>.is(_)', async () => {
@@ -20,13 +20,13 @@ test('Expr<any>.is(_)', async () => {
   })
   await Table().create().on(db)
   await Table().insertOne({jsonColumn: 'test'}).on(db)
-  const res = await Table({jsonColumn: 'test'}).first().on(db)
+  const res = await Table({jsonColumn: 'test'}).maybeFirst().on(db)
   assert.ok(res)
 })
 
 test('boolean selects', async () => {
   const db = await connect()
-  const res = await db(select(Expr.create(true)).sure())
+  const res = await db(select(Expr.create(true)).first())
   assert.is(res, true)
   // Todo: if we keep a better context around during formatting we can cast
   // this to a bool in the select itself

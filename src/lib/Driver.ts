@@ -54,7 +54,7 @@ abstract class DriverBase {
   get(...args: Array<any>) {
     const [input, ...rest] = args
     if (input instanceof Cursor.SelectMultiple)
-      return this.executeQuery(input.first()[Cursor.Query])
+      return this.executeQuery(input.maybeFirst()[Cursor.Query])
     if (input instanceof Cursor) return this.executeQuery(input[Cursor.Query])
     return this.executeTemplate('row', input, ...rest)
   }

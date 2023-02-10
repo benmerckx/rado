@@ -24,7 +24,7 @@ test('Transaction', async () => {
         .next(User().insertOne({name: 'Bob'}))
         .on(query)
     }),
-    db(User().first().where(User.name.is('Bob')))
+    db(User().maybeFirst().where(User.name.is('Bob')))
   ])
   assert.equal(bob?.name, 'Bob')
 })
@@ -38,7 +38,7 @@ test('Rollback', async () => {
       throw new Error('Rollback')
     })
     .catch(() => {})
-  const bob = await query(User().first().where(User.name.is('Bob')))
+  const bob = await query(User().maybeFirst().where(User.name.is('Bob')))
   assert.is(bob, undefined)
 })
 

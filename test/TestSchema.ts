@@ -72,7 +72,7 @@ test('Add col', async () => {
     .on(db)
   const rowOne = await AddCol()
     .select({id: AddCol.id, newCol: AddCol.newCol})
-    .first()
+    .maybeFirst()
     .on(db)
   assert.equal(rowOne, {id: 1, newCol: 'new'})
 })

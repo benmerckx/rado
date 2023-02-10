@@ -20,7 +20,7 @@ test('json', async () => {
   const count = await query(Node().count())
   assert.is(count, amount)
   const q = Node()
-    .first()
+    .maybeFirst()
     .select({
       fieldA: Expr.value(12),
       fieldB: Node.index

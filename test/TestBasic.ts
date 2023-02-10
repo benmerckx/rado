@@ -31,7 +31,7 @@ test('basic', async () => {
   assert.equal(
     (
       await Node()
-        .sure()
+        .first()
         .where(
           Node.index.isGreaterOrEqual(amount - 1),
           Node.index.isLess(amount)
@@ -54,7 +54,7 @@ test('filters', async () => {
   const a = {prop: 10}
   const b = {prop: 20}
   await Test().insertAll([a, b]).on(db)
-  const gt10 = await Test(Test.prop.isGreater(10)).sure().on(db)
+  const gt10 = await Test(Test.prop.isGreater(10)).first().on(db)
   assert.equal(gt10.prop, 20)
 })
 
@@ -81,13 +81,13 @@ test('select', async () => {
       ...Test,
       testProp: Expr.value(123)
     })
-    .sure()
+    .first()
     .on(db)
 
   assert.is(res2.testProp, 123)
-  const res3 = await Test().sure().select(Expr.value('test')).on(db)
+  const res3 = await Test().first().select(Expr.value('test')).on(db)
   assert.is(res3, 'test')
-  const res4 = await Test().sure().select(Expr.value(true)).on(db)
+  const res4 = await Test().first().select(Expr.value(true)).on(db)
   assert.is(res4, true)
 })
 
@@ -107,7 +107,7 @@ test('update', async () => {
   const b = {propA: 20, propB: 5}
   await query(Test().insertAll([a, b]))
   await query(Test().set({propA: 15}).where(Test.propA.is(10)))
-  assert.ok(await query(Test().sure().where(Test.propA.is(15))))
+  assert.ok(await query(Test().first().where(Test.propA.is(15))))
 })
 
 test('json', async () => {
@@ -130,7 +130,7 @@ test('json', async () => {
         fieldA: Expr.value(12),
         fieldB: Test.propB
       })
-      .sure()
+      .first()
   )
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 5)
@@ -168,7 +168,7 @@ test('each', async () => {
 
   await query(create(Test, Entry))
   await query(insertInto(Test).values(a))
-  const res = await query(from(Test).select({refs: Test.refs}).first())
+  const res = await query(from(Test).select({refs: Test.refs}).maybeFirst())
   assert.equal(res!, a)
 
   const b = {title: 'Entry B'}
@@ -186,13 +186,13 @@ test('each', async () => {
             return ref.type.is('entry')
           })
           .map(ref => {
-            return Link({id: ref.id}).sure().select({
+            return Link({id: ref.id}).first().select({
               id: Link.id,
               title: Link.title
             })
           })
       })
-      .sure()
+      .first()
   )
   assert.equal(res2.links, [
     {id: 1, title: 'Entry B'},

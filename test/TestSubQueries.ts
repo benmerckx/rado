@@ -42,7 +42,7 @@ test('IncludeMany', async () => {
   const RoleAlias = Role().as('role')
   const bundled = await query(
     UserAlias()
-      .first()
+      .maybeFirst()
       .select({
         ...UserAlias,
         roles: RoleAlias()
@@ -75,7 +75,7 @@ test('IncludeMany', async () => {
   const page = await query(
     Entry()
       .select({...Entry, languages})
-      .first()
+      .maybeFirst()
   )
   assert.equal(page, {
     ...entry,

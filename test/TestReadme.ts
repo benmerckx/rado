@@ -22,7 +22,7 @@ const Post = table({
     content = column.string()
 
     author() {
-      return User({id: this.userId}).sure()
+      return User({id: this.userId}).first()
     }
 
     tags() {
@@ -80,7 +80,7 @@ test('Get stuff', async () => {
           tags: Post.tags().select(Tag.name)
         })
       })
-      .sure()
+      .first()
   )
   assert.equal(userResult, {
     author: 'Mario',
@@ -100,11 +100,11 @@ test('Get stuff', async () => {
         ...Post,
         author: Post.author().select(User.username),
         tags: Post.tags().select({
-          count: pt({tagId: Tag.id}).select(count()).sure(),
+          count: pt({tagId: Tag.id}).select(count()).first(),
           name: Tag.name
         })
       })
-      .sure()
+      .first()
   )
   assert.equal(example, {
     id: 1,

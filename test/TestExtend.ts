@@ -70,7 +70,7 @@ test('Extend', async () => {
     ])
     .on(db)
   const Aliased = User().as('Aliased')
-  const query = Aliased().first().select({
+  const query = Aliased().maybeFirst().select({
     name: Aliased.name(),
     roles: Aliased.roles()
   })

@@ -7,7 +7,7 @@ import {connect} from './DbSuite'
 test('dynamic', async () => {
   const query = await connect()
   const {json_patch} = Functions
-  const patched = await query(select(json_patch({a: 1}, {a: 0, b: 2})).sure())
+  const patched = await query(select(json_patch({a: 1}, {a: 0, b: 2})).first())
   assert.equal(patched, {a: 0, b: 2})
 })
 
@@ -28,8 +28,8 @@ test('Functions', async () => {
       int(strftime('%m-%d', now).isLess(strftime('%m-%d', User.birthdate)))
     )
   const me = await User().insertOne({birthdate: '1900-01-01'}).on(db)
-  assert.is((await User({id: me.id}).sure().select({age}).on(db)).age, 20)
-  assert.is(await User({id: me.id}).select(count()).first().on(db), 1)
+  assert.is((await User({id: me.id}).first().select({age}).on(db)).age, 20)
+  assert.is(await User({id: me.id}).select(count()).maybeFirst().on(db), 1)
 })
 
 test.run()

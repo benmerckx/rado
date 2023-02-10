@@ -89,7 +89,7 @@ Post().select({
   ...Post,
   author: Post.author().select(User.username),
   tags: Post.tags().select({
-    count: pt({tagId: Tag.id}).select(count()).sure(),
+    count: pt({tagId: Tag.id}).select(count()).first(),
     name: Tag.name
   })
 })
@@ -112,7 +112,11 @@ Person().select({
   name: Person.firstName.concat(' ').concat(Person.lastName),
   isMario: Person.firstName.is('Mario'),
   isActor: Person.id.isIn(Actor().select(Actor.personId)),
-  email: iif(Person.email.isNotNull(), Person.email, 'its.me@mario')
+  email: iif(Person.email.isNotNull(), Person.email, 'its.me@mario'),
+  twitterHandle: Person.socialMedia
+    .filter(media => media.type.is('twitter'))
+    .map(media => media.handle)
+    .maybeFirst()
 })
 ```
 
@@ -189,7 +193,7 @@ const Post = table({
     content = column.string
 
     author() {
-      return User({id: this.userId}).sure()
+      return User({id: this.userId}).first()
     }
 
     tags() {
