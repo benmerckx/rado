@@ -35,14 +35,19 @@ test('boolean selects', async () => {
 })
 
 test('JSON object columns', async () => {
-  const db = await connect()
   const Table = table({
     test: {
       id: column.integer().primaryKey<'test'>(),
       jsonColumn: column.object<{foo: {bar: string}}>()
     }
   })
-  // console.log(Table.jsonColumn.foo.bar.is('test'))
+  assert.ok(Table.jsonColumn.foo.bar.is('test'))
+
+  assert.ok(
+    Expr.value({a: {b: 1}})
+      .dynamic()
+      .a.b.is(1)
+  )
 })
 
 test.run()

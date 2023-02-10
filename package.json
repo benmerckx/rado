@@ -46,7 +46,7 @@
     "speedscope": "^1.15.0",
     "sql.js": "^1.8.0",
     "sqlite3": "^5.1.4",
-    "tsx": "^3.12.1",
+    "tsx": "^3.12.3",
     "typescript": "next",
     "uvu": "^0.5.6"
   },

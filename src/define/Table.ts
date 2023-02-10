@@ -1,4 +1,10 @@
-import {Column, ColumnData, OptionalColumn, PrimaryColumn} from './Column'
+import {
+  Column,
+  ColumnData,
+  ColumnType,
+  OptionalColumn,
+  PrimaryColumn
+} from './Column'
 import {Cursor} from './Cursor'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
 import {Index, IndexData} from './Index'
@@ -145,13 +151,15 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   const hasKeywords = cols
     .concat(keysOf(data.definition))
     .some(name => name in Function)
+  const row = ExprData.Row(target)
   const expressions = fromEntries(
-    cols.map(name => [
-      name,
-      new Expr(ExprData.Field(ExprData.Row(target), name))
-    ])
+    cols.map(name => {
+      let expr = new Expr(ExprData.Field(row, name))
+      if (data.columns[name].type === ColumnType.Json) expr = expr.dynamic()
+      return [name, expr]
+    })
   )
-  const toExpr = () => new Expr(ExprData.Row(target))
+  const toExpr = () => new Expr(row)
   const ownKeys = ['prototype', ...cols]
   let res: any
   if (!hasKeywords) {

@@ -6,7 +6,7 @@ import {Query} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
-const {fromEntries, entries, getPrototypeOf} = Object
+const {fromEntries, entries} = Object
 
 export enum UnOpType {
   Not = 'Not',
@@ -166,84 +166,12 @@ const toExpr = ExprData.create
 /** Expression or value of type T */
 export type EV<T> = Expr<T> | T
 
-function isConstant<T>(e: ExprData, value: T): boolean {
-  switch (e.type) {
-    case ExprType.Param:
-      switch (e.param.type) {
-        case ParamType.Value:
-          return e.param.value === value
-        default:
-          return false
-      }
-    default:
-      return false
-  }
-}
-
-function dotAccess(expr: Expr<any>, path: Array<string>) {
-  return new Expr(ExprData.Field(expr.expr, path.join('.')))
-}
-
-function exprAccess(expr: Expr<any>, ...path: Array<string>): any {
-  return new Proxy(
-    (...args: Array<any>) => {
-      const method = path.pop()!
-      const proto = Expr.prototype as any
-      const e: Record<string, any> =
-        path.length > 0 ? dotAccess(expr, path) : expr
-      return proto[method]?.apply(e, args)
-    },
-    {
-      get(_, key: string) {
-        const e = path.length > 0 ? dotAccess(expr, path) : expr
-        if (key === 'expr') return e.expr
-        if (typeof key !== 'string') return e[key]
-        return exprAccess(expr, ...path, key)
-      }
-    }
-  )
-}
-
-const isExpr = Symbol('isExpr')
+const IsExpr = Symbol('isExpr')
 
 export class Expr<T> {
-  static NULL = Expr.create(null)
-  static toExpr = Symbol('toExpr')
+  constructor(public expr: ExprData) {}
 
-  static value<T>(value: T): Expr<T> {
-    return new Expr<T>(ExprData.Param(ParamData.Value(value)))
-  }
-
-  static create<T>(input: EV<T>): Expr<T> {
-    if (Expr.isExpr(input)) return input
-    return new Expr(ExprData.create(input))
-  }
-
-  static and(...conditions: Array<EV<boolean>>): Expr<boolean> {
-    return conditions
-      .map(Expr.create)
-      .reduce((condition, expr) => condition.and(expr), Expr.value(true))
-  }
-
-  static or(...conditions: Array<EV<boolean>>): Expr<boolean> {
-    return conditions
-      .map(Expr.create)
-      .reduce((condition, expr) => condition.or(expr), Expr.value(false))
-  }
-
-  static isExpr<T>(input: any): input is Expr<T> {
-    return (
-      input !== null &&
-      (typeof input === 'object' || typeof input === 'function') &&
-      input[isExpr]
-    )
-  }
-
-  constructor(public expr: ExprData) {
-    return exprAccess(this)
-  }
-
-  [isExpr] = true
+  [IsExpr] = true
 
   asc(): OrderBy {
     return {expr: this.expr, order: OrderDirection.Asc}
@@ -258,29 +186,43 @@ export class Expr<T> {
   }
 
   or(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
-    const a = this.expr
-    const b = toExpr(that)
-    if (isConstant(b, true) || isConstant(a, false)) return new Expr(b)
-    if (isConstant(a, true) || isConstant(b, false)) return this
-    return new Expr(ExprData.BinOp(BinOpType.Or, a, b))
+    const a = this
+    const b = Expr.create(that)
+    if (b.isConstant(true) || a.isConstant(false)) return b
+    if (a.isConstant(true) || b.isConstant(false)) return this
+    return new Expr(ExprData.BinOp(BinOpType.Or, a.expr, b.expr))
   }
 
   and(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
-    const a = this.expr
-    const b = toExpr(that)
-    if (isConstant(b, true) || isConstant(a, false)) return this
-    if (isConstant(a, true) || isConstant(b, false)) return new Expr(b)
-    return new Expr(ExprData.BinOp(BinOpType.And, a, b))
+    const a = this
+    const b = Expr.create(that)
+    if (b.isConstant(true) || a.isConstant(false)) return this
+    if (a.isConstant(true) || b.isConstant(false)) return b
+    return new Expr(ExprData.BinOp(BinOpType.And, a.expr, b.expr))
   }
 
   is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
-    if (that === null || (Expr.isExpr(that) && isConstant(that.expr, null)))
+    if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
       return this.isNull()
     return new Expr(ExprData.BinOp(BinOpType.Equals, this.expr, toExpr(that)))
   }
 
+  isConstant(value: T): boolean {
+    switch (this.expr.type) {
+      case ExprType.Param:
+        switch (this.expr.param.type) {
+          case ParamType.Value:
+            return this.expr.param.value === value
+          default:
+            return false
+        }
+      default:
+        return false
+    }
+  }
+
   isNot(that: EV<T>): Expr<boolean> {
-    if (that === null || (Expr.isExpr(that) && isConstant(that.expr, null)))
+    if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
       return this.isNotNull()
     return new Expr(
       ExprData.BinOp(BinOpType.NotEquals, this.expr, toExpr(that))
@@ -365,6 +307,32 @@ export class Expr<T> {
     )
   }
 
+  /**
+   * Dynamic expressions allow accessing runtime fields of JSON properties
+   * through a Proxy.
+   *
+   * Expr.value({a: {b: 1}}).dynamic().a.b.is(1) // true
+   **/
+  dynamic<X = T>(...path: Array<string>): Fields<X> {
+    return new Proxy<any>(
+      (...args: Array<any>) => {
+        const method = path.pop()!
+        const e: Record<string, any> =
+          path.length > 0 ? this.get(path.join('.')) : this
+        return e[method]?.apply(e, args)
+      },
+      {
+        get: (_, key: string) => {
+          const e = path.length > 0 ? this.get(path.join('.')) : this
+          // Todo: expr should be replaced by a Symbol
+          if (key === 'expr') return e.expr
+          if (typeof key !== 'string') return e[key]
+          return this.dynamic(...path, key)
+        }
+      }
+    )
+  }
+
   at<T>(this: Expr<Array<T>>, index: number): Expr<T | null> {
     return this.get(`[${Number(index)}]`)
   }
@@ -382,7 +350,7 @@ export class Expr<T> {
     return new Expr(
       ExprData.Filter(
         target,
-        ExprData.create(fn(new Expr(ExprData.Row(target)) as any))
+        ExprData.create(fn(new Expr(ExprData.Row(target)).dynamic()))
       )
     )
   }
@@ -396,7 +364,7 @@ export class Expr<T> {
     return new Expr(
       ExprData.Map(
         target,
-        ExprData.create(fn(new Expr(ExprData.Row(target)) as any))
+        ExprData.create(fn(new Expr(ExprData.Row(target)).dynamic()))
       )
     )
   }
@@ -411,5 +379,35 @@ export class Expr<T> {
 }
 
 export namespace Expr {
-  export type Record<T> = Expr<T> & {[K in keyof T]: Expr<T[K]>}
+  export const NULL = create(null)
+  export const toExpr = Symbol('toExpr')
+
+  export function value<T>(value: T): Expr<T> {
+    return new Expr<T>(ExprData.Param(ParamData.Value(value)))
+  }
+
+  export function create<T>(input: EV<T>): Expr<T> {
+    if (isExpr(input)) return input
+    return new Expr(ExprData.create(input))
+  }
+
+  export function and(...conditions: Array<EV<boolean>>): Expr<boolean> {
+    return conditions
+      .map(create)
+      .reduce((condition, expr) => condition.and(expr), value(true))
+  }
+
+  export function or(...conditions: Array<EV<boolean>>): Expr<boolean> {
+    return conditions
+      .map(create)
+      .reduce((condition, expr) => condition.or(expr), value(false))
+  }
+
+  export function isExpr<T>(input: any): input is Expr<T> {
+    return (
+      input !== null &&
+      (typeof input === 'object' || typeof input === 'function') &&
+      input[IsExpr]
+    )
+  }
 }
