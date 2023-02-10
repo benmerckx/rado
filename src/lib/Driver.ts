@@ -85,7 +85,12 @@ interface SyncDriver {
 }
 
 abstract class SyncDriver extends DriverBase {
-  transactionId = 0
+  transactionId: number
+
+  constructor(formatter: Formatter) {
+    super(formatter)
+    this.transactionId = 0
+  }
 
   abstract prepareStatement(
     stmt: Statement,
@@ -230,7 +235,12 @@ interface AsyncDriver {
 }
 
 abstract class AsyncDriver extends DriverBase {
-  transactionId = 0
+  transactionId: number
+
+  constructor(formatter: Formatter) {
+    super(formatter)
+    this.transactionId = 0
+  }
 
   abstract isolate(): [connection: AsyncDriver, release: () => Promise<void>]
   abstract prepareStatement(
