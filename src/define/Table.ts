@@ -22,7 +22,8 @@ const {
   assign,
   getPrototypeOf,
   setPrototypeOf,
-  getOwnPropertyDescriptor
+  getOwnPropertyDescriptor,
+  getOwnPropertyNames
 } = Object
 
 const {ownKeys} = Reflect
@@ -162,7 +163,8 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
     })
   )
   const toExpr = () => new Expr(row)
-  const ownKeys = ['prototype', ...cols]
+  const funcNames: Array<string | symbol> = getOwnPropertyNames(call)
+  const ownKeys = Array.from(new Set([...funcNames, ...cols]))
   let res: any
   if (!hasKeywords) {
     res = assign(call, expressions, {[DATA]: data, [Expr.ToExpr]: toExpr})
@@ -181,9 +183,16 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
         return ownKeys
       },
       getOwnPropertyDescriptor(target, key) {
-        if (key === 'prototype') return getOwnPropertyDescriptor(target, key)
+        const value = get(key as string)
+        const descriptor = getOwnPropertyDescriptor(call, key)
+        if (descriptor)
+          return {
+            ...descriptor,
+            enumerable: cols.includes(key as string),
+            value
+          }
         return {
-          value: get(key as string),
+          value,
           enumerable: true,
           configurable: true
         }
