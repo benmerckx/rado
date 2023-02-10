@@ -2,6 +2,7 @@ import {test} from 'uvu'
 import * as assert from 'uvu/assert'
 import {
   BinOpType,
+  Expr,
   ExprData,
   ParamData,
   Target,
@@ -33,7 +34,7 @@ const Example = table({
 test('x in y.map(_)', async () => {
   const formatter = new SqliteFormatter()
   const ctx = formatter.createContext({skipNewlines: true})
-  const field = Example.array.map(row => row.num).expr as ExprData.Map
+  const field = Example.array.map(row => row.num)[Expr.Data] as ExprData.Map
   ;(field.target as Target.Expr).alias = 'map'
   const stmt = formatter.formatExpr(
     ctx,

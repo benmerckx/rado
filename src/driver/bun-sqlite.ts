@@ -51,7 +51,7 @@ export class BunSqliteDriver extends Driver.Sync {
           expectedReturn: 'row',
           strings: ['SELECT changes() as rowsAffected'],
           params: []
-        })
+        }) as any
       )
     })
   }

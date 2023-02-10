@@ -6,7 +6,7 @@ function get(_: any, method: string) {
   }
 }
 
-export const Functions = new Proxy({}, {get}) as Functions
+export const Functions = new Proxy(Object.create(null), {get}) as Functions
 
 export type Functions = {
   [key: string]: (...args: Array<any>) => Expr<any>

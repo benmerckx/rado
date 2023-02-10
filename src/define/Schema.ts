@@ -51,7 +51,7 @@ export namespace Schema {
                 addedColumns.has(key)
                   ? (typeof column.defaultValue === 'function'
                       ? column.defaultValue()
-                      : column.defaultValue) || Expr.NULL.expr
+                      : column.defaultValue) || Expr.NULL[Expr.Data]
                   : ExprData.Field(ExprData.Row(Target.Table(table)), key)
               ])
             )

@@ -3,7 +3,7 @@ import {Expr, ExprData} from '../define/Expr'
 import {ParamData} from '../define/Param'
 import {Query, QueryType} from '../define/Query'
 import {Schema, SchemaInstructions} from '../define/Schema'
-import {Table, table} from '../define/Table'
+import {Table} from '../define/Table'
 import {callable} from '../util/Callable'
 import {Formatter} from './Formatter'
 import {Statement} from './Statement'
@@ -17,14 +17,14 @@ abstract class DriverBase {
     return callable(this, (...args: Array<any>) => {
       const [input, ...rest] = args
       if (input instanceof Cursor && rest.length === 0)
-        return this.executeQuery(input.query())
+        return this.executeQuery(input[Cursor.Query])
       if (isTemplateStringsArray(input))
         return this.executeTemplate(undefined, input, ...rest)
       return this.executeQuery(
         Query.Batch({
           queries: args
-            .filter(arg => arg instanceof Cursor)
-            .map(arg => arg.query())
+            .filter((arg): arg is Cursor<any> => arg instanceof Cursor)
+            .map(arg => arg[Cursor.Query])
         })
       )
     })
@@ -39,23 +39,23 @@ abstract class DriverBase {
       name => new Expr(ExprData.Param(ParamData.Named(name)))
     )
     const cursor = create(...(params as any))
-    const query = cursor.query()
+    const query = cursor[Cursor.Query]
     return [query, this.formatter.compile(query)]
   }
 
   all(...args: Array<any>) {
     const [input, ...rest] = args
     if (input instanceof Cursor.SelectSingle)
-      return this.executeQuery(input.all().query())
-    if (input instanceof Cursor) return this.executeQuery(input.query())
+      return this.executeQuery(input.all()[Cursor.Query])
+    if (input instanceof Cursor) return this.executeQuery(input[Cursor.Query])
     return this.executeTemplate('rows', input, ...rest)
   }
 
   get(...args: Array<any>) {
     const [input, ...rest] = args
     if (input instanceof Cursor.SelectMultiple)
-      return this.executeQuery(input.first().query())
-    if (input instanceof Cursor) return this.executeQuery(input.query())
+      return this.executeQuery(input.first()[Cursor.Query])
+    if (input instanceof Cursor) return this.executeQuery(input[Cursor.Query])
     return this.executeTemplate('row', input, ...rest)
   }
 
@@ -109,7 +109,7 @@ abstract class SyncDriver extends DriverBase {
   migrateSchema(...tables: Array<Table<any>>) {
     const queries = []
     for (const current of Object.values(tables)) {
-      const schema = current[table.data]
+      const schema = current[Table.Data]
       const localSchema = this.schemaInstructions(schema.name)
       if (!localSchema) {
         queries.push(...Schema.create(schema).queries)
@@ -183,7 +183,7 @@ abstract class SyncDriver extends DriverBase {
 
   *iterate<T>(cursor: Cursor.SelectMultiple<T>): Iterable<T> {
     const stmt = this.prepareStatement(
-      this.formatter.compile(cursor.query()),
+      this.formatter.compile(cursor[Cursor.Query]),
       true
     )
     for (const row of stmt.iterate<{result: string}>()) {
@@ -257,7 +257,7 @@ abstract class AsyncDriver extends DriverBase {
   async migrateSchema(...tables: Array<Table<any>>) {
     const queries = []
     for (const current of Object.values(tables)) {
-      const schema = current[table.data]
+      const schema = current[Table.Data]
       const localSchema = await this.schemaInstructions(schema.name)
       if (!localSchema) {
         queries.push(...Schema.create(schema).queries)
@@ -334,7 +334,7 @@ abstract class AsyncDriver extends DriverBase {
 
   async *iterate<T>(cursor: Cursor.SelectMultiple<T>): AsyncIterable<T> {
     const stmt = this.prepareStatement(
-      this.formatter.compile(cursor.query()),
+      this.formatter.compile(cursor[Cursor.Query]),
       true
     )
     for await (const row of stmt.iterate<{result: string}>()) {

@@ -301,7 +301,7 @@ export abstract class Formatter implements Sanitizer {
       ctx.stmt.raw(strings[i])
       if (i < params.length) {
         const param = params[i]
-        if (Expr.isExpr(param)) this.formatExpr(ctx, param.expr)
+        if (Expr.isExpr(param)) this.formatExpr(ctx, param[Expr.Data])
         else this.formatValue(ctx, param)
       }
     }
@@ -388,7 +388,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (Expr.isExpr(columnValue))
-      return this.formatExprValue(ctx, columnValue.expr)
+      return this.formatExprValue(ctx, columnValue[Expr.Data])
     const isNull = columnValue === undefined || columnValue === null
     const isOptional =
       column.nullable || column.autoIncrement || column.primaryKey

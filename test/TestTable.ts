@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, table} from '../src/index'
+import {Table, column, table} from '../src/index'
 
 const Table1 = table({
   Table1_test: {
@@ -16,8 +16,8 @@ const Table2 = table({
 })
 
 test('Available metadata', async () => {
-  assert.is(Table1[table.data].name, 'Table1_test')
-  assert.is(Table2[table.data].name, 'Table2_test')
+  assert.is(Table1[Table.Data].name, 'Table1_test')
+  assert.is(Table2[Table.Data].name, 'Table2_test')
 })
 
 test.run()

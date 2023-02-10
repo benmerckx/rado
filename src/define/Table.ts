@@ -11,6 +11,9 @@ import {Index, IndexData} from './Index'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
+const DATA = Symbol('Table.Data')
+const META = Symbol('Table.Meta')
+
 const {
   keys,
   entries,
@@ -44,8 +47,8 @@ export interface TableInstance<Definition> {
 }
 
 export declare class TableInstance<Definition> {
-  [Selection.__tableType](): Table.Select<Definition>
-  get [table.data](): TableData
+  [Selection.TableType](): Table.Select<Definition>
+  get [DATA](): TableData
 
   // Clear the Function prototype, not sure if there's a better way
   // as mapped types (Omit) will remove the callable signature. We define them
@@ -62,6 +65,9 @@ export declare class TableInstance<Definition> {
 export type Table<Definition> = Definition & TableInstance<Definition>
 
 export namespace Table {
+  export const Data: typeof DATA = DATA
+  export const Meta: typeof META = META
+
   export type Of<Row> = Table<{
     [K in keyof Row as K extends string ? K : never]: Column<Row[K]>
   }>
@@ -103,17 +109,13 @@ export interface TableMeta {
   indexes?: Record<string, Index>
 }
 
-type Definition<T> = {
+type Blueprint<T> = {
   [K in keyof T as K extends string ? K : never]: Column<any> | (() => any)
 }
 
 interface Define<T> {
   new (): T
 }
-
-type Blueprint<T> = Definition<T> // & {[table.meta]?: () => Meta}
-
-type DefineTable = <T extends Blueprint<T>>(define: T | Define<T>) => Table<T>
 
 export type table<T> = T extends Table<infer D> ? Table.Select<D> : never
 
@@ -163,7 +165,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   const ownKeys = ['prototype', ...cols]
   let res: any
   if (!hasKeywords) {
-    res = assign(call, expressions, {[table.data]: data, [Expr.toExpr]: toExpr})
+    res = assign(call, expressions, {[DATA]: data, [Expr.ToExpr]: toExpr})
     setPrototypeOf(call, getPrototypeOf(data.definition))
   } else {
     function get(key: string) {
@@ -171,8 +173,8 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
     }
     res = new Proxy(call, {
       get(target: any, key: string | symbol) {
-        if (key === table.data) return data
-        if (key === Expr.toExpr) return toExpr
+        if (key === DATA) return data
+        if (key === Expr.ToExpr) return toExpr
         return get(key as string)
       },
       ownKeys(target) {
@@ -206,7 +208,7 @@ export function table<T extends Blueprint<T>>(
     columns: fromEntries(
       entries(getOwnPropertyDescriptors(columns)).map(([name, descriptor]) => {
         const column = columns[name]
-        const data = column[Column.data]
+        const data = column[Column.Data]
         if (!data.type) throw new Error(`Column ${name} has no type`)
         return [
           name,
@@ -236,6 +238,5 @@ export function table<T extends Blueprint<T>>(
 }
 
 export namespace table {
-  export const data = Symbol('data')
-  export const meta = Symbol('meta')
+  export const meta: typeof META = META
 }

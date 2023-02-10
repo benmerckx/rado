@@ -14,11 +14,12 @@ interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 
 export namespace Selection {
-  export declare const __tableType: unique symbol
-  export declare const __cursorType: unique symbol
-  export type Infer<T> = T extends {[__tableType](): infer K}
+  export declare const TableType: unique symbol
+  export declare const CursorType: unique symbol
+
+  export type Infer<T> = T extends {[TableType](): infer K}
     ? K
-    : T extends {[__cursorType](): infer K}
+    : T extends {[CursorType](): infer K}
     ? K
     : T extends Expr<infer K>
     ? K

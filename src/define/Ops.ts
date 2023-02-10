@@ -3,7 +3,7 @@ import {ExprData} from './Expr'
 import {Query} from './Query'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
-import {Table, table as createTable} from './Table'
+import {Table} from './Table'
 import {Target} from './Target'
 
 export function select<X extends Selection>(
@@ -21,8 +21,8 @@ export function from<Row>(
 ): Cursor.SelectMultiple<Row> {
   const target =
     source instanceof Cursor
-      ? Target.Query(source.query())
-      : Target.Table(source[createTable.data])
+      ? Target.Query(source[Cursor.Query])
+      : Target.Table(source[Table.Data])
   return new Cursor.SelectMultiple<Row>(
     Query.Select({
       from: target,
@@ -32,19 +32,19 @@ export function from<Row>(
 }
 
 export function update<Row>(table: Table<Row>): Cursor.Update<Row> {
-  return new Cursor.Update<Row>(Query.Update({table: table[createTable.data]}))
+  return new Cursor.Update<Row>(Query.Update({table: table[Table.Data]}))
 }
 
 export function insertInto<Row>(table: Table<Row>): Cursor.Insert<Row> {
-  return new Cursor.Insert<Row>(table[createTable.data])
+  return new Cursor.Insert<Row>(table[Table.Data])
 }
 
 export function deleteFrom<Row>(table: Table<Row>): Cursor.Delete {
-  return new Cursor.Delete(Query.Delete({table: table[createTable.data]}))
+  return new Cursor.Delete(Query.Delete({table: table[Table.Data]}))
 }
 
 export function create(...tables: Array<Table<any>>): Cursor.Batch {
   return new Cursor.Batch(
-    tables.flatMap(table => Schema.create(table[createTable.data]).queries)
+    tables.flatMap(table => Schema.create(table[Table.Data]).queries)
   )
 }
