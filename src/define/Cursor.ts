@@ -12,6 +12,7 @@ import {Target} from './Target'
 const QUERY = Symbol('Cursor.Query')
 
 export class Cursor<T> {
+  declare [Selection.CursorType]: () => T;
   [QUERY]: Query<T>
   static Query: typeof QUERY = QUERY
 
