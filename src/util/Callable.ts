@@ -1,11 +1,7 @@
-export function callable(target: any, call: Function) {
-  return new Proxy<any>(call, {
-    set(_, prop, value) {
-      target[prop] = value
-      return true
-    },
-    get(_, prop) {
-      return target[prop]
-    }
-  })
+const {setPrototypeOf} = Object
+
+export class Callable {
+  constructor(fn: Function) {
+    return setPrototypeOf(fn, new.target.prototype)
+  }
 }

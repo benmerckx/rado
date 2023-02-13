@@ -1,4 +1,4 @@
-import {callable} from '../util/Callable'
+import {Callable} from '../util/Callable'
 import {EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 
@@ -47,18 +47,13 @@ interface ValueColumn<T> extends Expr<T> {
   <X extends T = T>(): ValueColumn<T extends null ? X | null : X>
 }
 
-class ValueColumn<T> implements Column<T> {
+class ValueColumn<T> extends Callable implements Column<T> {
   declare [TYPE]: T;
   [DATA]: PartialColumnData
 
   constructor(data: PartialColumnData) {
+    super(() => this)
     this[DATA] = data
-    return callable(this, (defaultValue: DefaultValue<T>) => {
-      return new ValueColumn({
-        ...this[DATA],
-        defaultValue: createDefaultValue(defaultValue)
-      })
-    })
   }
 
   get nullable(): ValueColumn<T | null> {
@@ -120,13 +115,13 @@ interface ObjectColumn<T> {
   <X extends T = T>(): Column<T extends null ? X | null : X> & Fields<X>
 }
 
-class ObjectColumn<T> implements Column<T> {
+class ObjectColumn<T> extends Callable implements Column<T> {
   declare [TYPE]: T;
   [DATA]: PartialColumnData
 
   constructor(data: PartialColumnData) {
+    super(() => this)
     this[DATA] = data
-    return callable(this, () => this)
   }
 
   get nullable(): ObjectColumn<T | null> {
@@ -159,14 +154,14 @@ interface UnTyped {
   (name: string): UnTyped
 }
 
-class UnTyped {
+class UnTyped extends Callable {
   [DATA]: PartialColumnData
 
   constructor(data: PartialColumnData = {}) {
-    this[DATA] = data
-    return callable(this, (name: string) => {
+    super((name: string) => {
       return new ValueColumn({...data, name})
     })
+    this[DATA] = data
   }
 
   get nullable(): NullableUnTyped {
