@@ -3,9 +3,12 @@ import * as assert from 'uvu/assert'
 import {TableMeta, column, create, index, table} from '../src/index'
 import {connect} from './DbSuite'
 
+class Base {
+  id = column.integer().primaryKey()
+}
+
 const User = table({
-  user: class {
-    id = column.integer().primaryKey()
+  user: class extends Base {
     firstName = column.string()
     lastName = column.string()
 
@@ -22,8 +25,7 @@ const User = table({
 })
 
 const Role = table({
-  role: class {
-    id = column.integer().primaryKey<'role'>()
+  role: class extends Base {
     name = column.string()
 
     users() {

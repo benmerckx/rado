@@ -2,7 +2,8 @@
   "compilerOptions": {
     "module": "ESNext",
     "target": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,

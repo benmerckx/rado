@@ -1,4 +1,4 @@
-import {Expr} from './Expr'
+import {Expr} from './Expr.ts'
 
 // Source: https://www.steveruiz.me/posts/smooshed-object-union
 type ObjectUnion<T> = {

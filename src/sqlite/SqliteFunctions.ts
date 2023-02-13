@@ -1,7 +1,7 @@
-import {Cursor} from '../define/Cursor'
-import {EV, Expr} from '../define/Expr'
-import {Functions} from '../define/Functions'
-import {Table} from '../define/Table'
+import {Cursor} from '../define/Cursor.ts'
+import {EV, Expr} from '../define/Expr.ts'
+import {Functions} from '../define/Functions.ts'
+import {Table} from '../define/Table.ts'
 
 export const SqliteFunctions: SqliteFunctions = Functions as any
 

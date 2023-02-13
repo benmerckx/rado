@@ -1,4 +1,4 @@
-import {Expr, ExprData} from './Expr'
+import {Expr, ExprData} from './Expr.ts'
 
 interface PartialIndexData {
   on: Array<ExprData>

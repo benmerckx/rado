@@ -14,7 +14,9 @@ await build({
       name: 'add-js',
       setup(build) {
         build.onResolve({filter: /.*/}, args => {
-          const path = args.path + (args.path.startsWith('.') ? '.js' : '')
+          const path = args.path.endsWith('.ts')
+            ? args.path.slice(0, -3) + '.js'
+            : args.path
           if (args.importer) return {path, external: true}
         })
       }

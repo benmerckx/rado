@@ -4,12 +4,12 @@ import {
   ColumnType,
   OptionalColumn,
   PrimaryColumn
-} from './Column'
-import {Cursor} from './Cursor'
-import {BinOpType, EV, Expr, ExprData} from './Expr'
-import {Index, IndexData} from './Index'
-import {Selection} from './Selection'
-import {Target} from './Target'
+} from './Column.ts'
+import {Cursor} from './Cursor.ts'
+import {BinOpType, EV, Expr, ExprData} from './Expr.ts'
+import {Index, IndexData} from './Index.ts'
+import type {Selection} from './Selection.ts'
+import {Target} from './Target.ts'
 
 const DATA = Symbol('Table.Data')
 const META = Symbol('Table.Meta')
@@ -21,8 +21,7 @@ const {
   getOwnPropertyDescriptors,
   getPrototypeOf,
   setPrototypeOf,
-  defineProperty,
-  getOwnPropertyNames
+  defineProperty
 } = Object
 
 interface TableDefinition {}

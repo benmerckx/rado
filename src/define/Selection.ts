@@ -1,5 +1,5 @@
-import type {Cursor} from './Cursor'
-import type {Expr} from './Expr'
+import type {Cursor} from './Cursor.ts'
+import type {Expr} from './Expr.ts'
 
 type SelectionBase =
   // Side-effect of tables having a callable signature is that they expose

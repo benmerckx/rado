@@ -1,4 +1,4 @@
-import {Driver} from '../src'
+import {Driver} from '../src/index.ts'
 
 export async function connect(): Promise<Driver.Async> {
   switch (process.env.TEST_DRIVER) {

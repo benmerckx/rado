@@ -1,4 +1,4 @@
-import {Expr, ExprData} from './Expr'
+import {Expr, ExprData} from './Expr.ts'
 
 function get(_: any, method: string) {
   return (...args: any[]) => {

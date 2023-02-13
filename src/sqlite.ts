@@ -1,2 +1,2 @@
-export * from './sqlite/SqliteFormatter'
-export * from './sqlite/SqliteFunctions'
+export * from './sqlite/SqliteFormatter.ts'
+export * from './sqlite/SqliteFunctions.ts'

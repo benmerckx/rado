@@ -1,9 +1,9 @@
-import {Formatter} from '../lib/Formatter'
-import {Statement} from '../lib/Statement'
-import {Expr, ExprData} from './Expr'
-import {Query, QueryType} from './Query'
-import {TableData} from './Table'
-import {Target} from './Target'
+import {Formatter} from '../lib/Formatter.ts'
+import {Statement} from '../lib/Statement.ts'
+import {Expr, ExprData} from './Expr.ts'
+import {Query, QueryType} from './Query.ts'
+import {TableData} from './Table.ts'
+import {Target} from './Target.ts'
 
 export interface SchemaInstructions {
   columns: Record<string, string>

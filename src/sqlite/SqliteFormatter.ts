@@ -1,6 +1,6 @@
-import {ExprData, ExprType} from '../define/Expr'
-import {FormatContext, Formatter} from '../lib/Formatter'
-import {Statement} from '../lib/Statement'
+import {ExprData, ExprType} from '../define/Expr.ts'
+import {FormatContext, Formatter} from '../lib/Formatter.ts'
+import {Statement} from '../lib/Statement.ts'
 
 const BACKTICK = '`'
 const ESCAPE_BACKTICK = '``'

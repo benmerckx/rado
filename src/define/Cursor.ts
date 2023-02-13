@@ -1,19 +1,19 @@
-import {Driver} from '../lib/Driver'
-import {CompileOptions} from '../lib/Formatter'
-import {EV, Expr, ExprData} from './Expr'
-import {Functions} from './Functions'
-import {OrderBy} from './OrderBy'
-import {Query} from './Query'
-import {Schema} from './Schema'
-import {Selection} from './Selection'
-import {Table, TableData, createTable} from './Table'
-import {Target} from './Target'
+import {Driver} from '../lib/Driver.ts'
+import {CompileOptions} from '../lib/Formatter.ts'
+import {EV, Expr, ExprData} from './Expr.ts'
+import {Functions} from './Functions.ts'
+import {OrderBy} from './OrderBy.ts'
+import {Query} from './Query.ts'
+import {Schema} from './Schema.ts'
+import type {Selection} from './Selection.ts'
+import {Table, TableData, createTable} from './Table.ts'
+import {Target} from './Target.ts'
 
 const QUERY = Symbol('Cursor.Query')
 
 export class Cursor<T> {
-  declare [Selection.CursorType]: () => T;
-  [QUERY]: Query<T>
+  [QUERY]: Query<T>;
+  declare [Selection.CursorType]: () => T
   static Query: typeof QUERY = QUERY
 
   constructor(query: Query<T>) {

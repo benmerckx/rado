@@ -1,6 +1,6 @@
-import {Callable} from '../util/Callable'
-import {EV, Expr, ExprData} from './Expr'
-import {Fields} from './Fields'
+import {Callable} from '../util/Callable.ts'
+import {EV, Expr, ExprData} from './Expr.ts'
+import {Fields} from './Fields.ts'
 
 const DATA = Symbol('DATA')
 const TYPE = Symbol('tYPE')

@@ -1,10 +1,10 @@
-import {Cursor} from './Cursor'
-import {Fields} from './Fields'
-import {OrderBy, OrderDirection} from './OrderBy'
-import {ParamData, ParamType} from './Param'
-import {Query} from './Query'
-import {Selection} from './Selection'
-import {Target} from './Target'
+import {Cursor} from './Cursor.ts'
+import {Fields} from './Fields.ts'
+import {OrderBy, OrderDirection} from './OrderBy.ts'
+import {ParamData, ParamType} from './Param.ts'
+import {Query} from './Query.ts'
+import {Selection} from './Selection.ts'
+import {Target} from './Target.ts'
 
 const {fromEntries, entries} = Object
 

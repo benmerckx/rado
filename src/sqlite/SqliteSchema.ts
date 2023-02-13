@@ -1,8 +1,8 @@
-import {Cursor} from '../define/Cursor'
-import {Expr} from '../define/Expr'
-import {SchemaInstructions} from '../define/Schema'
-import {Statement} from '../lib/Statement'
-import {SqliteFormatter} from './SqliteFormatter'
+import {Cursor} from '../define/Cursor.ts'
+import {Expr} from '../define/Expr.ts'
+import {SchemaInstructions} from '../define/Schema.ts'
+import {Statement} from '../lib/Statement.ts'
+import {SqliteFormatter} from './SqliteFormatter.ts'
 
 export namespace SqliteSchema {
   const formatter = new SqliteFormatter()

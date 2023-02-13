@@ -1,5 +1,5 @@
-import {ParamData, ParamType} from '../define/Param'
-import {Sanitizer} from './Sanitizer'
+import {ParamData, ParamType} from '../define/Param.ts'
+import {Sanitizer} from './Sanitizer.ts'
 
 const SEPARATE = ', '
 const WHITESPACE = ' '

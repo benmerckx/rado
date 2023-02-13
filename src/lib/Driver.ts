@@ -1,12 +1,12 @@
-import {Cursor} from '../define/Cursor'
-import {Expr, ExprData} from '../define/Expr'
-import {ParamData} from '../define/Param'
-import {Query, QueryType} from '../define/Query'
-import {Schema, SchemaInstructions} from '../define/Schema'
-import {Table} from '../define/Table'
-import {Callable} from '../util/Callable'
-import {Formatter} from './Formatter'
-import {Statement} from './Statement'
+import {Cursor} from '../define/Cursor.ts'
+import {Expr, ExprData} from '../define/Expr.ts'
+import {ParamData} from '../define/Param.ts'
+import {Query, QueryType} from '../define/Query.ts'
+import {Schema, SchemaInstructions} from '../define/Schema.ts'
+import {Table} from '../define/Table.ts'
+import {Callable} from '../util/Callable.ts'
+import {Formatter} from './Formatter.ts'
+import {Statement} from './Statement.ts'
 
 function isTemplateStringsArray(input: any): input is TemplateStringsArray {
   return Boolean(Array.isArray(input) && (input as any).raw)

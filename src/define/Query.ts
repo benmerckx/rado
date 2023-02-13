@@ -1,9 +1,9 @@
-import {ColumnData} from './Column'
-import {ExprData} from './Expr'
-import {IndexData} from './Index'
-import {OrderBy} from './OrderBy'
-import {TableData} from './Table'
-import {Target} from './Target'
+import {ColumnData} from './Column.ts'
+import {ExprData} from './Expr.ts'
+import {IndexData} from './Index.ts'
+import {OrderBy} from './OrderBy.ts'
+import {TableData} from './Table.ts'
+import {Target} from './Target.ts'
 
 export enum QueryType {
   Insert = 'Insert',

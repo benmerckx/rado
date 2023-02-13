@@ -1,10 +1,10 @@
-import {Cursor} from './Cursor'
-import {ExprData} from './Expr'
-import {Query} from './Query'
-import {Schema} from './Schema'
-import {Selection} from './Selection'
-import {Table} from './Table'
-import {Target} from './Target'
+import {Cursor} from './Cursor.ts'
+import {ExprData} from './Expr.ts'
+import {Query} from './Query.ts'
+import {Schema} from './Schema.ts'
+import {Selection} from './Selection.ts'
+import {Table} from './Table.ts'
+import {Target} from './Target.ts'
 
 export function select<X extends Selection>(
   selection: X
