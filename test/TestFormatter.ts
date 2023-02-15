@@ -27,11 +27,12 @@ test('x in y', async () => {
 
 const Example = table({
   example: {
-    array: column.array<{num: number}[]>()
+    array: column.array<{num: number}[]>(),
+    data: column.object<{type: string}>()
   }
 })
 
-test('x in y.map(_)', async () => {
+test('x in y.map(_)', () => {
   const formatter = new SqliteFormatter()
   const ctx = formatter.createContext({skipNewlines: true})
   const field = Example.array.map(row => row.num)[Expr.Data] as ExprData.Map
@@ -44,6 +45,16 @@ test('x in y.map(_)', async () => {
     stmt.sql,
     "(? IN (SELECT `map`.value->>'$.num' AS result FROM json_each(json(`example`.`array`)) AS `map`))"
   )
+})
+
+test('json columns', () => {
+  const formatter = new SqliteFormatter()
+  const ctx = formatter.createContext({skipNewlines: true})
+  const stmt = formatter.formatExpr(
+    ctx,
+    Example.data.type.is('test')[Expr.Data]
+  )
+  assert.is(stmt.sql, "(`example`.`data`->>'$.type' = ?)")
 })
 
 test.run()

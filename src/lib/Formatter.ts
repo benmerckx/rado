@@ -586,7 +586,11 @@ export abstract class Formatter implements Sanitizer {
             return stmt
         }
       default:
-        return this.formatAccess(ctx, () => this.formatExpr(ctx, expr), field)
+        return this.formatAccess(
+          ctx,
+          () => this.formatExpr({...ctx, formatAsJson: true}, expr),
+          field
+        )
     }
   }
 
