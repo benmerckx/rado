@@ -299,9 +299,10 @@ abstract class AsyncDriver extends DriverBase {
         stmt = stmt || this.prepareStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query) {
-          const res = (await stmt.all<{result: string}>(params)).map(
-            item => JSON.parse(item.result).result
-          )
+          const res = (await stmt.all<{result: string}>(params)).map(item => {
+            console.log(item)
+            return JSON.parse(item.result).result
+          })
           if (query.singleResult) {
             const row = res[0] as T
             if (query.validate && row === undefined)

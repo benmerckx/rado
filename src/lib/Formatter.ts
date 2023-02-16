@@ -34,24 +34,62 @@ const joins = {
   inner: 'INNER'
 }
 
-export interface FormatContext {
+enum Intent {
+  None,
+  Raw,
+  Json,
+  In
+}
+
+enum Select {
+  Object,
+  Row
+}
+
+interface ContextOptions {
   stmt: Statement
-  nameResult?: string
-  /** Skip prefixing fields with their table name */
-  skipTableName?: boolean
+  intent: Intent
+  select: Select
+
   /**
    * In SQLite table names are used as expressions in the FTS5 plugin.
    * To distinguish between formatting a row of the table and just the table name
    * this flag can be used.
    **/
-  tableAsExpr?: boolean
+  tableAsExpr: boolean
+
   /** Inline all parameters */
-  forceInline?: boolean
-  formatAsJson?: boolean
-  formatAsInsert?: boolean
-  formatAsIn?: boolean
-  topLevel?: boolean
-  selectAsColumns?: boolean
+  inline: boolean
+
+  /** Skip prefixing fields with their table name */
+  skipTableName: boolean
+}
+
+class FormatContext implements ContextOptions {
+  stmt!: Statement
+  intent!: Intent
+  select!: Select
+  tableAsExpr!: boolean
+  inline!: boolean
+  skipTableName!: boolean
+  constructor(options: ContextOptions) {
+    Object.assign(this, options)
+  }
+  setIntent(intent: Intent) {
+    return new FormatContext({...this, intent})
+  }
+  setSelect(select: Select) {
+    return new FormatContext({...this, select})
+  }
+  setInline(inline: boolean) {
+    return new FormatContext({...this, inline})
+  }
+  setSkipTableName(skipTableName: boolean) {
+    return new FormatContext({...this, skipTableName})
+  }
+  setTableAsExpr(tableAsExpr: boolean) {
+    return new FormatContext({...this, tableAsExpr})
+  }
 }
 
 type FormatSubject = (stmt: Statement, mkSubject: () => void) => void
@@ -63,7 +101,7 @@ function formatAsResultObject(stmt: Statement, mkSubject: () => void) {
 }
 
 export interface CompileOptions
-  extends Partial<FormatContext>,
+  extends Partial<ContextOptions>,
     StatementOptions {}
 
 export abstract class Formatter implements Sanitizer {
@@ -79,16 +117,21 @@ export abstract class Formatter implements Sanitizer {
   ): Statement
 
   compile<T>(query: Query<T>, options?: CompileOptions): Statement {
-    const result = this.format(
-      this.createContext({topLevel: true, ...options}),
-      query
-    )
+    const result = this.format(this.createContext(options), query)
     // console.log(result.sql)
     return result
   }
 
   createContext(options?: CompileOptions) {
-    return {stmt: new Statement(this, options), ...options}
+    return new FormatContext({
+      stmt: new Statement(this, options),
+      intent: Intent.None,
+      select: Select.Object,
+      inline: false,
+      tableAsExpr: false,
+      skipTableName: false,
+      ...options
+    })
   }
 
   format<T>(ctx: FormatContext, query: Query<T>): Statement {
@@ -120,16 +163,14 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatSelect(
-    {topLevel, ...ctx}: FormatContext,
-    query: Query.Select
-  ): Statement {
-    const {stmt} = ctx
+  formatSelect(ctx: FormatContext, query: Query.Select): Statement {
+    const {stmt, select} = ctx
+    ctx = ctx.setSelect(Select.Row)
     stmt.raw('SELECT').space()
     this.formatSelection(
       ctx,
       query.selection,
-      topLevel ? formatAsResultObject : undefined
+      select === Select.Object ? formatAsResultObject : undefined
     )
     if (query.from) {
       stmt.addLine('FROM').space()
@@ -152,22 +193,19 @@ export abstract class Formatter implements Sanitizer {
     if (query.data) {
       stmt.add('VALUES').space()
       for (const row of stmt.separate(query.data))
-        this.formatInsertRow(ctx, query.into.columns, row)
+        this.formatInsertRow(ctx.setSelect(Select.Row), query.into.columns, row)
     }
     if (query.select) {
       stmt.space()
-      this.formatSelect(
-        {
-          ...ctx,
-          topLevel: false,
-          selectAsColumns: true
-        },
-        query.select
-      )
+      this.formatSelect(ctx.setSelect(Select.Row), query.select)
     }
     if (query.selection) {
       stmt.add('RETURNING').space()
-      this.formatSelection(ctx, query.selection, formatAsResultObject)
+      this.formatSelection(
+        ctx.setSelect(Select.Object),
+        query.selection,
+        formatAsResultObject
+      )
     }
     return stmt
   }
@@ -182,7 +220,7 @@ export abstract class Formatter implements Sanitizer {
       const value = data[key]
       if (Expr.isExpr(value))
         this.formatExprJson(ctx, ExprData.create(data[key]))
-      else this.formatValue({...ctx, formatAsInsert: true}, value)
+      else this.formatValue(ctx.setIntent(Intent.Raw), value)
     }
     this.formatWhere(ctx, query.where)
     this.formatLimit(ctx, query)
@@ -220,15 +258,9 @@ export abstract class Formatter implements Sanitizer {
       .addIdentifier(query.index.name)
       .add('ON')
       .addIdentifier(query.table.name)
+    ctx = ctx.setSkipTableName(true).setInline(true)
     for (const expr of stmt.call(query.index.on)) {
-      this.formatExprValue(
-        {
-          ...ctx,
-          skipTableName: true,
-          forceInline: true
-        },
-        expr
-      )
+      this.formatExprValue(ctx, expr)
     }
     this.formatWhere(ctx, query.where)
     return stmt
@@ -321,11 +353,7 @@ export abstract class Formatter implements Sanitizer {
         stmt.add('DEFAULT').space()
         stmt.openParenthesis()
         this.formatExpr(
-          {
-            ...ctx,
-            formatAsInsert: true,
-            forceInline: true
-          },
+          ctx.setIntent(Intent.Raw).setInline(true),
           column.defaultValue!
         )
         stmt.closeParenthesis()
@@ -387,6 +415,7 @@ export abstract class Formatter implements Sanitizer {
     columnValue: any
   ): Statement {
     const {stmt} = ctx
+    ctx = ctx.setIntent(Intent.Raw)
     if (Expr.isExpr(columnValue))
       return this.formatExprValue(ctx, columnValue[Expr.Data])
     const isNull = columnValue === undefined || columnValue === null
@@ -395,14 +424,8 @@ export abstract class Formatter implements Sanitizer {
     if (isNull) {
       if (column.defaultValue !== undefined) {
         if (typeof column.defaultValue === 'function')
-          return this.formatExprJson(
-            {...ctx, formatAsInsert: true},
-            column.defaultValue()
-          )
-        return this.formatExprJson(
-          {...ctx, formatAsInsert: true},
-          column.defaultValue
-        )
+          return this.formatExprJson(ctx, column.defaultValue())
+        return this.formatExprJson(ctx, column.defaultValue)
       }
       if (!isOptional)
         throw new TypeError(`Expected value for column ${column.name}`)
@@ -453,10 +476,7 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatWhere(
-    {topLevel, ...ctx}: FormatContext,
-    expr: ExprData | undefined
-  ): Statement {
+  formatWhere(ctx: FormatContext, expr: ExprData | undefined): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
     stmt.newline().raw('WHERE').space()
@@ -464,10 +484,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatHaving(
-    {topLevel, ...ctx}: FormatContext,
-    expr: ExprData | undefined
-  ): Statement {
+  formatHaving(ctx: FormatContext, expr: ExprData | undefined): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
     stmt.newline().raw('HAVING')
@@ -504,7 +521,7 @@ export abstract class Formatter implements Sanitizer {
     ctx: FormatContext,
     {limit, offset, singleResult}: Query.QueryBase
   ): Statement {
-    const {stmt, forceInline} = ctx
+    const {stmt} = ctx
     if (!limit && !offset && !singleResult) return stmt
     stmt.newline().raw('LIMIT').space()
     this.formatValue(ctx, singleResult ? 1 : limit)
@@ -522,25 +539,19 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     const mkSubject = () =>
-      this.formatExpr(
-        {
-          ...ctx,
-          formatAsJson: true
-        },
-        selection
-      )
+      this.formatExpr(ctx.setIntent(Intent.Json), selection)
     if (formatSubject) formatSubject(stmt, mkSubject)
-    else this.formatExpr(ctx, selection)
-    if (!ctx.selectAsColumns) stmt.add('AS').addIdentifier('result')
+    else this.formatExpr(ctx.setIntent(Intent.Raw), selection)
+    if (formatSubject) stmt.add('AS').addIdentifier('result')
     return stmt
   }
 
   formatExprJson(ctx: FormatContext, expr: ExprData): Statement {
-    return this.formatExpr({...ctx, formatAsJson: true}, expr)
+    return this.formatExpr(ctx.setIntent(Intent.Json), expr)
   }
 
   formatExprValue(ctx: FormatContext, expr: ExprData): Statement {
-    return this.formatExpr({...ctx, formatAsJson: false}, expr)
+    return this.formatExpr(ctx.setIntent(Intent.Raw), expr)
   }
 
   retrieveField(expr: ExprData, field: string): ExprData | undefined {
@@ -566,9 +577,9 @@ export abstract class Formatter implements Sanitizer {
           case TargetType.Table:
             const column = expr.target.table.columns[field]
             const asBoolean =
-              column?.type === ColumnType.Boolean && ctx.formatAsJson
+              column?.type === ColumnType.Boolean && ctx.intent === Intent.Json
             const jsonColumn = column?.type === ColumnType.Json
-            const asJson = jsonColumn && ctx.formatAsJson
+            const asJson = jsonColumn && ctx.intent === Intent.Json
             if (asJson) {
               stmt.raw('json')
               stmt.openParenthesis()
@@ -588,7 +599,7 @@ export abstract class Formatter implements Sanitizer {
       default:
         return this.formatAccess(
           ctx,
-          () => this.formatExpr({...ctx, formatAsJson: true}, expr),
+          () => this.formatExprJson(ctx, expr),
           field
         )
     }
@@ -614,37 +625,36 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatValue(ctx: FormatContext, rawValue: any): Statement {
-    const {stmt, formatAsJson, formatAsInsert, forceInline} = ctx
-    const asJson = formatAsJson || formatAsInsert
+    const {stmt} = ctx
     switch (true) {
       case rawValue === null || rawValue === undefined:
         return stmt.raw('NULL')
-      case (formatAsInsert || !formatAsJson) && typeof rawValue === 'boolean':
+      case ctx.intent === Intent.Raw && typeof rawValue === 'boolean':
         return rawValue ? stmt.raw('1') : stmt.raw('0')
-      case !formatAsInsert && Array.isArray(rawValue):
-        if (asJson) stmt.raw('json_array')
+      case Array.isArray(rawValue):
+        if (ctx.intent === Intent.Json) stmt.raw('json_array')
         stmt.openParenthesis()
-        for (const v of stmt.separate(rawValue))
-          this.formatValue({...ctx, formatAsJson: asJson}, v)
+        for (const v of stmt.separate(rawValue)) this.formatValue(ctx, v)
         stmt.closeParenthesis()
         return stmt
       case typeof rawValue === 'string' || typeof rawValue === 'number':
-        if (forceInline) return stmt.raw(this.escapeValue(rawValue))
+        if (ctx.inline) return stmt.raw(this.escapeValue(rawValue))
         return stmt.value(rawValue)
       default:
-        if (formatAsJson) {
+        if (ctx.intent === Intent.Json) {
           stmt.raw('json')
           stmt.openParenthesis()
         }
-        if (forceInline) this.formatString(ctx, JSON.stringify(rawValue))
+        if (ctx.inline) this.formatString(ctx, JSON.stringify(rawValue))
         else stmt.value(JSON.stringify(rawValue))
-        if (formatAsJson) stmt.closeParenthesis()
+        if (ctx.intent === Intent.Json) stmt.closeParenthesis()
         return stmt
     }
   }
 
-  formatExpr({formatAsIn, ...ctx}: FormatContext, expr: ExprData): Statement {
-    const {stmt} = ctx
+  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+    const {stmt, intent} = ctx
+    ctx = ctx.setIntent(Intent.Raw)
     switch (expr.type) {
       case ExprType.UnOp:
         switch (expr.op) {
@@ -659,7 +669,7 @@ export abstract class Formatter implements Sanitizer {
         stmt.openParenthesis()
         this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
         const asIn = expr.op === BinOpType.In || expr.op === BinOpType.NotIn
-        this.formatExprValue({...ctx, formatAsIn: asIn}, expr.b)
+        this.formatExprValue(ctx.setIntent(asIn ? Intent.In : intent), expr.b)
         return stmt.closeParenthesis()
       case ExprType.Param:
         switch (expr.param.type) {
@@ -669,11 +679,11 @@ export abstract class Formatter implements Sanitizer {
             return stmt.param(expr.param)
         }
       case ExprType.Field:
-        if (formatAsIn) {
+        if (intent === Intent.In) {
           stmt.openParenthesis()
           stmt.raw('SELECT value FROM json_each')
           stmt.openParenthesis()
-          this.formatExprJson(ctx, expr)
+          this.formatExprJson(ctx.setIntent(Intent.Raw), expr)
           stmt.closeParenthesis()
           return stmt.closeParenthesis()
         }
@@ -700,14 +710,14 @@ export abstract class Formatter implements Sanitizer {
         }
       }
       case ExprType.Query:
-        if (!ctx.formatAsJson) {
+        if (intent !== Intent.Json) {
           stmt.openParenthesis()
           this.format(ctx, expr.query)
           return stmt.closeParenthesis()
         }
         if (expr.query.singleResult) {
           stmt.openParenthesis()
-          this.format({...ctx, topLevel: true}, expr.query)
+          this.format(ctx.setSelect(Select.Object), expr.query)
           return stmt.closeParenthesis().raw(`->'$.result'`)
         }
         stmt
@@ -717,7 +727,7 @@ export abstract class Formatter implements Sanitizer {
           .raw('FROM')
           .space()
           .openParenthesis()
-        this.format({...ctx, topLevel: true}, expr.query)
+        this.format(ctx.setSelect(Select.Object), expr.query)
         return stmt.closeParenthesis().closeParenthesis()
       case ExprType.Row:
         switch (expr.target.type) {
@@ -742,13 +752,13 @@ export abstract class Formatter implements Sanitizer {
         }
       case ExprType.Merge:
         stmt.identifier('json_patch').openParenthesis()
-        this.formatExpr({...ctx, formatAsJson: true}, expr.a)
+        this.formatExprJson(ctx, expr.a)
         stmt.raw(', ')
-        this.formatExpr({...ctx, formatAsJson: true}, expr.b)
+        this.formatExprJson(ctx, expr.b)
         return stmt.closeParenthesis()
       case ExprType.Record:
-        if (ctx.selectAsColumns) {
-          const inner = {...ctx, selectAsColumns: false}
+        if (ctx.select === Select.Row) {
+          const inner = ctx.setSelect(Select.Object)
           for (const [key, value] of stmt.separate(
             Object.entries(expr.fields)
           )) {
@@ -767,7 +777,7 @@ export abstract class Formatter implements Sanitizer {
         switch (target.type) {
           case TargetType.Expr:
             stmt.openParenthesis()
-            if (!formatAsIn) {
+            if (intent !== Intent.In) {
               stmt
                 .raw('SELECT json_group_array(json(result)) FROM ')
                 .openParenthesis()
@@ -781,7 +791,7 @@ export abstract class Formatter implements Sanitizer {
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
             stmt.add('WHERE').space()
             this.formatExprValue(ctx, condition)
-            if (!formatAsIn) {
+            if (intent !== Intent.In) {
               stmt.closeParenthesis()
             }
             return stmt.closeParenthesis()
@@ -794,7 +804,7 @@ export abstract class Formatter implements Sanitizer {
         switch (target.type) {
           case TargetType.Expr:
             stmt.openParenthesis()
-            if (!formatAsIn) {
+            if (intent !== Intent.In) {
               stmt
                 .raw('SELECT json_group_array(json(result)) FROM ')
                 .openParenthesis()
@@ -807,7 +817,7 @@ export abstract class Formatter implements Sanitizer {
             this.formatExprJson(ctx, target.expr)
             stmt.closeParenthesis()
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
-            if (!formatAsIn) {
+            if (intent !== Intent.In) {
               stmt.closeParenthesis()
             }
             return stmt.closeParenthesis()
