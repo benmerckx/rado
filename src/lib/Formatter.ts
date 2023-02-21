@@ -35,10 +35,13 @@ const joins = {
 }
 
 enum Intent {
-  None,
-  Raw,
-  Json,
-  In
+  SelectJson,
+  SelectRaw,
+  DefaultValue,
+  Insert,
+  Update,
+  Compare,
+  IsIn
 }
 
 enum Select {
@@ -48,7 +51,7 @@ enum Select {
 
 interface ContextOptions {
   stmt: Statement
-  intent: Intent
+  intent: Intent | undefined
   select: Select
 
   /**
@@ -125,7 +128,7 @@ export abstract class Formatter implements Sanitizer {
   createContext(options?: CompileOptions) {
     return new FormatContext({
       stmt: new Statement(this, options),
-      intent: Intent.None,
+      intent: undefined,
       select: Select.Object,
       inline: false,
       tableAsExpr: false,
@@ -220,7 +223,7 @@ export abstract class Formatter implements Sanitizer {
       const value = data[key]
       if (Expr.isExpr(value))
         this.formatExprJson(ctx, ExprData.create(data[key]))
-      else this.formatValue(ctx.setIntent(Intent.Raw), value)
+      else this.formatValue(ctx.setIntent(Intent.Update), value)
     }
     this.formatWhere(ctx, query.where)
     this.formatLimit(ctx, query)
@@ -353,7 +356,7 @@ export abstract class Formatter implements Sanitizer {
         stmt.add('DEFAULT').space()
         stmt.openParenthesis()
         this.formatExpr(
-          ctx.setIntent(Intent.Raw).setInline(true),
+          ctx.setIntent(Intent.DefaultValue).setInline(true),
           column.defaultValue!
         )
         stmt.closeParenthesis()
@@ -404,7 +407,7 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     for (const [property, column] of stmt.call(Object.entries(columns))) {
       const columnValue = row[property]
-      this.formatColumnValue(ctx, column, columnValue)
+      this.formatColumnValue(ctx.setIntent(Intent.Insert), column, columnValue)
     }
     return stmt
   }
@@ -415,7 +418,6 @@ export abstract class Formatter implements Sanitizer {
     columnValue: any
   ): Statement {
     const {stmt} = ctx
-    ctx = ctx.setIntent(Intent.Raw)
     if (Expr.isExpr(columnValue))
       return this.formatExprValue(ctx, columnValue[Expr.Data])
     const isNull = columnValue === undefined || columnValue === null
@@ -539,19 +541,19 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     const mkSubject = () =>
-      this.formatExpr(ctx.setIntent(Intent.Json), selection)
+      this.formatExpr(ctx.setIntent(Intent.SelectJson), selection)
     if (formatSubject) formatSubject(stmt, mkSubject)
-    else this.formatExpr(ctx.setIntent(Intent.Raw), selection)
+    else this.formatExpr(ctx.setIntent(Intent.SelectRaw), selection)
     if (formatSubject) stmt.add('AS').addIdentifier('result')
     return stmt
   }
 
   formatExprJson(ctx: FormatContext, expr: ExprData): Statement {
-    return this.formatExpr(ctx.setIntent(Intent.Json), expr)
+    return this.formatExpr(ctx.setIntent(Intent.SelectJson), expr)
   }
 
   formatExprValue(ctx: FormatContext, expr: ExprData): Statement {
-    return this.formatExpr(ctx.setIntent(Intent.Raw), expr)
+    return this.formatExpr(ctx.setIntent(Intent.SelectRaw), expr)
   }
 
   retrieveField(expr: ExprData, field: string): ExprData | undefined {
@@ -577,9 +579,10 @@ export abstract class Formatter implements Sanitizer {
           case TargetType.Table:
             const column = expr.target.table.columns[field]
             const asBoolean =
-              column?.type === ColumnType.Boolean && ctx.intent === Intent.Json
+              column?.type === ColumnType.Boolean &&
+              ctx.intent === Intent.SelectJson
             const jsonColumn = column?.type === ColumnType.Json
-            const asJson = jsonColumn && ctx.intent === Intent.Json
+            const asJson = jsonColumn && ctx.intent === Intent.SelectJson
             if (asJson) {
               stmt.raw('json')
               stmt.openParenthesis()
@@ -629,10 +632,10 @@ export abstract class Formatter implements Sanitizer {
     switch (true) {
       case rawValue === null || rawValue === undefined:
         return stmt.raw('NULL')
-      case ctx.intent === Intent.Raw && typeof rawValue === 'boolean':
+      case ctx.intent === Intent.SelectRaw && typeof rawValue === 'boolean':
         return rawValue ? stmt.raw('1') : stmt.raw('0')
       case Array.isArray(rawValue):
-        if (ctx.intent === Intent.Json) stmt.raw('json_array')
+        if (ctx.intent === Intent.SelectJson) stmt.raw('json_array')
         stmt.openParenthesis()
         for (const v of stmt.separate(rawValue)) this.formatValue(ctx, v)
         stmt.closeParenthesis()
@@ -641,20 +644,19 @@ export abstract class Formatter implements Sanitizer {
         if (ctx.inline) return stmt.raw(this.escapeValue(rawValue))
         return stmt.value(rawValue)
       default:
-        if (ctx.intent === Intent.Json) {
+        if (ctx.intent === Intent.SelectJson) {
           stmt.raw('json')
           stmt.openParenthesis()
         }
         if (ctx.inline) this.formatString(ctx, JSON.stringify(rawValue))
         else stmt.value(JSON.stringify(rawValue))
-        if (ctx.intent === Intent.Json) stmt.closeParenthesis()
+        if (ctx.intent === Intent.SelectJson) stmt.closeParenthesis()
         return stmt
     }
   }
 
   formatExpr(ctx: FormatContext, expr: ExprData): Statement {
     const {stmt, intent} = ctx
-    ctx = ctx.setIntent(Intent.Raw)
     switch (expr.type) {
       case ExprType.UnOp:
         switch (expr.op) {
@@ -669,7 +671,7 @@ export abstract class Formatter implements Sanitizer {
         stmt.openParenthesis()
         this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
         const asIn = expr.op === BinOpType.In || expr.op === BinOpType.NotIn
-        this.formatExprValue(ctx.setIntent(asIn ? Intent.In : intent), expr.b)
+        this.formatExprValue(ctx.setIntent(asIn ? Intent.IsIn : intent), expr.b)
         return stmt.closeParenthesis()
       case ExprType.Param:
         switch (expr.param.type) {
@@ -679,11 +681,11 @@ export abstract class Formatter implements Sanitizer {
             return stmt.param(expr.param)
         }
       case ExprType.Field:
-        if (intent === Intent.In) {
+        if (intent === Intent.IsIn) {
           stmt.openParenthesis()
           stmt.raw('SELECT value FROM json_each')
           stmt.openParenthesis()
-          this.formatExprJson(ctx.setIntent(Intent.Raw), expr)
+          this.formatExprJson(ctx.setIntent(Intent.SelectRaw), expr)
           stmt.closeParenthesis()
           return stmt.closeParenthesis()
         }
@@ -710,7 +712,7 @@ export abstract class Formatter implements Sanitizer {
         }
       }
       case ExprType.Query:
-        if (intent !== Intent.Json) {
+        if (intent !== Intent.SelectJson) {
           stmt.openParenthesis()
           this.format(ctx, expr.query)
           return stmt.closeParenthesis()
@@ -777,7 +779,7 @@ export abstract class Formatter implements Sanitizer {
         switch (target.type) {
           case TargetType.Expr:
             stmt.openParenthesis()
-            if (intent !== Intent.In) {
+            if (intent !== Intent.IsIn) {
               stmt
                 .raw('SELECT json_group_array(json(result)) FROM ')
                 .openParenthesis()
@@ -791,7 +793,7 @@ export abstract class Formatter implements Sanitizer {
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
             stmt.add('WHERE').space()
             this.formatExprValue(ctx, condition)
-            if (intent !== Intent.In) {
+            if (intent !== Intent.IsIn) {
               stmt.closeParenthesis()
             }
             return stmt.closeParenthesis()
@@ -804,7 +806,7 @@ export abstract class Formatter implements Sanitizer {
         switch (target.type) {
           case TargetType.Expr:
             stmt.openParenthesis()
-            if (intent !== Intent.In) {
+            if (intent !== Intent.IsIn) {
               stmt
                 .raw('SELECT json_group_array(json(result)) FROM ')
                 .openParenthesis()
@@ -817,7 +819,7 @@ export abstract class Formatter implements Sanitizer {
             this.formatExprJson(ctx, target.expr)
             stmt.closeParenthesis()
             if (target.alias) stmt.add('AS').addIdentifier(target.alias)
-            if (intent !== Intent.In) {
+            if (intent !== Intent.IsIn) {
               stmt.closeParenthesis()
             }
             return stmt.closeParenthesis()
