@@ -65,7 +65,7 @@ export class SqliteFormatter extends Formatter {
           this.formatExprValue({...ctx, tableAsExpr: true}, param)
         return stmt
       default:
-        return stmt
+        return super.formatCall(ctx, expr)
     }
   }
 }

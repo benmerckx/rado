@@ -83,7 +83,7 @@ export abstract class Formatter implements Sanitizer {
       this.createContext({topLevel: true, ...options}),
       query
     )
-    // console.log(result.sql)
+    //console.log(result.sql)
     return result
   }
 
@@ -622,13 +622,14 @@ export abstract class Formatter implements Sanitizer {
   }
 
   formatUnOp(ctx: FormatContext, expr: ExprData.UnOp) {
+    const {stmt} = ctx
     switch (expr.op) {
       case UnOpType.IsNull:
         return this.formatExprValue(ctx, expr.expr).add('IS NULL')
       case UnOpType.Not:
-        ctx.stmt.raw('NOT').openParenthesis()
+        stmt.raw('NOT').openParenthesis()
         this.formatExprValue(ctx, expr.expr)
-        return ctx.stmt.closeParenthesis()
+        return stmt.closeParenthesis()
     }
   }
 
@@ -664,20 +665,8 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatField(
-    {formatAsIn, ...ctx}: FormatContext,
-    expr: ExprData.Field
-  ): Statement {
+  formatFieldOf(ctx: FormatContext, from: ExprData, field: string) {
     const {stmt} = ctx
-    if (formatAsIn) {
-      stmt.openParenthesis()
-      stmt.raw('SELECT value FROM json_each')
-      stmt.openParenthesis()
-      this.formatExprJson(ctx, expr)
-      stmt.closeParenthesis()
-      return stmt.closeParenthesis()
-    }
-    const {expr: from, field} = expr
     const fieldExpr = this.retrieveField(from, field)
     if (fieldExpr) return this.formatExpr(ctx, fieldExpr)
     switch (from.type) {
@@ -710,6 +699,22 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
+  formatField(
+    {formatAsIn, ...ctx}: FormatContext,
+    expr: ExprData.Field
+  ): Statement {
+    const {stmt} = ctx
+    if (formatAsIn) {
+      stmt.openParenthesis()
+      stmt.raw('SELECT value FROM json_each')
+      stmt.openParenthesis()
+      this.formatExprJson(ctx, expr)
+      stmt.closeParenthesis()
+      return stmt.closeParenthesis()
+    }
+    return this.formatFieldOf(ctx, expr.expr, expr.field)
+  }
+
   formatCall(ctx: FormatContext, expr: ExprData.Call): Statement {
     const {stmt} = ctx
     if (expr.method === 'cast') {
@@ -718,12 +723,12 @@ export abstract class Formatter implements Sanitizer {
         type.type === ExprType.Param &&
         type.param.type === ParamType.Value &&
         type.param.value
-      stmt.raw('cast').openParenthesis()
-      this.formatExprValue(ctx, e).add('as').space()
+      stmt.raw('CAST').openParenthesis()
+      this.formatExprValue(ctx, e).add('AS').space()
       this.formatString(ctx, typeName)
       return stmt.closeParenthesis()
     } else if (expr.method === 'exists') {
-      stmt.raw('exists').space()
+      stmt.raw('EXISTS').space()
       return this.formatExprValue(ctx, expr.params[0])
     } else {
       stmt.identifier(expr.method)
@@ -766,7 +771,7 @@ export abstract class Formatter implements Sanitizer {
         stmt.identifier('json_object')
         for (const [key, column] of stmt.call(Object.entries(table.columns))) {
           this.formatString(ctx, key).raw(', ')
-          this.formatField(ctx, ExprData.Field(expr, column.name!))
+          this.formatFieldOf(ctx, expr, column.name!)
         }
         return stmt
       case TargetType.Query:
