@@ -105,44 +105,48 @@ export namespace ExprData {
 }
 
 export namespace ExprData {
-  export function UnOp(op: UnOpType, expr: ExprData): ExprData {
+  export function UnOp(op: UnOpType, expr: ExprData): ExprData.UnOp {
     return {type: ExprType.UnOp, op, expr}
   }
-  export function BinOp(op: BinOpType, a: ExprData, b: ExprData): ExprData {
+  export function BinOp(
+    op: BinOpType,
+    a: ExprData,
+    b: ExprData
+  ): ExprData.BinOp {
     return {type: ExprType.BinOp, op, a, b}
   }
-  export function Field(expr: ExprData, field: string): ExprData {
+  export function Field(expr: ExprData, field: string): ExprData.Field {
     return {type: ExprType.Field, expr, field}
   }
-  export function Param(param: ParamData): ExprData {
+  export function Param(param: ParamData): ExprData.Param {
     return {type: ExprType.Param, param}
   }
-  export function Call(method: string, params: Array<ExprData>): ExprData {
+  export function Call(method: string, params: Array<ExprData>): ExprData.Call {
     return {type: ExprType.Call, method, params}
   }
-  export function Query(query: Query.Select): ExprData {
+  export function Query(query: Query.Select): ExprData.Query {
     return {type: ExprType.Query, query}
   }
-  export function Record(fields: {[key: string]: ExprData}): ExprData {
+  export function Record(fields: {[key: string]: ExprData}): ExprData.Record {
     return {type: ExprType.Record, fields}
   }
-  export function Merge(a: ExprData, b: ExprData): ExprData {
+  export function Merge(a: ExprData, b: ExprData): ExprData.Merge {
     return {type: ExprType.Merge, a, b}
   }
-  export function Row(target: Target): ExprData {
+  export function Row(target: Target): ExprData.Row {
     return {type: ExprType.Row, target}
   }
-  export function Map(target: Target, result: ExprData): ExprData {
+  export function Map(target: Target, result: ExprData): ExprData.Map {
     return {type: ExprType.Map, target, result}
   }
-  export function Filter(target: Target, condition: ExprData): ExprData {
+  export function Filter(target: Target, condition: ExprData): ExprData.Filter {
     return {type: ExprType.Filter, target, condition}
   }
   export function Case(
     expr: ExprData,
     cases: {[key: string]: ExprData},
     defaultCase?: ExprData
-  ): ExprData {
+  ): ExprData.Case {
     return {type: ExprType.Case, expr, cases, defaultCase}
   }
 

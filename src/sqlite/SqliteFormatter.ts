@@ -1,4 +1,4 @@
-import {ExprData, ExprType} from '../define/Expr'
+import {ExprData} from '../define/Expr'
 import {FormatContext, Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
 
@@ -49,26 +49,23 @@ export class SqliteFormatter extends Formatter {
     return this.formatString(ctx, `$.${field}`)
   }
 
-  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+  formatCall(ctx: FormatContext, expr: ExprData.Call): Statement {
     const {stmt} = ctx
-    switch (expr.type) {
-      case ExprType.Call:
-        switch (expr.method) {
-          case 'match':
-            const [from, query] = expr.params
-            this.formatExprValue({...ctx, tableAsExpr: true}, from)
-            stmt.raw(' MATCH ')
-            this.formatExprValue(ctx, query)
-            return stmt
-          case 'highlight':
-          case 'snippet':
-            stmt.identifier(expr.method)
-            for (const param of stmt.call(expr.params))
-              this.formatExprValue({...ctx, tableAsExpr: true}, param)
-            return stmt
-        }
+    switch (expr.method) {
+      case 'match':
+        const [from, query] = expr.params
+        this.formatExprValue({...ctx, tableAsExpr: true}, from)
+        stmt.raw(' MATCH ')
+        this.formatExprValue(ctx, query)
+        return stmt
+      case 'highlight':
+      case 'snippet':
+        stmt.identifier(expr.method)
+        for (const param of stmt.call(expr.params))
+          this.formatExprValue({...ctx, tableAsExpr: true}, param)
+        return stmt
       default:
-        return super.formatExpr(ctx, expr)
+        return stmt
     }
   }
 }

@@ -543,56 +543,38 @@ export abstract class Formatter implements Sanitizer {
     return this.formatExpr({...ctx, formatAsJson: false}, expr)
   }
 
-  retrieveField(expr: ExprData, field: string): ExprData | undefined {
-    switch (expr.type) {
-      case ExprType.Record:
-        return expr.fields[field]
-      case ExprType.Merge:
-        return (
-          this.retrieveField(expr.a, field) || this.retrieveField(expr.b, field)
-        )
-      default:
-        return undefined
-    }
-  }
-
-  formatField(ctx: FormatContext, expr: ExprData, field: string): Statement {
-    const {stmt} = ctx
-    const fieldExpr = this.retrieveField(expr, field)
-    if (fieldExpr) return this.formatExpr(ctx, fieldExpr)
-    switch (expr.type) {
-      case ExprType.Row:
-        switch (expr.target.type) {
-          case TargetType.Table:
-            const column = expr.target.table.columns[field]
-            const asBoolean =
-              column?.type === ColumnType.Boolean && ctx.formatAsJson
-            const jsonColumn = column?.type === ColumnType.Json
-            const asJson = jsonColumn && ctx.formatAsJson
-            if (asJson) {
-              stmt.raw('json')
-              stmt.openParenthesis()
-            }
-            if (asBoolean) stmt.add(`json(iif(`)
-            if (!ctx.skipTableName) {
-              stmt
-                .identifier(expr.target.table.alias || expr.target.table.name)
-                .raw('.')
-            }
-            stmt.identifier(field)
-            if (asBoolean) stmt.add(`, 'true', 'false'))`)
-            if (asJson) stmt.closeParenthesis()
-            if (jsonColumn && !asJson) stmt.raw("->>'$'")
-            return stmt
-        }
-      default:
-        return this.formatAccess(ctx, () => this.formatExpr(ctx, expr), field)
-    }
-  }
-
   formatString(ctx: FormatContext, input: string): Statement {
     const {stmt} = ctx
     return stmt.raw(this.escapeValue(String(input)))
+  }
+
+  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+    switch (expr.type) {
+      case ExprType.UnOp:
+        return this.formatUnOp(ctx, expr)
+      case ExprType.BinOp:
+        return this.formatBinOp(ctx, expr)
+      case ExprType.Param:
+        return this.formatParam(ctx, expr)
+      case ExprType.Field:
+        return this.formatField(ctx, expr)
+      case ExprType.Call:
+        return this.formatCall(ctx, expr)
+      case ExprType.Query:
+        return this.formatQuery(ctx, expr)
+      case ExprType.Row:
+        return this.formatRow(ctx, expr)
+      case ExprType.Merge:
+        return this.formatMerge(ctx, expr)
+      case ExprType.Record:
+        return this.formatRecord(ctx, expr)
+      case ExprType.Filter:
+        return this.formatFilter(ctx, expr)
+      case ExprType.Map:
+        return this.formatMap(ctx, expr)
+      default:
+        throw new Error('todo')
+    }
   }
 
   formatInlineValue(ctx: FormatContext, rawValue: any): Statement {
@@ -639,180 +621,244 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatExpr({formatAsIn, ...ctx}: FormatContext, expr: ExprData): Statement {
+  formatUnOp(ctx: FormatContext, expr: ExprData.UnOp) {
+    switch (expr.op) {
+      case UnOpType.IsNull:
+        return this.formatExprValue(ctx, expr.expr).add('IS NULL')
+      case UnOpType.Not:
+        ctx.stmt.raw('NOT').openParenthesis()
+        this.formatExprValue(ctx, expr.expr)
+        return ctx.stmt.closeParenthesis()
+    }
+  }
+
+  formatBinOp(ctx: FormatContext, expr: ExprData.BinOp) {
     const {stmt} = ctx
+    stmt.openParenthesis()
+    this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
+    const asIn = expr.op === BinOpType.In || expr.op === BinOpType.NotIn
+    this.formatExprValue({...ctx, formatAsIn: asIn}, expr.b)
+    return stmt.closeParenthesis()
+  }
+
+  formatParam(ctx: FormatContext, expr: ExprData.Param): Statement {
+    const {stmt} = ctx
+    switch (expr.param.type) {
+      case ParamType.Value:
+        return this.formatValue(ctx, expr.param.value)
+      case ParamType.Named:
+        return stmt.param(expr.param)
+    }
+  }
+
+  retrieveField(expr: ExprData, field: string): ExprData | undefined {
     switch (expr.type) {
-      case ExprType.UnOp:
-        switch (expr.op) {
-          case UnOpType.IsNull:
-            return this.formatExprValue(ctx, expr.expr).add('IS NULL')
-          case UnOpType.Not:
-            stmt.raw('NOT').openParenthesis()
-            this.formatExprValue(ctx, expr.expr)
-            return stmt.closeParenthesis()
+      case ExprType.Record:
+        return expr.fields[field]
+      case ExprType.Merge:
+        return (
+          this.retrieveField(expr.a, field) || this.retrieveField(expr.b, field)
+        )
+      default:
+        return undefined
+    }
+  }
+
+  formatField(
+    {formatAsIn, ...ctx}: FormatContext,
+    expr: ExprData.Field
+  ): Statement {
+    const {stmt} = ctx
+    if (formatAsIn) {
+      stmt.openParenthesis()
+      stmt.raw('SELECT value FROM json_each')
+      stmt.openParenthesis()
+      this.formatExprJson(ctx, expr)
+      stmt.closeParenthesis()
+      return stmt.closeParenthesis()
+    }
+    const {expr: from, field} = expr
+    const fieldExpr = this.retrieveField(from, field)
+    if (fieldExpr) return this.formatExpr(ctx, fieldExpr)
+    switch (from.type) {
+      case ExprType.Row:
+        switch (from.target.type) {
+          case TargetType.Table:
+            const column = from.target.table.columns[field]
+            const asBoolean =
+              column?.type === ColumnType.Boolean && ctx.formatAsJson
+            const jsonColumn = column?.type === ColumnType.Json
+            const asJson = jsonColumn && ctx.formatAsJson
+            if (asJson) {
+              stmt.raw('json')
+              stmt.openParenthesis()
+            }
+            if (asBoolean) stmt.add(`json(iif(`)
+            if (!ctx.skipTableName) {
+              stmt
+                .identifier(from.target.table.alias || from.target.table.name)
+                .raw('.')
+            }
+            stmt.identifier(field)
+            if (asBoolean) stmt.add(`, 'true', 'false'))`)
+            if (asJson) stmt.closeParenthesis()
+            if (jsonColumn && !asJson) stmt.raw("->>'$'")
+            return stmt
         }
-      case ExprType.BinOp:
-        stmt.openParenthesis()
-        this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
-        const asIn = expr.op === BinOpType.In || expr.op === BinOpType.NotIn
-        this.formatExprValue({...ctx, formatAsIn: asIn}, expr.b)
-        return stmt.closeParenthesis()
-      case ExprType.Param:
-        switch (expr.param.type) {
-          case ParamType.Value:
-            return this.formatValue(ctx, expr.param.value)
-          case ParamType.Named:
-            return stmt.param(expr.param)
+      default:
+        return this.formatAccess(ctx, () => this.formatExpr(ctx, from), field)
+    }
+  }
+
+  formatCall(ctx: FormatContext, expr: ExprData.Call): Statement {
+    const {stmt} = ctx
+    if (expr.method === 'cast') {
+      const [e, type] = expr.params
+      const typeName =
+        type.type === ExprType.Param &&
+        type.param.type === ParamType.Value &&
+        type.param.value
+      stmt.raw('cast').openParenthesis()
+      this.formatExprValue(ctx, e).add('as').space()
+      this.formatString(ctx, typeName)
+      return stmt.closeParenthesis()
+    } else if (expr.method === 'exists') {
+      stmt.raw('exists').space()
+      return this.formatExprValue(ctx, expr.params[0])
+    } else {
+      stmt.identifier(expr.method)
+      for (const param of stmt.call(expr.params))
+        this.formatExprValue(ctx, param)
+      return stmt
+    }
+  }
+
+  formatQuery(ctx: FormatContext, expr: ExprData.Query): Statement {
+    const {stmt} = ctx
+    if (!ctx.formatAsJson) {
+      stmt.openParenthesis()
+      this.format(ctx, expr.query)
+      return stmt.closeParenthesis()
+    }
+    if (expr.query.singleResult) {
+      stmt.openParenthesis()
+      this.format({...ctx, topLevel: true}, expr.query)
+      return stmt.closeParenthesis().raw(`->'$.result'`)
+    }
+    stmt
+      .openParenthesis()
+      .raw(`SELECT json_group_array(result->'$.result')`)
+      .newline()
+      .raw('FROM')
+      .space()
+      .openParenthesis()
+    this.format({...ctx, topLevel: true}, expr.query)
+    return stmt.closeParenthesis().closeParenthesis()
+  }
+
+  formatRow(ctx: FormatContext, expr: ExprData.Row): Statement {
+    const {stmt} = ctx
+    switch (expr.target.type) {
+      case TargetType.Table:
+        const table = Target.source(expr.target)
+        if (!table) throw new Error(`Cannot select empty target`)
+        if (ctx.tableAsExpr) return stmt.identifier(table.alias || table.name)
+        stmt.identifier('json_object')
+        for (const [key, column] of stmt.call(Object.entries(table.columns))) {
+          this.formatString(ctx, key).raw(', ')
+          this.formatField(ctx, ExprData.Field(expr, column.name!))
         }
-      case ExprType.Field:
-        if (formatAsIn) {
-          stmt.openParenthesis()
-          stmt.raw('SELECT value FROM json_each')
-          stmt.openParenthesis()
-          this.formatExprJson(ctx, expr)
-          stmt.closeParenthesis()
-          return stmt.closeParenthesis()
-        }
-        return this.formatField(ctx, expr.expr, expr.field)
-      case ExprType.Call: {
-        if (expr.method === 'cast') {
-          const [e, type] = expr.params
-          const typeName =
-            type.type === ExprType.Param &&
-            type.param.type === ParamType.Value &&
-            type.param.value
-          stmt.raw('cast').openParenthesis()
-          this.formatExprValue(ctx, e).add('as').space()
-          this.formatString(ctx, typeName)
-          return stmt.closeParenthesis()
-        } else if (expr.method === 'exists') {
-          stmt.raw('exists').space()
-          return this.formatExprValue(ctx, expr.params[0])
-        } else {
-          stmt.identifier(expr.method)
-          for (const param of stmt.call(expr.params))
-            this.formatExprValue(ctx, param)
-          return stmt
-        }
+        return stmt
+      case TargetType.Query:
+      case TargetType.Expr:
+        return stmt.identifier(expr.target.alias!).raw('.value')
+      default:
+        throw new Error(`Cannot select from ${expr.target.type}`)
+    }
+  }
+
+  formatMerge(ctx: FormatContext, expr: ExprData.Merge): Statement {
+    const {stmt} = ctx
+    stmt.identifier('json_patch').openParenthesis()
+    this.formatExpr({...ctx, formatAsJson: true}, expr.a)
+    stmt.raw(', ')
+    this.formatExpr({...ctx, formatAsJson: true}, expr.b)
+    return stmt.closeParenthesis()
+  }
+
+  formatRecord(ctx: FormatContext, expr: ExprData.Record): Statement {
+    const {stmt} = ctx
+    if (ctx.selectAsColumns) {
+      const inner = {...ctx, selectAsColumns: false}
+      for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
+        this.formatExprJson(inner, value)
       }
-      case ExprType.Query:
-        if (!ctx.formatAsJson) {
-          stmt.openParenthesis()
-          this.format(ctx, expr.query)
-          return stmt.closeParenthesis()
-        }
-        if (expr.query.singleResult) {
-          stmt.openParenthesis()
-          this.format({...ctx, topLevel: true}, expr.query)
-          return stmt.closeParenthesis().raw(`->'$.result'`)
+      return stmt
+    }
+    stmt.identifier('json_object').openParenthesis()
+    for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
+      this.formatString(ctx, key).raw(', ')
+      this.formatExprJson(ctx, value)
+    }
+    return stmt.closeParenthesis()
+  }
+
+  formatFilter(
+    {formatAsIn, ...ctx}: FormatContext,
+    expr: ExprData.Filter
+  ): Statement {
+    const {stmt} = ctx
+    const {target, condition} = expr
+    switch (target.type) {
+      case TargetType.Expr:
+        stmt.openParenthesis()
+        if (!formatAsIn) {
+          stmt
+            .raw('SELECT json_group_array(json(result)) FROM ')
+            .openParenthesis()
         }
         stmt
+          .raw('SELECT value AS result')
+          .add('FROM json_each')
           .openParenthesis()
-          .raw(`SELECT json_group_array(result->'$.result')`)
-          .newline()
-          .raw('FROM')
-          .space()
-          .openParenthesis()
-        this.format({...ctx, topLevel: true}, expr.query)
-        return stmt.closeParenthesis().closeParenthesis()
-      case ExprType.Row:
-        switch (expr.target.type) {
-          case TargetType.Table:
-            const table = Target.source(expr.target)
-            if (!table) throw new Error(`Cannot select empty target`)
-            if (ctx.tableAsExpr)
-              return stmt.identifier(table.alias || table.name)
-            stmt.identifier('json_object')
-            for (const [key, column] of stmt.call(
-              Object.entries(table.columns)
-            )) {
-              this.formatString(ctx, key).raw(', ')
-              this.formatField(ctx, expr, column.name!)
-            }
-            return stmt
-          case TargetType.Query:
-          case TargetType.Expr:
-            return stmt.identifier(expr.target.alias!).raw('.value')
-          default:
-            throw new Error(`Cannot select from ${expr.target.type}`)
-        }
-      case ExprType.Merge:
-        stmt.identifier('json_patch').openParenthesis()
-        this.formatExpr({...ctx, formatAsJson: true}, expr.a)
-        stmt.raw(', ')
-        this.formatExpr({...ctx, formatAsJson: true}, expr.b)
-        return stmt.closeParenthesis()
-      case ExprType.Record:
-        if (ctx.selectAsColumns) {
-          const inner = {...ctx, selectAsColumns: false}
-          for (const [key, value] of stmt.separate(
-            Object.entries(expr.fields)
-          )) {
-            this.formatExprJson(inner, value)
-          }
-          return stmt
-        }
-        stmt.identifier('json_object').openParenthesis()
-        for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
-          this.formatString(ctx, key).raw(', ')
-          this.formatExprJson(ctx, value)
+        this.formatExpr(ctx, target.expr)
+        stmt.closeParenthesis()
+        if (target.alias) stmt.add('AS').addIdentifier(target.alias)
+        stmt.add('WHERE').space()
+        this.formatExprValue(ctx, condition)
+        if (!formatAsIn) {
+          stmt.closeParenthesis()
         }
         return stmt.closeParenthesis()
-      case ExprType.Filter: {
-        const {target, condition} = expr
-        switch (target.type) {
-          case TargetType.Expr:
-            stmt.openParenthesis()
-            if (!formatAsIn) {
-              stmt
-                .raw('SELECT json_group_array(json(result)) FROM ')
-                .openParenthesis()
-            }
-            stmt
-              .raw('SELECT value AS result')
-              .add('FROM json_each')
-              .openParenthesis()
-            this.formatExpr(ctx, target.expr)
-            stmt.closeParenthesis()
-            if (target.alias) stmt.add('AS').addIdentifier(target.alias)
-            stmt.add('WHERE').space()
-            this.formatExprValue(ctx, condition)
-            if (!formatAsIn) {
-              stmt.closeParenthesis()
-            }
-            return stmt.closeParenthesis()
-          default:
-            throw new Error('todo')
-        }
-      }
-      case ExprType.Map: {
-        const {target, result} = expr
-        switch (target.type) {
-          case TargetType.Expr:
-            stmt.openParenthesis()
-            if (!formatAsIn) {
-              stmt
-                .raw('SELECT json_group_array(json(result)) FROM ')
-                .openParenthesis()
-            }
-            stmt.raw('SELECT').space()
-            this.formatExpr(ctx, result)
-              .add('AS result')
-              .add('FROM json_each')
-              .openParenthesis()
-            this.formatExprJson(ctx, target.expr)
-            stmt.closeParenthesis()
-            if (target.alias) stmt.add('AS').addIdentifier(target.alias)
-            if (!formatAsIn) {
-              stmt.closeParenthesis()
-            }
-            return stmt.closeParenthesis()
-          default:
-            throw new Error('todo')
-        }
-      }
       default:
-        console.log(expr)
+        throw new Error('todo')
+    }
+  }
+
+  formatMap({formatAsIn, ...ctx}: FormatContext, expr: ExprData.Map) {
+    const {stmt} = ctx
+    const {target, result} = expr
+    switch (target.type) {
+      case TargetType.Expr:
+        stmt.openParenthesis()
+        if (!formatAsIn) {
+          stmt
+            .raw('SELECT json_group_array(json(result)) FROM ')
+            .openParenthesis()
+        }
+        stmt.raw('SELECT').space()
+        this.formatExpr(ctx, result)
+          .add('AS result')
+          .add('FROM json_each')
+          .openParenthesis()
+        this.formatExprJson(ctx, target.expr)
+        stmt.closeParenthesis()
+        if (target.alias) stmt.add('AS').addIdentifier(target.alias)
+        if (!formatAsIn) {
+          stmt.closeParenthesis()
+        }
+        return stmt.closeParenthesis()
+      default:
         throw new Error('todo')
     }
   }
