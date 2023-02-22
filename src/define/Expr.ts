@@ -110,9 +110,7 @@ export namespace ExprData {
     type = ExprType.Filter as const
     constructor(public target: Target, public condition: ExprData) {}
   }
-}
 
-export namespace ExprData {
   export function create(input: any): ExprData {
     if (input === null || input === undefined)
       return new ExprData.Param(new ParamData.Value(null))
