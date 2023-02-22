@@ -1,5 +1,5 @@
 import {ExprData} from './Expr'
-import {Query as QueryData} from './Query'
+import {QueryData} from './Query'
 import {TableData} from './Table'
 
 export enum TargetType {

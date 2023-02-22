@@ -1,5 +1,5 @@
-import type {Cursor} from './Cursor'
 import type {Expr} from './Expr'
+import type {Query} from './Query'
 
 type SelectionBase =
   // Side-effect of tables having a callable signature is that they expose
@@ -8,8 +8,8 @@ type SelectionBase =
   | unknown
   | (() => any)
   | Expr<any>
-  | Cursor.SelectMultiple<any>
-  | Cursor.SelectSingle<any>
+  | Query.SelectMultiple<any>
+  | Query.SelectSingle<any>
 interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 

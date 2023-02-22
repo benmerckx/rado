@@ -1,5 +1,5 @@
 import type {Database, Statement as NativeStatement} from 'sqlite3'
-import {Query} from '../define/Query'
+import {QueryData} from '../define/Query'
 import {SchemaInstructions} from '../define/Schema'
 import {Driver} from '../lib/Driver'
 import {SqlError} from '../lib/SqlError'
@@ -86,11 +86,11 @@ export class Sqlite3Driver extends Driver.Async {
     this.indexData = this.prepare(SqliteSchema.indexData)
   }
 
-  async executeQuery<T>(
-    query: Query<T>,
+  async executeQuery(
+    query: QueryData,
     stmt?: Driver.Async.PreparedStatement,
     params?: any[] | undefined
-  ): Promise<T> {
+  ): Promise<unknown> {
     await this.lock
     return super.executeQuery(query, stmt, params)
   }

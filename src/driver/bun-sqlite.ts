@@ -1,6 +1,5 @@
 import type {Database, Statement as NativeStatement} from 'bun:sqlite'
-import {Cursor} from '../define/Cursor'
-import {Query} from '../define/Query'
+import {Query, QueryData} from '../define/Query'
 import {SchemaInstructions} from '../define/Schema'
 import {Driver} from '../lib/Driver'
 import {SqlError} from '../lib/SqlError'
@@ -46,8 +45,8 @@ export class BunSqliteDriver extends Driver.Sync {
     this.tableData = this.prepare(SqliteSchema.tableData)
     this.indexData = this.prepare(SqliteSchema.indexData)
     this.lastChanges = this.prepare(() => {
-      return new Cursor.SelectSingle<{rowsAffected: number}>(
-        Query.Raw({
+      return new Query.SelectSingle<{rowsAffected: number}>(
+        QueryData.Raw({
           expectedReturn: 'row',
           strings: ['SELECT changes() as rowsAffected'],
           params: []

@@ -1,6 +1,6 @@
-import {Cursor} from '../define/Cursor'
 import {EV, Expr} from '../define/Expr'
 import {Functions} from '../define/Functions'
+import {Query} from '../define/Query'
 import {Table} from '../define/Table'
 
 export const SqliteFunctions: SqliteFunctions = Functions as any
@@ -15,7 +15,7 @@ export type SqliteFunctions = {
   /**
    * The EXISTS operator always evaluates to one of the integer values 0 and 1. If executing the SELECT statement specified as the right-hand operand of the EXISTS operator would return one or more rows, then the EXISTS operator evaluates to 1. If executing the SELECT would return no rows at all, then the EXISTS operator evaluates to 0.
    */
-  exists(cursor: Cursor<any>): Expr<boolean>
+  exists(cursor: Query<any>): Expr<boolean>
 
   /** Use the match operator for the FTS5 module */
   match(table: Table<any>, searchTerm: EV<string>): Expr<boolean>

@@ -1,8 +1,7 @@
-import {Cursor} from './Cursor'
 import {Fields} from './Fields'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamData, ParamType} from './Param'
-import {Query} from './Query'
+import {Query, QueryData} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
@@ -81,7 +80,7 @@ export namespace ExprData {
     method: string
     params: Array<ExprData>
   }
-  export type Query = {type: ExprType.Query; query: Query.Select}
+  export type Query = {type: ExprType.Query; query: QueryData.Select}
   export type Record = {
     type: ExprType.Record
     fields: {[key: string]: ExprData}
@@ -116,7 +115,7 @@ export namespace ExprData {
   export function Call(method: string, params: Array<ExprData>): ExprData.Call {
     return {type: ExprType.Call, method, params}
   }
-  export function Query(query: Query.Select): ExprData.Query {
+  export function Query(query: QueryData.Select): ExprData.Query {
     return {type: ExprType.Query, query}
   }
   export function Record(fields: {[key: string]: ExprData}): ExprData.Record {
@@ -194,7 +193,7 @@ export class Expr<T> {
     return new Expr(ExprData.BinOp(BinOpType.And, a[DATA], b[DATA]))
   }
 
-  is(that: EV<T> | Cursor.SelectSingle<T>): Expr<boolean> {
+  is(that: EV<T> | Query.SelectSingle<T>): Expr<boolean> {
     if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
       return this.isNull()
     return new Expr(
@@ -232,13 +231,13 @@ export class Expr<T> {
     return this.isNull().not()
   }
 
-  isIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
+  isIn(that: EV<Array<T>> | Query.SelectMultiple<T>): Expr<boolean> {
     return new Expr(
       ExprData.BinOp(BinOpType.In, this[DATA], ExprData.create(that))
     )
   }
 
-  isNotIn(that: EV<Array<T>> | Cursor.SelectMultiple<T>): Expr<boolean> {
+  isNotIn(that: EV<Array<T>> | Query.SelectMultiple<T>): Expr<boolean> {
     return new Expr(
       ExprData.BinOp(BinOpType.NotIn, this[DATA], ExprData.create(that))
     )
@@ -402,10 +401,11 @@ export class Expr<T> {
 }
 
 export namespace Expr {
-  export const NULL = create(null)
   export const Data: typeof DATA = DATA
   export const IsExpr: typeof IS_EXPR = IS_EXPR
   export const ToExpr: typeof TO_EXPR = TO_EXPR
+
+  export const NULL = create(null)
 
   export function value<T>(value: T): Expr<T> {
     return new Expr<T>(ExprData.Param(ParamData.Value(value)))

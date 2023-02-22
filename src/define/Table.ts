@@ -5,9 +5,9 @@ import {
   OptionalColumn,
   PrimaryColumn
 } from './Column'
-import {Cursor} from './Cursor'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
 import {Index, IndexData} from './Index'
+import {Query} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
@@ -40,8 +40,8 @@ export interface TableInstance<Definition> {
     [K in keyof Definition]?: Definition[K] extends Column<infer V>
       ? EV<V>
       : never
-  }): Cursor.TableSelect<Definition>
-  (...conditions: Array<EV<boolean>>): Cursor.TableSelect<Definition>
+  }): Query.TableSelect<Definition>
+  (...conditions: Array<EV<boolean>>): Query.TableSelect<Definition>
 }
 
 export declare class TableInstance<Definition> {
@@ -135,7 +135,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
             )
           })
         : args
-      return new Cursor.TableSelect<Definition>(data, conditions)
+      return new Query.TableSelect<Definition>(data, conditions)
     }
   }[data.name]
   const cols = keys(data.columns)

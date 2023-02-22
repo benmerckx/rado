@@ -2,7 +2,7 @@ import {ColumnData, ColumnType} from '../define/Column'
 import {BinOpType, Expr, ExprData, ExprType, UnOpType} from '../define/Expr'
 import {OrderBy, OrderDirection} from '../define/OrderBy'
 import {ParamType} from '../define/Param'
-import {Query, QueryType} from '../define/Query'
+import {QueryData, QueryType} from '../define/Query'
 import {Target, TargetType} from '../define/Target'
 import {Sanitizer} from './Sanitizer'
 import {Statement, StatementOptions} from './Statement'
@@ -78,7 +78,7 @@ export abstract class Formatter implements Sanitizer {
     field: string
   ): Statement
 
-  compile<T>(query: Query<T>, options?: CompileOptions): Statement {
+  compile(query: QueryData, options?: CompileOptions): Statement {
     const result = this.format(
       this.createContext({topLevel: true, ...options}),
       query
@@ -91,7 +91,7 @@ export abstract class Formatter implements Sanitizer {
     return {stmt: new Statement(this, options), ...options}
   }
 
-  format<T>(ctx: FormatContext, query: Query<T>): Statement {
+  format(ctx: FormatContext, query: QueryData): Statement {
     switch (query.type) {
       case QueryType.Select:
         return this.formatSelect(ctx, query)
@@ -122,7 +122,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatSelect(
     {topLevel, ...ctx}: FormatContext,
-    query: Query.Select
+    query: QueryData.Select
   ): Statement {
     const {stmt} = ctx
     stmt.raw('SELECT').space()
@@ -143,7 +143,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatInsert(ctx: FormatContext, query: Query.Insert): Statement {
+  formatInsert(ctx: FormatContext, query: QueryData.Insert): Statement {
     const {stmt} = ctx
     const columns = Object.values(query.into.columns).map(c => c.name)
     stmt.add('INSERT INTO').addIdentifier(query.into.name)
@@ -172,7 +172,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatUpdate(ctx: FormatContext, query: Query.Update): Statement {
+  formatUpdate(ctx: FormatContext, query: QueryData.Update): Statement {
     const {stmt} = ctx
     const data = query.set || {}
     stmt.add('UPDATE').addIdentifier(query.table.name).add('SET').space()
@@ -189,7 +189,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatDelete(ctx: FormatContext, query: Query.Delete): Statement {
+  formatDelete(ctx: FormatContext, query: QueryData.Delete): Statement {
     const {stmt} = ctx
     stmt.add('DELETE FROM').addIdentifier(query.table.name)
     stmt.space()
@@ -199,7 +199,10 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatCreateTable(ctx: FormatContext, query: Query.CreateTable): Statement {
+  formatCreateTable(
+    ctx: FormatContext,
+    query: QueryData.CreateTable
+  ): Statement {
     const {stmt} = ctx
     stmt.add('CREATE TABLE')
     if (query.ifNotExists) stmt.add('IF NOT EXISTS')
@@ -210,7 +213,10 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatCreateIndex(ctx: FormatContext, query: Query.CreateIndex): Statement {
+  formatCreateIndex(
+    ctx: FormatContext,
+    query: QueryData.CreateIndex
+  ): Statement {
     const {stmt} = ctx
     stmt.add('CREATE')
     if (query.index.unique) stmt.add('UNIQUE')
@@ -234,7 +240,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatDropIndex(ctx: FormatContext, query: Query.DropIndex): Statement {
+  formatDropIndex(ctx: FormatContext, query: QueryData.DropIndex): Statement {
     const {stmt} = ctx
     stmt.add('DROP INDEX')
     if (query.ifExists) stmt.add('IF EXISTS')
@@ -242,7 +248,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatAlterTable(ctx: FormatContext, query: Query.AlterTable): Statement {
+  formatAlterTable(ctx: FormatContext, query: QueryData.AlterTable): Statement {
     const {stmt} = ctx
     stmt
       .add('ALTER TABLE')
@@ -266,7 +272,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatDropTable(ctx: FormatContext, query: Query.DropTable): Statement {
+  formatDropTable(ctx: FormatContext, query: QueryData.DropTable): Statement {
     const {stmt} = ctx
     stmt.add('DROP TABLE')
     if (query.ifExists) stmt.add('IF EXISTS')
@@ -276,26 +282,26 @@ export abstract class Formatter implements Sanitizer {
 
   formatTransaction(
     ctx: FormatContext,
-    {op, id}: Query.Transaction
+    {op, id}: QueryData.Transaction
   ): Statement {
     const {stmt} = ctx
     switch (op) {
-      case Query.TransactionOperation.Begin:
+      case QueryData.TransactionOperation.Begin:
         return stmt.raw('SAVEPOINT').addIdentifier(id)
-      case Query.TransactionOperation.Commit:
+      case QueryData.TransactionOperation.Commit:
         return stmt.raw('RELEASE').addIdentifier(id)
-      case Query.TransactionOperation.Rollback:
+      case QueryData.TransactionOperation.Rollback:
         return stmt.raw('ROLLBACK TO').addIdentifier(id)
     }
   }
 
-  formatBatch(ctx: FormatContext, {queries}: Query.Batch): Statement {
+  formatBatch(ctx: FormatContext, {queries}: QueryData.Batch): Statement {
     const {stmt} = ctx
     for (const query of stmt.separate(queries, ';')) this.format(ctx, query)
     return stmt
   }
 
-  formatRaw(ctx: FormatContext, {strings, params}: Query.Raw): Statement {
+  formatRaw(ctx: FormatContext, {strings, params}: QueryData.Raw): Statement {
     const {stmt} = ctx
     for (let i = 0; i < strings.length; i++) {
       ctx.stmt.raw(strings[i])
@@ -502,7 +508,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatLimit(
     ctx: FormatContext,
-    {limit, offset, singleResult}: Query.QueryBase
+    {limit, offset, singleResult}: QueryData.QueryBase
   ): Statement {
     const {stmt, forceInline} = ctx
     if (!limit && !offset && !singleResult) return stmt

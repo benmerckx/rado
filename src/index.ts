@@ -1,5 +1,4 @@
 export * from './define/Column'
-export * from './define/Cursor'
 export * from './define/Expr'
 export type {Fields} from './define/Fields'
 export * from './define/Functions'
