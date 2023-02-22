@@ -21,8 +21,7 @@ const {
   getOwnPropertyDescriptors,
   getPrototypeOf,
   setPrototypeOf,
-  defineProperty,
-  getOwnPropertyNames
+  defineProperty
 } = Object
 
 interface TableDefinition {}

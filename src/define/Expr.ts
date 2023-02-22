@@ -5,11 +5,11 @@ import {Query, QueryData} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
-const {fromEntries, entries} = Object
-
 const TO_EXPR = Symbol('Expr.ToExpr')
 const IS_EXPR = Symbol('Expr.IsExpr')
 const DATA = Symbol('Expr.Data')
+
+const {fromEntries, entries} = Object
 
 export enum UnOpType {
   Not = 'Not',
