@@ -535,46 +535,9 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatExprJson(ctx: FormatContext, expr: ExprData): Statement {
-    return this.formatExpr({...ctx, formatAsJson: true}, expr)
-  }
-
-  formatExprValue(ctx: FormatContext, expr: ExprData): Statement {
-    return this.formatExpr({...ctx, formatAsJson: false}, expr)
-  }
-
   formatString(ctx: FormatContext, input: string): Statement {
     const {stmt} = ctx
     return stmt.raw(this.escapeValue(String(input)))
-  }
-
-  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
-    switch (expr.type) {
-      case ExprType.UnOp:
-        return this.formatUnOp(ctx, expr)
-      case ExprType.BinOp:
-        return this.formatBinOp(ctx, expr)
-      case ExprType.Param:
-        return this.formatParam(ctx, expr)
-      case ExprType.Field:
-        return this.formatField(ctx, expr)
-      case ExprType.Call:
-        return this.formatCall(ctx, expr)
-      case ExprType.Query:
-        return this.formatQuery(ctx, expr)
-      case ExprType.Row:
-        return this.formatRow(ctx, expr)
-      case ExprType.Merge:
-        return this.formatMerge(ctx, expr)
-      case ExprType.Record:
-        return this.formatRecord(ctx, expr)
-      case ExprType.Filter:
-        return this.formatFilter(ctx, expr)
-      case ExprType.Map:
-        return this.formatMap(ctx, expr)
-      default:
-        throw new Error('todo')
-    }
   }
 
   formatInlineValue(ctx: FormatContext, rawValue: any): Statement {
@@ -618,6 +581,41 @@ export abstract class Formatter implements Sanitizer {
         else stmt.value(JSON.stringify(rawValue))
         if (formatAsJson) stmt.closeParenthesis()
         return stmt
+    }
+  }
+
+  formatExprJson(ctx: FormatContext, expr: ExprData): Statement {
+    return this.formatExpr({...ctx, formatAsJson: true}, expr)
+  }
+
+  formatExprValue(ctx: FormatContext, expr: ExprData): Statement {
+    return this.formatExpr({...ctx, formatAsJson: false}, expr)
+  }
+
+  formatExpr(ctx: FormatContext, expr: ExprData): Statement {
+    switch (expr.type) {
+      case ExprType.UnOp:
+        return this.formatUnOp(ctx, expr)
+      case ExprType.BinOp:
+        return this.formatBinOp(ctx, expr)
+      case ExprType.Param:
+        return this.formatParam(ctx, expr)
+      case ExprType.Field:
+        return this.formatField(ctx, expr)
+      case ExprType.Call:
+        return this.formatCall(ctx, expr)
+      case ExprType.Query:
+        return this.formatQuery(ctx, expr)
+      case ExprType.Row:
+        return this.formatRow(ctx, expr)
+      case ExprType.Merge:
+        return this.formatMerge(ctx, expr)
+      case ExprType.Record:
+        return this.formatRecord(ctx, expr)
+      case ExprType.Filter:
+        return this.formatFilter(ctx, expr)
+      case ExprType.Map:
+        return this.formatMap(ctx, expr)
     }
   }
 

@@ -50,8 +50,7 @@ export enum ExprType {
   Row = 'Row',
   Map = 'Map',
   Filter = 'Filter',
-  Merge = 'Merge',
-  Case = 'Case'
+  Merge = 'Merge'
 }
 
 export type ExprData =
@@ -66,7 +65,6 @@ export type ExprData =
   | ExprData.Row
   | ExprData.Map
   | ExprData.Filter
-  | ExprData.Case
 
 export namespace ExprData {
   export type UnOp = {type: ExprType.UnOp; op: UnOpType; expr: ExprData}
@@ -95,12 +93,6 @@ export namespace ExprData {
     type: ExprType.Filter
     target: Target
     condition: ExprData
-  }
-  export type Case = {
-    type: ExprType.Case
-    expr: ExprData
-    cases: {[key: string]: ExprData}
-    defaultCase?: ExprData
   }
 }
 
@@ -141,13 +133,6 @@ export namespace ExprData {
   }
   export function Filter(target: Target, condition: ExprData): ExprData.Filter {
     return {type: ExprType.Filter, target, condition}
-  }
-  export function Case(
-    expr: ExprData,
-    cases: {[key: string]: ExprData},
-    defaultCase?: ExprData
-  ): ExprData.Case {
-    return {type: ExprType.Case, expr, cases, defaultCase}
   }
 
   export function create(input: any): ExprData {

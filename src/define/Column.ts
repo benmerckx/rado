@@ -2,8 +2,8 @@ import {Callable} from '../util/Callable'
 import {EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 
-const DATA = Symbol('DATA')
-const TYPE = Symbol('tYPE')
+const DATA = Symbol('Column.Data')
+const TYPE = Symbol('Column.Type')
 
 export enum ColumnType {
   String = 'String',
