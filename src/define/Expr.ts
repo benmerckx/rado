@@ -5,9 +5,9 @@ import {Query, QueryData} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
+const DATA = Symbol('Expr.Data')
 const TO_EXPR = Symbol('Expr.ToExpr')
 const IS_EXPR = Symbol('Expr.IsExpr')
-const DATA = Symbol('Expr.Data')
 
 const {fromEntries, entries} = Object
 
@@ -66,77 +66,56 @@ export type ExprData =
   | ExprData.Filter
 
 export namespace ExprData {
-  export type UnOp = {type: ExprType.UnOp; op: UnOpType; expr: ExprData}
-  export type BinOp = {
-    type: ExprType.BinOp
-    op: BinOpType
-    a: ExprData
-    b: ExprData
+  export class UnOp {
+    type = ExprType.UnOp as const
+    constructor(public op: UnOpType, public expr: ExprData) {}
   }
-  export type Field = {type: ExprType.Field; expr: ExprData; field: string}
-  export type Param = {type: ExprType.Param; param: ParamData}
-  export type Call = {
-    type: ExprType.Call
-    method: string
-    params: Array<ExprData>
+  export class BinOp {
+    type = ExprType.BinOp as const
+    constructor(public op: BinOpType, public a: ExprData, public b: ExprData) {}
   }
-  export type Query = {type: ExprType.Query; query: QueryData.Select}
-  export type Record = {
-    type: ExprType.Record
-    fields: {[key: string]: ExprData}
+  export class Field {
+    type = ExprType.Field as const
+    constructor(public expr: ExprData, public field: string) {}
   }
-  export type Merge = {type: ExprType.Merge; a: ExprData; b: ExprData}
-  export type Row = {type: ExprType.Row; target: Target}
-  export type Map = {type: ExprType.Map; target: Target; result: ExprData}
-  export type Filter = {
-    type: ExprType.Filter
-    target: Target
-    condition: ExprData
+  export class Param {
+    type = ExprType.Param as const
+    constructor(public param: ParamData) {}
+  }
+  export class Call {
+    type = ExprType.Call as const
+    constructor(public method: string, public params: Array<ExprData>) {}
+  }
+  export class Query {
+    type = ExprType.Query as const
+    constructor(public query: QueryData.Select) {}
+  }
+  export class Record {
+    type = ExprType.Record as const
+    constructor(public fields: {[key: string]: ExprData}) {}
+  }
+  export class Merge {
+    type = ExprType.Merge as const
+    constructor(public a: ExprData, public b: ExprData) {}
+  }
+  export class Row {
+    type = ExprType.Row as const
+    constructor(public target: Target) {}
+  }
+  export class Map {
+    type = ExprType.Map as const
+    constructor(public target: Target, public result: ExprData) {}
+  }
+  export class Filter {
+    type = ExprType.Filter as const
+    constructor(public target: Target, public condition: ExprData) {}
   }
 }
 
 export namespace ExprData {
-  export function UnOp(op: UnOpType, expr: ExprData): ExprData.UnOp {
-    return {type: ExprType.UnOp, op, expr}
-  }
-  export function BinOp(
-    op: BinOpType,
-    a: ExprData,
-    b: ExprData
-  ): ExprData.BinOp {
-    return {type: ExprType.BinOp, op, a, b}
-  }
-  export function Field(expr: ExprData, field: string): ExprData.Field {
-    return {type: ExprType.Field, expr, field}
-  }
-  export function Param(param: ParamData): ExprData.Param {
-    return {type: ExprType.Param, param}
-  }
-  export function Call(method: string, params: Array<ExprData>): ExprData.Call {
-    return {type: ExprType.Call, method, params}
-  }
-  export function Query(query: QueryData.Select): ExprData.Query {
-    return {type: ExprType.Query, query}
-  }
-  export function Record(fields: {[key: string]: ExprData}): ExprData.Record {
-    return {type: ExprType.Record, fields}
-  }
-  export function Merge(a: ExprData, b: ExprData): ExprData.Merge {
-    return {type: ExprType.Merge, a, b}
-  }
-  export function Row(target: Target): ExprData.Row {
-    return {type: ExprType.Row, target}
-  }
-  export function Map(target: Target, result: ExprData): ExprData.Map {
-    return {type: ExprType.Map, target, result}
-  }
-  export function Filter(target: Target, condition: ExprData): ExprData.Filter {
-    return {type: ExprType.Filter, target, condition}
-  }
-
   export function create(input: any): ExprData {
     if (input === null || input === undefined)
-      return ExprData.Param(ParamData.Value(null))
+      return new ExprData.Param(new ParamData.Value(null))
     if (
       input &&
       (typeof input === 'function' || typeof input === 'object') &&
@@ -145,12 +124,12 @@ export namespace ExprData {
       input = input[TO_EXPR]()
     if (Expr.isExpr(input)) return input[DATA]
     if (input && typeof input === 'object' && !Array.isArray(input))
-      return ExprData.Record(
+      return new ExprData.Record(
         fromEntries(
           entries(input).map(([key, value]) => [key, ExprData.create(value)])
         )
       )
-    return ExprData.Param(ParamData.Value(input))
+    return new ExprData.Param(new ParamData.Value(input))
   }
 }
 
@@ -174,7 +153,7 @@ export class Expr<T> {
   }
 
   not(): Expr<boolean> {
-    return new Expr(ExprData.UnOp(UnOpType.Not, this[DATA]))
+    return new Expr(new ExprData.UnOp(UnOpType.Not, this[DATA]))
   }
 
   or(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
@@ -182,7 +161,7 @@ export class Expr<T> {
     const b = Expr.create(that)
     if (b.isConstant(true) || a.isConstant(false)) return b
     if (a.isConstant(true) || b.isConstant(false)) return this
-    return new Expr(ExprData.BinOp(BinOpType.Or, a[DATA], b[DATA]))
+    return new Expr(new ExprData.BinOp(BinOpType.Or, a[DATA], b[DATA]))
   }
 
   and(this: Expr<boolean>, that: EV<boolean>): Expr<boolean> {
@@ -190,23 +169,24 @@ export class Expr<T> {
     const b = Expr.create(that)
     if (b.isConstant(true) || a.isConstant(false)) return this
     if (a.isConstant(true) || b.isConstant(false)) return b
-    return new Expr(ExprData.BinOp(BinOpType.And, a[DATA], b[DATA]))
+    return new Expr(new ExprData.BinOp(BinOpType.And, a[DATA], b[DATA]))
   }
 
   is(that: EV<T> | Query.SelectSingle<T>): Expr<boolean> {
     if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
       return this.isNull()
     return new Expr(
-      ExprData.BinOp(BinOpType.Equals, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Equals, this[DATA], ExprData.create(that))
     )
   }
 
   isConstant(value: T): boolean {
     switch (this[DATA].type) {
       case ExprType.Param:
-        switch (this[DATA].param.type) {
+        const param = this[DATA].param
+        switch (param.type) {
           case ParamType.Value:
-            return this[DATA].param.value === value
+            return param.value === value
           default:
             return false
         }
@@ -219,12 +199,12 @@ export class Expr<T> {
     if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
       return this.isNotNull()
     return new Expr(
-      ExprData.BinOp(BinOpType.NotEquals, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.NotEquals, this[DATA], ExprData.create(that))
     )
   }
 
   isNull(): Expr<boolean> {
-    return new Expr(ExprData.UnOp(UnOpType.IsNull, this[DATA]))
+    return new Expr(new ExprData.UnOp(UnOpType.IsNull, this[DATA]))
   }
 
   isNotNull(): Expr<boolean> {
@@ -233,25 +213,25 @@ export class Expr<T> {
 
   isIn(that: EV<Array<T>> | Query.SelectMultiple<T>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.In, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.In, this[DATA], ExprData.create(that))
     )
   }
 
   isNotIn(that: EV<Array<T>> | Query.SelectMultiple<T>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.NotIn, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.NotIn, this[DATA], ExprData.create(that))
     )
   }
 
   isGreater(that: EV<any>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Greater, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Greater, this[DATA], ExprData.create(that))
     )
   }
 
   isGreaterOrEqual(that: EV<any>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(
+      new ExprData.BinOp(
         BinOpType.GreaterOrEqual,
         this[DATA],
         ExprData.create(that)
@@ -261,73 +241,77 @@ export class Expr<T> {
 
   isLess(that: EV<any>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Less, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Less, this[DATA], ExprData.create(that))
     )
   }
 
   isLessOrEqual(that: EV<any>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.LessOrEqual, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(
+        BinOpType.LessOrEqual,
+        this[DATA],
+        ExprData.create(that)
+      )
     )
   }
 
   add(this: Expr<number>, that: EV<number>): Expr<number> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Add, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Add, this[DATA], ExprData.create(that))
     )
   }
 
   substract(this: Expr<number>, that: EV<number>): Expr<number> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Subt, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Subt, this[DATA], ExprData.create(that))
     )
   }
 
   multiply(this: Expr<number>, that: EV<number>): Expr<number> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Mult, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Mult, this[DATA], ExprData.create(that))
     )
   }
 
   remainder(this: Expr<number>, that: EV<number>): Expr<number> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Mod, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Mod, this[DATA], ExprData.create(that))
     )
   }
 
   divide(this: Expr<number>, that: EV<number>): Expr<number> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Div, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Div, this[DATA], ExprData.create(that))
     )
   }
 
   concat(this: Expr<string>, that: EV<string>): Expr<string> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Concat, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Concat, this[DATA], ExprData.create(that))
     )
   }
 
   like(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Like, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Like, this[DATA], ExprData.create(that))
     )
   }
 
   glob(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Glob, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Glob, this[DATA], ExprData.create(that))
     )
   }
 
   match(this: Expr<string>, that: EV<string>): Expr<boolean> {
     return new Expr(
-      ExprData.BinOp(BinOpType.Match, this[DATA], ExprData.create(that))
+      new ExprData.BinOp(BinOpType.Match, this[DATA], ExprData.create(that))
     )
   }
 
   with<X extends Selection>(that: X): Selection.With<T, X> {
     return new Expr<Selection.Combine<T, X>>(
-      ExprData.Merge(this[DATA], ExprData.create(that))
+      new ExprData.Merge(this[DATA], ExprData.create(that))
     )
   }
 
@@ -370,9 +354,9 @@ export class Expr<T> {
     const alias = `__${Math.random().toString(36).slice(2, 9)}`
     const target = Target.Expr(this[DATA], alias)
     return new Expr(
-      ExprData.Filter(
+      new ExprData.Filter(
         target,
-        ExprData.create(fn(new Expr(ExprData.Row(target)).dynamic()))
+        ExprData.create(fn(new Expr(new ExprData.Row(target)).dynamic()))
       )
     )
   }
@@ -384,9 +368,9 @@ export class Expr<T> {
     const alias = `__${Math.random().toString(36).slice(2, 9)}`
     const target = Target.Expr(this[DATA], alias)
     return new Expr(
-      ExprData.Map(
+      new ExprData.Map(
         target,
-        ExprData.create(fn(new Expr(ExprData.Row(target)).dynamic()))
+        ExprData.create(fn(new Expr(new ExprData.Row(target)).dynamic()))
       )
     )
   }
@@ -396,7 +380,7 @@ export class Expr<T> {
   }
 
   get<T>(name: string): Expr<T> {
-    return new Expr(ExprData.Field(this[DATA], name as string))
+    return new Expr(new ExprData.Field(this[DATA], name as string))
   }
 }
 
@@ -408,7 +392,7 @@ export namespace Expr {
   export const NULL = create(null)
 
   export function value<T>(value: T): Expr<T> {
-    return new Expr<T>(ExprData.Param(ParamData.Value(value)))
+    return new Expr<T>(new ExprData.Param(new ParamData.Value(value)))
   }
 
   export function create<T>(input: EV<T>): Expr<T> {

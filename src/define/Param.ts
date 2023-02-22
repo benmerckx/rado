@@ -3,15 +3,15 @@ export enum ParamType {
   Named = 'Named'
 }
 
-export type ParamData =
-  | {type: ParamType.Value; value: any}
-  | {type: ParamType.Named; name: string}
-
-export const ParamData = {
-  Value(value: any): ParamData {
-    return {type: ParamType.Value, value: value}
-  },
-  Named(name: string): ParamData {
-    return {type: ParamType.Named, name: name}
+export namespace ParamData {
+  export class Value {
+    type = ParamType.Value as const
+    constructor(public value: any) {}
+  }
+  export class Named {
+    type = ParamType.Named as const
+    constructor(public name: string) {}
   }
 }
+
+export type ParamData = ParamData.Value | ParamData.Named

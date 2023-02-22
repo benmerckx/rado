@@ -2,7 +2,7 @@ import {Formatter} from '../lib/Formatter'
 import {Statement} from '../lib/Statement'
 import {Expr, ExprData} from './Expr'
 import {QueryData, QueryType} from './Query'
-import {TableData} from './Table'
+import {Table, TableData} from './Table'
 import {Target} from './Target'
 
 export interface SchemaInstructions {
@@ -44,7 +44,7 @@ export namespace Schema {
         into: tempTable,
         select: QueryData.Select({
           from: Target.Table(table),
-          selection: ExprData.Record(
+          selection: new ExprData.Record(
             Object.fromEntries(
               Object.entries(table.columns).map(([key, column]) => [
                 key,
@@ -52,7 +52,10 @@ export namespace Schema {
                   ? (typeof column.defaultValue === 'function'
                       ? column.defaultValue()
                       : column.defaultValue) || Expr.NULL[Expr.Data]
-                  : ExprData.Field(ExprData.Row(Target.Table(table)), key)
+                  : new ExprData.Field(
+                      new ExprData.Row(Target.Table(table)),
+                      key
+                    )
               ])
             )
           )
@@ -149,3 +152,5 @@ export namespace Schema {
     return res
   }
 }
+
+export function schema(...tables: Array<Table<any>>) {}

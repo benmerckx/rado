@@ -2,7 +2,7 @@ import {Expr, ExprData} from './Expr'
 
 function get(_: any, method: string) {
   return (...args: any[]) => {
-    return new Expr(ExprData.Call(method, args.map(ExprData.create)))
+    return new Expr(new ExprData.Call(method, args.map(ExprData.create)))
   }
 }
 

@@ -208,7 +208,7 @@ export class Query<T> {
     return driver.formatter.compile(this[DATA], options).sql
   }
 
-  toJSON(): QueryData {
+  toJSON() {
     return this[DATA]
   }
 }
@@ -427,7 +427,7 @@ export namespace Query {
     }
 
     [Expr.ToExpr](): Expr<Row> {
-      return new Expr<Row>(ExprData.Query(this[DATA]))
+      return new Expr<Row>(new ExprData.Query(this[DATA]))
     }
   }
 
@@ -444,7 +444,7 @@ export namespace Query {
       super(
         QueryData.Select({
           from: target,
-          selection: ExprData.Row(target),
+          selection: new ExprData.Row(target),
           where: Expr.and(...conditions)[Expr.Data]
         })
       )
@@ -469,7 +469,7 @@ export namespace Query {
         QueryData.Insert({
           into: this.table,
           data: [record],
-          selection: ExprData.Row(Target.Table(this.table)),
+          selection: new ExprData.Row(Target.Table(this.table)),
           singleResult: true
         })
       )
@@ -499,7 +499,7 @@ export namespace Query {
 
     get(name: string): Expr<any> {
       return new Expr(
-        ExprData.Field(ExprData.Row(Target.Table(this.table)), name)
+        new ExprData.Field(new ExprData.Row(Target.Table(this.table)), name)
       )
     }
   }
@@ -573,7 +573,7 @@ export namespace Query {
     }
 
     [Expr.ToExpr](): Expr<Row> {
-      return new Expr<Row>(ExprData.Query(this[DATA]))
+      return new Expr<Row>(new ExprData.Query(this[DATA]))
     }
   }
 }

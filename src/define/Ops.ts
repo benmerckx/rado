@@ -24,7 +24,7 @@ export function from<Row>(
   return new Query.SelectMultiple<Row>(
     QueryData.Select({
       from: target,
-      selection: ExprData.Row(target)
+      selection: new ExprData.Row(target)
     })
   )
 }

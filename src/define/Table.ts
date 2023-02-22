@@ -126,9 +126,9 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
             const column = data.columns[key]
             if (!column) throw new Error(`Column ${key} not found`)
             return new Expr(
-              ExprData.BinOp(
+              new ExprData.BinOp(
                 BinOpType.Equals,
-                ExprData.Field(ExprData.Row(target), key),
+                new ExprData.Field(new ExprData.Row(target), key),
                 ExprData.create(value)
               )
             )
@@ -138,10 +138,10 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
     }
   }[data.name]
   const cols = keys(data.columns)
-  const row = ExprData.Row(target)
+  const row = new ExprData.Row(target)
   const expressions = fromEntries(
     cols.map(name => {
-      let expr = new Expr(ExprData.Field(row, name))
+      let expr = new Expr(new ExprData.Field(row, name))
       if (data.columns[name].type === ColumnType.Json) expr = expr.dynamic()
       return [name, expr]
     })

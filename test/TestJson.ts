@@ -20,13 +20,13 @@ test('json', async () => {
   const count = await query(Node().count())
   assert.is(count, amount)
   const q = Node()
-    .maybeFirst()
     .select({
       fieldA: Expr.value(12),
       fieldB: Node.index
     })
     .where(Node.index.is(1))
-  const res1 = await query(q)!
+    .first()
+  const res1 = await query(q)
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 1)
   const res2: typeof res1 = await query(new Query(q.toJSON()))!

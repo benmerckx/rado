@@ -59,7 +59,7 @@ export class Statement {
   }
 
   value(value: any) {
-    this.paramData.push(ParamData.Value(value))
+    this.paramData.push(new ParamData.Value(value))
     return this.raw(INSERT_PARAM)
   }
 

@@ -16,10 +16,10 @@ test('x in y', async () => {
   const ctx = formatter.createContext({skipNewlines: true})
   const stmt = formatter.formatExpr(
     ctx,
-    ExprData.BinOp(
+    new ExprData.BinOp(
       BinOpType.In,
-      ExprData.Param(ParamData.Value(1)),
-      ExprData.Param(ParamData.Value([1, 2, 3]))
+      new ExprData.Param(new ParamData.Value(1)),
+      new ExprData.Param(new ParamData.Value([1, 2, 3]))
     )
   )
   assert.is(stmt.sql, `(? IN (?, ?, ?))`)
@@ -38,7 +38,11 @@ test('x in y.map(_)', async () => {
   ;(field.target as Target.Expr).alias = 'map'
   const stmt = formatter.formatExpr(
     ctx,
-    ExprData.BinOp(BinOpType.In, ExprData.Param(ParamData.Value(1)), field)
+    new ExprData.BinOp(
+      BinOpType.In,
+      new ExprData.Param(new ParamData.Value(1)),
+      field
+    )
   )
   assert.is(
     stmt.sql,

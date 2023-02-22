@@ -33,7 +33,7 @@ abstract class DriverBase extends Callable {
     const {length} = create
     const paramNames = Array.from({length}, (_, i) => `p${i}`)
     const params = paramNames.map(
-      name => new Expr(ExprData.Param(ParamData.Named(name)))
+      name => new Expr(new ExprData.Param(new ParamData.Named(name)))
     )
     const cursor = create(...(params as any))
     const query = cursor[Query.Data]
