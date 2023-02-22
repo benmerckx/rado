@@ -46,7 +46,7 @@ export class BunSqliteDriver extends Driver.Sync {
     this.indexData = this.prepare(SqliteSchema.indexData)
     this.lastChanges = this.prepare(() => {
       return new Query.SelectSingle<{rowsAffected: number}>(
-        QueryData.Raw({
+        new QueryData.Raw({
           expectedReturn: 'row',
           strings: ['SELECT changes() as rowsAffected'],
           params: []

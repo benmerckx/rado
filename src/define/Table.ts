@@ -11,10 +11,8 @@ import {Query} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
-const DATA = Symbol('Table.Data')
-const META = Symbol('Table.Meta')
-
 const {
+  assign,
   keys,
   entries,
   fromEntries,
@@ -24,14 +22,21 @@ const {
   defineProperty
 } = Object
 
+const DATA = Symbol('Table.Data')
+const META = Symbol('Table.Meta')
+
 interface TableDefinition {}
 
-export interface TableData {
-  name: string
-  alias?: string
-  definition: TableDefinition
-  columns: Record<string, ColumnData>
-  meta(): {indexes: Record<string, IndexData>}
+export class TableData {
+  declare name: string
+  declare alias?: string
+  declare definition: TableDefinition
+  declare columns: Record<string, ColumnData>
+  declare meta: () => {indexes: Record<string, IndexData>}
+
+  constructor(data: TableData) {
+    assign(this, data)
+  }
 }
 
 export interface TableInstance<Definition> {
@@ -117,7 +122,7 @@ interface Define<T> {
 export type table<T> = T extends Table<infer D> ? Table.Select<D> : never
 
 export function createTable<Definition>(data: TableData): Table<Definition> {
-  const target = Target.Table(data)
+  const target = new Target.Table(data)
   const call: any = {
     [data.name]: function (...args: Array<any>) {
       const isConditionalRecord = args.length === 1 && !Expr.isExpr(args[0])
@@ -166,38 +171,42 @@ export function table<T extends Blueprint<T>>(
   const target = define[name]
   const definition = 'prototype' in target ? new target() : target
   const columns = definition as Record<string, Column<any>>
-  const res: Table<T> = createTable({
-    name,
-    definition,
-    columns: fromEntries(
-      entries(getOwnPropertyDescriptors(columns)).map(([name, descriptor]) => {
-        const column = columns[name]
-        const data = column[Column.Data]
-        if (!data.type) throw new Error(`Column ${name} has no type`)
-        return [
-          name,
-          {
-            ...data,
-            type: data.type!,
-            name: data.name || name,
-            enumerable: descriptor.enumerable
+  const res: Table<T> = createTable<T>(
+    new TableData({
+      name,
+      definition,
+      columns: fromEntries(
+        entries(getOwnPropertyDescriptors(columns)).map(
+          ([name, descriptor]) => {
+            const column = columns[name]
+            const data = column[Column.Data]
+            if (!data.type) throw new Error(`Column ${name} has no type`)
+            return [
+              name,
+              {
+                ...data,
+                type: data.type!,
+                name: data.name || name,
+                enumerable: descriptor.enumerable
+              }
+            ]
           }
-        ]
-      })
-    ),
-    meta() {
-      const createMeta = (res as any)[table.meta]
-      const meta = createMeta ? createMeta.apply(res) : {}
-      return {
-        indexes: fromEntries(
-          entries((meta?.indexes as TableMeta) || {}).map(([key, index]) => {
-            const indexName = `${name}.${key}`
-            return [indexName, {name: indexName, ...index.data}]
-          })
         )
+      ),
+      meta() {
+        const createMeta = (res as any)[table.meta]
+        const meta = createMeta ? createMeta.apply(res) : {}
+        return {
+          indexes: fromEntries(
+            entries((meta?.indexes as TableMeta) || {}).map(([key, index]) => {
+              const indexName = `${name}.${key}`
+              return [indexName, {name: indexName, ...index.data}]
+            })
+          )
+        }
       }
-    }
-  })
+    })
+  )
   return res
 }
 

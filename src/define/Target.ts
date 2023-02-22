@@ -3,52 +3,35 @@ import {QueryData} from './Query'
 import {TableData} from './Table'
 
 export enum TargetType {
-  Expr = 'Expr',
-  Query = 'Query',
-  Table = 'Table',
-  Join = 'Join'
+  Expr = 'Target.Expr',
+  Query = 'Target.Query',
+  Table = 'Target.Table',
+  Join = 'Target.Join'
 }
 
 export type Target = Target.Expr | Target.Query | Target.Table | Target.Join
 
 export namespace Target {
-  export interface Expr {
-    type: TargetType.Expr
-    expr: ExprData
-    alias?: string
+  export class Expr {
+    type = TargetType.Expr as const
+    constructor(public expr: ExprData, public alias?: string) {}
   }
-  export function Expr(expr: ExprData, alias?: string): Expr {
-    return {type: TargetType.Expr, expr, alias}
+  export class Query {
+    type = TargetType.Query as const
+    constructor(public query: QueryData, public alias?: string) {}
   }
-  export interface Query {
-    type: TargetType.Query
-    query: QueryData
-    alias?: string
+  export class Table {
+    type = TargetType.Table as const
+    constructor(public table: TableData) {}
   }
-  export function Query(query: QueryData, alias?: string): Query {
-    return {type: TargetType.Query, query, alias}
-  }
-  export interface Table {
-    type: TargetType.Table
-    table: TableData
-  }
-  export function Table(table: TableData): Table {
-    return {type: TargetType.Table, table: table}
-  }
-  export interface Join {
-    type: TargetType.Join
-    left: Target
-    right: Target
-    joinType: 'left' | 'inner'
-    on: ExprData
-  }
-  export function Join(
-    left: Target,
-    right: Target,
-    joinType: 'left' | 'inner',
-    on: ExprData
-  ): Join {
-    return {type: TargetType.Join, left, right, joinType, on}
+  export class Join {
+    type = TargetType.Join as const
+    constructor(
+      public left: Target,
+      public right: Target,
+      public joinType: 'left' | 'inner',
+      public on: ExprData
+    ) {}
   }
 
   export function source(from: Target): TableData | undefined {

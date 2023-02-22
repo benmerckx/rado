@@ -20,7 +20,7 @@ abstract class DriverBase extends Callable {
       if (isTemplateStringsArray(input))
         return this.executeTemplate(undefined, input, ...rest)
       return this.executeQuery(
-        QueryData.Batch({
+        new QueryData.Batch({
           queries: args.filter(Query.isQuery).map(arg => arg[Query.Data])
         })
       )
@@ -56,7 +56,7 @@ abstract class DriverBase extends Callable {
   }
 
   sql(strings: TemplateStringsArray, ...params: Array<any>) {
-    return new Query(QueryData.Raw({strings, params}))
+    return new Query(new QueryData.Raw({strings, params}))
   }
 
   executeTemplate(
@@ -64,7 +64,9 @@ abstract class DriverBase extends Callable {
     strings: TemplateStringsArray,
     ...params: Array<any>
   ) {
-    return this.executeQuery(QueryData.Raw({strings, params, expectedReturn}))
+    return this.executeQuery(
+      new QueryData.Raw({strings, params, expectedReturn})
+    )
   }
 
   abstract executeQuery(query: QueryData): any
@@ -123,7 +125,7 @@ abstract class SyncDriver extends DriverBase {
         if (changes.length) queries.push(...changes)
       }
     }
-    return this.executeQuery(QueryData.Batch({queries}))
+    return this.executeQuery(new QueryData.Batch({queries}))
   }
 
   executeQuery(
@@ -199,17 +201,23 @@ abstract class SyncDriver extends DriverBase {
   transaction<T>(run: (query: SyncDriver) => T): T {
     const id = `t${this.transactionId++}`
     this.executeQuery(
-      QueryData.Transaction({op: QueryData.TransactionOperation.Begin, id})
+      new QueryData.Transaction({op: QueryData.TransactionOperation.Begin, id})
     )
     try {
       const res = run(this)
       this.executeQuery(
-        QueryData.Transaction({op: QueryData.TransactionOperation.Commit, id})
+        new QueryData.Transaction({
+          op: QueryData.TransactionOperation.Commit,
+          id
+        })
       )
       return res
     } catch (e) {
       this.executeQuery(
-        QueryData.Transaction({op: QueryData.TransactionOperation.Rollback, id})
+        new QueryData.Transaction({
+          op: QueryData.TransactionOperation.Rollback,
+          id
+        })
       )
       throw e
     }
@@ -280,7 +288,7 @@ abstract class AsyncDriver extends DriverBase {
         if (changes.length) queries.push(...changes)
       }
     }
-    return this.executeQuery(QueryData.Batch({queries}))
+    return this.executeQuery(new QueryData.Batch({queries}))
   }
 
   async executeQuery(
@@ -360,17 +368,23 @@ abstract class AsyncDriver extends DriverBase {
     const id = `t${this.transactionId++}`
     const [connection, release] = this.isolate()
     await connection.executeQuery(
-      QueryData.Transaction({op: QueryData.TransactionOperation.Begin, id})
+      new QueryData.Transaction({op: QueryData.TransactionOperation.Begin, id})
     )
     try {
       const res = await run(connection)
       await connection.executeQuery(
-        QueryData.Transaction({op: QueryData.TransactionOperation.Commit, id})
+        new QueryData.Transaction({
+          op: QueryData.TransactionOperation.Commit,
+          id
+        })
       )
       return res
     } catch (e) {
       await connection.executeQuery(
-        QueryData.Transaction({op: QueryData.TransactionOperation.Rollback, id})
+        new QueryData.Transaction({
+          op: QueryData.TransactionOperation.Rollback,
+          id
+        })
       )
       throw e
     } finally {

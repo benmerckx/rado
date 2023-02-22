@@ -508,7 +508,7 @@ export abstract class Formatter implements Sanitizer {
 
   formatLimit(
     ctx: FormatContext,
-    {limit, offset, singleResult}: QueryData.QueryBase
+    {limit, offset, singleResult}: QueryData
   ): Statement {
     const {stmt, forceInline} = ctx
     if (!limit && !offset && !singleResult) return stmt

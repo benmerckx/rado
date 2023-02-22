@@ -39,7 +39,7 @@
     "better-sqlite3": "^7.5.1",
     "bun-types": "^0.5.0",
     "cross-env": "^7.0.3",
-    "esbuild": "^0.17.7",
+    "esbuild": "^0.17.10",
     "glob": "^8.0.3",
     "rimraf": "^4.1.2",
     "sade": "^1.8.1",
@@ -47,7 +47,7 @@
     "sql.js": "^1.8.0",
     "sqlite3": "^5.1.4",
     "tsx": "^3.12.3",
-    "typescript": "next",
+    "typescript": "beta",
     "uvu": "^0.5.6"
   },
   "volta": {
@@ -55,6 +55,6 @@
   },
   "packageManager": "yarn@3.3.1",
   "resolutions": {
-    "esbuild": "0.17.7"
+    "esbuild": "0.17.10"
   }
 }

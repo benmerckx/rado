@@ -13,14 +13,14 @@ export interface SchemaInstructions {
 export namespace Schema {
   export function create(schema: TableData) {
     const queries = []
-    queries.push(QueryData.CreateTable({table: schema, ifNotExists: true}))
+    queries.push(new QueryData.CreateTable({table: schema, ifNotExists: true}))
     const meta = schema.meta()
     if (meta.indexes)
       for (const index of Object.values(meta.indexes))
         queries.push(
-          QueryData.CreateIndex({table: schema, index, ifNotExists: true})
+          new QueryData.CreateIndex({table: schema, index, ifNotExists: true})
         )
-    return QueryData.Batch({queries})
+    return new QueryData.Batch({queries})
   }
 
   function removeLeadingWhitespace(str: string) {
@@ -36,14 +36,14 @@ export namespace Schema {
 
     // Create a new temporary table with the new definition
     const tempTable = {...table, name: `$$new_${table.name}`}
-    queries.push(QueryData.CreateTable({table: tempTable}))
+    queries.push(new QueryData.CreateTable({table: tempTable}))
 
     // Copy the data from the old table to the new table
     queries.push(
-      QueryData.Insert({
+      new QueryData.Insert({
         into: tempTable,
-        select: QueryData.Select({
-          from: Target.Table(table),
+        select: new QueryData.Select({
+          from: new Target.Table(table),
           selection: new ExprData.Record(
             Object.fromEntries(
               Object.entries(table.columns).map(([key, column]) => [
@@ -53,7 +53,7 @@ export namespace Schema {
                       ? column.defaultValue()
                       : column.defaultValue) || Expr.NULL[Expr.Data]
                   : new ExprData.Field(
-                      new ExprData.Row(Target.Table(table)),
+                      new ExprData.Row(new Target.Table(table)),
                       key
                     )
               ])
@@ -64,11 +64,11 @@ export namespace Schema {
     )
 
     // Drop the old table
-    queries.push(QueryData.DropTable({table, ifExists: true}))
+    queries.push(new QueryData.DropTable({table, ifExists: true}))
 
     // Rename the temporary table to the old table name
     queries.push(
-      QueryData.AlterTable({
+      new QueryData.AlterTable({
         table: table,
         renameTable: {from: tempTable.name}
       })
@@ -76,7 +76,7 @@ export namespace Schema {
 
     // Create missing indexes
     for (const index of Object.values(table.meta().indexes))
-      queries.push(QueryData.CreateIndex({table, index}))
+      queries.push(new QueryData.CreateIndex({table, index}))
 
     return queries
   }
@@ -96,9 +96,13 @@ export namespace Schema {
       const localInstruction = local.columns[columnName]
       const schemaCol = schema.columns[columnName]
       if (!localInstruction) {
-        res.push(QueryData.AlterTable({table: schema, addColumn: schemaCol}))
+        res.push(
+          new QueryData.AlterTable({table: schema, addColumn: schemaCol})
+        )
       } else if (!schemaCol) {
-        res.push(QueryData.AlterTable({table: schema, dropColumn: columnName}))
+        res.push(
+          new QueryData.AlterTable({table: schema, dropColumn: columnName})
+        )
       } else {
         const {sql: instruction} = formatter.formatColumn(
           {stmt: new Statement(formatter)},
@@ -133,19 +137,21 @@ export namespace Schema {
       const localInstruction = local.indexes[indexName]
       const schemaIndex = meta.indexes[indexName]
       if (!localInstruction) {
-        res.push(QueryData.CreateIndex({table: schema, index: schemaIndex}))
+        res.push(new QueryData.CreateIndex({table: schema, index: schemaIndex}))
       } else if (!schemaIndex) {
-        res.unshift(QueryData.DropIndex({table: schema, name: indexName}))
+        res.unshift(new QueryData.DropIndex({table: schema, name: indexName}))
       } else {
         const {sql: instruction} = formatter.compile(
-          QueryData.CreateIndex({table: schema, index: schemaIndex})
+          new QueryData.CreateIndex({table: schema, index: schemaIndex})
         )
         if (
           removeLeadingWhitespace(localInstruction) !==
           removeLeadingWhitespace(instruction)
         ) {
-          res.unshift(QueryData.DropIndex({table: schema, name: indexName}))
-          res.push(QueryData.CreateIndex({table: schema, index: schemaIndex}))
+          res.unshift(new QueryData.DropIndex({table: schema, name: indexName}))
+          res.push(
+            new QueryData.CreateIndex({table: schema, index: schemaIndex})
+          )
         }
       }
     }

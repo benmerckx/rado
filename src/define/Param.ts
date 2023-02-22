@@ -1,6 +1,6 @@
 export enum ParamType {
-  Value = 'Value',
-  Named = 'Named'
+  Value = 'ParamData.Value',
+  Named = 'ParamData.Named'
 }
 
 export namespace ParamData {

@@ -5,11 +5,11 @@ import {Query, QueryData} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
 
+const {fromEntries, entries} = Object
+
 const DATA = Symbol('Expr.Data')
 const TO_EXPR = Symbol('Expr.ToExpr')
 const IS_EXPR = Symbol('Expr.IsExpr')
-
-const {fromEntries, entries} = Object
 
 export enum UnOpType {
   Not = 'Not',
@@ -39,17 +39,17 @@ export enum BinOpType {
 }
 
 export enum ExprType {
-  UnOp = 'UnOp',
-  BinOp = 'BinOp',
-  Field = 'Field',
-  Param = 'Param',
-  Call = 'Call',
-  Query = 'Query',
-  Record = 'Record',
-  Row = 'Row',
-  Map = 'Map',
-  Filter = 'Filter',
-  Merge = 'Merge'
+  UnOp = 'ExprData.UnOp',
+  BinOp = 'ExprData.BinOp',
+  Field = 'ExprData.Field',
+  Param = 'ExprData.Param',
+  Call = 'ExprData.Call',
+  Query = 'ExprData.Query',
+  Record = 'ExprData.Record',
+  Row = 'ExprData.Row',
+  Map = 'ExprData.Map',
+  Filter = 'ExprData.Filter',
+  Merge = 'ExprData.Merge'
 }
 
 export type ExprData =
@@ -352,7 +352,7 @@ export class Expr<T> {
     fn: (cursor: Fields<T>) => Expr<boolean>
   ): Expr<Array<T>> {
     const alias = `__${Math.random().toString(36).slice(2, 9)}`
-    const target = Target.Expr(this[DATA], alias)
+    const target = new Target.Expr(this[DATA], alias)
     return new Expr(
       new ExprData.Filter(
         target,
@@ -366,7 +366,7 @@ export class Expr<T> {
     fn: (cursor: Fields<T>) => X
   ): Expr<Array<Selection.Infer<X>>> {
     const alias = `__${Math.random().toString(36).slice(2, 9)}`
-    const target = Target.Expr(this[DATA], alias)
+    const target = new Target.Expr(this[DATA], alias)
     return new Expr(
       new ExprData.Map(
         target,

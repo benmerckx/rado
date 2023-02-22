@@ -10,21 +10,23 @@ import {Selection} from './Selection'
 import {Table, TableData, createTable} from './Table'
 import {Target} from './Target'
 
+const {assign} = Object
+
 const DATA = Symbol('Query.Data')
 
 export enum QueryType {
-  Insert = 'Insert',
-  Select = 'Select',
-  Update = 'Update',
-  Delete = 'Delete',
-  CreateTable = 'CreateTable',
-  AlterTable = 'AlterTable',
-  DropTable = 'DropTable',
-  CreateIndex = 'CreateIndex',
-  DropIndex = 'DropIndex',
-  Batch = 'Batch',
-  Transaction = 'Transaction',
-  Raw = 'Raw'
+  Insert = 'QueryData.Insert',
+  Select = 'QueryData.Select',
+  Update = 'QueryData.Update',
+  Delete = 'QueryData.Delete',
+  CreateTable = 'QueryData.CreateTable',
+  AlterTable = 'QueryData.AlterTable',
+  DropTable = 'QueryData.DropTable',
+  CreateIndex = 'QueryData.CreateIndex',
+  DropIndex = 'QueryData.DropIndex',
+  Batch = 'QueryData.Batch',
+  Transaction = 'QueryData.Transaction',
+  Raw = 'QueryData.Raw'
 }
 
 export type QueryData =
@@ -42,139 +44,97 @@ export type QueryData =
   | QueryData.Raw
 
 export namespace QueryData {
-  export interface QueryBase {
-    limit?: number
-    offset?: number
-    type: QueryType
-    where?: ExprData
-    orderBy?: Array<OrderBy>
-    groupBy?: Array<ExprData>
-    having?: ExprData
-    selection?: ExprData
-    singleResult?: boolean
-    validate?: boolean
+  abstract class Data<T> {
+    abstract type: QueryType
+    declare limit?: number
+    declare offset?: number
+    declare where?: ExprData
+    declare orderBy?: Array<OrderBy>
+    declare groupBy?: Array<ExprData>
+    declare having?: ExprData
+    declare selection?: ExprData
+    declare singleResult?: boolean
+    declare validate?: boolean
+    constructor(data: Omit<T, 'type'>) {
+      assign(this, data)
+    }
   }
-  export interface Insert extends QueryBase {
-    type: QueryType.Insert
-    into: TableData
-    data?: Array<any>
-    select?: QueryData.Select
+  export class Select extends Data<Select> {
+    type = QueryType.Select as const
+    declare selection: ExprData
+    declare from?: Target
   }
-  export function Insert(insert: Omit<Insert, 'type'>): QueryData.Insert {
-    return {type: QueryType.Insert, ...insert}
+  export class Insert extends Data<Insert> {
+    type = QueryType.Insert as const
+    declare into: TableData
+    declare data?: Array<any>
+    declare select?: QueryData.Select
   }
-  export interface Select extends QueryBase {
-    type: QueryType.Select
-    selection: ExprData
-    from?: Target
+  export class Update extends Data<Update> {
+    type = QueryType.Update as const
+    declare table: TableData
+    declare set?: Record<string, any>
   }
-  export function Select(select: Omit<Select, 'type'>): QueryData.Select {
-    return {type: QueryType.Select, ...select}
+  export class Delete extends Data<Delete> {
+    type = QueryType.Delete as const
+    declare table: TableData
   }
-  export interface Update extends QueryBase {
-    type: QueryType.Update
-    table: TableData
-    set?: Record<string, any>
+  export class CreateTable extends Data<CreateTable> {
+    type = QueryType.CreateTable as const
+    declare table: TableData
+    declare ifNotExists?: boolean
   }
-  export function Update(update: Omit<Update, 'type'>): QueryData.Update {
-    return {type: QueryType.Update, ...update}
+  export class AlterTable extends Data<AlterTable> {
+    type = QueryType.AlterTable as const
+    declare table: TableData
+    declare alterColumn?: ColumnData
+    declare renameColumn?: {from: string; to: string}
+    declare addColumn?: ColumnData
+    declare dropColumn?: string
+    declare renameTable?: {from: string}
   }
-  export interface Delete extends QueryBase {
-    type: QueryType.Delete
-    table: TableData
+  export class DropTable extends Data<DropTable> {
+    type = QueryType.DropTable as const
+    declare table: TableData
+    declare ifExists?: boolean
   }
-  export function Delete(del: Omit<Delete, 'type'>): QueryData.Delete {
-    return {type: QueryType.Delete, ...del}
+  export class CreateIndex extends Data<CreateIndex> {
+    type = QueryType.CreateIndex as const
+    declare table: TableData
+    declare index: IndexData
+    declare ifNotExists?: boolean
   }
-  export interface CreateTable extends QueryBase {
-    type: QueryType.CreateTable
-    table: TableData
-    ifNotExists?: boolean
+  export class DropIndex extends Data<DropIndex> {
+    type = QueryType.DropIndex as const
+    declare table: TableData
+    declare name: string
+    declare ifExists?: boolean
   }
-  export function CreateTable(
-    create: Omit<CreateTable, 'type'>
-  ): QueryData.CreateTable {
-    return {type: QueryType.CreateTable, ...create}
-  }
-  export interface AlterTable extends QueryBase {
-    type: QueryType.AlterTable
-    table: TableData
-    alterColumn?: ColumnData
-    renameColumn?: {from: string; to: string}
-    addColumn?: ColumnData
-    dropColumn?: string
-    renameTable?: {from: string}
-  }
-  export function AlterTable(
-    alter: Omit<AlterTable, 'type'>
-  ): QueryData.AlterTable {
-    return {type: QueryType.AlterTable, ...alter}
-  }
-  export interface DropTable extends QueryBase {
-    type: QueryType.DropTable
-    table: TableData
-    ifExists?: boolean
-  }
-  export function DropTable(
-    drop: Omit<DropTable, 'type'>
-  ): QueryData.DropTable {
-    return {type: QueryType.DropTable, ...drop}
-  }
-  export interface CreateIndex extends QueryBase {
-    type: QueryType.CreateIndex
-    table: TableData
-    index: IndexData
-    ifNotExists?: boolean
-  }
-  export function CreateIndex(
-    create: Omit<CreateIndex, 'type'>
-  ): QueryData.CreateIndex {
-    return {type: QueryType.CreateIndex, ...create}
-  }
-  export interface DropIndex extends QueryBase {
-    type: QueryType.DropIndex
-    table: TableData
-    name: string
-    ifExists?: boolean
-  }
-  export function DropIndex(
-    drop: Omit<DropIndex, 'type'>
-  ): QueryData.DropIndex {
-    return {type: QueryType.DropIndex, ...drop}
-  }
-  export interface Batch extends QueryBase {
-    type: QueryType.Batch
-    queries: Array<QueryData>
-  }
-  export function Batch(batch: Omit<Batch, 'type'>): QueryData.Batch {
-    return {type: QueryType.Batch, ...batch}
+  export class Batch extends Data<Batch> {
+    type = QueryType.Batch as const
+    declare queries: Array<QueryData>
   }
   export enum TransactionOperation {
     Begin = 'Begin',
     Commit = 'Commit',
     Rollback = 'Rollback'
   }
-  export interface Transaction extends QueryBase {
-    type: QueryType.Transaction
-    id: string
-    op: TransactionOperation
-  }
-  export function Transaction(
-    transaction: Omit<Transaction, 'type'>
-  ): QueryData.Transaction {
-    return {type: QueryType.Transaction, ...transaction}
+  export class Transaction extends Data<Transaction> {
+    type = QueryType.Transaction as const
+    declare id: string
+    declare op: TransactionOperation
   }
   export type RawReturn = 'row' | 'rows' | undefined
-  export interface Raw extends QueryBase {
-    type: QueryType.Raw
-    expectedReturn?: 'row' | 'rows'
-    strings: ReadonlyArray<string>
-    params: Array<any>
-  }
-  export function Raw(raw: Omit<Raw, 'type'>): QueryData.Raw {
-    if (raw.strings.some(chunk => chunk.includes('?')))
-      throw new TypeError('SQL injection hazard')
-    return {type: QueryType.Raw, ...raw}
+  export class Raw extends Data<Raw> {
+    type = QueryType.Raw as const
+    declare expectedReturn?: 'row' | 'rows'
+    declare strings: ReadonlyArray<string>
+    declare params: Array<any>
+    constructor(data: Omit<Raw, 'type'>) {
+      if (data.strings.some(chunk => chunk.includes('?')))
+        throw new TypeError('SQL injection hazard')
+      super(data)
+    }
   }
 }
 
@@ -187,12 +147,14 @@ export class Query<T> {
   }
 
   static all(strings: TemplateStringsArray, ...params: Array<any>): Query<any> {
-    return new Query(QueryData.Raw({expectedReturn: 'rows', strings, params}))
+    return new Query(
+      new QueryData.Raw({expectedReturn: 'rows', strings, params})
+    )
   }
 
   next<T>(cursor: Query<T>): Query<T> {
     return new Query<T>(
-      QueryData.Batch({
+      new QueryData.Batch({
         queries: [this[DATA], cursor[DATA]]
       })
     )
@@ -272,7 +234,7 @@ export namespace Query {
       selection: X
     ): InsertValuesReturning<Selection.Infer<X>> {
       return new InsertValuesReturning<Selection.Infer<X>>(
-        QueryData.Insert({
+        new QueryData.Insert({
           ...this[DATA],
           selection: ExprData.create(selection)
         })
@@ -285,12 +247,12 @@ export namespace Query {
 
     selection(query: Query.SelectMultiple<Table.Select<Definition>>): Inserted {
       return new Inserted(
-        QueryData.Insert({into: this.into, select: query[DATA]})
+        new QueryData.Insert({into: this.into, select: query[DATA]})
       )
     }
 
     values(...data: Array<Table.Insert<Definition>>): Inserted {
-      return new Inserted(QueryData.Insert({into: this.into, data}))
+      return new Inserted(new QueryData.Insert({into: this.into, data}))
     }
   }
 
@@ -304,12 +266,12 @@ export namespace Query {
     declare [DATA]: QueryData.Batch
 
     constructor(protected queries: Array<QueryData>) {
-      super(QueryData.Batch({queries}))
+      super(new QueryData.Batch({queries}))
     }
 
     next<T>(cursor: Query<T>): Query<T> {
       return new Query<T>(
-        QueryData.Batch({
+        new QueryData.Batch({
           queries: [...this[DATA].queries, cursor[DATA]]
         })
       )
@@ -325,14 +287,14 @@ export namespace Query {
     const toQuery = Query.isQuery(to)
       ? (to[DATA] as QueryData.Select)
       : undefined
-    const target = toQuery ? toQuery.from : Target.Table(to[Table.Data])
+    const target = toQuery ? toQuery.from : new Target.Table(to[Table.Data])
     if (!query.from || !target) throw new Error('No from clause')
     const conditions = [...on]
     if (toQuery) {
       const where = toQuery.where
       if (where) conditions.push(new Expr(where))
     }
-    return Target.Join(
+    return new Target.Join(
       query.from,
       target,
       joinType,
@@ -440,9 +402,9 @@ export namespace Query {
       protected table: TableData,
       conditions: Array<EV<boolean>> = []
     ) {
-      const target = Target.Table(table)
+      const target = new Target.Table(table)
       super(
-        QueryData.Select({
+        new QueryData.Select({
           from: target,
           selection: new ExprData.Row(target),
           where: Expr.and(...conditions)[Expr.Data]
@@ -460,16 +422,16 @@ export namespace Query {
 
     insertSelect(query: SelectMultiple<Table.Insert<Definition>>) {
       return new Query.Inserted(
-        QueryData.Insert({into: this.table, select: query[DATA]})
+        new QueryData.Insert({into: this.table, select: query[DATA]})
       )
     }
 
     insertOne(record: Table.Insert<Definition>) {
       return new Query<Table.Select<Definition>>(
-        QueryData.Insert({
+        new QueryData.Insert({
           into: this.table,
           data: [record],
-          selection: new ExprData.Row(Target.Table(this.table)),
+          selection: new ExprData.Row(new Target.Table(this.table)),
           singleResult: true
         })
       )
@@ -481,7 +443,7 @@ export namespace Query {
 
     set(data: Table.Update<Definition>) {
       return new Query.Update<Definition>(
-        QueryData.Update({
+        new QueryData.Update({
           table: this.table,
           where: this[DATA].where
         })
@@ -490,7 +452,7 @@ export namespace Query {
 
     delete() {
       return new Query.Delete(
-        QueryData.Delete({
+        new QueryData.Delete({
           table: this.table,
           where: this[DATA].where
         })
@@ -499,7 +461,7 @@ export namespace Query {
 
     get(name: string): Expr<any> {
       return new Expr(
-        new ExprData.Field(new ExprData.Row(Target.Table(this.table)), name)
+        new ExprData.Field(new ExprData.Row(new Target.Table(this.table)), name)
       )
     }
   }

@@ -29,6 +29,9 @@ test('json', async () => {
   const res1 = await query(q)
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 1)
+  // Todo: this will require:
+  // - stripping schema data when serializing
+  // - validation when reviving
   const res2: typeof res1 = await query(new Query(q.toJSON()))!
   assert.is(res2.fieldA, 12)
   assert.is(res2.fieldB, 1)
