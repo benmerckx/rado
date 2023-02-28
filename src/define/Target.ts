@@ -1,6 +1,6 @@
-import {ExprData} from './Expr'
-import {QueryData} from './Query'
-import {TableData} from './Table'
+import type {ExprData} from './Expr'
+import type {QueryData} from './Query'
+import type {TableData} from './Table'
 
 export enum TargetType {
   Expr = 'Target.Expr',

@@ -55,10 +55,6 @@ abstract class DriverBase extends Callable {
     return this.executeTemplate('row', input, ...rest)
   }
 
-  sql(strings: TemplateStringsArray, ...params: Array<any>) {
-    return new Query(new QueryData.Raw({strings, params}))
-  }
-
   executeTemplate(
     expectedReturn: QueryData.RawReturn,
     strings: TemplateStringsArray,
