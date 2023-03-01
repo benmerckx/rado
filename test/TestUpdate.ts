@@ -7,10 +7,10 @@ const User = table({
   User: class {
     id = column.integer().primaryKey<'user'>()
     name = column.object<{given: string; last: string}>()
-    booleanValue = column.boolean().defaultValue(false)
+    booleanValue = column.boolean().default(false)
     email = column.string().nullable()
     roles = column.array<string[]>().nullable()
-    deep = column.array<{prop: number}[]>().defaultValue([])
+    deep = column.array<{prop: number}[]>().default([])
   }
 })
 type User = table<typeof User>

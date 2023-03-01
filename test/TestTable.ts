@@ -13,7 +13,7 @@ const Notification = table({
     surveys = column.array()
     sendAt = column.string()
     sentAt = column.string().nullable()
-    completed = column.boolean().defaultValue(false)
+    completed = column.boolean().default(false)
     completedAt = column.string().nullable()
 
     protected [table.meta]() {

@@ -14,14 +14,14 @@ const columns = {
   object: column.object,
   nullableCol: column.string.nullable,
   nullableArray: column.nullable.array<number[]>(),
-  defaultString: column.string.defaultValue("'with quotes'"),
-  defaultNumber: column.number.defaultValue(123),
-  defaultBoolean: column.boolean.defaultValue(true),
-  defaultBoolean2: column.boolean.defaultValue(false),
-  defaultFloat: column.number.defaultValue(1.23),
-  defaultArray: column.array<number[]>().defaultValue([1, 2, 3]),
+  defaultString: column.string.default("'with quotes'"),
+  defaultNumber: column.number.default(123),
+  defaultBoolean: column.boolean.default(true),
+  defaultBoolean2: column.boolean.default(false),
+  defaultFloat: column.number.default(1.23),
+  defaultArray: column.array<number[]>().default([1, 2, 3]),
   defaultObject: column.object.defaultValue({a: 1, b: 2, c: 3}),
-  createdAt: column.string.defaultValue(datetime('now', 'localtime'))
+  createdAt: column.string.default(datetime('now', 'localtime'))
 }
 
 const TestTable = table({Test: columns})
@@ -34,7 +34,7 @@ test('Create table', async () => {
 test('Add col', async () => {
   const db = await connect()
   await TestTable().create().on(db)
-  const createdAt = column.string().defaultValue(datetime('now', 'localtime'))
+  const createdAt = column.string().default(datetime('now', 'localtime'))
   const Start = table({
     test: {
       id: column.integer().primaryKey(),
@@ -48,9 +48,9 @@ test('Add col', async () => {
     test: class AddCol {
       id = column.integer().primaryKey<AddCol>()
       createdAt = createdAt
-      text = column.number().defaultValue(2)
-      newCol = column.string().defaultValue('def')
-      isFalse = column.boolean().defaultValue(false)
+      text = column.number().default(2)
+      newCol = column.string().default('def')
+      isFalse = column.boolean().default(false)
 
       protected [table.meta]() {
         return {

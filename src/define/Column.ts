@@ -91,7 +91,7 @@ class ValueColumn<T> extends Callable implements Column<T> {
     })
   }
 
-  defaultValue(value: DefaultValue<T>): OptionalColumn<T> {
+  default(value: DefaultValue<T>): OptionalColumn<T> {
     return new OptionalColumn({
       ...this[DATA],
       defaultValue: createDefaultValue(value)
