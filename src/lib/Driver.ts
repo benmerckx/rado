@@ -143,7 +143,7 @@ abstract class SyncDriver extends DriverBase {
         const compiled = stmt ? undefined : this.formatter.compile(query)
         stmt = stmt || this.prepareStatement(compiled!, true)
         params = params || compiled!.params()
-        if ('selection' in query) {
+        if ('selection' in query || query.type === QueryType.Union) {
           const res = stmt
             .all<{result: string}>(params)
             .map(row => JSON.parse(row.result).result)
@@ -306,7 +306,7 @@ abstract class AsyncDriver extends DriverBase {
         const compiled = stmt ? undefined : this.formatter.compile(query)
         stmt = stmt || this.prepareStatement(compiled!, true)
         params = params || compiled!.params()
-        if ('selection' in query) {
+        if ('selection' in query || query.type === QueryType.Union) {
           const res = (await stmt.all<{result: string}>(params)).map(
             item => JSON.parse(item.result).result
           )

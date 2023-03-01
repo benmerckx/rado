@@ -4,14 +4,24 @@ import type {TableData} from './Table'
 
 export enum TargetType {
   Expr = 'Target.Expr',
+  CTE = 'Target.CTE',
   Query = 'Target.Query',
   Table = 'Target.Table',
   Join = 'Target.Join'
 }
 
-export type Target = Target.Expr | Target.Query | Target.Table | Target.Join
+export type Target =
+  | Target.Expr
+  | Target.CTE
+  | Target.Query
+  | Target.Table
+  | Target.Join
 
 export namespace Target {
+  export class CTE {
+    type = TargetType.CTE as const
+    constructor(public name: string, public union: QueryData.Union) {}
+  }
   export class Expr {
     type = TargetType.Expr as const
     constructor(public expr: ExprData, public alias?: string) {}

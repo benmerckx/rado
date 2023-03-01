@@ -34,6 +34,13 @@ const joins = {
   inner: 'INNER'
 }
 
+const unions = {
+  [QueryData.UnionOperation.Union]: 'UNION',
+  [QueryData.UnionOperation.UnionAll]: 'UNION ALL',
+  [QueryData.UnionOperation.Intersect]: 'INTERSECT',
+  [QueryData.UnionOperation.Except]: 'EXCEPT'
+}
+
 export interface FormatContext {
   stmt: Statement
   nameResult?: string
@@ -83,7 +90,7 @@ export abstract class Formatter implements Sanitizer {
       this.createContext({topLevel: true, ...options}),
       query
     )
-    //console.log(result.sql)
+    // console.log(result.sql)
     return result
   }
 
@@ -95,6 +102,8 @@ export abstract class Formatter implements Sanitizer {
     switch (query.type) {
       case QueryType.Select:
         return this.formatSelect(ctx, query)
+      case QueryType.Union:
+        return this.formatUnion(ctx, query)
       case QueryType.Insert:
         return this.formatInsert(ctx, query)
       case QueryType.Update:
@@ -125,21 +134,47 @@ export abstract class Formatter implements Sanitizer {
     query: QueryData.Select
   ): Statement {
     const {stmt} = ctx
-    stmt.raw('SELECT').space()
-    this.formatSelection(
-      ctx,
-      query.selection,
-      topLevel ? formatAsResultObject : undefined
-    )
-    if (query.from) {
-      stmt.addLine('FROM').space()
-      this.formatTarget(ctx, query.from)
+    switch (query.from?.type) {
+      case TargetType.CTE:
+        stmt
+          .add('WITH RECURSIVE')
+          .addIdentifier(query.from.name)
+          .add('AS')
+          .space()
+          .openParenthesis()
+        this.formatUnion(
+          {...ctx, topLevel: false, selectAsColumns: true},
+          query.from.union
+        )
+        stmt.closeParenthesis().space()
+      default:
+        stmt.raw('SELECT').space()
+        this.formatSelection(
+          ctx,
+          query.selection,
+          topLevel ? formatAsResultObject : undefined
+        )
+        if (query.from) {
+          stmt.addLine('FROM').space()
+          this.formatTarget(ctx, query.from)
+        }
+        this.formatWhere(ctx, query.where)
+        this.formatGroupBy(ctx, query.groupBy)
+        this.formatHaving(ctx, query.having)
+        this.formatOrderBy(ctx, query.orderBy)
+        this.formatLimit(ctx, query)
+        return stmt
     }
-    this.formatWhere(ctx, query.where)
-    this.formatGroupBy(ctx, query.groupBy)
-    this.formatHaving(ctx, query.having)
-    this.formatOrderBy(ctx, query.orderBy)
-    this.formatLimit(ctx, query)
+  }
+
+  formatUnion(
+    ctx: FormatContext,
+    {a, operator, b}: QueryData.Union
+  ): Statement {
+    const {stmt} = ctx
+    this.format(ctx, a)
+    stmt.add(unions[operator]).space()
+    this.format(ctx, b)
     return stmt
   }
 
@@ -454,6 +489,8 @@ export abstract class Formatter implements Sanitizer {
         stmt.closeParenthesis()
         if (target.alias) stmt.add('AS').addIdentifier(target.alias)
         return stmt
+      case TargetType.CTE:
+        return stmt.addIdentifier(target.name)
       case TargetType.Expr:
         throw new Error('Cannot format expression as target')
     }
@@ -801,6 +838,7 @@ export abstract class Formatter implements Sanitizer {
       const inner = {...ctx, selectAsColumns: false}
       for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
         this.formatExprJson(inner, value)
+        stmt.add('AS').addIdentifier(key)
       }
       return stmt
     }

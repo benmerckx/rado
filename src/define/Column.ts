@@ -86,7 +86,7 @@ class ValueColumn<T> extends Callable implements Column<T> {
     return new ValueColumn({
       ...this[DATA],
       references() {
-        return ExprData.create(Expr.isExpr(column) ? column : column())
+        return ExprData.create(Expr.isExpr<X>(column) ? column : column())
       }
     })
   }
@@ -169,7 +169,7 @@ class UnTyped extends Callable {
   }
 
   get nullable(): NullableUnTyped {
-    return new UnTyped({...this[DATA], nullable: true})
+    return new UnTyped({...this[DATA], nullable: true}) as NullableUnTyped
   }
 
   get unique(): UnTyped {
