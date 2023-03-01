@@ -11,7 +11,7 @@ import {Selection} from './Selection'
 import {createTable, Table, TableData} from './Table'
 import {Target} from './Target'
 
-const {assign, create, keys} = Object
+const {assign} = Object
 
 const DATA = Symbol('Query.Data')
 
