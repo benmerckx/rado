@@ -28,17 +28,16 @@ test('intersect', async () => {
 
 test('recursive union', async () => {
   const startDay = '2021-01-01'
-  const endDay = '2021-01-03'
-  const query = select({day: startDay}).recursiveUnion(({days}) =>
-    days()
-      .select({day: date(days.day, '+1 day')})
-      .where(days.day.isLess(endDay))
+  const endDay = '2021-01-04'
+  const query = select({day: startDay}).recursiveUnion(({Day}) =>
+    Day(Day.day.isLess(endDay)).select({day: date(Day.day, '+1 day')})
   )
   const res = await db(query)
   assert.equal(res, [
     {day: '2021-01-01'},
     {day: '2021-01-02'},
-    {day: '2021-01-03'}
+    {day: '2021-01-03'},
+    {day: '2021-01-04'}
   ])
 })
 

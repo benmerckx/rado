@@ -1,16 +1,17 @@
 import {Driver} from '../lib/Driver'
 import {CompileOptions} from '../lib/Formatter'
 import {ColumnData} from './Column'
+import {makeRecursiveUnion} from './CTE'
 import {EV, Expr, ExprData} from './Expr'
 import {Functions} from './Functions'
 import {IndexData} from './Index'
 import {OrderBy} from './OrderBy'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
-import {Table, TableData, createTable, virtualTable} from './Table'
+import {createTable, Table, TableData} from './Table'
 import {Target} from './Target'
 
-const {assign, create} = Object
+const {assign, create, keys} = Object
 
 const DATA = Symbol('Query.Data')
 
@@ -76,7 +77,6 @@ export namespace QueryData {
     declare a: Select | Union
     declare operator: UnionOperation
     declare b: Select | Union
-    declare recursive?: string
   }
   export class Select extends Data<Select> {
     type = QueryType.Select as const
@@ -303,19 +303,6 @@ export namespace Query {
     }
   }
 
-  function mkCte<T>(createQuery: (target: any) => T) {
-    let name: string | undefined
-    const target = new Proxy(create(null), {
-      get(_, key: string) {
-        name = key
-        return virtualTable(name)
-      }
-    })
-    const query = createQuery(target)
-    if (!name) throw new TypeError('No CTE name provided')
-    return [name, query] as const
-  }
-
   export class Union<Row> extends Query<Array<Row>> {
     declare [DATA]: QueryData.Union | QueryData.Select
 
@@ -329,44 +316,12 @@ export namespace Query {
       )
     }
 
-    recursiveUnion(
-      create: (
-        fields: Record<string, Table.Of<Row>>
-      ) => SelectMultiple<Row> | Union<Row>
-    ): Union<Row> {
-      const [recursive, b] = mkCte(create)
-      return new Union(
-        new QueryData.Union({
-          a: this[DATA],
-          operator: QueryData.UnionOperation.Union,
-          b: b[DATA],
-          recursive
-        })
-      )
-    }
-
     unionAll(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
       return new Union(
         new QueryData.Union({
           a: this[DATA],
           operator: QueryData.UnionOperation.UnionAll,
           b: query[DATA]
-        })
-      )
-    }
-
-    recursiveUnionAll(
-      create: (
-        fields: Record<string, Table.Of<Row>>
-      ) => SelectMultiple<Row> | Union<Row>
-    ): Union<Row> {
-      const [recursive, b] = mkCte(create)
-      return new Union(
-        new QueryData.Union({
-          a: this[DATA],
-          operator: QueryData.UnionOperation.UnionAll,
-          b: b[DATA],
-          recursive
         })
       )
     }
@@ -517,6 +472,30 @@ export namespace Query {
 
     skip(offset: number | undefined): SelectMultiple<Row> {
       return new SelectMultiple(this[DATA].with({offset}))
+    }
+
+    recursiveUnion(
+      create: (
+        fields: Record<string, Table.Of<Row>>
+      ) => SelectMultiple<Row> | Union<Row>
+    ): SelectMultiple<Row> {
+      return new SelectMultiple(
+        makeRecursiveUnion(this[DATA], create, QueryData.UnionOperation.Union)
+      )
+    }
+
+    recursiveUnionAll(
+      create: (
+        fields: Record<string, Table.Of<Row>>
+      ) => SelectMultiple<Row> | Union<Row>
+    ): SelectMultiple<Row> {
+      return new SelectMultiple(
+        makeRecursiveUnion(
+          this[DATA],
+          create,
+          QueryData.UnionOperation.UnionAll
+        )
+      )
     }
 
     [Expr.ToExpr](): Expr<Row> {

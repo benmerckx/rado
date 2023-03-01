@@ -134,44 +134,47 @@ export abstract class Formatter implements Sanitizer {
     query: QueryData.Select
   ): Statement {
     const {stmt} = ctx
-    stmt.raw('SELECT').space()
-    this.formatSelection(
-      ctx,
-      query.selection,
-      topLevel ? formatAsResultObject : undefined
-    )
-    if (query.from) {
-      stmt.addLine('FROM').space()
-      this.formatTarget(ctx, query.from)
+    switch (query.from?.type) {
+      case TargetType.CTE:
+        stmt
+          .add('WITH RECURSIVE')
+          .addIdentifier(query.from.name)
+          .add('AS')
+          .space()
+          .openParenthesis()
+        this.formatUnion(
+          {...ctx, topLevel: false, selectAsColumns: true},
+          query.from.union
+        )
+        stmt.closeParenthesis().space()
+      default:
+        stmt.raw('SELECT').space()
+        this.formatSelection(
+          ctx,
+          query.selection,
+          topLevel ? formatAsResultObject : undefined
+        )
+        if (query.from) {
+          stmt.addLine('FROM').space()
+          this.formatTarget(ctx, query.from)
+        }
+        this.formatWhere(ctx, query.where)
+        this.formatGroupBy(ctx, query.groupBy)
+        this.formatHaving(ctx, query.having)
+        this.formatOrderBy(ctx, query.orderBy)
+        this.formatLimit(ctx, query)
+        return stmt
     }
-    this.formatWhere(ctx, query.where)
-    this.formatGroupBy(ctx, query.groupBy)
-    this.formatHaving(ctx, query.having)
-    this.formatOrderBy(ctx, query.orderBy)
-    this.formatLimit(ctx, query)
-    return stmt
   }
 
   formatUnion(
     ctx: FormatContext,
-    {a, operator, b, recursive}: QueryData.Union
+    {a, operator, b}: QueryData.Union
   ): Statement {
     const {stmt} = ctx
-    if (recursive) {
-      stmt
-        .add('WITH RECURSIVE')
-        .addIdentifier(recursive)
-        .add('AS')
-        .openParenthesis()
-    }
-    this.format({...ctx, topLevel: false, selectAsColumns: true}, a)
+    this.format(ctx, a)
     stmt.add(unions[operator]).space()
-    this.format({...ctx, topLevel: false, selectAsColumns: true}, b)
-    if (recursive) {
-      stmt.closeParenthesis()
-      // Todo: how to list columns here, we'll need more info
-      stmt.add('SELECT * FROM').addIdentifier(recursive)
-    }
+    this.format(ctx, b)
     return stmt
   }
 
@@ -486,6 +489,8 @@ export abstract class Formatter implements Sanitizer {
         stmt.closeParenthesis()
         if (target.alias) stmt.add('AS').addIdentifier(target.alias)
         return stmt
+      case TargetType.CTE:
+        return stmt.addIdentifier(target.name)
       case TargetType.Expr:
         throw new Error('Cannot format expression as target')
     }
