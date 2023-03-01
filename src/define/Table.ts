@@ -162,7 +162,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   return call
 }
 
-export function table<T extends Blueprint<T>>(
+export function table<T extends {}>(
   define: Record<string, T | Define<T>>
 ): Table<T> {
   const names = keys(define)
@@ -176,8 +176,12 @@ export function table<T extends Blueprint<T>>(
       name,
       definition,
       columns: fromEntries(
-        entries(getOwnPropertyDescriptors(columns)).map(
-          ([name, descriptor]) => {
+        entries(getOwnPropertyDescriptors(columns))
+          .filter(([name]) => {
+            const column = columns[name]
+            return Column.isColumn(column)
+          })
+          .map(([name, descriptor]) => {
             const column = columns[name]
             const data = column[Column.Data]
             if (!data.type) throw new Error(`Column ${name} has no type`)
@@ -190,8 +194,7 @@ export function table<T extends Blueprint<T>>(
                 enumerable: descriptor.enumerable
               }
             ]
-          }
-        )
+          })
       ),
       meta() {
         const createMeta = (res as any)[table.meta]

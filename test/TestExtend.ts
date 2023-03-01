@@ -5,15 +5,15 @@ import {connect} from './DbSuite'
 
 const User = table({
   user: class {
-    id = column.integer().primaryKey()
-    firstName = column.string()
-    lastName = column.string()
+    id = column.integer.primaryKey()
+    firstName = column.string
+    lastName = column.string
 
-    name() {
+    get name() {
       return this.firstName.concat(' ').concat(this.lastName)
     }
 
-    roles() {
+    get roles() {
       return Role({id: UserRoles.roleId}).innerJoin(
         UserRoles({userId: this.id})
       )
@@ -23,10 +23,10 @@ const User = table({
 
 const Role = table({
   role: class {
-    id = column.integer().primaryKey<'role'>()
-    name = column.string()
+    id = column.integer.primaryKey<'role'>()
+    name = column.string
 
-    users() {
+    get users() {
       return User({id: UserRoles.userId}).innerJoin(
         UserRoles({roleId: this.id})
       )
@@ -36,8 +36,8 @@ const Role = table({
 
 const UserRoles = table({
   user_roles: class {
-    userId = column.integer().references(() => User.id)
-    roleId = column.integer().references(() => Role.id)
+    userId = column.integer.references(() => User.id)
+    roleId = column.integer.references(() => Role.id)
 
     protected [table.meta](): TableMeta {
       return {
@@ -71,8 +71,8 @@ test('Extend', async () => {
     .on(db)
   const Aliased = User().as('Aliased')
   const query = Aliased().maybeFirst().select({
-    name: Aliased.name(),
-    roles: Aliased.roles()
+    name: Aliased.name,
+    roles: Aliased.roles
   })
   const user = await query.on(db)
   assert.equal(user, {

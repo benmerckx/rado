@@ -41,6 +41,10 @@ export namespace Column {
   export declare const IsOptional: unique symbol
   export declare const IsNullable: unique symbol
   export declare const IsPrimary: unique symbol
+
+  export function isColumn<T>(input: any): input is Column<T> {
+    return Boolean(input[DATA])
+  }
 }
 
 interface ValueColumn<T> extends Expr<T> {
