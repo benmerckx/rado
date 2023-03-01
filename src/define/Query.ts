@@ -474,21 +474,23 @@ export namespace Query {
       return new SelectMultiple(this[DATA].with({offset}))
     }
 
-    recursiveUnion(
+    recursiveUnion<T extends {}>(
+      this: SelectMultiple<T>,
       create: (
-        fields: Record<string, Table.Of<Row>>
-      ) => SelectMultiple<Row> | Union<Row>
-    ): SelectMultiple<Row> {
+        fields: Record<string, Table.Of<T>>
+      ) => SelectMultiple<T> | Union<T>
+    ): SelectMultiple<T> {
       return new SelectMultiple(
         makeRecursiveUnion(this[DATA], create, QueryData.UnionOperation.Union)
       )
     }
 
-    recursiveUnionAll(
+    recursiveUnionAll<T extends {}>(
+      this: SelectMultiple<T>,
       create: (
-        fields: Record<string, Table.Of<Row>>
-      ) => SelectMultiple<Row> | Union<Row>
-    ): SelectMultiple<Row> {
+        fields: Record<string, Table.Of<T>>
+      ) => SelectMultiple<T> | Union<T>
+    ): SelectMultiple<T> {
       return new SelectMultiple(
         makeRecursiveUnion(
           this[DATA],
