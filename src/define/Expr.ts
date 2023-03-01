@@ -394,7 +394,7 @@ export namespace Expr {
   }
 
   export function create<T>(input: EV<T>): Expr<T> {
-    if (isExpr(input)) return input
+    if (isExpr<T>(input)) return input
     return new Expr(ExprData.create(input))
   }
 

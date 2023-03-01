@@ -6,6 +6,7 @@ import {
   PrimaryColumn
 } from './Column'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
+import {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import {Query} from './Query'
 import {Selection} from './Selection'
@@ -13,6 +14,7 @@ import {Target} from './Target'
 
 const {
   assign,
+  create,
   keys,
   entries,
   fromEntries,
@@ -71,7 +73,7 @@ export namespace Table {
   export const Meta: typeof META = META
 
   export type Of<Row> = Table<{
-    [K in keyof Row as K extends string ? K : never]: Column<Row[K]>
+    [K in keyof Row as K extends string ? K : never]: Fields<Row[K]>
   }>
 
   export type Select<Definition> = {
@@ -120,6 +122,42 @@ interface Define<T> {
 }
 
 export type table<T> = T extends Table<infer D> ? Table.Select<D> : never
+
+export function virtualTable<Definition>(name: string): Table<Definition> {
+  const data = new TableData({
+    name,
+    columns: {},
+    definition: create(null),
+    meta: () => ({indexes: {}})
+  })
+  const target = new Target.Table(data)
+  const cache = create(null)
+  function call(...args: Array<any>) {
+    const isConditionalRecord = args.length === 1 && !Expr.isExpr(args[0])
+    const conditions = isConditionalRecord
+      ? entries(args[0]).map(([key, value]) => {
+          return new Expr(
+            new ExprData.BinOp(
+              BinOpType.Equals,
+              new ExprData.Field(new ExprData.Row(target), key),
+              ExprData.create(value)
+            )
+          )
+        })
+      : args
+    return new Query.TableSelect<Definition>(data, conditions)
+  }
+  return new Proxy(<any>call, {
+    get(_, column: symbol | string) {
+      if (column === DATA) return data
+      if (column === Expr.ToExpr) return new Expr(new ExprData.Row(target))
+      if (column in cache) return cache[column]
+      return (cache[column] = new Expr(
+        new ExprData.Field(new ExprData.Row(target), <string>column)
+      )).dynamic()
+    }
+  })
+}
 
 export function createTable<Definition>(data: TableData): Table<Definition> {
   const target = new Target.Table(data)

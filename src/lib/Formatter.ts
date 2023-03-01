@@ -34,6 +34,13 @@ const joins = {
   inner: 'INNER'
 }
 
+const unions = {
+  [QueryData.UnionOperation.Union]: 'UNION',
+  [QueryData.UnionOperation.UnionAll]: 'UNION ALL',
+  [QueryData.UnionOperation.Intersect]: 'INTERSECT',
+  [QueryData.UnionOperation.Except]: 'EXCEPT'
+}
+
 export interface FormatContext {
   stmt: Statement
   nameResult?: string
@@ -83,7 +90,7 @@ export abstract class Formatter implements Sanitizer {
       this.createContext({topLevel: true, ...options}),
       query
     )
-    //console.log(result.sql)
+    // console.log(result.sql)
     return result
   }
 
@@ -95,6 +102,8 @@ export abstract class Formatter implements Sanitizer {
     switch (query.type) {
       case QueryType.Select:
         return this.formatSelect(ctx, query)
+      case QueryType.Union:
+        return this.formatUnion(ctx, query)
       case QueryType.Insert:
         return this.formatInsert(ctx, query)
       case QueryType.Update:
@@ -140,6 +149,29 @@ export abstract class Formatter implements Sanitizer {
     this.formatHaving(ctx, query.having)
     this.formatOrderBy(ctx, query.orderBy)
     this.formatLimit(ctx, query)
+    return stmt
+  }
+
+  formatUnion(
+    ctx: FormatContext,
+    {a, operator, b, recursive}: QueryData.Union
+  ): Statement {
+    const {stmt} = ctx
+    if (recursive) {
+      stmt
+        .add('WITH RECURSIVE')
+        .addIdentifier(recursive)
+        .add('AS')
+        .openParenthesis()
+    }
+    this.format({...ctx, topLevel: false, selectAsColumns: true}, a)
+    stmt.add(unions[operator]).space()
+    this.format({...ctx, topLevel: false, selectAsColumns: true}, b)
+    if (recursive) {
+      stmt.closeParenthesis()
+      // Todo: how to list columns here, we'll need more info
+      stmt.add('SELECT * FROM').addIdentifier(recursive)
+    }
     return stmt
   }
 
@@ -801,6 +833,7 @@ export abstract class Formatter implements Sanitizer {
       const inner = {...ctx, selectAsColumns: false}
       for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
         this.formatExprJson(inner, value)
+        stmt.add('AS').addIdentifier(key)
       }
       return stmt
     }

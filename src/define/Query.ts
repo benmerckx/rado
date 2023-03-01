@@ -7,16 +7,17 @@ import {IndexData} from './Index'
 import {OrderBy} from './OrderBy'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
-import {Table, TableData, createTable} from './Table'
+import {Table, TableData, createTable, virtualTable} from './Table'
 import {Target} from './Target'
 
-const {assign} = Object
+const {assign, create} = Object
 
 const DATA = Symbol('Query.Data')
 
 export enum QueryType {
   Insert = 'QueryData.Insert',
   Select = 'QueryData.Select',
+  Union = 'QueryData.Union',
   Update = 'QueryData.Update',
   Delete = 'QueryData.Delete',
   CreateTable = 'QueryData.CreateTable',
@@ -32,6 +33,7 @@ export enum QueryType {
 export type QueryData =
   | QueryData.Insert
   | QueryData.Select
+  | QueryData.Union
   | QueryData.Update
   | QueryData.Delete
   | QueryData.CreateTable
@@ -55,14 +57,35 @@ export namespace QueryData {
     declare selection?: ExprData
     declare singleResult?: boolean
     declare validate?: boolean
-    constructor(data: Omit<T, 'type'>) {
+    constructor(data: Omit<T, 'type' | 'with'>) {
       assign(this, data)
     }
+    with(data: Partial<T>) {
+      return new (this.constructor as any)({...this, ...data})
+    }
+  }
+
+  export enum UnionOperation {
+    Union = 'Union',
+    UnionAll = 'UnionAll',
+    Intersect = 'Intersect',
+    Except = 'Except'
+  }
+  export class Union extends Data<Union> {
+    type = QueryType.Union as const
+    declare a: Select | Union
+    declare operator: UnionOperation
+    declare b: Select | Union
+    declare recursive?: string
   }
   export class Select extends Data<Select> {
     type = QueryType.Select as const
     declare selection: ExprData
     declare from?: Target
+    declare union?: Select
+    declare unionAll?: Select
+    declare intersect?: Select
+    declare except?: Select
   }
   export class Insert extends Data<Insert> {
     type = QueryType.Insert as const
@@ -130,7 +153,7 @@ export namespace QueryData {
     declare expectedReturn?: 'row' | 'rows'
     declare strings: ReadonlyArray<string>
     declare params: Array<any>
-    constructor(data: Omit<Raw, 'type'>) {
+    constructor(data: Omit<Raw, 'type' | 'with'>) {
       if (data.strings.some(chunk => chunk.includes('?')))
         throw new TypeError('SQL injection hazard')
       super(data)
@@ -154,9 +177,11 @@ export class Query<T> {
 
   next<T>(cursor: Query<T>): Query<T> {
     return new Query<T>(
-      new QueryData.Batch({
-        queries: [this[DATA], cursor[DATA]]
-      })
+      new QueryData.Batch(
+        this[DATA].with({
+          queries: [this[DATA], cursor[DATA]]
+        })
+      )
     )
   }
 
@@ -175,13 +200,13 @@ export class Query<T> {
   }
 }
 
-function addWhere<T extends QueryData>(query: T, where: Array<EV<boolean>>): T {
+function addWhere<T extends QueryData>(
+  query: T,
+  where: Array<EV<boolean>>
+): ExprData | undefined {
   const conditions: Array<any> = where.slice()
   if (query.where) conditions.push(new Expr(query.where))
-  return {
-    ...query,
-    where: Expr.and(...conditions)[Expr.Data]
-  }
+  return Expr.and(...conditions)[Expr.Data]
 }
 
 export namespace Query {
@@ -189,15 +214,15 @@ export namespace Query {
     declare [DATA]: QueryData.Delete
 
     where(...where: Array<EV<boolean>>): Delete {
-      return new Delete(addWhere(this[DATA], where))
+      return new Delete(this[DATA].with({where: addWhere(this[DATA], where)}))
     }
 
     take(limit: number | undefined): Delete {
-      return new Delete({...this[DATA], limit})
+      return new Delete(this[DATA].with({limit}))
     }
 
     skip(offset: number | undefined): Delete {
-      return new Delete({...this[DATA], offset})
+      return new Delete(this[DATA].with({offset}))
     }
   }
 
@@ -205,19 +230,19 @@ export namespace Query {
     declare [DATA]: QueryData.Update
 
     set(set: Table.Update<Definition>): Update<Definition> {
-      return new Update({...this[DATA], set})
+      return new Update(this[DATA].with({set}))
     }
 
     where(...where: Array<EV<boolean>>): Update<Definition> {
-      return new Update(addWhere(this[DATA], where))
+      return new Update(this[DATA].with({where: addWhere(this[DATA], where)}))
     }
 
     take(limit: number | undefined): Update<Definition> {
-      return new Update({...this[DATA], limit})
+      return new Update(this[DATA].with({limit}))
     }
 
     skip(offset: number | undefined): Update<Definition> {
-      return new Update({...this[DATA], offset})
+      return new Update(this[DATA].with({offset}))
     }
   }
 
@@ -278,6 +303,95 @@ export namespace Query {
     }
   }
 
+  function mkCte<T>(createQuery: (target: any) => T) {
+    let name: string | undefined
+    const target = new Proxy(create(null), {
+      get(_, key: string) {
+        name = key
+        return virtualTable(name)
+      }
+    })
+    const query = createQuery(target)
+    if (!name) throw new TypeError('No CTE name provided')
+    return [name, query] as const
+  }
+
+  export class Union<Row> extends Query<Array<Row>> {
+    declare [DATA]: QueryData.Union | QueryData.Select
+
+    union(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+      return new Union(
+        new QueryData.Union({
+          a: this[DATA],
+          operator: QueryData.UnionOperation.Union,
+          b: query[DATA]
+        })
+      )
+    }
+
+    recursiveUnion(
+      create: (
+        fields: Record<string, Table.Of<Row>>
+      ) => SelectMultiple<Row> | Union<Row>
+    ): Union<Row> {
+      const [recursive, b] = mkCte(create)
+      return new Union(
+        new QueryData.Union({
+          a: this[DATA],
+          operator: QueryData.UnionOperation.Union,
+          b: b[DATA],
+          recursive
+        })
+      )
+    }
+
+    unionAll(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+      return new Union(
+        new QueryData.Union({
+          a: this[DATA],
+          operator: QueryData.UnionOperation.UnionAll,
+          b: query[DATA]
+        })
+      )
+    }
+
+    recursiveUnionAll(
+      create: (
+        fields: Record<string, Table.Of<Row>>
+      ) => SelectMultiple<Row> | Union<Row>
+    ): Union<Row> {
+      const [recursive, b] = mkCte(create)
+      return new Union(
+        new QueryData.Union({
+          a: this[DATA],
+          operator: QueryData.UnionOperation.UnionAll,
+          b: b[DATA],
+          recursive
+        })
+      )
+    }
+
+    except(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+      return new Union(
+        new QueryData.Union({
+          a: this[DATA],
+          operator: QueryData.UnionOperation.Except,
+          b: query[DATA]
+        })
+      )
+    }
+
+    intersect(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+      return new Union(
+        new QueryData.Union({
+          a: this[DATA],
+          operator: QueryData.UnionOperation.Intersect,
+          b: query[DATA]
+        })
+      )
+    }
+  }
+
   function joinTarget(
     joinType: 'left' | 'inner',
     query: QueryData.Select,
@@ -302,11 +416,17 @@ export namespace Query {
     )
   }
 
-  export class SelectMultiple<Row> extends Query<Array<Row>> {
+  export class SelectMultiple<Row> extends Union<Row> {
     declare [DATA]: QueryData.Select
 
     constructor(query: QueryData.Select) {
       super(query)
+    }
+
+    from(table: Table<any>): SelectMultiple<Row> {
+      return new SelectMultiple(
+        this[DATA].with({from: new Target.Table(table)})
+      )
     }
 
     leftJoin<C>(
@@ -314,10 +434,11 @@ export namespace Query {
       ...on: Array<EV<boolean>>
     ): SelectMultiple<Row> {
       const query = this[DATA]
-      return new SelectMultiple({
-        ...query,
-        from: joinTarget('left', query, that, on)
-      })
+      return new SelectMultiple(
+        this[DATA].with({
+          from: joinTarget('left', query, that, on)
+        })
+      )
     }
 
     innerJoin<C>(
@@ -325,67 +446,77 @@ export namespace Query {
       ...on: Array<EV<boolean>>
     ): SelectMultiple<Row> {
       const query = this[DATA]
-      return new SelectMultiple({
-        ...query,
-        from: joinTarget('inner', query, that, on)
-      })
+      return new SelectMultiple(
+        this[DATA].with({
+          from: joinTarget('inner', query, that, on)
+        })
+      )
     }
 
     select<X extends Selection>(
       selection: X
     ): SelectMultiple<Selection.Infer<X>> {
-      return new SelectMultiple({
-        ...this[DATA],
-        selection: ExprData.create(selection)
-      })
+      return new SelectMultiple(
+        this[DATA].with({
+          selection: ExprData.create(selection)
+        })
+      )
     }
 
     count(): SelectSingle<number> {
-      return new SelectSingle({
-        ...this[DATA],
-        selection: Functions.count()[Expr.Data],
-        singleResult: true
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          selection: Functions.count()[Expr.Data],
+          singleResult: true
+        })
+      )
     }
 
     orderBy(...orderBy: Array<Expr<any> | OrderBy>): SelectMultiple<Row> {
-      return new SelectMultiple({
-        ...this[DATA],
-        orderBy: orderBy.map(e => {
-          return Expr.isExpr(e) ? e.asc() : e
+      return new SelectMultiple(
+        this[DATA].with({
+          orderBy: orderBy.map((e): OrderBy => {
+            return Expr.isExpr<any>(e) ? e.asc() : e
+          })
         })
-      })
+      )
     }
 
     groupBy(...groupBy: Array<Expr<any>>): SelectMultiple<Row> {
-      return new SelectMultiple({
-        ...this[DATA],
-        groupBy: groupBy.map(ExprData.create)
-      })
+      return new SelectMultiple(
+        this[DATA].with({
+          groupBy: groupBy.map(ExprData.create)
+        })
+      )
     }
 
     maybeFirst(): SelectSingle<Row | undefined> {
-      return new SelectSingle({...this[DATA], singleResult: true})
+      return new SelectSingle(this[DATA].with({singleResult: true}))
     }
 
     first(): SelectSingle<Row> {
-      return new SelectSingle({
-        ...this[DATA],
-        singleResult: true,
-        validate: true
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          singleResult: true,
+          validate: true
+        })
+      )
     }
 
     where(...where: Array<EV<boolean>>): SelectMultiple<Row> {
-      return new SelectMultiple(addWhere(this[DATA], where))
+      return new SelectMultiple(
+        this[DATA].with({
+          where: addWhere(this[DATA], where)
+        })
+      )
     }
 
     take(limit: number | undefined): SelectMultiple<Row> {
-      return new SelectMultiple({...this[DATA], limit})
+      return new SelectMultiple(this[DATA].with({limit}))
     }
 
     skip(offset: number | undefined): SelectMultiple<Row> {
-      return new SelectMultiple({...this[DATA], offset})
+      return new SelectMultiple(this[DATA].with({offset}))
     }
 
     [Expr.ToExpr](): Expr<Row> {
@@ -473,15 +604,22 @@ export namespace Query {
       super(query)
     }
 
+    from(table: Table<any>): SelectMultiple<Row> {
+      return new SelectMultiple(
+        this[DATA].with({from: new Target.Table(table)})
+      )
+    }
+
     leftJoin<C>(
       that: Table<C> | TableSelect<C>,
       ...on: Array<EV<boolean>>
     ): SelectSingle<Row> {
       const query = this[DATA]
-      return new SelectSingle({
-        ...query,
-        from: joinTarget('left', query, that, on)
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          from: joinTarget('left', query, that, on)
+        })
+      )
     }
 
     innerJoin<C>(
@@ -489,49 +627,57 @@ export namespace Query {
       ...on: Array<EV<boolean>>
     ): SelectSingle<Row> {
       const query = this[DATA]
-      return new SelectSingle({
-        ...query,
-        from: joinTarget('inner', query, that, on)
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          from: joinTarget('inner', query, that, on)
+        })
+      )
     }
 
     select<X extends Selection>(
       selection: X
     ): SelectSingle<Selection.Infer<X>> {
-      return new SelectSingle({
-        ...this[DATA],
-        selection: ExprData.create(selection)
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          selection: ExprData.create(selection)
+        })
+      )
     }
 
     orderBy(...orderBy: Array<OrderBy>): SelectSingle<Row> {
-      return new SelectSingle({
-        ...this[DATA],
-        orderBy
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          orderBy
+        })
+      )
     }
 
     groupBy(...groupBy: Array<Expr<any>>): SelectSingle<Row> {
-      return new SelectSingle({
-        ...this[DATA],
-        groupBy: groupBy.map(ExprData.create)
-      })
+      return new SelectSingle(
+        this[DATA].with({
+          groupBy: groupBy.map(ExprData.create)
+        })
+      )
     }
 
     where(...where: Array<EV<boolean>>): SelectSingle<Row> {
-      return new SelectSingle(addWhere(this[DATA], where))
+      return new SelectSingle(
+        this[DATA].with({
+          where: addWhere(this[DATA], where)
+        })
+      )
     }
 
     take(limit: number | undefined): SelectSingle<Row> {
-      return new SelectSingle({...this[DATA], limit})
+      return new SelectSingle(this[DATA].with({limit}))
     }
 
     skip(offset: number | undefined): SelectSingle<Row> {
-      return new SelectSingle({...this[DATA], offset})
+      return new SelectSingle(this[DATA].with({offset}))
     }
 
     all(): SelectMultiple<Row> {
-      return new SelectMultiple({...this[DATA], singleResult: false})
+      return new SelectMultiple(this[DATA].with({singleResult: false}))
     }
 
     [Expr.ToExpr](): Expr<Row> {
