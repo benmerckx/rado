@@ -43,7 +43,7 @@ export class TableData {
 
 export interface TableInstance<Definition> {
   (conditions: {
-    [K in keyof Definition]?: Definition[K] extends Column<infer V>
+    [K in keyof Definition]?: Definition[K] extends Expr<infer V>
       ? EV<V>
       : never
   }): TableSelect<Definition>

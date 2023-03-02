@@ -3,6 +3,7 @@ import {Expr, Fields, Table, column, table} from '../src/index'
 
 type Hoverable<T> = {[K in keyof T]: T[K]}
 type ShowApi = Hoverable<typeof publicApi>
+//   ^?
 
 type Location = {lat: number; lng: number}
 
@@ -26,6 +27,7 @@ type TestTypes = Fields<{
 
 const test2: TestTypes = undefined!
 const typeAccessible: Expr<boolean> = test2.item.type.is('test')
+//    ^?
 
 function definitionAndRow<T extends {id: number}>(table: Table.Of<T>, row: T) {
   return undefined!
@@ -46,3 +48,11 @@ type Example = table<typeof Example>
 definitionAndRow<Example>(Example, {id: 1, name: {sub: {sub: 'test'}}})
 
 type Row = Table.Select<typeof Example>
+//   ^?
+
+type TableOfExample = Table.Of<Example>
+
+const tableOfExampleInstance: TableOfExample = undefined!
+
+tableOfExampleInstance({id: 123})
+tableOfExampleInstance.name.sub
