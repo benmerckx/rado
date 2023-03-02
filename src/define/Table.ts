@@ -10,7 +10,7 @@ import type {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import type {Selection} from './Selection'
 import {Target} from './Target'
-import {TableSelect} from './query/Select'
+import {TableSelect} from './query/TableSelect'
 
 const {
   assign,
