@@ -40,13 +40,11 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
 }
 
 export class SqlJsDriver extends Driver.Sync {
-  tableData: (tableName: string) => Array<SqliteSchema.Column>
-  indexData: (tableName: string) => Array<SqliteSchema.Index>
+  tableData?: (tableName: string) => Array<SqliteSchema.Column>
+  indexData?: (tableName: string) => Array<SqliteSchema.Index>
 
   constructor(public db: Database) {
     super(new SqliteFormatter())
-    this.tableData = this.prepare(SqliteSchema.tableData)
-    this.indexData = this.prepare(SqliteSchema.indexData)
   }
 
   prepareStatement(
@@ -65,6 +63,10 @@ export class SqlJsDriver extends Driver.Sync {
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {
+    this.tableData =
+      this.tableData || (this.tableData = this.prepare(SqliteSchema.tableData))
+    this.indexData =
+      this.indexData || (this.indexData = this.prepare(SqliteSchema.indexData))
     const columnData = this.tableData(tableName)
     const indexData = this.indexData(tableName)
     return SqliteSchema.createInstructions(columnData, indexData)
