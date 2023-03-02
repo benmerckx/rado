@@ -18,13 +18,13 @@ export type Target =
   | Target.Join
 
 export namespace Target {
-  export class CTE {
-    type = TargetType.CTE as const
-    constructor(public name: string, public union: QueryData.Union) {}
-  }
   export class Expr {
     type = TargetType.Expr as const
     constructor(public expr: ExprData, public alias?: string) {}
+  }
+  export class CTE {
+    type = TargetType.CTE as const
+    constructor(public name: string, public union: QueryData.Union) {}
   }
   export class Query {
     type = TargetType.Query as const

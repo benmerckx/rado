@@ -1,6 +1,7 @@
 import {Expr} from '../define/Expr'
 import {Query} from '../define/Query'
 import {SchemaInstructions} from '../define/Schema'
+import {sql} from '../define/Sql'
 import {Statement} from '../lib/Statement'
 import {SqliteFormatter} from './SqliteFormatter'
 
@@ -27,13 +28,13 @@ export namespace SqliteSchema {
   export function tableData(
     tableName: Expr<string>
   ): Query<Array<SqliteSchema.Column>> {
-    return Query.all`select * from pragma_table_info(${tableName}) order by cid`
+    return sql.all`select * from pragma_table_info(${tableName}) order by cid`
   }
 
   export function indexData(
     tableName: Expr<string>
   ): Query<Array<SqliteSchema.Index>> {
-    return Query.all`select * from sqlite_master where type='index' and tbl_name=${tableName}`
+    return sql.all`select * from sqlite_master where type='index' and tbl_name=${tableName}`
   }
 
   export function createInstructions(

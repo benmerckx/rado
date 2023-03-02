@@ -1,9 +1,10 @@
 import {Fields} from './Fields'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamData, ParamType} from './Param'
-import {Query, QueryData} from './Query'
+import {QueryData} from './Query'
 import {Selection} from './Selection'
 import {Target} from './Target'
+import {SelectMultiple, SelectSingle} from './query/Select'
 
 const {fromEntries, entries} = Object
 
@@ -170,7 +171,7 @@ export class Expr<T> {
     return new Expr(new ExprData.BinOp(BinOpType.And, a[DATA], b[DATA]))
   }
 
-  is(that: EV<T> | Query.SelectSingle<T>): Expr<boolean> {
+  is(that: EV<T> | SelectSingle<T>): Expr<boolean> {
     if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
       return this.isNull()
     return new Expr(
@@ -209,13 +210,13 @@ export class Expr<T> {
     return this.isNull().not()
   }
 
-  isIn(that: EV<Array<T>> | Query.SelectMultiple<T>): Expr<boolean> {
+  isIn(that: EV<Array<T>> | SelectMultiple<T>): Expr<boolean> {
     return new Expr(
       new ExprData.BinOp(BinOpType.In, this[DATA], ExprData.create(that))
     )
   }
 
-  isNotIn(that: EV<Array<T>> | Query.SelectMultiple<T>): Expr<boolean> {
+  isNotIn(that: EV<Array<T>> | SelectMultiple<T>): Expr<boolean> {
     return new Expr(
       new ExprData.BinOp(BinOpType.NotIn, this[DATA], ExprData.create(that))
     )

@@ -6,11 +6,11 @@ import {
   PrimaryColumn
 } from './Column'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
-import {Fields} from './Fields'
+import type {Fields} from './Fields'
 import {Index, IndexData} from './Index'
-import {Query} from './Query'
-import {Selection} from './Selection'
+import type {Selection} from './Selection'
 import {Target} from './Target'
+import {TableSelect} from './query/Select'
 
 const {
   assign,
@@ -46,8 +46,8 @@ export interface TableInstance<Definition> {
     [K in keyof Definition]?: Definition[K] extends Column<infer V>
       ? EV<V>
       : never
-  }): Query.TableSelect<Definition>
-  (...conditions: Array<EV<boolean>>): Query.TableSelect<Definition>
+  }): TableSelect<Definition>
+  (...conditions: Array<EV<boolean>>): TableSelect<Definition>
 }
 
 export declare class TableInstance<Definition> {
@@ -145,7 +145,7 @@ export function virtualTable<Definition>(name: string): Table<Definition> {
           )
         })
       : args
-    return new Query.TableSelect<Definition>(data, conditions)
+    return new TableSelect<Definition>(data, conditions)
   }
   return new Proxy(<any>call, {
     get(_, column: symbol | string) {
@@ -177,7 +177,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
             )
           })
         : args
-      return new Query.TableSelect<Definition>(data, conditions)
+      return new TableSelect<Definition>(data, conditions)
     }
   }[data.name]
   const cols = keys(data.columns)

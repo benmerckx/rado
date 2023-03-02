@@ -4,11 +4,16 @@ import {Schema} from './Schema'
 import {Selection} from './Selection'
 import {Table} from './Table'
 import {Target} from './Target'
+import {Batch} from './query/Batch'
+import {Delete} from './query/Delete'
+import {Insert} from './query/Insert'
+import {SelectMultiple} from './query/Select'
+import {Update} from './query/Update'
 
 export function select<X extends Selection>(
   selection: X
-): Query.SelectMultiple<Selection.Infer<X>> {
-  return new Query.SelectMultiple(
+): SelectMultiple<Selection.Infer<X>> {
+  return new SelectMultiple(
     new QueryData.Select({
       selection: ExprData.create(selection)
     })
@@ -16,12 +21,12 @@ export function select<X extends Selection>(
 }
 
 export function from<Row>(
-  source: Table<Row> | Query.SelectMultiple<Row>
-): Query.SelectMultiple<Row> {
+  source: Table<Row> | SelectMultiple<Row>
+): SelectMultiple<Row> {
   const target = Query.isQuery(source)
     ? new Target.Query(source[Query.Data])
     : new Target.Table(source[Table.Data])
-  return new Query.SelectMultiple<Row>(
+  return new SelectMultiple<Row>(
     new QueryData.Select({
       from: target,
       selection: new ExprData.Row(target)
@@ -29,20 +34,20 @@ export function from<Row>(
   )
 }
 
-export function update<Row>(table: Table<Row>): Query.Update<Row> {
-  return new Query.Update<Row>(new QueryData.Update({table: table[Table.Data]}))
+export function update<Row>(table: Table<Row>): Update<Row> {
+  return new Update<Row>(new QueryData.Update({table: table[Table.Data]}))
 }
 
-export function insertInto<Row>(table: Table<Row>): Query.Insert<Row> {
-  return new Query.Insert<Row>(table[Table.Data])
+export function insertInto<Row>(table: Table<Row>): Insert<Row> {
+  return new Insert<Row>(table[Table.Data])
 }
 
-export function deleteFrom<Row>(table: Table<Row>): Query.Delete {
-  return new Query.Delete(new QueryData.Delete({table: table[Table.Data]}))
+export function deleteFrom<Row>(table: Table<Row>): Delete {
+  return new Delete(new QueryData.Delete({table: table[Table.Data]}))
 }
 
-export function create(...tables: Array<Table<any>>): Query.Batch {
-  return new Query.Batch(
+export function create(...tables: Array<Table<any>>): Batch {
+  return new Batch(
     tables.flatMap(table => Schema.create(table[Table.Data]).queries)
   )
 }

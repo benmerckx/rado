@@ -3,6 +3,7 @@ import {ParamData} from '../define/Param'
 import {Query, QueryData, QueryType} from '../define/Query'
 import {Schema, SchemaInstructions} from '../define/Schema'
 import {Table} from '../define/Table'
+import {SelectMultiple} from '../define/query/Select'
 import {Callable} from '../util/Callable'
 import {Formatter} from './Formatter'
 import {Statement} from './Statement'
@@ -38,21 +39,6 @@ abstract class DriverBase extends Callable {
     const cursor = create(...(params as any))
     const query = cursor[Query.Data]
     return [query, this.formatter.compile(query)]
-  }
-
-  all(...args: Array<any>) {
-    const [input, ...rest] = args
-    if (Query.isSingle(input)) return this.executeQuery(input.all()[Query.Data])
-    if (Query.isQuery(input)) return this.executeQuery(input[Query.Data])
-    return this.executeTemplate('rows', input, ...rest)
-  }
-
-  get(...args: Array<any>) {
-    const [input, ...rest] = args
-    if (Query.isMultiple(input))
-      return this.executeQuery(input.maybeFirst()[Query.Data])
-    if (Query.isQuery(input)) return this.executeQuery(input[Query.Data])
-    return this.executeTemplate('row', input, ...rest)
   }
 
   executeTemplate(
@@ -170,21 +156,7 @@ abstract class SyncDriver extends DriverBase {
     }
   }
 
-  all<T>(cursor: Query.SelectSingle<T>): Array<T>
-  all<T>(cursor: Query<T>): T
-  all<T>(strings: TemplateStringsArray, ...params: Array<any>): Array<T>
-  all<T>(...args: Array<any>): Array<T> {
-    return super.all(...args)
-  }
-
-  get<T>(cursor: Query.SelectMultiple<T>): T | null
-  get<T>(cursor: Query<T>): T
-  get<T>(strings: TemplateStringsArray, ...params: Array<any>): T
-  get<T>(...args: Array<any>): T {
-    return super.get(...args)
-  }
-
-  *iterate<T>(cursor: Query.SelectMultiple<T>): Iterable<T> {
+  *iterate<T>(cursor: SelectMultiple<T>): Iterable<T> {
     const stmt = this.prepareStatement(
       this.formatter.compile(cursor[Query.Data]),
       true
@@ -333,24 +305,7 @@ abstract class AsyncDriver extends DriverBase {
     }
   }
 
-  all<T>(cursor: Query.SelectSingle<T>): Promise<Array<T>>
-  all<T>(cursor: Query<T>): Promise<T>
-  all<T>(
-    strings: TemplateStringsArray,
-    ...params: Array<any>
-  ): Promise<Array<T>>
-  all<T>(...args: Array<any>): Promise<Array<T>> {
-    return super.all(...args)
-  }
-
-  get<T>(cursor: Query.SelectMultiple<T>): Promise<T | null>
-  get<T>(cursor: Query<T>): Promise<T>
-  get<T>(strings: TemplateStringsArray, ...params: Array<any>): Promise<T>
-  get<T>(...args: Array<any>): Promise<T> {
-    return super.get(...args)
-  }
-
-  async *iterate<T>(cursor: Query.SelectMultiple<T>): AsyncIterable<T> {
+  async *iterate<T>(cursor: SelectMultiple<T>): AsyncIterable<T> {
     const stmt = this.prepareStatement(
       this.formatter.compile(cursor[Query.Data]),
       true
