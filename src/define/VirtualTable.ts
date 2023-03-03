@@ -1,3 +1,4 @@
+import {ClearFunctionProto} from '../util/Callable'
 import {Column} from './Column'
 import {BinOpType, EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
@@ -10,7 +11,7 @@ const {create, entries} = Object
 
 const DATA = Symbol('VirtualTable.Data')
 
-export interface VirtualTableInstance<Definition> {
+export interface VirtualTableInstance<Definition> extends ClearFunctionProto {
   (conditions: {
     [K in keyof Definition]?: Definition[K] extends Expr<infer V>
       ? EV<V>
@@ -22,12 +23,6 @@ export interface VirtualTableInstance<Definition> {
 export declare class VirtualTableInstance<Definition> {
   [Selection.TableType](): Table.Select<Definition>
   get [DATA](): VirtualTableData
-  get name(): unknown
-  get length(): unknown
-  get call(): unknown
-  get apply(): unknown
-  get bind(): unknown
-  get prototype(): unknown
 }
 
 export interface VirtualTableData {

@@ -1,3 +1,4 @@
+import {ClearFunctionProto} from '../util/Callable'
 import {
   Column,
   ColumnData,
@@ -40,7 +41,7 @@ export class TableData {
   }
 }
 
-export interface TableInstance<Definition> {
+export interface TableInstance<Definition> extends ClearFunctionProto {
   (conditions: {
     [K in keyof Definition]?: Definition[K] extends Expr<infer V>
       ? EV<V>
@@ -52,17 +53,6 @@ export interface TableInstance<Definition> {
 export declare class TableInstance<Definition> {
   [Selection.TableType](): Table.Select<Definition>
   get [DATA](): TableData
-
-  // Clear the Function prototype, not sure if there's a better way
-  // as mapped types (Omit) will remove the callable signature. We define them
-  // in a class getter since it's the only way to also mark them as non-enumarable
-  // Seems open: Microsoft/TypeScript#27575
-  get name(): unknown
-  get length(): unknown
-  get call(): unknown
-  get apply(): unknown
-  get bind(): unknown
-  get prototype(): unknown
 }
 
 export type Table<Definition> = Definition & TableInstance<Definition>
