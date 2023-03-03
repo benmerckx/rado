@@ -1,3 +1,4 @@
+import {randomAlias} from '../util/Alias'
 import {Fields} from './Fields'
 import {OrderBy, OrderDirection} from './OrderBy'
 import {ParamData, ParamType} from './Param'
@@ -350,7 +351,7 @@ export class Expr<T> {
     this: Expr<Array<T>>,
     fn: (cursor: Fields<T>) => Expr<boolean>
   ): Expr<Array<T>> {
-    const alias = `__${Math.random().toString(36).slice(2, 9)}`
+    const alias = randomAlias()
     const target = new Target.Expr(this[DATA], alias)
     return new Expr(
       new ExprData.Filter(
@@ -364,7 +365,7 @@ export class Expr<T> {
     this: Expr<Array<T>>,
     fn: (cursor: Fields<T>) => X
   ): Expr<Array<Selection.Infer<X>>> {
-    const alias = `__${Math.random().toString(36).slice(2, 9)}`
+    const alias = randomAlias()
     const target = new Target.Expr(this[DATA], alias)
     return new Expr(
       new ExprData.Map(

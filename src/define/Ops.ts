@@ -8,7 +8,12 @@ import {Batch} from './query/Batch'
 import {Delete} from './query/Delete'
 import {Insert} from './query/Insert'
 import {SelectMultiple} from './query/Select'
+import {RecursiveUnion} from './query/Union'
 import {Update} from './query/Update'
+
+export function withRecursive<Row>(initialSelect: SelectMultiple<Row>) {
+  return new RecursiveUnion<Row>(initialSelect[Query.Data])
+}
 
 export function select<X extends Selection>(
   selection: X

@@ -8,3 +8,12 @@ export class Callable {
     return setPrototypeOf(fn, new.target.prototype)
   }
 }
+
+export declare class ClearFunctionProto {
+  get name(): unknown
+  get length(): unknown
+  get call(): unknown
+  get apply(): unknown
+  get bind(): unknown
+  get prototype(): unknown
+}

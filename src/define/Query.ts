@@ -73,7 +73,7 @@ export namespace QueryData {
     type = QueryType.Union as const
     declare a: Select | Union
     declare operator: UnionOperation
-    declare b: Select | Union
+    declare b: Select | Union | (() => Select | Union)
   }
   export class Select extends Data<Select> {
     type = QueryType.Select as const

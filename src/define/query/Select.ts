@@ -1,4 +1,3 @@
-import {makeRecursiveUnion} from '../CTE'
 import {EV, Expr, ExprData} from '../Expr'
 import {Functions} from '../Functions'
 import {OrderBy} from '../OrderBy'
@@ -6,6 +5,7 @@ import {Query, QueryData} from '../Query'
 import {Selection} from '../Selection'
 import {Table} from '../Table'
 import {Target} from '../Target'
+import {VirtualTable, VirtualTableData} from '../VirtualTable'
 import {TableSelect} from './TableSelect'
 import {Union} from './Union'
 
@@ -40,9 +40,10 @@ export class SelectMultiple<Row> extends Union<Row> {
     super(query)
   }
 
-  from(table: Table<any>): SelectMultiple<Row> {
+  from(table: Table<any> | VirtualTable<any>): SelectMultiple<Row> {
+    const virtual: VirtualTableData = table[VirtualTable.Data]
     return new SelectMultiple(
-      this[Query.Data].with({from: new Target.Table(table)})
+      this[Query.Data].with({from: virtual?.target || new Target.Table(table)})
     )
   }
 
@@ -130,36 +131,6 @@ export class SelectMultiple<Row> extends Union<Row> {
 
   skip(offset: number | undefined): SelectMultiple<Row> {
     return new SelectMultiple(this[Query.Data].with({offset}))
-  }
-
-  recursiveUnion<T extends {}>(
-    this: SelectMultiple<T>,
-    create: (
-      fields: Record<string, Table.Of<T>>
-    ) => SelectMultiple<T> | Union<T>
-  ): SelectMultiple<T> {
-    return new SelectMultiple(
-      makeRecursiveUnion(
-        this[Query.Data],
-        create,
-        QueryData.UnionOperation.Union
-      )
-    )
-  }
-
-  recursiveUnionAll<T extends {}>(
-    this: SelectMultiple<T>,
-    create: (
-      fields: Record<string, Table.Of<T>>
-    ) => SelectMultiple<T> | Union<T>
-  ): SelectMultiple<T> {
-    return new SelectMultiple(
-      makeRecursiveUnion(
-        this[Query.Data],
-        create,
-        QueryData.UnionOperation.UnionAll
-      )
-    )
   }
 
   [Expr.ToExpr](): Expr<Row> {

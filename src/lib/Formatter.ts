@@ -59,6 +59,7 @@ export interface FormatContext {
   formatAsIn?: boolean
   topLevel?: boolean
   selectAsColumns?: boolean
+  formattingCte?: string
 }
 
 type FormatSubject = (stmt: Statement, mkSubject: () => void) => void
@@ -136,17 +137,24 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     switch (query.from?.type) {
       case TargetType.CTE:
-        stmt
-          .add('WITH RECURSIVE')
-          .addIdentifier(query.from.name)
-          .add('AS')
-          .space()
-          .openParenthesis()
-        this.formatUnion(
-          {...ctx, topLevel: false, selectAsColumns: true},
-          query.from.union
-        )
-        stmt.closeParenthesis().space()
+        if (ctx.formattingCte !== query.from.name) {
+          stmt
+            .add('WITH RECURSIVE')
+            .addIdentifier(query.from.name)
+            .add('AS')
+            .space()
+            .openParenthesis()
+          this.formatUnion(
+            {
+              ...ctx,
+              topLevel: false,
+              selectAsColumns: true,
+              formattingCte: query.from.name
+            },
+            query.from.union
+          )
+          stmt.closeParenthesis().space()
+        }
       default:
         stmt.raw('SELECT').space()
         this.formatSelection(
@@ -174,7 +182,7 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     this.format(ctx, a)
     stmt.add(unions[operator]).space()
-    this.format(ctx, b)
+    this.format(ctx, typeof b === 'function' ? b() : b)
     return stmt
   }
 
@@ -716,6 +724,8 @@ export abstract class Formatter implements Sanitizer {
     switch (from.type) {
       case ExprType.Row:
         switch (from.target.type) {
+          case TargetType.CTE:
+            return stmt.identifier(from.target.name).raw('.').identifier(field)
           case TargetType.Table:
             const column = from.target.table.columns[field]
             const asBoolean =
