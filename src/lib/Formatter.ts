@@ -373,11 +373,14 @@ export abstract class Formatter implements Sanitizer {
       }
     }
     if (column.references)
-      this.formatContraintReference(ctx, column.references())
+      this.formatConstraintReference(ctx, column.references())
     return stmt
   }
 
-  formatContraintReference(ctx: FormatContext, reference: ExprData): Statement {
+  formatConstraintReference(
+    ctx: FormatContext,
+    reference: ExprData
+  ): Statement {
     const {stmt} = ctx
     if (
       reference.type !== ExprType.Field ||
@@ -809,6 +812,16 @@ export abstract class Formatter implements Sanitizer {
         const table = Target.source(expr.target)
         if (!table) throw new Error(`Cannot select empty target`)
         if (ctx.tableAsExpr) return stmt.identifier(table.alias || table.name)
+        if (ctx.selectAsColumns) {
+          const inner = {...ctx, selectAsColumns: false}
+          for (const [key, column] of stmt.separate(
+            Object.entries(table.columns)
+          )) {
+            this.formatFieldOf(inner, expr, column.name!)
+            stmt.add('AS').addIdentifier(key)
+          }
+          return stmt
+        }
         stmt.identifier('json_object')
         for (const [key, column] of stmt.call(Object.entries(table.columns))) {
           this.formatString(ctx, key).raw(', ')
