@@ -6,13 +6,12 @@ import {Selection} from '../Selection'
 import {Table} from '../Table'
 import {Target} from '../Target'
 import {VirtualTable, VirtualTableData} from '../VirtualTable'
-import {TableSelect} from './TableSelect'
 import {Union} from './Union'
 
 function joinTarget(
   joinType: 'left' | 'inner',
   query: QueryData.Select,
-  to: Table<any> | TableSelect<any>,
+  to: Table<any> | SelectMultiple<any>,
   on: Array<EV<boolean>>
 ) {
   const toQuery = Query.isQuery(to)
@@ -48,7 +47,7 @@ export class SelectMultiple<Row> extends Union<Row> {
   }
 
   leftJoin<C>(
-    that: Table<C> | TableSelect<C>,
+    that: Table<C> | SelectMultiple<C>,
     ...on: Array<EV<boolean>>
   ): SelectMultiple<Row> {
     const query = this[Query.Data]
@@ -60,7 +59,7 @@ export class SelectMultiple<Row> extends Union<Row> {
   }
 
   innerJoin<C>(
-    that: Table<C> | TableSelect<C>,
+    that: Table<C> | SelectMultiple<C>,
     ...on: Array<EV<boolean>>
   ): SelectMultiple<Row> {
     const query = this[Query.Data]
@@ -152,7 +151,7 @@ export class SelectSingle<Row> extends Query<Row> {
   }
 
   leftJoin<C>(
-    that: Table<C> | TableSelect<C>,
+    that: Table<C> | SelectMultiple<C>,
     ...on: Array<EV<boolean>>
   ): SelectSingle<Row> {
     const query = this[Query.Data]
@@ -164,7 +163,7 @@ export class SelectSingle<Row> extends Query<Row> {
   }
 
   innerJoin<C>(
-    that: Table<C> | TableSelect<C>,
+    that: Table<C> | SelectMultiple<C>,
     ...on: Array<EV<boolean>>
   ): SelectSingle<Row> {
     const query = this[Query.Data]
