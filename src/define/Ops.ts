@@ -2,7 +2,7 @@ import {ExprData} from './Expr'
 import {Query, QueryData} from './Query'
 import {Schema} from './Schema'
 import {Selection} from './Selection'
-import {Table} from './Table'
+import {Table, createTable} from './Table'
 import {Target} from './Target'
 import {Batch} from './query/Batch'
 import {Delete} from './query/Delete'
@@ -13,6 +13,14 @@ import {Update} from './query/Update'
 
 export function withRecursive<Row>(initialSelect: SelectMultiple<Row>) {
   return new RecursiveUnion<Row>(initialSelect[Query.Data])
+}
+
+export function alias<T extends Table<{}>>(table: T): Record<string, T> {
+  return new Proxy(Object.create(null), {
+    get(_, alias: string) {
+      return createTable({...table[Table.Data], alias})
+    }
+  })
 }
 
 export function select<X extends Selection>(

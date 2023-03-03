@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {TableMeta, column, create, index, table} from '../src/index'
+import {TableMeta, alias, column, create, index, table} from '../src/index'
 import {connect} from './DbSuite'
 
 const User = table({
@@ -69,7 +69,7 @@ test('Extend', async () => {
       {userId: user1.id, roleId: role2.id}
     ])
     .on(db)
-  const Aliased = User().as('Aliased')
+  const {Aliased} = alias(User)
   const query = Aliased().maybeFirst().select({
     name: Aliased.name,
     roles: Aliased.roles
