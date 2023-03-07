@@ -1,4 +1,4 @@
-export * from './define/Column'
+export {Column, column, type PrimaryKey} from './define/Column'
 export * from './define/Expr'
 export type {Fields} from './define/Fields'
 export * from './define/Functions'

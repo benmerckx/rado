@@ -10,7 +10,7 @@ export enum ColumnType {
   Json = 'Json'
 }
 
-interface PartialColumnData {
+export interface PartialColumnData {
   type?: ColumnType
   name?: string
   nullable?: boolean
@@ -44,11 +44,11 @@ export namespace Column {
   }
 }
 
-interface ValueColumn<T> extends Expr<T> {
+export interface ValueColumn<T> extends Expr<T> {
   <X extends T = T>(): ValueColumn<T extends null ? X | null : X>
 }
 
-class ValueColumn<T> extends Callable implements Column<T> {
+export class ValueColumn<T> extends Callable implements Column<T> {
   declare [Column.Type]: T;
   [Column.Data]: PartialColumnData
 
@@ -112,11 +112,11 @@ export class PrimaryColumn<T, K> extends ValueColumn<PrimaryKey<T, K>> {
   [Column.IsPrimary]!: K
 }
 
-interface ObjectColumn<T> {
+export interface ObjectColumn<T> {
   <X extends T = T>(): Column<T extends null ? X | null : X> & Fields<X>
 }
 
-class ObjectColumn<T> extends Callable implements Column<T> {
+export class ObjectColumn<T> extends Callable implements Column<T> {
   declare [Column.Type]: T;
   [Column.Data]: PartialColumnData
 
@@ -145,17 +145,17 @@ export class OptionalObjectColumn<T> extends ObjectColumn<T> {
   [Column.IsOptional]!: true
 }
 
-export type PrimaryKey<T, K> = string extends K
+export type PrimaryKey<T, K> = K extends string
   ? T
   : T & {[Column.IsPrimary]: K}
 
 type DefaultValue<T> = EV<T> | (() => EV<T>)
 
-interface UnTyped {
+export interface UnTyped {
   (name: string): UnTyped
 }
 
-class UnTyped extends Callable {
+export class UnTyped extends Callable {
   [Column.Data]: PartialColumnData
 
   constructor(data: PartialColumnData = {}) {
@@ -226,7 +226,7 @@ class UnTyped extends Callable {
   }
 }
 
-declare class NullableUnTyped {
+export declare class NullableUnTyped {
   [Column.Data]: PartialColumnData
 
   get unique(): UnTyped
