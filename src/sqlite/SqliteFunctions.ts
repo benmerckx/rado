@@ -159,7 +159,7 @@ export type SqliteFunctions = {
   avg(x: Expr<number>): Expr<number>
 
   /** The group_concat() function returns a string which is the concatenation of all non-NULL values of X. If parameter Y is present then it is used as the separator between instances of X. A comma (",") is used as the separator if Y is omitted. The order of the concatenated elements is arbitrary. */
-  group_concat(x: EV<string>, y: EV<string>): Expr<string>
+  group_concat(x: EV<string>, y?: EV<string>): Expr<string>
 
   /** The sum() and total() aggregate functions return sum of all non-NULL values in the group. If there are no non-NULL input rows then sum() returns NULL but total() returns 0.0. NULL is not normally a helpful result for the sum of no rows but the SQL standard requires it and most other SQL database engines implement sum() that way so SQLite does it in the same way in order to be compatible. The non-standard total() function is provided as a convenient way to work around this design problem in the SQL language. 
 
