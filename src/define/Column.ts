@@ -108,7 +108,9 @@ export class OptionalColumn<T> extends ValueColumn<T> {
   [Column.IsOptional]!: true
 }
 
-export class PrimaryColumn<T, K> extends ValueColumn<PrimaryKey<T, K>> {
+export class PrimaryColumn<T, K> extends ValueColumn<
+  string extends K ? T : PrimaryKey<T, K>
+> {
   [Column.IsPrimary]!: K
 }
 
@@ -145,9 +147,7 @@ export class OptionalObjectColumn<T> extends ObjectColumn<T> {
   [Column.IsOptional]!: true
 }
 
-export type PrimaryKey<T, K> = K extends string
-  ? T
-  : T & {[Column.IsPrimary]: K}
+export type PrimaryKey<T, K> = T & {[Column.IsPrimary]: K}
 
 type DefaultValue<T> = EV<T> | (() => EV<T>)
 
