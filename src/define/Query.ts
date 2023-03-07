@@ -10,8 +10,6 @@ import {Target} from './Target'
 
 const {assign} = Object
 
-const DATA = Symbol('Query.Data')
-
 export enum QueryType {
   Insert = 'QueryData.Insert',
   Select = 'QueryData.Select',
@@ -158,19 +156,22 @@ export namespace QueryData {
   }
 }
 
+export interface Query<T> {
+  [Query.Data]: QueryData
+}
+
 export class Query<T> {
-  declare [Selection.CursorType]: () => T;
-  [DATA]: QueryData
+  declare [Selection.CursorType]: () => T
 
   constructor(query: QueryData) {
-    this[DATA] = query
+    this[Query.Data] = query
   }
 
   next<T>(cursor: Query<T>): Query<T> {
     return new Query<T>(
       new QueryData.Batch(
-        this[DATA].with({
-          queries: [this[DATA], cursor[DATA]]
+        this[Query.Data].with({
+          queries: [this[Query.Data], cursor[Query.Data]]
         })
       )
     )
@@ -179,19 +180,19 @@ export class Query<T> {
   on(driver: Driver.Sync): T
   on(driver: Driver.Async): Promise<T>
   on(driver: Driver): T | Promise<T> {
-    return driver.executeQuery(this[DATA]) as any
+    return driver.executeQuery(this[Query.Data]) as any
   }
 
   toSql(driver: Driver, options: CompileOptions = {forceInline: true}) {
-    return driver.formatter.compile(this[DATA], options).sql
+    return driver.formatter.compile(this[Query.Data], options).sql
   }
 
   toJSON() {
-    return this[DATA]
+    return this[Query.Data]
   }
 
-  protected addWhere(where: Array<EV<boolean>>): this[typeof DATA] {
-    const query = this[DATA]
+  protected addWhere(where: Array<EV<boolean>>): this[typeof Query.Data] {
+    const query = this[Query.Data]
     const conditions: Array<any> = where.slice()
     if (query.where) conditions.push(new Expr(query.where))
     return query.with({where: Expr.and(...conditions)[Expr.Data]})
@@ -199,9 +200,9 @@ export class Query<T> {
 }
 
 export namespace Query {
-  export const Data: typeof DATA = DATA
+  export const Data = Symbol('Query.Data')
 
   export function isQuery<T>(input: any): input is Query<T> {
-    return input !== null && Boolean(DATA in input)
+    return input !== null && Boolean(Query.Data in input)
   }
 }

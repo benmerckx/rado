@@ -24,9 +24,6 @@ const {
   defineProperty
 } = Object
 
-const DATA = Symbol('Table.Data')
-const META = Symbol('Table.Meta')
-
 interface TableDefinition {}
 
 export class TableData {
@@ -52,14 +49,14 @@ export interface TableInstance<Definition> extends ClearFunctionProto {
 
 export declare class TableInstance<Definition> {
   [Selection.TableType](): Table.Select<Definition>
-  get [DATA](): TableData
+  get [Table.Data](): TableData
 }
 
 export type Table<Definition> = Definition & TableInstance<Definition>
 
 export namespace Table {
-  export const Data: typeof DATA = DATA
-  export const Meta: typeof META = META
+  export const Data = Symbol('Table.Data')
+  export const Meta = Symbol('Table.Meta')
 
   export type Of<Row> = Table<{
     [K in keyof Row as K extends string ? K : never]: Column<Row[K]> &
@@ -144,7 +141,7 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   delete call.length
   for (const [key, value] of entries(expressions))
     defineProperty(call, key, {value, enumerable: true, configurable: true})
-  defineProperty(call, DATA, {value: data, enumerable: false})
+  defineProperty(call, Table.Data, {value: data, enumerable: false})
   defineProperty(call, Expr.ToExpr, {value: toExpr, enumerable: false})
   setPrototypeOf(call, getPrototypeOf(data.definition))
   return call
@@ -202,5 +199,5 @@ export function table<T extends {}>(
 }
 
 export namespace table {
-  export const meta: typeof META = META
+  export const meta: typeof Table.Meta = Table.Meta
 }

@@ -9,8 +9,6 @@ import {SelectMultiple} from './query/Select'
 
 const {create, entries} = Object
 
-const DATA = Symbol('VirtualTable.Data')
-
 export interface VirtualTableInstance<Definition> extends ClearFunctionProto {
   (conditions: {
     [K in keyof Definition]?: Definition[K] extends Expr<infer V>
@@ -22,7 +20,7 @@ export interface VirtualTableInstance<Definition> extends ClearFunctionProto {
 
 export declare class VirtualTableInstance<Definition> {
   [Selection.TableType](): Table.Select<Definition>
-  get [DATA](): VirtualTableData
+  get [VirtualTable.Data](): VirtualTableData
 }
 
 export interface VirtualTableData {
@@ -35,7 +33,7 @@ export type VirtualTable<Definition> = Definition &
   VirtualTableInstance<Definition>
 
 export namespace VirtualTable {
-  export const Data: typeof DATA = DATA
+  export const Data = Symbol('VirtualTable.Data')
 
   export type Of<Row> = VirtualTable<{
     [K in keyof Row as K extends string ? K : never]: Column<Row[K]> &
@@ -64,7 +62,7 @@ export function createVirtualTable<Definition>(
   }
   return new Proxy(<any>call, {
     get(_, column: symbol | string) {
-      if (column === DATA) return data
+      if (column === VirtualTable.Data) return data
       if (column === Expr.ToExpr) return new Expr(new ExprData.Row(data.target))
       if (column in cache) return cache[column]
       return (cache[column] = new Expr(

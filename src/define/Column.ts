@@ -2,9 +2,6 @@ import {Callable} from '../util/Callable'
 import {EV, Expr, ExprData} from './Expr'
 import {Fields} from './Fields'
 
-const DATA = Symbol('Column.Data')
-const TYPE = Symbol('Column.Type')
-
 export enum ColumnType {
   String = 'String',
   Integer = 'Integer',
@@ -31,19 +28,19 @@ export interface ColumnData extends PartialColumnData {
 }
 
 export interface Column<T> {
-  [TYPE]: T
-  [DATA]: PartialColumnData
+  [Column.Type]: T
+  [Column.Data]: PartialColumnData
 }
 
 export namespace Column {
-  export const Data: typeof DATA = DATA
-  export const Type: typeof TYPE = TYPE
+  export const Data = Symbol('Column.Data')
+  export const Type = Symbol('Column.Type')
   export declare const IsOptional: unique symbol
   export declare const IsNullable: unique symbol
   export declare const IsPrimary: unique symbol
 
   export function isColumn<T>(input: any): input is Column<T> {
-    return Boolean(input[DATA])
+    return Boolean(input[Column.Data])
   }
 }
 
@@ -52,39 +49,39 @@ interface ValueColumn<T> extends Expr<T> {
 }
 
 class ValueColumn<T> extends Callable implements Column<T> {
-  declare [TYPE]: T;
-  [DATA]: PartialColumnData
+  declare [Column.Type]: T;
+  [Column.Data]: PartialColumnData
 
   constructor(data: PartialColumnData) {
     super(() => this)
-    this[DATA] = data
+    this[Column.Data] = data
   }
 
   get nullable(): ValueColumn<T | null> {
-    return new ValueColumn({...this[DATA], nullable: true})
+    return new ValueColumn({...this[Column.Data], nullable: true})
   }
 
   get unique(): ValueColumn<T> {
-    return new ValueColumn({...this[DATA], unique: true})
+    return new ValueColumn({...this[Column.Data], unique: true})
   }
 
   get autoIncrement(): OptionalColumn<T> {
-    return new OptionalColumn({...this[DATA], autoIncrement: true})
+    return new OptionalColumn({...this[Column.Data], autoIncrement: true})
   }
 
   primaryKey<K = string>(create?: () => EV<T>): PrimaryColumn<T, K> {
     return new PrimaryColumn<T, K>({
-      ...this[DATA],
+      ...this[Column.Data],
       primaryKey: true,
       defaultValue: create
         ? () => ExprData.create(create())
-        : this[DATA].defaultValue
+        : this[Column.Data].defaultValue
     })
   }
 
   references<X extends T>(column: Expr<X> | (() => Expr<X>)): ValueColumn<X> {
     return new ValueColumn({
-      ...this[DATA],
+      ...this[Column.Data],
       references() {
         return ExprData.create(Expr.isExpr<X>(column) ? column : column())
       }
@@ -93,7 +90,7 @@ class ValueColumn<T> extends Callable implements Column<T> {
 
   default(value: DefaultValue<T>): OptionalColumn<T> {
     return new OptionalColumn({
-      ...this[DATA],
+      ...this[Column.Data],
       defaultValue: createDefaultValue(value)
     })
   }
@@ -120,25 +117,25 @@ interface ObjectColumn<T> {
 }
 
 class ObjectColumn<T> extends Callable implements Column<T> {
-  declare [TYPE]: T;
-  [DATA]: PartialColumnData
+  declare [Column.Type]: T;
+  [Column.Data]: PartialColumnData
 
   constructor(data: PartialColumnData) {
     super(() => this)
-    this[DATA] = data
+    this[Column.Data] = data
   }
 
   get nullable(): ObjectColumn<T | null> {
-    return new ObjectColumn({...this[DATA], nullable: true})
+    return new ObjectColumn({...this[Column.Data], nullable: true})
   }
 
   get unique(): ObjectColumn<T> {
-    return new ObjectColumn({...this[DATA], unique: true})
+    return new ObjectColumn({...this[Column.Data], unique: true})
   }
 
   defaultValue<X extends T = T>(value: DefaultValue<X>): Column<X> & Fields<X> {
     return new OptionalObjectColumn({
-      ...this[DATA],
+      ...this[Column.Data],
       defaultValue: createDefaultValue(value)
     }) as any
   }
@@ -159,75 +156,78 @@ interface UnTyped {
 }
 
 class UnTyped extends Callable {
-  [DATA]: PartialColumnData
+  [Column.Data]: PartialColumnData
 
   constructor(data: PartialColumnData = {}) {
     super((name: string) => {
       return new ValueColumn({...data, name})
     })
-    this[DATA] = data
+    this[Column.Data] = data
   }
 
   get nullable(): NullableUnTyped {
-    return new UnTyped({...this[DATA], nullable: true}) as NullableUnTyped
+    return new UnTyped({
+      ...this[Column.Data],
+      nullable: true
+    }) as NullableUnTyped
   }
 
   get unique(): UnTyped {
-    return new UnTyped({...this[DATA], unique: true})
+    return new UnTyped({...this[Column.Data], unique: true})
   }
 
   get string() {
     return new ValueColumn<string>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.String
     })
   }
 
   get integer() {
     return new ValueColumn<number>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.Integer
     })
   }
 
   get number() {
     return new ValueColumn<number>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.Number
     })
   }
 
   get boolean() {
     return new ValueColumn<boolean>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.Boolean
     })
   }
 
   get json() {
     return new ValueColumn<any>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.Json
     })
   }
 
   get object() {
     return new ObjectColumn<{}>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.Json
     })
   }
 
   get array() {
     return new ValueColumn<Array<any>>({
-      ...this[DATA],
+      ...this[Column.Data],
       type: ColumnType.Json
     })
   }
 }
 
 declare class NullableUnTyped {
-  [DATA]: PartialColumnData
+  [Column.Data]: PartialColumnData
 
   get unique(): UnTyped
   get string(): ValueColumn<string | null>
