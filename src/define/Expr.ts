@@ -112,12 +112,7 @@ export namespace ExprData {
   export function create(input: any): ExprData {
     if (input === null || input === undefined)
       return new ExprData.Param(new ParamData.Value(null))
-    if (
-      input &&
-      (typeof input === 'function' || typeof input === 'object') &&
-      input[Expr.ToExpr]
-    )
-      input = input[Expr.ToExpr]()
+    if (Expr.hasExpr(input)) input = input[Expr.ToExpr]()
     if (Expr.isExpr(input)) return input[Expr.Data]
     if (input && typeof input === 'object' && !Array.isArray(input))
       return new ExprData.Record(
@@ -439,6 +434,14 @@ export namespace Expr {
     return conditions
       .map(create)
       .reduce((condition, expr) => condition.or(expr), value(false))
+  }
+
+  export function hasExpr<T>(input: any): input is {[Expr.ToExpr](): Expr<T>} {
+    return (
+      input &&
+      (typeof input === 'function' || typeof input === 'object') &&
+      input[Expr.ToExpr]
+    )
   }
 
   export function isExpr<T>(input: any): input is Expr<T> {

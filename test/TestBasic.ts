@@ -3,6 +3,7 @@ import * as assert from 'uvu/assert'
 import {
   Expr,
   PrimaryKey,
+  alias,
   column,
   create,
   from,
@@ -104,10 +105,18 @@ test('update', async () => {
 
   await query(Test().create())
   const a = {propA: 10, propB: 5}
-  const b = {propA: 20, propB: 5}
+  const b = {propA: 20, propB: 55}
   await query(Test().insertAll([a, b]))
   await query(Test().set({propA: 15}).where(Test.propA.is(10)))
   assert.ok(await query(Test().first().where(Test.propA.is(15))))
+
+  const {Test2} = alias(Test)
+  await query(
+    Test().set({
+      propA: Test2().select(Test2.propB).orderBy(Test2.propB.desc()).first()
+    })
+  )
+  assert.ok(await query(Test().first().where(Test.propA.is(55))))
 })
 
 test('json', async () => {
