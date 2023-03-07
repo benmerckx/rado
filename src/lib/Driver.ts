@@ -137,7 +137,7 @@ abstract class SyncDriver extends DriverBase {
             const row = res[0]
             if (query.validate && row === undefined)
               throw new Error('No row found')
-            return row
+            return row ?? null
           }
           return res
         } else if (query.type === QueryType.Raw) {
@@ -286,7 +286,7 @@ abstract class AsyncDriver extends DriverBase {
             const row = res[0]
             if (query.validate && row === undefined)
               throw new Error('No row found')
-            return row
+            return row ?? null
           }
           return res
         } else if (query.type === QueryType.Raw) {

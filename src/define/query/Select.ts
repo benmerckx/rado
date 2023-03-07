@@ -107,7 +107,7 @@ export class SelectMultiple<Row> extends Union<Row> {
     )
   }
 
-  maybeFirst(): SelectSingle<Row | undefined> {
+  maybeFirst(): SelectSingle<Row | null> {
     return new SelectSingle(this[Query.Data].with({singleResult: true}))
   }
 
