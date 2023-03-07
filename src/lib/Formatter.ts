@@ -215,17 +215,24 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatUpdate(ctx: FormatContext, query: QueryData.Update): Statement {
+  formatUpdate(
+    {topLevel, ...ctx}: FormatContext,
+    query: QueryData.Update
+  ): Statement {
     const {stmt} = ctx
     const data = query.set || {}
     stmt.add('UPDATE').addIdentifier(query.table.name).add('SET').space()
     const keys = Object.keys(data).filter(key => query.table.columns[key])
     for (const key of stmt.separate(keys)) {
+      const column = query.table.columns[key]
       stmt.identifier(key).add('=').space()
       let input = data[key]
       if (Expr.hasExpr(input)) input = input[Expr.ToExpr]()
       if (Expr.isExpr(input))
-        this.formatExprJson(ctx, ExprData.create(data[key]))
+        this.formatExpr(
+          {...ctx, formatAsJson: column.type === ColumnType.Json},
+          ExprData.create(data[key])
+        )
       else this.formatValue({...ctx, formatAsInsert: true}, input)
     }
     this.formatWhere(ctx, query.where)
