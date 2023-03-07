@@ -2,10 +2,11 @@ import type {Expr} from './Expr'
 import type {SelectMultiple, SelectSingle} from './query/Select'
 
 type SelectionBase =
-  // Side-effect of tables having a callable signature is that they expose
-  // the Function prototype which we cancel out by marking them as unknown.
-  // However this also marks them as enumerable...
-  unknown | (() => any) | Expr<any> | SelectMultiple<any> | SelectSingle<any>
+  | unknown
+  | (() => any)
+  | Expr<any>
+  | SelectMultiple<any>
+  | SelectSingle<any>
 interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 

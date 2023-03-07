@@ -27,9 +27,9 @@ export interface ColumnData extends PartialColumnData {
   name: string
 }
 
-export interface Column<T> {
-  [Column.Type]: T
-  [Column.Data]: PartialColumnData
+export declare class Column<T> {
+  get [Column.Type](): T
+  get [Column.Data](): PartialColumnData
 }
 
 export namespace Column {

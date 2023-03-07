@@ -11,6 +11,7 @@ import type {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import type {Selection} from './Selection'
 import {Target} from './Target'
+import {SelectSingle} from './query/Select'
 import {TableSelect} from './query/TableSelect'
 
 const {
@@ -54,26 +55,32 @@ export declare class TableInstance<Definition> {
 
 export type Table<Definition> = Definition & TableInstance<Definition>
 
+type TableOf<Row> = Table<{
+  [K in keyof Row as K extends string ? K : never]: Column<Row[K]> &
+    Fields<Row[K]>
+}>
+
+type RowOf<Definition> = {
+  [K in keyof Definition as Definition[K] extends Column<any>
+    ? K
+    : never]: Definition[K] extends Column<infer T> ? T : never
+}
+
+type UpdateOf<Definition> = Partial<{
+  [K in keyof Definition as Definition[K] extends Column<any>
+    ? K
+    : never]: Definition[K] extends Column<infer T>
+    ? EV<T> | SelectSingle<T>
+    : never
+}>
+
 export namespace Table {
   export const Data = Symbol('Table.Data')
   export const Meta = Symbol('Table.Meta')
 
-  export type Of<Row> = Table<{
-    [K in keyof Row as K extends string ? K : never]: Column<Row[K]> &
-      Fields<Row[K]>
-  }>
-
-  export type Select<Definition> = {
-    [K in keyof Definition as Definition[K] extends Column<any>
-      ? K
-      : never]: Definition[K] extends Column<infer T> ? T : never
-  }
-
-  export type Update<Definition> = Partial<{
-    [K in keyof Definition as Definition[K] extends Column<any>
-      ? K
-      : never]: Definition[K] extends Column<infer T> ? EV<T> : never
-  }>
+  export type Of<Row> = TableOf<Row>
+  export type Select<Definition> = RowOf<Definition>
+  export type Update<Definition> = UpdateOf<Definition>
 
   type IsOptional<K> = K extends PrimaryColumn<any, any>
     ? true
@@ -104,7 +111,7 @@ interface Define<T> {
   new (): T
 }
 
-export type table<T> = T extends Table<infer D> ? Table.Select<D> : never
+export type table<T> = Table.Select<T extends Table<infer D> ? D : T>
 
 export function createTable<Definition>(data: TableData): Table<Definition> {
   const target = new Target.Table(data)
