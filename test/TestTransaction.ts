@@ -39,7 +39,7 @@ test('Rollback', async () => {
     })
     .catch(() => {})
   const bob = await query(User().maybeFirst().where(User.name.is('Bob')))
-  assert.is(bob, undefined)
+  assert.is(bob, null)
 })
 
 test('Savepoints', async () => {
