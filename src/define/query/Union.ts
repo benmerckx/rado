@@ -3,7 +3,7 @@ import {EV, Expr, ExprData, ExprType} from '../Expr'
 import {Query, QueryData} from '../Query'
 import {Target, TargetType} from '../Target'
 import {VirtualTable, createVirtualTable} from '../VirtualTable'
-import {SelectMultiple} from './Select'
+import {Select} from './Select'
 
 const {keys, create, fromEntries} = Object
 
@@ -25,7 +25,7 @@ function columnsOf(expr: ExprData) {
 
 function makeRecursiveUnion<T>(
   initial: QueryData.Select,
-  createUnion: () => SelectMultiple<T> | Union<T>,
+  createUnion: () => Select<T> | Union<T>,
   operator: QueryData.UnionOperation
 ): VirtualTable.Of<T> {
   const name = randomAlias()
@@ -42,7 +42,7 @@ function makeRecursiveUnion<T>(
   )
   const select = (conditions: Array<EV<boolean>>) => {
     const where = Expr.and(...conditions)[Expr.Data]
-    return new SelectMultiple(
+    return new Select(
       new QueryData.Select({
         selection,
         from: target,
@@ -61,7 +61,7 @@ function makeRecursiveUnion<T>(
 export class RecursiveUnion<Row> {
   constructor(public initialSelect: QueryData.Select) {}
 
-  union(create: () => SelectMultiple<Row> | Union<Row>): VirtualTable.Of<Row> {
+  union(create: () => Select<Row> | Union<Row>): VirtualTable.Of<Row> {
     return makeRecursiveUnion(
       this.initialSelect,
       create,
@@ -69,9 +69,7 @@ export class RecursiveUnion<Row> {
     )
   }
 
-  unionAll(
-    create: () => SelectMultiple<Row> | Union<Row>
-  ): VirtualTable.Of<Row> {
+  unionAll(create: () => Select<Row> | Union<Row>): VirtualTable.Of<Row> {
     return makeRecursiveUnion(
       this.initialSelect,
       create,
@@ -87,7 +85,7 @@ export class Union<Row> extends Query<Array<Row>> {
     super(query)
   }
 
-  union(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+  union(query: Select<Row> | Union<Row>): Union<Row> {
     return new Union(
       new QueryData.Union({
         a: this[Query.Data],
@@ -97,7 +95,7 @@ export class Union<Row> extends Query<Array<Row>> {
     )
   }
 
-  unionAll(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+  unionAll(query: Select<Row> | Union<Row>): Union<Row> {
     return new Union(
       new QueryData.Union({
         a: this[Query.Data],
@@ -107,7 +105,7 @@ export class Union<Row> extends Query<Array<Row>> {
     )
   }
 
-  except(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+  except(query: Select<Row> | Union<Row>): Union<Row> {
     return new Union(
       new QueryData.Union({
         a: this[Query.Data],
@@ -117,7 +115,7 @@ export class Union<Row> extends Query<Array<Row>> {
     )
   }
 
-  intersect(query: SelectMultiple<Row> | Union<Row>): Union<Row> {
+  intersect(query: Select<Row> | Union<Row>): Union<Row> {
     return new Union(
       new QueryData.Union({
         a: this[Query.Data],

@@ -11,7 +11,7 @@ import type {Fields} from './Fields'
 import {Index, IndexData} from './Index'
 import type {Selection} from './Selection'
 import {Target} from './Target'
-import {SelectSingle} from './query/Select'
+import {SelectFirst} from './query/Select'
 import {TableSelect} from './query/TableSelect'
 
 const {
@@ -70,7 +70,7 @@ type UpdateOf<Definition> = Partial<{
   [K in keyof Definition as Definition[K] extends Column<any>
     ? K
     : never]: Definition[K] extends Column<infer T>
-    ? EV<T> | SelectSingle<T>
+    ? EV<T> | SelectFirst<T>
     : never
 }>
 

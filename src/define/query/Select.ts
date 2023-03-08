@@ -11,7 +11,7 @@ import {Union} from './Union'
 function joinTarget(
   joinType: 'left' | 'inner',
   query: QueryData.Select,
-  to: Table<any> | SelectMultiple<any>,
+  to: Table<any> | Select<any>,
   on: Array<EV<boolean>>
 ) {
   const toQuery = Query.isQuery(to)
@@ -32,26 +32,26 @@ function joinTarget(
   )
 }
 
-export class SelectMultiple<Row> extends Union<Row> {
+export class Select<Row> extends Union<Row> {
   declare [Query.Data]: QueryData.Select
 
   constructor(query: QueryData.Select) {
     super(query)
   }
 
-  from(table: Table<any> | VirtualTable<any>): SelectMultiple<Row> {
+  from(table: Table<any> | VirtualTable<any>): Select<Row> {
     const virtual: VirtualTableData = table[VirtualTable.Data]
-    return new SelectMultiple(
+    return new Select(
       this[Query.Data].with({from: virtual?.target || new Target.Table(table)})
     )
   }
 
   leftJoin<C>(
-    that: Table<C> | SelectMultiple<C>,
+    that: Table<C> | Select<C>,
     ...on: Array<EV<boolean>>
-  ): SelectMultiple<Row> {
+  ): Select<Row> {
     const query = this[Query.Data]
-    return new SelectMultiple(
+    return new Select(
       this[Query.Data].with({
         from: joinTarget('left', query, that, on)
       })
@@ -59,29 +59,27 @@ export class SelectMultiple<Row> extends Union<Row> {
   }
 
   innerJoin<C>(
-    that: Table<C> | SelectMultiple<C>,
+    that: Table<C> | Select<C>,
     ...on: Array<EV<boolean>>
-  ): SelectMultiple<Row> {
+  ): Select<Row> {
     const query = this[Query.Data]
-    return new SelectMultiple(
+    return new Select(
       this[Query.Data].with({
         from: joinTarget('inner', query, that, on)
       })
     )
   }
 
-  select<X extends Selection>(
-    selection: X
-  ): SelectMultiple<Selection.Infer<X>> {
-    return new SelectMultiple(
+  select<X extends Selection>(selection: X): Select<Selection.Infer<X>> {
+    return new Select(
       this[Query.Data].with({
         selection: ExprData.create(selection)
       })
     )
   }
 
-  count(): SelectSingle<number> {
-    return new SelectSingle(
+  count(): SelectFirst<number> {
+    return new SelectFirst(
       this[Query.Data].with({
         selection: Functions.count()[Expr.Data],
         singleResult: true
@@ -89,8 +87,8 @@ export class SelectMultiple<Row> extends Union<Row> {
     )
   }
 
-  orderBy(...orderBy: Array<Expr<any> | OrderBy>): SelectMultiple<Row> {
-    return new SelectMultiple(
+  orderBy(...orderBy: Array<Expr<any> | OrderBy>): Select<Row> {
+    return new Select(
       this[Query.Data].with({
         orderBy: orderBy.map((e): OrderBy => {
           return Expr.isExpr<any>(e) ? e.asc() : e
@@ -99,20 +97,20 @@ export class SelectMultiple<Row> extends Union<Row> {
     )
   }
 
-  groupBy(...groupBy: Array<Expr<any>>): SelectMultiple<Row> {
-    return new SelectMultiple(
+  groupBy(...groupBy: Array<Expr<any>>): Select<Row> {
+    return new Select(
       this[Query.Data].with({
         groupBy: groupBy.map(ExprData.create)
       })
     )
   }
 
-  maybeFirst(): SelectSingle<Row | null> {
-    return new SelectSingle(this[Query.Data].with({singleResult: true}))
+  maybeFirst(): SelectFirst<Row | null> {
+    return new SelectFirst(this[Query.Data].with({singleResult: true}))
   }
 
-  first(): SelectSingle<Row> {
-    return new SelectSingle(
+  first(): SelectFirst<Row> {
+    return new SelectFirst(
       this[Query.Data].with({
         singleResult: true,
         validate: true
@@ -120,16 +118,16 @@ export class SelectMultiple<Row> extends Union<Row> {
     )
   }
 
-  where(...where: Array<EV<boolean>>): SelectMultiple<Row> {
-    return new SelectMultiple(this.addWhere(where))
+  where(...where: Array<EV<boolean>>): Select<Row> {
+    return new Select(this.addWhere(where))
   }
 
-  take(limit: number | undefined): SelectMultiple<Row> {
-    return new SelectMultiple(this[Query.Data].with({limit}))
+  take(limit: number | undefined): Select<Row> {
+    return new Select(this[Query.Data].with({limit}))
   }
 
-  skip(offset: number | undefined): SelectMultiple<Row> {
-    return new SelectMultiple(this[Query.Data].with({offset}))
+  skip(offset: number | undefined): Select<Row> {
+    return new Select(this[Query.Data].with({offset}))
   }
 
   [Expr.ToExpr](): Expr<Row> {
@@ -137,25 +135,23 @@ export class SelectMultiple<Row> extends Union<Row> {
   }
 }
 
-export class SelectSingle<Row> extends Query<Row> {
+export class SelectFirst<Row> extends Query<Row> {
   declare [Query.Data]: QueryData.Select
 
   constructor(query: QueryData.Select) {
     super(query)
   }
 
-  from(table: Table<any>): SelectMultiple<Row> {
-    return new SelectMultiple(
-      this[Query.Data].with({from: new Target.Table(table)})
-    )
+  from(table: Table<any>): Select<Row> {
+    return new Select(this[Query.Data].with({from: new Target.Table(table)}))
   }
 
   leftJoin<C>(
-    that: Table<C> | SelectMultiple<C>,
+    that: Table<C> | Select<C>,
     ...on: Array<EV<boolean>>
-  ): SelectSingle<Row> {
+  ): SelectFirst<Row> {
     const query = this[Query.Data]
-    return new SelectSingle(
+    return new SelectFirst(
       this[Query.Data].with({
         from: joinTarget('left', query, that, on)
       })
@@ -163,55 +159,55 @@ export class SelectSingle<Row> extends Query<Row> {
   }
 
   innerJoin<C>(
-    that: Table<C> | SelectMultiple<C>,
+    that: Table<C> | Select<C>,
     ...on: Array<EV<boolean>>
-  ): SelectSingle<Row> {
+  ): SelectFirst<Row> {
     const query = this[Query.Data]
-    return new SelectSingle(
+    return new SelectFirst(
       this[Query.Data].with({
         from: joinTarget('inner', query, that, on)
       })
     )
   }
 
-  select<X extends Selection>(selection: X): SelectSingle<Selection.Infer<X>> {
-    return new SelectSingle(
+  select<X extends Selection>(selection: X): SelectFirst<Selection.Infer<X>> {
+    return new SelectFirst(
       this[Query.Data].with({
         selection: ExprData.create(selection)
       })
     )
   }
 
-  orderBy(...orderBy: Array<OrderBy>): SelectSingle<Row> {
-    return new SelectSingle(
+  orderBy(...orderBy: Array<OrderBy>): SelectFirst<Row> {
+    return new SelectFirst(
       this[Query.Data].with({
         orderBy
       })
     )
   }
 
-  groupBy(...groupBy: Array<Expr<any>>): SelectSingle<Row> {
-    return new SelectSingle(
+  groupBy(...groupBy: Array<Expr<any>>): SelectFirst<Row> {
+    return new SelectFirst(
       this[Query.Data].with({
         groupBy: groupBy.map(ExprData.create)
       })
     )
   }
 
-  where(...where: Array<EV<boolean>>): SelectSingle<Row> {
-    return new SelectSingle(this.addWhere(where))
+  where(...where: Array<EV<boolean>>): SelectFirst<Row> {
+    return new SelectFirst(this.addWhere(where))
   }
 
-  take(limit: number | undefined): SelectSingle<Row> {
-    return new SelectSingle(this[Query.Data].with({limit}))
+  take(limit: number | undefined): SelectFirst<Row> {
+    return new SelectFirst(this[Query.Data].with({limit}))
   }
 
-  skip(offset: number | undefined): SelectSingle<Row> {
-    return new SelectSingle(this[Query.Data].with({offset}))
+  skip(offset: number | undefined): SelectFirst<Row> {
+    return new SelectFirst(this[Query.Data].with({offset}))
   }
 
-  all(): SelectMultiple<Row> {
-    return new SelectMultiple(this[Query.Data].with({singleResult: false}))
+  all(): Select<Row> {
+    return new Select(this[Query.Data].with({singleResult: false}))
   }
 
   [Expr.ToExpr](): Expr<Row> {

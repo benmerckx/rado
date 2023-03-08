@@ -2,7 +2,7 @@ import {ExprData} from '../Expr'
 import {Query, QueryData} from '../Query'
 import {Selection} from '../Selection'
 import {Table, TableData} from '../Table'
-import {SelectMultiple} from './Select'
+import {Select} from './Select'
 
 export class InsertValuesReturning<T> extends Query<T> {}
 
@@ -28,7 +28,7 @@ export class Inserted extends Query<{rowsAffected: number}> {
 export class Insert<Definition> {
   constructor(protected into: TableData) {}
 
-  selection(query: SelectMultiple<Table.Select<Definition>>): Inserted {
+  selection(query: Select<Table.Select<Definition>>): Inserted {
     return new Inserted(
       new QueryData.Insert({into: this.into, select: query[Query.Data]})
     )

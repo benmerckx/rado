@@ -3,7 +3,7 @@ import {ParamData} from '../define/Param'
 import {Query, QueryData, QueryType} from '../define/Query'
 import {Schema, SchemaInstructions} from '../define/Schema'
 import {Table} from '../define/Table'
-import {SelectMultiple} from '../define/query/Select'
+import {Select} from '../define/query/Select'
 import {Callable} from '../util/Callable'
 import {Formatter} from './Formatter'
 import {Statement} from './Statement'
@@ -156,7 +156,7 @@ abstract class SyncDriver extends DriverBase {
     }
   }
 
-  *iterate<T>(cursor: SelectMultiple<T>): Iterable<T> {
+  *iterate<T>(cursor: Select<T>): Iterable<T> {
     const stmt = this.prepareStatement(
       this.formatter.compile(cursor[Query.Data]),
       true
@@ -305,7 +305,7 @@ abstract class AsyncDriver extends DriverBase {
     }
   }
 
-  async *iterate<T>(cursor: SelectMultiple<T>): AsyncIterable<T> {
+  async *iterate<T>(cursor: Select<T>): AsyncIterable<T> {
     const stmt = this.prepareStatement(
       this.formatter.compile(cursor[Query.Data]),
       true

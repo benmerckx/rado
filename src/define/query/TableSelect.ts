@@ -5,12 +5,10 @@ import {Target} from '../Target'
 import {CreateTable} from './CreateTable'
 import {Delete} from './Delete'
 import {Insert, Inserted} from './Insert'
-import {SelectMultiple} from './Select'
+import {Select} from './Select'
 import {Update} from './Update'
 
-export class TableSelect<Definition> extends SelectMultiple<
-  Table.Select<Definition>
-> {
+export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
   declare [Query.Data]: QueryData.Select
 
   constructor(protected table: TableData, conditions: Array<EV<boolean>> = []) {
@@ -32,7 +30,7 @@ export class TableSelect<Definition> extends SelectMultiple<
     return new CreateTable(this.table)
   }
 
-  insertSelect(query: SelectMultiple<Table.Insert<Definition>>) {
+  insertSelect(query: Select<Table.Insert<Definition>>) {
     return new Inserted(
       new QueryData.Insert({into: this.table, select: query[Query.Data]})
     )

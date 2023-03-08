@@ -1,7 +1,7 @@
 import type {Database, Statement as NativeStatement} from 'bun:sqlite'
 import {QueryData} from '../define/Query'
 import {SchemaInstructions} from '../define/Schema'
-import {SelectSingle} from '../define/query/Select'
+import {SelectFirst} from '../define/query/Select'
 import {Driver} from '../lib/Driver'
 import {SqlError} from '../lib/SqlError'
 import {Statement} from '../lib/Statement'
@@ -46,7 +46,7 @@ export class BunSqliteDriver extends Driver.Sync {
     this.tableData = this.prepare(SqliteSchema.tableData)
     this.indexData = this.prepare(SqliteSchema.indexData)
     this.lastChanges = this.prepare(() => {
-      return new SelectSingle<{rowsAffected: number}>(
+      return new SelectFirst<{rowsAffected: number}>(
         new QueryData.Raw({
           expectedReturn: 'row',
           strings: ['SELECT changes() as rowsAffected'],

@@ -1,12 +1,12 @@
 import type {Expr} from './Expr'
-import type {SelectMultiple, SelectSingle} from './query/Select'
+import type {Select, SelectFirst} from './query/Select'
 
 type SelectionBase =
   | unknown
   | (() => any)
   | Expr<any>
-  | SelectMultiple<any>
-  | SelectSingle<any>
+  | Select<any>
+  | SelectFirst<any>
 interface SelectionRecord extends Record<string, Selection> {}
 export type Selection = SelectionBase | SelectionRecord
 

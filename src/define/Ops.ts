@@ -7,11 +7,11 @@ import {Target} from './Target'
 import {Batch} from './query/Batch'
 import {Delete} from './query/Delete'
 import {Insert} from './query/Insert'
-import {SelectMultiple} from './query/Select'
+import {Select} from './query/Select'
 import {RecursiveUnion} from './query/Union'
 import {Update} from './query/Update'
 
-export function withRecursive<Row>(initialSelect: SelectMultiple<Row>) {
+export function withRecursive<Row>(initialSelect: Select<Row>) {
   return new RecursiveUnion<Row>(initialSelect[Query.Data])
 }
 
@@ -25,21 +25,19 @@ export function alias<T extends Table<{}>>(table: T): Record<string, T> {
 
 export function select<X extends Selection>(
   selection: X
-): SelectMultiple<Selection.Infer<X>> {
-  return new SelectMultiple(
+): Select<Selection.Infer<X>> {
+  return new Select(
     new QueryData.Select({
       selection: ExprData.create(selection)
     })
   )
 }
 
-export function from<Row>(
-  source: Table<Row> | SelectMultiple<Row>
-): SelectMultiple<Row> {
+export function from<Row>(source: Table<Row> | Select<Row>): Select<Row> {
   const target = Query.isQuery(source)
     ? new Target.Query(source[Query.Data])
     : new Target.Table(source[Table.Data])
-  return new SelectMultiple<Row>(
+  return new Select<Row>(
     new QueryData.Select({
       from: target,
       selection: new ExprData.Row(target)

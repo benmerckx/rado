@@ -5,7 +5,7 @@ import {Fields} from './Fields'
 import {Selection} from './Selection'
 import {Table} from './Table'
 import {Target} from './Target'
-import {SelectMultiple} from './query/Select'
+import {Select} from './query/Select'
 
 const {create, entries} = Object
 
@@ -14,8 +14,8 @@ export interface VirtualTableInstance<Definition> extends ClearFunctionProto {
     [K in keyof Definition]?: Definition[K] extends Expr<infer V>
       ? EV<V>
       : never
-  }): SelectMultiple<Table.Select<Definition>>
-  (...conditions: Array<EV<boolean>>): SelectMultiple<Table.Select<Definition>>
+  }): Select<Table.Select<Definition>>
+  (...conditions: Array<EV<boolean>>): Select<Table.Select<Definition>>
 }
 
 export declare class VirtualTableInstance<Definition> {
@@ -26,7 +26,7 @@ export declare class VirtualTableInstance<Definition> {
 export interface VirtualTableData {
   name: string
   target: Target
-  select: (conditions: Array<EV<boolean>>) => SelectMultiple<any>
+  select: (conditions: Array<EV<boolean>>) => Select<any>
 }
 
 export type VirtualTable<Definition> = Definition &
