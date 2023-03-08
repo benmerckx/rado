@@ -14,7 +14,7 @@ test('Iterate', async () => {
   await create(Node).on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
-  await Node().insertAll(objects).on(db)
+  await Node().insert(objects).on(db)
   for await (const node of db.iterate(Node())) {
     assert.is(node.index, objects.shift()?.index)
   }

@@ -4,7 +4,7 @@ import {Table, TableData, createTable} from '../Table.js'
 import {Target} from '../Target.js'
 import {CreateTable} from './CreateTable.js'
 import {Delete} from './Delete.js'
-import {Insert, Inserted} from './Insert.js'
+import {Insert, InsertInto, InsertOne} from './Insert.js'
 import {Select} from './Select.js'
 import {Update} from './Update.js'
 
@@ -30,14 +30,27 @@ export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
     return new CreateTable(this.table)
   }
 
+  insert(query: Select<Table.Insert<Definition>>): Insert
+  insert(rows: Array<Table.Insert<Definition>>): Insert
+  insert(row: Table.Insert<Definition>): InsertOne<Table.Select<Definition>>
+  insert(input: any) {
+    if (input instanceof Select) {
+      return this.insertSelect(input)
+    } else if (Array.isArray(input)) {
+      return this.insertAll(input)
+    } else {
+      return this.insertOne(input)
+    }
+  }
+
   insertSelect(query: Select<Table.Insert<Definition>>) {
-    return new Inserted(
+    return new Insert(
       new QueryData.Insert({into: this.table, select: query[Query.Data]})
     )
   }
 
   insertOne(record: Table.Insert<Definition>) {
-    return new Query<Table.Select<Definition>>(
+    return new InsertOne<Table.Select<Definition>>(
       new QueryData.Insert({
         into: this.table,
         data: [record],
@@ -48,7 +61,7 @@ export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
   }
 
   insertAll(data: Array<Table.Insert<Definition>>) {
-    return new Insert<Definition>(this.table).values(...data)
+    return new InsertInto<Definition>(this.table).values(...data)
   }
 
   set(data: Table.Update<Definition>) {

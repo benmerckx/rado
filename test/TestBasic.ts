@@ -25,7 +25,7 @@ test('basic', async () => {
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
-  await Node().insertAll(objects).on(db)
+  await Node().insert(objects).on(db)
   assert.equal((await Node().on(db)).length, amount)
   const stored = await Node().on(db)
   const id = stored[amount - 1].id
@@ -54,7 +54,7 @@ test('filters', async () => {
   await create(Test).on(db)
   const a = {prop: 10}
   const b = {prop: 20}
-  await Test().insertAll([a, b]).on(db)
+  await Test().insert([a, b]).on(db)
   const gt10 = await Test(Test.prop.isGreater(10)).first().on(db)
   assert.equal(gt10.prop, 20)
 })
@@ -131,7 +131,7 @@ test('json', async () => {
   await query(create(Test))
   const a = {prop: 10, propB: 5}
   const b = {prop: 20, propB: 5}
-  await query(insertInto(Test).values(a, b))
+  await query(Test().insert([a, b]))
 
   const res1 = await query(
     Test({prop: 10})
@@ -183,7 +183,7 @@ test('each', async () => {
   const b = {title: 'Entry B'}
   const c = {title: 'Entry C'}
   await query(create(Entry))
-  await query(Entry().insertAll([b, c]))
+  await query(Entry().insert([b, c]))
 
   const Link = Entry().as('Link')
 

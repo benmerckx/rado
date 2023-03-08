@@ -6,7 +6,7 @@ import {Table, createTable} from './Table.js'
 import {Target} from './Target.js'
 import {Batch} from './query/Batch.js'
 import {Delete} from './query/Delete.js'
-import {Insert} from './query/Insert.js'
+import {InsertInto} from './query/Insert.js'
 import {Select} from './query/Select.js'
 import {RecursiveUnion} from './query/Union.js'
 import {Update} from './query/Update.js'
@@ -45,12 +45,18 @@ export function from<Row>(source: Table<Row> | Select<Row>): Select<Row> {
   )
 }
 
-export function update<Row>(table: Table<Row>): Update<Row> {
-  return new Update<Row>(new QueryData.Update({table: table[Table.Data]}))
+export function update<Definition>(
+  table: Table<Definition>
+): Update<Definition> {
+  return new Update<Definition>(
+    new QueryData.Update({table: table[Table.Data]})
+  )
 }
 
-export function insertInto<Row>(table: Table<Row>): Insert<Row> {
-  return new Insert<Row>(table[Table.Data])
+export function insertInto<Definition>(
+  table: Table<Definition>
+): InsertInto<Definition> {
+  return new InsertInto<Definition>(table[Table.Data])
 }
 
 export function deleteFrom<Row>(table: Table<Row>): Delete {
