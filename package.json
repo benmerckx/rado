@@ -12,12 +12,23 @@
   },
   "typesVersions": {
     "*": {
-      "driver/bun:sqlite": [
-        "./dist/driver/bun-sqlite.d.ts"
+      "driver/*": [
+        "dist/driver/*.d.ts"
       ],
-      "*": [
-        "./dist/*",
-        "./dist/index.d.ts"
+      "lib/*": [
+        "dist/lib/*.d.ts"
+      ],
+      "driver/bun:sqlite": [
+        "dist/driver/bun-sqlite.d.ts"
+      ],
+      "define/*": [
+        "dist/define/*.d.ts"
+      ],
+      "sqlite/*": [
+        "dist/sqlite/*.d.ts"
+      ],
+      "sqlite": [
+        "dist/sqlite.d.ts"
       ]
     }
   },
