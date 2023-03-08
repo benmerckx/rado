@@ -1,8 +1,8 @@
-import {ExprData} from '../Expr'
-import {Query, QueryData} from '../Query'
-import {Selection} from '../Selection'
-import {Table, TableData} from '../Table'
-import {Select} from './Select'
+import {ExprData} from '../Expr.js'
+import {Query, QueryData} from '../Query.js'
+import {Selection} from '../Selection.js'
+import {Table, TableData} from '../Table.js'
+import {Select} from './Select.js'
 
 export class InsertValuesReturning<T> extends Query<T> {}
 

@@ -1,12 +1,12 @@
 import type {Database, Statement as NativeStatement} from 'bun:sqlite'
-import {QueryData} from '../define/Query'
-import {SchemaInstructions} from '../define/Schema'
-import {SelectFirst} from '../define/query/Select'
-import {Driver} from '../lib/Driver'
-import {SqlError} from '../lib/SqlError'
-import {Statement} from '../lib/Statement'
-import {SqliteFormatter} from '../sqlite/SqliteFormatter'
-import {SqliteSchema} from '../sqlite/SqliteSchema'
+import {QueryData} from '../define/Query.js'
+import {SchemaInstructions} from '../define/Schema.js'
+import {SelectFirst} from '../define/query/Select.js'
+import {Driver} from '../lib/Driver.js'
+import {SqlError} from '../lib/SqlError.js'
+import {Statement} from '../lib/Statement.js'
+import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
+import {SqliteSchema} from '../sqlite/SqliteSchema.js'
 
 class PreparedStatement implements Driver.Sync.PreparedStatement {
   constructor(

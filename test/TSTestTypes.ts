@@ -1,4 +1,4 @@
-import {Expr, Fields, Table, column, table} from '../src/index'
+import {Expr, Fields, Table, column, table} from '../src/index.js'
 
 type Hoverable<T> = {[K in keyof T]: T[K]}
 //   ^?

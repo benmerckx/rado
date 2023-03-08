@@ -1,10 +1,10 @@
 import type {Database, Statement as NativeStatement} from 'better-sqlite3'
-import {SchemaInstructions} from '../define/Schema'
-import {Driver} from '../lib/Driver'
-import {SqlError} from '../lib/SqlError'
-import {Statement} from '../lib/Statement'
-import {SqliteFormatter} from '../sqlite/SqliteFormatter'
-import {SqliteSchema} from '../sqlite/SqliteSchema'
+import {SchemaInstructions} from '../define/Schema.js'
+import {Driver} from '../lib/Driver.js'
+import {SqlError} from '../lib/SqlError.js'
+import {Statement} from '../lib/Statement.js'
+import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
+import {SqliteSchema} from '../sqlite/SqliteSchema.js'
 
 class PreparedStatement implements Driver.Sync.PreparedStatement {
   constructor(private stmt: NativeStatement) {}

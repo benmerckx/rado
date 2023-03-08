@@ -1,8 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {select, withRecursive} from '../src/index'
-import {date} from '../src/sqlite'
-import {connect} from './DbSuite'
+import {select, withRecursive} from '../src/index.js'
+import {date} from '../src/sqlite.js'
+import {connect} from './DbSuite.js'
 
 const db = await connect()
 

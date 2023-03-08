@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Id, column, create, table} from '../src/index'
-import {connect} from './DbSuite'
+import {Id, column, create, table} from '../src/index.js'
+import {connect} from './DbSuite.js'
 
 type User = table<typeof User>
 const User = table({

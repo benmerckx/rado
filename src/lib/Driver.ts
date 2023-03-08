@@ -1,12 +1,12 @@
-import {Expr, ExprData} from '../define/Expr'
-import {ParamData} from '../define/Param'
-import {Query, QueryData, QueryType} from '../define/Query'
-import {Schema, SchemaInstructions} from '../define/Schema'
-import {Table} from '../define/Table'
-import {Select} from '../define/query/Select'
-import {Callable} from '../util/Callable'
-import {Formatter} from './Formatter'
-import {Statement} from './Statement'
+import {Expr, ExprData} from '../define/Expr.js'
+import {ParamData} from '../define/Param.js'
+import {Query, QueryData, QueryType} from '../define/Query.js'
+import {Schema, SchemaInstructions} from '../define/Schema.js'
+import {Table} from '../define/Table.js'
+import {Select} from '../define/query/Select.js'
+import {Callable} from '../util/Callable.js'
+import {Formatter} from './Formatter.js'
+import {Statement} from './Statement.js'
 
 function isTemplateStringsArray(input: any): input is TemplateStringsArray {
   return Boolean(Array.isArray(input) && (input as any).raw)

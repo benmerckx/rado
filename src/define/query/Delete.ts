@@ -1,5 +1,5 @@
-import {EV} from '../Expr'
-import {Query, QueryData} from '../Query'
+import {EV} from '../Expr.js'
+import {Query, QueryData} from '../Query.js'
 
 export class Delete extends Query<{rowsAffected: number}> {
   declare [Query.Data]: QueryData.Delete

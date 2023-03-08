@@ -1,11 +1,11 @@
-import {randomAlias} from '../util/Alias'
-import {Fields} from './Fields'
-import {OrderBy, OrderDirection} from './OrderBy'
-import {ParamData, ParamType} from './Param'
-import {QueryData} from './Query'
-import {Selection} from './Selection'
-import {Target} from './Target'
-import {Select, SelectFirst} from './query/Select'
+import {randomAlias} from '../util/Alias.js'
+import {Fields} from './Fields.js'
+import {OrderBy, OrderDirection} from './OrderBy.js'
+import {ParamData, ParamType} from './Param.js'
+import {QueryData} from './Query.js'
+import {Selection} from './Selection.js'
+import {Target} from './Target.js'
+import {Select, SelectFirst} from './query/Select.js'
 
 const {fromEntries, entries} = Object
 

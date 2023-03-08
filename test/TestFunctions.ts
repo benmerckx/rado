@@ -1,8 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, Functions, column, select, table} from '../src/index'
-import {cast, count, strftime} from '../src/sqlite'
-import {connect} from './DbSuite'
+import {Expr, Functions, column, select, table} from '../src/index.js'
+import {cast, count, strftime} from '../src/sqlite.js'
+import {connect} from './DbSuite.js'
 
 test('dynamic', async () => {
   const query = await connect()

@@ -1,8 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, index, table} from '../src/index'
-import {datetime} from '../src/sqlite'
-import {connect} from './DbSuite'
+import {column, index, table} from '../src/index.js'
+import {datetime} from '../src/sqlite.js'
+import {connect} from './DbSuite.js'
 
 const columns = {
   id: column.integer.primaryKey(),

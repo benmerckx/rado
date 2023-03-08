@@ -1,9 +1,9 @@
-import {Expr} from '../define/Expr'
-import {Query} from '../define/Query'
-import {SchemaInstructions} from '../define/Schema'
-import {sql} from '../define/Sql'
-import {Statement} from '../lib/Statement'
-import {SqliteFormatter} from './SqliteFormatter'
+import {Expr} from '../define/Expr.js'
+import {Query} from '../define/Query.js'
+import {SchemaInstructions} from '../define/Schema.js'
+import {sql} from '../define/Sql.js'
+import {Statement} from '../lib/Statement.js'
+import {SqliteFormatter} from './SqliteFormatter.js'
 
 export namespace SqliteSchema {
   const formatter = new SqliteFormatter()

@@ -1,12 +1,12 @@
-import {Driver} from '../lib/Driver'
-import {CompileOptions} from '../lib/Formatter'
-import {ColumnData} from './Column'
-import {EV, Expr, ExprData} from './Expr'
-import {IndexData} from './Index'
-import {OrderBy} from './OrderBy'
-import {Selection} from './Selection'
-import {TableData} from './Table'
-import {Target} from './Target'
+import {Driver} from '../lib/Driver.js'
+import {CompileOptions} from '../lib/Formatter.js'
+import {ColumnData} from './Column.js'
+import {EV, Expr, ExprData} from './Expr.js'
+import {IndexData} from './Index.js'
+import {OrderBy} from './OrderBy.js'
+import {Selection} from './Selection.js'
+import {TableData} from './Table.js'
+import {Target} from './Target.js'
 
 const {assign} = Object
 

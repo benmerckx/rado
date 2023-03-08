@@ -9,8 +9,8 @@ import {
   from,
   insertInto,
   table
-} from '../src/index'
-import {connect} from './DbSuite'
+} from '../src/index.js'
+import {connect} from './DbSuite.js'
 
 test('basic', async () => {
   const db = await connect()

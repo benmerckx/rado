@@ -8,8 +8,8 @@ import {
   Target,
   column,
   table
-} from '../src/index'
-import {SqliteFormatter} from '../src/sqlite'
+} from '../src/index.js'
+import {SqliteFormatter} from '../src/sqlite.js'
 
 test('x in y', async () => {
   const formatter = new SqliteFormatter()

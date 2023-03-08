@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, column, table} from '../src/index'
-import {connect} from './DbSuite'
+import {Expr, column, table} from '../src/index.js'
+import {connect} from './DbSuite.js'
 
 const Node = table({
   Node: {

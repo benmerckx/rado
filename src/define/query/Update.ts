@@ -1,6 +1,6 @@
-import {EV} from '../Expr'
-import {Query, QueryData} from '../Query'
-import {Table} from '../Table'
+import {EV} from '../Expr.js'
+import {Query, QueryData} from '../Query.js'
+import {Table} from '../Table.js'
 
 export class Update<Definition> extends Query<{rowsAffected: number}> {
   declare [Query.Data]: QueryData.Update

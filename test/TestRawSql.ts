@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {sql} from '../src'
-import {connect} from './DbSuite'
+import {sql} from '../src/index.js'
+import {connect} from './DbSuite.js'
 
 const db = await connect()
 const valueWithQuotes = 'test"t\'est'

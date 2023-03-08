@@ -1,11 +1,11 @@
-import {ClearFunctionProto} from '../util/Callable'
-import {Column} from './Column'
-import {BinOpType, EV, Expr, ExprData} from './Expr'
-import {Fields} from './Fields'
-import {Selection} from './Selection'
-import {Table} from './Table'
-import {Target} from './Target'
-import {Select} from './query/Select'
+import {ClearFunctionProto} from '../util/Callable.js'
+import {Column} from './Column.js'
+import {BinOpType, EV, Expr, ExprData} from './Expr.js'
+import {Fields} from './Fields.js'
+import {Selection} from './Selection.js'
+import {Table} from './Table.js'
+import {Target} from './Target.js'
+import {Select} from './query/Select.js'
 
 const {create, entries} = Object
 

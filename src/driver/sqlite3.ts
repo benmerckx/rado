@@ -1,11 +1,11 @@
 import type {Database, Statement as NativeStatement} from 'sqlite3'
-import {QueryData} from '../define/Query'
-import {SchemaInstructions} from '../define/Schema'
-import {Driver} from '../lib/Driver'
-import {SqlError} from '../lib/SqlError'
-import {Statement} from '../lib/Statement'
-import {SqliteFormatter} from '../sqlite/SqliteFormatter'
-import {SqliteSchema} from '../sqlite/SqliteSchema'
+import {QueryData} from '../define/Query.js'
+import {SchemaInstructions} from '../define/Schema.js'
+import {Driver} from '../lib/Driver.js'
+import {SqlError} from '../lib/SqlError.js'
+import {Statement} from '../lib/Statement.js'
+import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
+import {SqliteSchema} from '../sqlite/SqliteSchema.js'
 
 class PreparedStatement implements Driver.Async.PreparedStatement {
   constructor(private stmt: NativeStatement) {}

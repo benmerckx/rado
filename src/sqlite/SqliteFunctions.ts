@@ -1,7 +1,7 @@
-import {EV, Expr} from '../define/Expr'
-import {Functions} from '../define/Functions'
-import {Query} from '../define/Query'
-import {Table} from '../define/Table'
+import {EV, Expr} from '../define/Expr.js'
+import {Functions} from '../define/Functions.js'
+import {Query} from '../define/Query.js'
+import {Table} from '../define/Table.js'
 
 export const SqliteFunctions: SqliteFunctions = Functions as any
 

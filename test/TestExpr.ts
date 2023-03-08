@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Expr, column, select, table} from '../src/index'
-import {connect} from './DbSuite'
+import {Expr, column, select, table} from '../src/index.js'
+import {connect} from './DbSuite.js'
 
 test('Expr<Array<_>>.includes', async () => {
   const db = await connect()

@@ -1,12 +1,12 @@
-import {EV, Expr, ExprData} from '../Expr'
-import {Query, QueryData} from '../Query'
-import {Table, TableData, createTable} from '../Table'
-import {Target} from '../Target'
-import {CreateTable} from './CreateTable'
-import {Delete} from './Delete'
-import {Insert, Inserted} from './Insert'
-import {Select} from './Select'
-import {Update} from './Update'
+import {EV, Expr, ExprData} from '../Expr.js'
+import {Query, QueryData} from '../Query.js'
+import {Table, TableData, createTable} from '../Table.js'
+import {Target} from '../Target.js'
+import {CreateTable} from './CreateTable.js'
+import {Delete} from './Delete.js'
+import {Insert, Inserted} from './Insert.js'
+import {Select} from './Select.js'
+import {Update} from './Update.js'
 
 export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
   declare [Query.Data]: QueryData.Select

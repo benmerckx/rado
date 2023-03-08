@@ -1,9 +1,9 @@
-import {randomAlias} from '../../util/Alias'
-import {EV, Expr, ExprData, ExprType} from '../Expr'
-import {Query, QueryData} from '../Query'
-import {Target, TargetType} from '../Target'
-import {VirtualTable, createVirtualTable} from '../VirtualTable'
-import {Select} from './Select'
+import {randomAlias} from '../../util/Alias.js'
+import {EV, Expr, ExprData, ExprType} from '../Expr.js'
+import {Query, QueryData} from '../Query.js'
+import {Target, TargetType} from '../Target.js'
+import {VirtualTable, createVirtualTable} from '../VirtualTable.js'
+import {Select} from './Select.js'
 
 const {keys, create, fromEntries} = Object
 

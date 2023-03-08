@@ -1,7 +1,7 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, table} from '../src/index'
-import {connect} from './DbSuite'
+import {column, create, table} from '../src/index.js'
+import {connect} from './DbSuite.js'
 
 test('Iterate', async () => {
   const db = await connect()

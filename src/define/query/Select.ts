@@ -1,12 +1,12 @@
-import {EV, Expr, ExprData} from '../Expr'
-import {Functions} from '../Functions'
-import {OrderBy} from '../OrderBy'
-import {Query, QueryData} from '../Query'
-import {Selection} from '../Selection'
-import {Table} from '../Table'
-import {Target} from '../Target'
-import {VirtualTable, VirtualTableData} from '../VirtualTable'
-import {Union} from './Union'
+import {EV, Expr, ExprData} from '../Expr.js'
+import {Functions} from '../Functions.js'
+import {OrderBy} from '../OrderBy.js'
+import {Query, QueryData} from '../Query.js'
+import {Selection} from '../Selection.js'
+import {Table} from '../Table.js'
+import {Target} from '../Target.js'
+import {VirtualTable, VirtualTableData} from '../VirtualTable.js'
+import {Union} from './Union.js'
 
 function joinTarget(
   joinType: 'left' | 'inner',

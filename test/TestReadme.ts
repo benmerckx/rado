@@ -1,8 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, create, table} from '../src/index'
-import {count} from '../src/sqlite'
-import {connect} from './DbSuite'
+import {column, create, table} from '../src/index.js'
+import {count} from '../src/sqlite.js'
+import {connect} from './DbSuite.js'
 
 const User = table({
   user: class {

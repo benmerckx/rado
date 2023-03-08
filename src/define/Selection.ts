@@ -1,5 +1,5 @@
-import type {Expr} from './Expr'
-import type {Select, SelectFirst} from './query/Select'
+import type {Expr} from './Expr.js'
+import type {Select, SelectFirst} from './query/Select.js'
 
 type SelectionBase =
   | unknown

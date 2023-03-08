@@ -1,4 +1,4 @@
-import {Expr, ExprData} from './Expr'
+import {Expr, ExprData} from './Expr.js'
 
 function get(target: Record<string, Function>, method: string) {
   if (method in target) return target[method]

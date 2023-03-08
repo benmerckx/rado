@@ -1,4 +1,4 @@
-import {Query, QueryData} from '../Query'
+import {Query, QueryData} from '../Query.js'
 
 export class Batch<T = void> extends Query<T> {
   declare [Query.Data]: QueryData.Batch

@@ -1,8 +1,8 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {column, table} from '../src/index'
-import {match} from '../src/sqlite'
-import {connect} from './DbSuite'
+import {column, table} from '../src/index.js'
+import {match} from '../src/sqlite.js'
+import {connect} from './DbSuite.js'
 
 type Search = table<typeof Search>
 const Search = table({

@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Table, column, index, table} from '../src/index'
+import {Table, column, index, table} from '../src/index.js'
 
 const Notification = table({
   Notification: class {

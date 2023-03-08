@@ -1,32 +1,36 @@
-import {Driver} from '../src'
+import {Driver} from '../src/index.js'
 
 export async function connect(): Promise<Driver.Async> {
   switch (process.env.TEST_DRIVER) {
     case 'bun:sqlite': {
       const {Database} = await import('bun:sqlite')
       const {connect: createConnection} = await import(
-        '../src/driver/bun-sqlite'
+        '../src/driver/bun-sqlite.js'
       )
       return createConnection(new Database(':memory:')).toAsync()
     }
     case 'better-sqlite3': {
       const {default: Database} = await import('better-sqlite3')
       const {connect: createConnection} = await import(
-        '../src/driver/better-sqlite3'
+        '../src/driver/better-sqlite3.js'
       )
       return createConnection(new Database(':memory:')).toAsync()
     }
     case 'sql.js': {
       const {default: init} = await import('sql.js')
       const {Database} = await init()
-      const {connect: createConnection} = await import('../src/driver/sql.js')
+      const {connect: createConnection} = await import(
+        '../src/driver/sql.js.js'
+      )
       return createConnection(new Database()).toAsync()
     }
     case 'sqlite3': {
       const {
         default: {Database}
       } = await import('sqlite3')
-      const {connect: createConnection} = await import('../src/driver/sqlite3')
+      const {connect: createConnection} = await import(
+        '../src/driver/sqlite3.js'
+      )
       return createConnection(new Database(':memory:'))
     }
     default:

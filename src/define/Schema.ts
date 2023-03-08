@@ -1,9 +1,9 @@
-import {Formatter} from '../lib/Formatter'
-import {Statement} from '../lib/Statement'
-import {Expr, ExprData} from './Expr'
-import {QueryData, QueryType} from './Query'
-import {Table, TableData} from './Table'
-import {Target} from './Target'
+import {Formatter} from '../lib/Formatter.js'
+import {Statement} from '../lib/Statement.js'
+import {Expr, ExprData} from './Expr.js'
+import {QueryData, QueryType} from './Query.js'
+import {Table, TableData} from './Table.js'
+import {Target} from './Target.js'
 
 export interface SchemaInstructions {
   columns: Record<string, string>

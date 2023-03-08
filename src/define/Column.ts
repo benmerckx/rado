@@ -1,6 +1,6 @@
-import {Callable} from '../util/Callable'
-import {EV, Expr, ExprData} from './Expr'
-import {Fields} from './Fields'
+import {Callable} from '../util/Callable.js'
+import {EV, Expr, ExprData} from './Expr.js'
+import {Fields} from './Fields.js'
 
 export enum ColumnType {
   String = 'String',

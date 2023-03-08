@@ -1,18 +1,18 @@
-import {ClearFunctionProto} from '../util/Callable'
+import {ClearFunctionProto} from '../util/Callable.js'
 import {
   Column,
   ColumnData,
   ColumnType,
   OptionalColumn,
   PrimaryColumn
-} from './Column'
-import {BinOpType, EV, Expr, ExprData} from './Expr'
-import type {Fields} from './Fields'
-import {Index, IndexData} from './Index'
-import type {Selection} from './Selection'
-import {Target} from './Target'
-import {SelectFirst} from './query/Select'
-import {TableSelect} from './query/TableSelect'
+} from './Column.js'
+import {BinOpType, EV, Expr, ExprData} from './Expr.js'
+import type {Fields} from './Fields.js'
+import {Index, IndexData} from './Index.js'
+import type {Selection} from './Selection.js'
+import {Target} from './Target.js'
+import {SelectFirst} from './query/Select.js'
+import {TableSelect} from './query/TableSelect.js'
 
 const {
   assign,

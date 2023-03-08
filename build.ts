@@ -7,17 +7,5 @@ await build({
   format: 'esm',
   target: 'esnext',
   entryPoints: glob.sync(entryPoints),
-  outdir,
-  bundle: true,
-  plugins: [
-    {
-      name: 'add-js',
-      setup(build) {
-        build.onResolve({filter: /.*/}, args => {
-          const path = args.path + (args.path.startsWith('.') ? '.js' : '')
-          if (args.importer) return {path, external: true}
-        })
-      }
-    }
-  ]
+  outdir
 })
