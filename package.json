@@ -29,6 +29,9 @@
       ],
       "sqlite": [
         "dist/sqlite.d.ts"
+      ],
+      "util/*": [
+        "dist/util/*.d.ts"
       ]
     }
   },
