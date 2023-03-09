@@ -1,4 +1,4 @@
-import {ClearFunctionProto} from '../util/Callable.js'
+import {Callable} from '../util/Callable.js'
 import {Column} from './Column.js'
 import {BinOpType, EV, Expr, ExprData} from './Expr.js'
 import {Fields} from './Fields.js'
@@ -9,7 +9,7 @@ import {Select} from './query/Select.js'
 
 const {create, entries} = Object
 
-export interface VirtualTableInstance<Definition> extends ClearFunctionProto {
+export interface VirtualTableInstance<Definition> extends Callable {
   (conditions: {
     [K in keyof Definition]?: Definition[K] extends Expr<infer V>
       ? EV<V>

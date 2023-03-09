@@ -1,4 +1,4 @@
-import {ClearFunctionProto} from '../util/Callable.js'
+import {Callable} from '../util/Callable.js'
 import {
   Column,
   ColumnData,
@@ -39,7 +39,7 @@ export class TableData {
   }
 }
 
-export interface TableInstance<Definition> extends ClearFunctionProto {
+export interface TableInstance<Definition> extends Callable {
   (conditions: {
     [K in keyof Definition]?: Definition[K] extends Expr<infer V>
       ? EV<V>
