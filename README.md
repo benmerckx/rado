@@ -3,14 +3,14 @@
 Fully typed, lightweight TypeScript query builder.
 Currently focused on SQLite.
 
-<pre>npm install <a href="https://www.npmjs.com/package/rado">rado</a></pre>
-
 - Definition via TypeScript types
 - Composable queries
 - Aggregate rows in selects
 - First class JSON columns
 - No code generation step
 - No dependencies
+
+<pre>npm install <a href="https://www.npmjs.com/package/rado">rado</a></pre>
 
 ## Queries
 
