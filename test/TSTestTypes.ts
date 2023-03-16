@@ -43,7 +43,7 @@ const Example = table({
 })
 type Example = table<typeof Example>
 
-const x = Example({id: 1}).select({...Example})
+const x = Example({id: 1}).select({name: Example.name})
 
 definitionAndRow<Example>(Example, {id: 1, name: {sub: {sub: 'test'}}})
 

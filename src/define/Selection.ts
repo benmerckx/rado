@@ -1,3 +1,4 @@
+import type {Column} from './Column.js'
 import type {Expr} from './Expr.js'
 import type {Select, SelectFirst} from './query/Select.js'
 
@@ -19,6 +20,8 @@ export namespace Selection {
     : T extends {[CursorType](): infer K}
     ? K
     : T extends Expr<infer K>
+    ? K
+    : T extends Column<infer K>
     ? K
     : T extends Record<string, Selection>
     ? {[K in keyof T]: Infer<T[K]>}
