@@ -1,6 +1,6 @@
 {
   "name": "rado",
-  "version": "0.2.34",
+  "version": "0.2.35",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
