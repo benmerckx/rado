@@ -409,7 +409,7 @@ export class Expr<T> {
   }
 }
 
-export declare class ObjectExpr {
+export interface ObjectExpr {
   [Expr.Data]: ExprData
 }
 
