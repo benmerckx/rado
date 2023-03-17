@@ -84,7 +84,8 @@ export namespace Schema {
   export function upgrade(
     formatter: Formatter,
     local: SchemaInstructions,
-    schema: TableData
+    schema: TableData,
+    verbose = true
   ): Array<QueryData> {
     const columnNames = new Set([
       ...Object.keys(local.columns),
@@ -99,10 +100,12 @@ export namespace Schema {
         res.push(
           new QueryData.AlterTable({table: schema, addColumn: schemaCol})
         )
+        if (verbose) console.log(`Adding column ${columnName}`)
       } else if (!schemaCol) {
         res.push(
           new QueryData.AlterTable({table: schema, dropColumn: columnName})
         )
+        if (verbose) console.log(`Removing column ${columnName}`)
       } else {
         const {sql: instruction} = formatter.formatColumn(
           {stmt: new Statement(formatter)},
@@ -112,6 +115,7 @@ export namespace Schema {
           removeLeadingWhitespace(localInstruction) !==
           removeLeadingWhitespace(instruction)
         ) {
+          if (verbose) console.log(`Recreating because ${columnName} differs`)
           recreate = true
         }
       }
@@ -138,8 +142,10 @@ export namespace Schema {
       const schemaIndex = meta.indexes[indexName]
       if (!localInstruction) {
         res.push(new QueryData.CreateIndex({table: schema, index: schemaIndex}))
+        if (verbose) console.log(`Adding index ${indexName}`)
       } else if (!schemaIndex) {
         res.unshift(new QueryData.DropIndex({table: schema, name: indexName}))
+        if (verbose) console.log(`Removing index ${indexName}`)
       } else {
         const {sql: instruction} = formatter.compile(
           new QueryData.CreateIndex({table: schema, index: schemaIndex})
@@ -148,6 +154,7 @@ export namespace Schema {
           removeLeadingWhitespace(localInstruction) !==
           removeLeadingWhitespace(instruction)
         ) {
+          if (verbose) console.log(`Recreating index ${indexName}`)
           res.unshift(new QueryData.DropIndex({table: schema, name: indexName}))
           res.push(
             new QueryData.CreateIndex({table: schema, index: schemaIndex})
