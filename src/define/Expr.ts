@@ -417,7 +417,6 @@ export namespace Expr {
   export const Data = Symbol('Expr.Data')
   export const IsExpr = Symbol('Expr.IsExpr')
   export const ToExpr = Symbol('Expr.ToExpr')
-  export declare const IsObject: unique symbol
   export const NULL = create(null)
 
   export function value<T>(value: T): Expr<T> {
