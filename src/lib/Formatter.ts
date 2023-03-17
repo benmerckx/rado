@@ -804,7 +804,7 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     if (!ctx.formatAsJson) {
       stmt.openParenthesis()
-      this.format(ctx, expr.query)
+      this.format({...ctx, formatAsIn: false}, expr.query)
       return stmt.closeParenthesis()
     }
     if (expr.query.singleResult) {
