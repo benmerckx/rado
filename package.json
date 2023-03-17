@@ -1,6 +1,6 @@
 {
   "name": "rado",
-  "version": "0.2.33",
+  "version": "0.2.36",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,6 +29,9 @@
       ],
       "sqlite": [
         "dist/sqlite.d.ts"
+      ],
+      "util/*": [
+        "dist/util/*.d.ts"
       ]
     }
   },

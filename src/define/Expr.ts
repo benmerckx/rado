@@ -409,6 +409,10 @@ export class Expr<T> {
   }
 }
 
+export interface ObjectExpr {
+  [Expr.Data]: ExprData
+}
+
 export namespace Expr {
   export const Data = Symbol('Expr.Data')
   export const IsExpr = Symbol('Expr.IsExpr')
@@ -417,6 +421,10 @@ export namespace Expr {
 
   export function value<T>(value: T): Expr<T> {
     return new Expr<T>(new ExprData.Param(new ParamData.Value(value)))
+  }
+
+  export function get<T = any>(expr: ObjectExpr, field: string) {
+    return new Expr<T>(new ExprData.Field(expr[Data], field))
   }
 
   export function create<T>(input: EV<T>): Expr<T> {
