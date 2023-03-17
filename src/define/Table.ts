@@ -139,7 +139,8 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   const expressions = fromEntries(
     cols.map(name => {
       let expr = new Expr(new ExprData.Field(row, name))
-      if (data.columns[name].type === ColumnType.Json) expr = expr.dynamic()
+      if (data.columns[name].type === ColumnType.Json)
+        expr = expr.dynamic<any>()
       return [name, expr]
     })
   )

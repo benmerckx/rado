@@ -1,4 +1,5 @@
-import {Expr} from './Expr.js'
+import {Column} from './Column.js'
+import {Expr, ObjectExpr} from './Expr.js'
 
 // Source: https://www.steveruiz.me/posts/smooshed-object-union
 type ObjectUnion<T> = {
@@ -9,28 +10,25 @@ type ObjectUnion<T> = {
     : never
 }
 
-type RecordField<T> = Expr<T> & FieldsOf<ObjectUnion<T>>
-
-// https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
-type Field<T> = [T] extends [Array<any>]
-  ? Expr<T>
-  : [T] extends [number | string | boolean]
-  ? Expr<T>
-  : [T] extends [Record<string, any> | null]
-  ? RecordField<T>
-  : Expr<T>
+type Expand<T> = {[K in keyof T]: T[K]} & {}
+type ObjectField<T> = Expand<ObjectExpr & FieldsOf<ObjectUnion<T>>>
 
 type FieldsOf<Row> = [Row] extends [Record<string, any>]
   ? {[K in keyof Row]-?: Field<Row[K]>}
   : never
+
+// https://github.com/Microsoft/TypeScript/issues/29368#issuecomment-453529532
+type Field<T> = [NonNullable<T>] extends [{[Column.IsPrimary]: any}]
+  ? Expr<T>
+  : [NonNullable<T>] extends [Array<any>]
+  ? Expr<T>
+  : [NonNullable<T>] extends [object]
+  ? ObjectField<T>
+  : Expr<T>
 
 // Source: https://stackoverflow.com/a/61625831/5872160
 type IsStrictlyAny<T> = (T extends never ? true : false) extends false
   ? false
   : true
 
-export type Fields<T> = IsStrictlyAny<T> extends true
-  ? any
-  : [T] extends [object]
-  ? FieldsOf<T>
-  : Field<T>
+export type Fields<T> = IsStrictlyAny<T> extends true ? any : Field<T>

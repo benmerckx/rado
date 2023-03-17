@@ -115,7 +115,8 @@ export class PrimaryColumn<T, K> extends ValueColumn<
 }
 
 export interface ObjectColumn<T> {
-  <X extends T = T>(): Column<T extends null ? X | null : X> & Fields<X>
+  <X extends T = T>(): Column<T extends null ? X | null : X> &
+    Fields<T extends null ? X | null : X>
 }
 
 export class ObjectColumn<T> extends Callable implements Column<T> {

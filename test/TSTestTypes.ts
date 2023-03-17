@@ -1,7 +1,4 @@
-import {Expr, Fields, Table, column, table} from '../src/index.js'
-
-type Hoverable<T> = {[K in keyof T]: T[K]}
-//   ^?
+import {Expr, Fields, ObjectExpr, Table, column, table} from '../src/index.js'
 
 type Location = {lat: number; lng: number}
 
@@ -10,7 +7,7 @@ type ShouldBeRecord = Fields<{
 }>
 
 const test: ShouldBeRecord = undefined!
-const shouldBeExpr: Expr<Location> = test.location
+const shouldBeObjExpr: ObjectExpr = test.location
 const shouldBeExprNumber: Expr<number> = test.location.lat
 
 type Base = {

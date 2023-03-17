@@ -409,14 +409,23 @@ export class Expr<T> {
   }
 }
 
+export declare class ObjectExpr {
+  [Expr.Data]: ExprData
+}
+
 export namespace Expr {
   export const Data = Symbol('Expr.Data')
   export const IsExpr = Symbol('Expr.IsExpr')
   export const ToExpr = Symbol('Expr.ToExpr')
+  export declare const IsObject: unique symbol
   export const NULL = create(null)
 
   export function value<T>(value: T): Expr<T> {
     return new Expr<T>(new ExprData.Param(new ParamData.Value(value)))
+  }
+
+  export function get<T = any>(expr: ObjectExpr, field: string) {
+    return new Expr<T>(new ExprData.Field(expr[Data], field))
   }
 
   export function create<T>(input: EV<T>): Expr<T> {
