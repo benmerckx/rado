@@ -1,8 +1,7 @@
 import type {Database, Statement as NativeStatement} from 'sqlite3'
 import {QueryData} from '../define/Query.js'
 import {SchemaInstructions} from '../define/Schema.js'
-import {Driver} from '../lib/Driver.js'
-import {SqlError} from '../lib/SqlError.js'
+import {Driver, DriverOptions} from '../lib/Driver.js'
 import {Statement} from '../lib/Statement.js'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
 import {SqliteSchema} from '../sqlite/SqliteSchema.js'
@@ -80,8 +79,8 @@ export class Sqlite3Driver extends Driver.Async {
   tableData: (tableName: string) => Promise<Array<SqliteSchema.Column>>
   indexData: (tableName: string) => Promise<Array<SqliteSchema.Index>>
 
-  constructor(private db: Database) {
-    super(new SqliteFormatter())
+  constructor(private db: Database, options?: DriverOptions) {
+    super(new SqliteFormatter(), options)
     this.tableData = this.prepare(SqliteSchema.tableData)
     this.indexData = this.prepare(SqliteSchema.indexData)
   }
@@ -96,11 +95,7 @@ export class Sqlite3Driver extends Driver.Async {
   }
 
   prepareStatement(stmt: Statement): Driver.Async.PreparedStatement {
-    try {
-      return new PreparedStatement(this.db.prepare(stmt.sql))
-    } catch (e: any) {
-      throw new SqlError(e, stmt.sql)
-    }
+    return new PreparedStatement(this.db.prepare(stmt.sql))
   }
 
   async schemaInstructions(
@@ -122,6 +117,6 @@ export class Sqlite3Driver extends Driver.Async {
   }
 }
 
-export function connect(db: Database) {
-  return new Sqlite3Driver(db)
+export function connect(db: Database, options?: DriverOptions) {
+  return new Sqlite3Driver(db, options)
 }

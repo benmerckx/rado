@@ -1,7 +1,6 @@
 import type {Database} from 'sql.js'
 import {SchemaInstructions} from '../define/Schema.js'
-import {Driver} from '../lib/Driver.js'
-import {SqlError} from '../lib/SqlError.js'
+import {Driver, DriverOptions} from '../lib/Driver.js'
 import {Statement} from '../lib/Statement.js'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
 import {SqliteSchema} from '../sqlite/SqliteSchema.js'
@@ -43,23 +42,19 @@ export class SqlJsDriver extends Driver.Sync {
   tableData?: (tableName: string) => Array<SqliteSchema.Column>
   indexData?: (tableName: string) => Array<SqliteSchema.Index>
 
-  constructor(public db: Database) {
-    super(new SqliteFormatter())
+  constructor(public db: Database, options?: DriverOptions) {
+    super(new SqliteFormatter(), options)
   }
 
   prepareStatement(
     stmt: Statement,
     discardAfter: boolean
   ): Driver.Sync.PreparedStatement {
-    try {
-      return new PreparedStatement(
-        this.db,
-        this.db.prepare(stmt.sql),
-        discardAfter
-      )
-    } catch (e: any) {
-      throw new SqlError(e, stmt.sql)
-    }
+    return new PreparedStatement(
+      this.db,
+      this.db.prepare(stmt.sql),
+      discardAfter
+    )
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {
@@ -77,6 +72,6 @@ export class SqlJsDriver extends Driver.Sync {
   }
 }
 
-export function connect(db: Database) {
-  return new SqlJsDriver(db)
+export function connect(db: Database, options?: DriverOptions) {
+  return new SqlJsDriver(db, options)
 }

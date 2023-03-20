@@ -521,7 +521,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
-    stmt.newline().raw('WHERE').space()
+    stmt.addLine('WHERE').space()
     this.formatExprValue(ctx, expr)
     return stmt
   }
@@ -532,7 +532,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!expr) return stmt
-    stmt.newline().raw('HAVING')
+    stmt.addLine('HAVING')
     this.formatExprValue(ctx, expr)
     return stmt
   }
@@ -543,7 +543,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!groupBy) return stmt
-    stmt.newline().raw('GROUP BY')
+    stmt.addLine('GROUP BY')
     for (const expr of stmt.separate(groupBy)) this.formatExprValue(ctx, expr)
     return stmt
   }
@@ -554,7 +554,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!orderBy) return stmt
-    stmt.newline().raw('ORDER BY').space()
+    stmt.addLine('ORDER BY').space()
     for (const {expr, order} of stmt.separate(orderBy)) {
       this.formatExprValue(ctx, expr)
       stmt.add(order === OrderDirection.Asc ? 'ASC' : 'DESC')
@@ -568,7 +568,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt, forceInline} = ctx
     if (!limit && !offset && !singleResult) return stmt
-    stmt.newline().raw('LIMIT').space()
+    stmt.addLine('LIMIT').space()
     this.formatValue(ctx, singleResult ? 1 : limit)
     if (offset && offset > 0) {
       stmt.add('OFFSET').space()

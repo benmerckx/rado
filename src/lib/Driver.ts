@@ -6,14 +6,19 @@ import {Table} from '../define/Table.js'
 import {Select} from '../define/query/Select.js'
 import {Callable} from '../util/Callable.js'
 import {Formatter} from './Formatter.js'
+import {SqlError} from './SqlError.js'
 import {Statement} from './Statement.js'
+
+export interface DriverOptions {
+  logQuery?: (stmt: Statement, durationMs: number) => void
+}
 
 function isTemplateStringsArray(input: any): input is TemplateStringsArray {
   return Boolean(Array.isArray(input) && (input as any).raw)
 }
 
 abstract class DriverBase extends Callable {
-  constructor(public formatter: Formatter) {
+  constructor(public formatter: Formatter, public options: DriverOptions) {
     super((...args: Array<any>) => {
       const [input, ...rest] = args
       if (Query.isQuery(input) && rest.length === 0)
@@ -67,8 +72,8 @@ interface SyncDriver {
 abstract class SyncDriver extends DriverBase {
   transactionId: number
 
-  constructor(formatter: Formatter) {
-    super(formatter)
+  constructor(formatter: Formatter, options: DriverOptions = {}) {
+    super(formatter, options)
     this.transactionId = 0
   }
 
@@ -78,11 +83,48 @@ abstract class SyncDriver extends DriverBase {
   ): SyncPreparedStatement
   abstract schemaInstructions(tableName: string): SchemaInstructions | undefined
 
+  createStatement(
+    stmt: Statement,
+    discardAfter: boolean
+  ): SyncPreparedStatement {
+    try {
+      return this.handle(stmt, this.prepareStatement(stmt, discardAfter))
+    } catch (e: any) {
+      throw new SqlError(e, stmt.sql)
+    }
+  }
+
+  handle(
+    stmt: Statement,
+    prepared: SyncPreparedStatement
+  ): SyncPreparedStatement {
+    const {logQuery} = this.options
+    const wrap =
+      (fn: Function) =>
+      (...args: Array<any>) => {
+        const startTime = performance.now()
+        try {
+          const res = fn(...args)
+          if (logQuery) logQuery(stmt, performance.now() - startTime)
+          return res
+        } catch (e: any) {
+          throw new SqlError(e, stmt.sql)
+        }
+      }
+    return {
+      run: wrap(prepared.run.bind(prepared)),
+      iterate: wrap(prepared.iterate.bind(prepared)),
+      all: wrap(prepared.all.bind(prepared)),
+      get: wrap(prepared.get.bind(prepared)),
+      execute: wrap(prepared.execute.bind(prepared))
+    }
+  }
+
   prepare<T extends Array<Expr<any>>, R>(
     create: (...params: T) => Query<R>
   ): (...params: ParamTypes<T>) => R {
     const [query, compiled] = this.compile(create)
-    const prepared = this.prepareStatement(compiled, false)
+    const prepared = this.createStatement(compiled, false)
     return (...params: ParamTypes<T>) => {
       const namedParams = Object.fromEntries(
         params.map((value, i) => [`p${i}`, value])
@@ -127,7 +169,7 @@ abstract class SyncDriver extends DriverBase {
         })
       default:
         const compiled = stmt ? undefined : this.formatter.compile(query)
-        stmt = stmt || this.prepareStatement(compiled!, true)
+        stmt = stmt || this.createStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query || query.type === QueryType.Union) {
           const res = stmt
@@ -157,7 +199,7 @@ abstract class SyncDriver extends DriverBase {
   }
 
   *iterate<T>(cursor: Select<T>): Iterable<T> {
-    const stmt = this.prepareStatement(
+    const stmt = this.createStatement(
       this.formatter.compile(cursor[Query.Data]),
       true
     )
@@ -213,8 +255,8 @@ interface AsyncDriver {
 abstract class AsyncDriver extends DriverBase {
   transactionId: number
 
-  constructor(formatter: Formatter) {
-    super(formatter)
+  constructor(formatter: Formatter, options: DriverOptions = {}) {
+    super(formatter, options)
     this.transactionId = 0
   }
 
@@ -227,11 +269,55 @@ abstract class AsyncDriver extends DriverBase {
     tableName: string
   ): Promise<SchemaInstructions | undefined>
 
+  createStatement(
+    stmt: Statement,
+    discardAfter: boolean
+  ): AsyncPreparedStatement {
+    try {
+      return this.handle(stmt, this.prepareStatement(stmt, discardAfter))
+    } catch (e) {
+      throw new SqlError(e, stmt.sql)
+    }
+  }
+
+  handle(
+    stmt: Statement,
+    prepared: AsyncPreparedStatement
+  ): AsyncPreparedStatement {
+    const {logQuery} = this.options
+    const wrap =
+      (fn: Function) =>
+      async (...args: Array<any>) => {
+        const startTime = performance.now()
+        try {
+          const res = await fn(...args)
+          if (logQuery) logQuery(stmt, (performance.now() - startTime) / 1000)
+          return res
+        } catch (e) {
+          throw new SqlError(e, stmt.sql)
+        }
+      }
+    return {
+      run: wrap(prepared.run.bind(prepared)),
+      async *iterate<T>(params?: Array<any>) {
+        const iterator = prepared.iterate<T>(params)
+        try {
+          yield* iterator
+        } catch (e) {
+          throw new SqlError(e, stmt.sql)
+        }
+      },
+      all: wrap(prepared.all.bind(prepared)),
+      get: wrap(prepared.get.bind(prepared)),
+      execute: wrap(prepared.execute.bind(prepared))
+    }
+  }
+
   prepare<T extends Array<Expr<any>>, R>(
     create: (...params: T) => Query<R>
   ): (...params: ParamTypes<T>) => Promise<R> {
     const [query, compiled] = this.compile(create)
-    const prepared = this.prepareStatement(compiled, false)
+    const prepared = this.createStatement(compiled, false)
     return (...params: ParamTypes<T>) => {
       const namedParams = Object.fromEntries(
         params.map((value, i) => [`p${i}`, value])
@@ -276,7 +362,7 @@ abstract class AsyncDriver extends DriverBase {
         })
       default:
         const compiled = stmt ? undefined : this.formatter.compile(query)
-        stmt = stmt || this.prepareStatement(compiled!, true)
+        stmt = stmt || this.createStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query || query.type === QueryType.Union) {
           const res = (await stmt.all<{result: string}>(params)).map(
@@ -306,7 +392,7 @@ abstract class AsyncDriver extends DriverBase {
   }
 
   async *iterate<T>(cursor: Select<T>): AsyncIterable<T> {
-    const stmt = this.prepareStatement(
+    const stmt = this.createStatement(
       this.formatter.compile(cursor[Query.Data]),
       true
     )
@@ -372,7 +458,7 @@ class SyncWrapper extends AsyncDriver {
   lock: Promise<void> | undefined
 
   constructor(private sync: SyncDriver) {
-    super(sync.formatter)
+    super(sync.formatter, sync.options)
   }
 
   async executeQuery(

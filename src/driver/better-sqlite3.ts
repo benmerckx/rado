@@ -1,7 +1,6 @@
 import type {Database, Statement as NativeStatement} from 'better-sqlite3'
 import {SchemaInstructions} from '../define/Schema.js'
-import {Driver} from '../lib/Driver.js'
-import {SqlError} from '../lib/SqlError.js'
+import {Driver, DriverOptions} from '../lib/Driver.js'
 import {Statement} from '../lib/Statement.js'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
 import {SqliteSchema} from '../sqlite/SqliteSchema.js'
@@ -34,18 +33,14 @@ export class BetterSqlite3Driver extends Driver.Sync {
   tableData: (tableName: string) => Array<SqliteSchema.Column>
   indexData: (tableName: string) => Array<SqliteSchema.Index>
 
-  constructor(public db: Database) {
-    super(new SqliteFormatter())
+  constructor(public db: Database, options?: DriverOptions) {
+    super(new SqliteFormatter(), options)
     this.tableData = this.prepare(SqliteSchema.tableData)
     this.indexData = this.prepare(SqliteSchema.indexData)
   }
 
   prepareStatement(stmt: Statement): Driver.Sync.PreparedStatement {
-    try {
-      return new PreparedStatement(this.db.prepare(stmt.sql))
-    } catch (e: any) {
-      throw new SqlError(e, stmt.sql)
-    }
+    return new PreparedStatement(this.db.prepare(stmt.sql))
   }
 
   schemaInstructions(tableName: string): SchemaInstructions | undefined {
@@ -61,6 +56,6 @@ export class BetterSqlite3Driver extends Driver.Sync {
   }
 }
 
-export function connect(db: Database) {
-  return new BetterSqlite3Driver(db)
+export function connect(db: Database, options?: DriverOptions) {
+  return new BetterSqlite3Driver(db, options)
 }
