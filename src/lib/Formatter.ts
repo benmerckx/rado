@@ -543,7 +543,7 @@ export abstract class Formatter implements Sanitizer {
   ): Statement {
     const {stmt} = ctx
     if (!groupBy) return stmt
-    stmt.addLine('GROUP BY')
+    stmt.addLine('GROUP BY').space()
     for (const expr of stmt.separate(groupBy)) this.formatExprValue(ctx, expr)
     return stmt
   }
