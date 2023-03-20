@@ -11,16 +11,16 @@ class PreparedStatement implements Driver.Async.PreparedStatement {
   constructor(private stmt: NativeStatement) {}
 
   async *iterate<T>(params?: any[] | undefined): AsyncIterable<T> {
-    let rows: Array<T> = [],
-      done = false,
-      error: Error | undefined
+    let rows: Array<T> = []
+    let done = false
+    let error: Error | undefined
     let resolve: () => void
     let promise = new Promise<void>(r => (resolve = r))
     this.stmt.each(
       params,
       (err, row) => {
         if (err) error = err
-        else rows.push(row)
+        else rows.push(row as T)
         resolve()
       },
       () => {
@@ -42,7 +42,7 @@ class PreparedStatement implements Driver.Async.PreparedStatement {
     return new Promise((resolve, reject) => {
       this.stmt.all(params, (err, rows) => {
         if (err) reject(err)
-        else resolve(rows)
+        else resolve(rows as Array<T>)
       })
     })
   }
@@ -60,7 +60,7 @@ class PreparedStatement implements Driver.Async.PreparedStatement {
     return new Promise((resolve, reject) => {
       this.stmt.get(params, (err, row) => {
         if (err) reject(err)
-        else resolve(row)
+        else resolve(row as T)
       })
     })
   }
