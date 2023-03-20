@@ -56,7 +56,6 @@ export interface FormatContext {
   forceInline?: boolean
   formatAsJson?: boolean
   formatAsInsert?: boolean
-  formatAsIn?: boolean
   topLevel?: boolean
   selectAsColumns?: boolean
   formattingCte?: string
@@ -698,7 +697,8 @@ export abstract class Formatter implements Sanitizer {
     stmt.openParenthesis()
     this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
     const asIn = expr.op === BinOpType.In || expr.op === BinOpType.NotIn
-    this.formatExprValue({...ctx, formatAsIn: asIn}, expr.b)
+    if (asIn) this.formatIn(ctx, expr.b)
+    else this.formatExprValue(ctx, expr.b)
     return stmt.closeParenthesis()
   }
 
@@ -722,6 +722,58 @@ export abstract class Formatter implements Sanitizer {
         )
       default:
         return undefined
+    }
+  }
+
+  /**
+   * Format a in "{a}->>{b}"
+   */
+  formatExprAccess(ctx: FormatContext, expr: ExprData) {
+    const {stmt} = ctx
+    if (expr.type === ExprType.Field && expr.expr.type === ExprType.Row) {
+      const from = expr.expr
+      switch (from.target.type) {
+        case TargetType.Table:
+          if (!ctx.skipTableName) {
+            stmt
+              .identifier(from.target.table.alias || from.target.table.name)
+              .raw('.')
+          }
+          return stmt.identifier(expr.field)
+      }
+    }
+    return this.formatExpr(ctx, expr)
+  }
+
+  /**
+   * Format b in "{a} in {b}"
+   */
+  formatIn(ctx: FormatContext, expr: ExprData) {
+    const {stmt} = ctx
+    switch (expr.type) {
+      case ExprType.Filter:
+        return this.formatFilterIn(ctx, expr)
+      case ExprType.Map:
+        return this.formatMapIn(ctx, expr)
+      case ExprType.Field:
+        stmt.openParenthesis()
+        stmt.raw('SELECT value FROM json_each')
+        stmt.openParenthesis()
+        this.formatExprValue(ctx, expr)
+        stmt.closeParenthesis()
+        return stmt.closeParenthesis()
+      case ExprType.Param:
+        if (
+          expr.param.type === ParamType.Value &&
+          Array.isArray(expr.param.value)
+        ) {
+          stmt.openParenthesis()
+          for (const v of stmt.separate(expr.param.value))
+            this.formatValue(ctx, v)
+          return stmt.closeParenthesis()
+        }
+      default:
+        return this.formatExpr(ctx, expr)
     }
   }
 
@@ -757,23 +809,15 @@ export abstract class Formatter implements Sanitizer {
             return stmt
         }
       default:
-        return this.formatAccess(ctx, () => this.formatExpr(ctx, from), field)
+        return this.formatAccess(
+          ctx,
+          () => this.formatExprAccess(ctx, from),
+          field
+        )
     }
   }
 
-  formatField(
-    {formatAsIn, ...ctx}: FormatContext,
-    expr: ExprData.Field
-  ): Statement {
-    const {stmt} = ctx
-    if (formatAsIn) {
-      stmt.openParenthesis()
-      stmt.raw('SELECT value FROM json_each')
-      stmt.openParenthesis()
-      this.formatExprJson(ctx, expr)
-      stmt.closeParenthesis()
-      return stmt.closeParenthesis()
-    }
+  formatField(ctx: FormatContext, expr: ExprData.Field): Statement {
     return this.formatFieldOf(ctx, expr.expr, expr.field)
   }
 
@@ -804,7 +848,7 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     if (!ctx.formatAsJson) {
       stmt.openParenthesis()
-      this.format({...ctx, formatAsIn: false}, expr.query)
+      this.format(ctx, expr.query)
       return stmt.closeParenthesis()
     }
     if (expr.query.singleResult) {
@@ -881,20 +925,12 @@ export abstract class Formatter implements Sanitizer {
     return stmt.closeParenthesis()
   }
 
-  formatFilter(
-    {formatAsIn, ...ctx}: FormatContext,
-    expr: ExprData.Filter
-  ): Statement {
+  formatFilterIn(ctx: FormatContext, expr: ExprData.Filter): Statement {
     const {stmt} = ctx
     const {target, condition} = expr
     switch (target.type) {
       case TargetType.Expr:
         stmt.openParenthesis()
-        if (!formatAsIn) {
-          stmt
-            .raw('SELECT json_group_array(json(result)) FROM ')
-            .openParenthesis()
-        }
         stmt
           .raw('SELECT value AS result')
           .add('FROM json_each')
@@ -904,26 +940,33 @@ export abstract class Formatter implements Sanitizer {
         if (target.alias) stmt.add('AS').addIdentifier(target.alias)
         stmt.add('WHERE').space()
         this.formatExprValue(ctx, condition)
-        if (!formatAsIn) {
-          stmt.closeParenthesis()
-        }
         return stmt.closeParenthesis()
       default:
         throw new Error('todo')
     }
   }
 
-  formatMap({formatAsIn, ...ctx}: FormatContext, expr: ExprData.Map) {
+  formatFilter(ctx: FormatContext, expr: ExprData.Filter): Statement {
+    const {stmt} = ctx
+    switch (expr.target.type) {
+      case TargetType.Expr:
+        stmt
+          .openParenthesis()
+          .raw('SELECT json_group_array(json(result)) FROM ')
+        this.formatFilterIn(ctx, expr)
+        stmt.closeParenthesis()
+        return stmt
+      default:
+        throw new Error('todo')
+    }
+  }
+
+  formatMapIn(ctx: FormatContext, expr: ExprData.Map) {
     const {stmt} = ctx
     const {target, result} = expr
     switch (target.type) {
       case TargetType.Expr:
         stmt.openParenthesis()
-        if (!formatAsIn) {
-          stmt
-            .raw('SELECT json_group_array(json(result)) FROM ')
-            .openParenthesis()
-        }
         stmt.raw('SELECT').space()
         this.formatExpr(ctx, result)
           .add('AS result')
@@ -932,10 +975,22 @@ export abstract class Formatter implements Sanitizer {
         this.formatExprJson(ctx, target.expr)
         stmt.closeParenthesis()
         if (target.alias) stmt.add('AS').addIdentifier(target.alias)
-        if (!formatAsIn) {
-          stmt.closeParenthesis()
-        }
         return stmt.closeParenthesis()
+      default:
+        throw new Error('todo')
+    }
+  }
+
+  formatMap(ctx: FormatContext, expr: ExprData.Map): Statement {
+    const {stmt} = ctx
+    switch (expr.target.type) {
+      case TargetType.Expr:
+        stmt
+          .openParenthesis()
+          .raw('SELECT json_group_array(json(result)) FROM ')
+        this.formatMapIn(ctx, expr)
+        stmt.closeParenthesis()
+        return stmt
       default:
         throw new Error('todo')
     }

@@ -6,5 +6,5 @@
     "source.organizeImports": true
   },
   "typescript.tsdk": "node_modules\\typescript\\lib",
-  "javascript.suggest.completeJSDocs": false
+  "typescript.suggest.completeJSDocs": false
 }
