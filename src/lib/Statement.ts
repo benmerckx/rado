@@ -198,9 +198,12 @@ export class Statement {
     return this.sql.replace(/\?/g, () => {
       const param = this.paramData[index]
       index++
-      if (param.type === ParamType.Named)
-        throw new TypeError(`Missing parameter ${param.name}`)
-      return this.sanitizer.escapeValue(param.value)
+      switch (param.type) {
+        case ParamType.Named:
+          return `?${param.name}`
+        case ParamType.Value:
+          return this.sanitizer.escapeValue(param.value)
+      }
     })
   }
 
