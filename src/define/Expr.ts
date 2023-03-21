@@ -419,8 +419,8 @@ export namespace Expr {
   export const ToExpr = Symbol('Expr.ToExpr')
   export const NULL = create(null)
 
-  export function value<T>(value: T): Expr<T> {
-    return new Expr<T>(new ExprData.Param(new ParamData.Value(value)))
+  export function value<T>(value: T, inline = false): Expr<T> {
+    return new Expr<T>(new ExprData.Param(new ParamData.Value(value, inline)))
   }
 
   export function get<T = any>(expr: ObjectExpr, field: string) {

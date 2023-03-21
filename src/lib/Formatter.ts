@@ -615,8 +615,9 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
-  formatValue(ctx: FormatContext, rawValue: any): Statement {
+  formatValue(ctx: FormatContext, rawValue: any, inline = false): Statement {
     const {stmt, formatAsJson, formatAsInsert, forceInline} = ctx
+    const inlineValue = inline || forceInline
     const asJson = formatAsJson || formatAsInsert
     switch (true) {
       case rawValue === null || rawValue === undefined:
@@ -631,14 +632,14 @@ export abstract class Formatter implements Sanitizer {
         stmt.closeParenthesis()
         return stmt
       case typeof rawValue === 'string' || typeof rawValue === 'number':
-        if (forceInline) return stmt.raw(this.escapeValue(rawValue))
+        if (inlineValue) return stmt.raw(this.escapeValue(rawValue))
         return stmt.value(rawValue)
       default:
         if (formatAsJson) {
           stmt.raw('json')
           stmt.openParenthesis()
         }
-        if (forceInline) this.formatString(ctx, JSON.stringify(rawValue))
+        if (inlineValue) this.formatString(ctx, JSON.stringify(rawValue))
         else stmt.value(JSON.stringify(rawValue))
         if (formatAsJson) stmt.closeParenthesis()
         return stmt
@@ -706,7 +707,7 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     switch (expr.param.type) {
       case ParamType.Value:
-        return this.formatValue(ctx, expr.param.value)
+        return this.formatValue(ctx, expr.param.value, expr.param.inline)
       case ParamType.Named:
         return stmt.param(expr.param)
     }

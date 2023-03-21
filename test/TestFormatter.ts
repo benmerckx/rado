@@ -58,4 +58,11 @@ test('{x}.x', async () => {
   assert.is(stmt.sql, "`example`.`obj`->>'$.sub.num'")
 })
 
+test('inline value', async () => {
+  const formatter = new SqliteFormatter()
+  const ctx = formatter.createContext({skipNewlines: true})
+  const stmt = formatter.formatExpr(ctx, Expr.value('test', true)[Expr.Data])
+  assert.is(stmt.sql, "'test'")
+})
+
 test.run()

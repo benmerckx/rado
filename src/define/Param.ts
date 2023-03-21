@@ -6,7 +6,7 @@ export enum ParamType {
 export namespace ParamData {
   export class Value {
     type = ParamType.Value as const
-    constructor(public value: any) {}
+    constructor(public value: any, public inline = false) {}
   }
   export class Named {
     type = ParamType.Named as const
