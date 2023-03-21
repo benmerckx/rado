@@ -1,4 +1,4 @@
-import { Query, QueryData } from './Query.js'
+import {Query, QueryData} from './Query.js'
 
 export function sql<T>(
   strings: TemplateStringsArray,
