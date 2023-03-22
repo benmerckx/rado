@@ -541,7 +541,7 @@ export abstract class Formatter implements Sanitizer {
     groupBy: Array<ExprData> | undefined
   ): Statement {
     const {stmt} = ctx
-    if (!groupBy) return stmt
+    if (!groupBy || groupBy.length === 0) return stmt
     stmt.addLine('GROUP BY').space()
     for (const expr of stmt.separate(groupBy)) this.formatExprValue(ctx, expr)
     return stmt
@@ -552,7 +552,7 @@ export abstract class Formatter implements Sanitizer {
     orderBy: Array<OrderBy> | undefined
   ): Statement {
     const {stmt} = ctx
-    if (!orderBy) return stmt
+    if (!orderBy || orderBy.length === 0) return stmt
     stmt.addLine('ORDER BY').space()
     for (const {expr, order} of stmt.separate(orderBy)) {
       this.formatExprValue(ctx, expr)
