@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Table, column, index, table} from '../src/index.js'
+import {Index, Table, column, index, table} from '../src/index.js'
 
 const Notification = table({
   Notification: class {
@@ -15,19 +15,16 @@ const Notification = table({
     sentAt = column.string().nullable()
     completed = column.boolean().default(false)
     completedAt = column.string().nullable()
-
-    protected [table.meta]() {
-      return {
-        indexes: {
-          key: index(this.feedLink, this.feedItem, this.feedItemNotification),
-          feedLink: index(this.feedLink),
-          feedItem: index(this.feedItem),
-          sendAt: index(this.sendAt),
-          sentAt: index(this.sentAt),
-          completed: index(this.completed),
-          completedAt: index(this.completedAt)
-        }
-      }
+  },
+  [table.indexes]() {
+    return {
+      key: index(this.feedLink, this.feedItem, this.feedItemNotification),
+      feedLink: index(this.feedLink),
+      feedItem: index(this.feedItem),
+      sendAt: index(this.sendAt),
+      sentAt: index(this.sentAt),
+      completed: index(this.completed),
+      completedAt: index(this.completedAt)
     }
   }
 })
@@ -76,6 +73,8 @@ test('Available metadata', async () => {
       completedAt: Notification.completedAt
     }
   )
+  console.log(Notification[table.indexes].completed)
+  assert.instance(Notification[table.indexes].completed, Index)
 })
 
 test.run()

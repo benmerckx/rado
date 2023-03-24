@@ -25,12 +25,10 @@ const {
   defineProperty
 } = Object
 
-interface TableDefinition {}
-
 export class TableData {
   declare name: string
   declare alias?: string
-  declare definition: TableDefinition
+  declare definition: {}
   declare columns: Record<string, ColumnData>
   declare meta: () => {indexes: Record<string, IndexData>}
 
@@ -55,6 +53,15 @@ export declare class TableInstance<Definition> {
 
 export type Table<Definition> = Definition & TableInstance<Definition>
 
+declare class HasIndexes<Indexes extends string | number | symbol> {
+  get [Table.Indexes](): Record<Indexes, Index>
+}
+
+export type IndexedTable<
+  Definition,
+  Indexes extends string | number | symbol
+> = Table<Definition> & HasIndexes<Indexes>
+
 type TableOf<Row> = Table<{
   [K in keyof Row as K extends string ? K : never]: Column<Row[K]> &
     Fields<Row[K]>
@@ -76,7 +83,7 @@ type UpdateOf<Definition> = Partial<{
 
 export namespace Table {
   export const Data = Symbol('Table.Data')
-  export const Meta = Symbol('Table.Meta')
+  export const Indexes = Symbol('Table.Indexes')
 
   export type Of<Row> = TableOf<Row>
   export type Select<Definition> = RowOf<Definition>
@@ -150,21 +157,31 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   for (const [key, value] of entries(expressions))
     defineProperty(call, key, {value, enumerable: true, configurable: true})
   defineProperty(call, Table.Data, {value: data, enumerable: false})
+  defineProperty(call, Table.Indexes, {
+    get() {
+      return data.meta().indexes
+    },
+    enumerable: false
+  })
   defineProperty(call, Expr.ToExpr, {value: toExpr, enumerable: false})
   setPrototypeOf(call, getPrototypeOf(data.definition))
   return call
 }
 
-export function table<T extends {}>(
-  define: Record<string, T | Define<T>>
-): Table<T> {
+export function table<
+  T extends {},
+  Indexes extends Record<string, Index>
+>(define: {
+  [key: string]: T | Define<T>
+  [Table.Indexes]?: (this: T) => Indexes
+}): {} extends Indexes ? Table<T> : IndexedTable<T, keyof Indexes> {
   const names = keys(define)
   if (names.length !== 1) throw new Error('Table must have a single name')
   const name = names[0]
   const target = define[name]
   const definition = 'prototype' in target ? new target() : target
   const columns = definition as Record<string, Column<any>>
-  const res: Table<T> = createTable<T>(
+  const res: any = createTable<T>(
     new TableData({
       name,
       definition,
@@ -190,11 +207,13 @@ export function table<T extends {}>(
           })
       ),
       meta() {
-        const createMeta = (res as any)[table.meta]
-        const meta = createMeta ? createMeta.apply(res) : {}
+        const createIndexes = define[Table.Indexes]
+        const indexes: Record<string, Index> = createIndexes
+          ? createIndexes.apply(res)
+          : {}
         return {
           indexes: fromEntries(
-            entries((meta?.indexes as TableMeta) || {}).map(([key, index]) => {
+            entries(indexes || {}).map(([key, index]) => {
               const indexName = `${name}.${key}`
               return [indexName, {name: indexName, ...index.data}]
             })
@@ -207,5 +226,5 @@ export function table<T extends {}>(
 }
 
 export namespace table {
-  export const meta: typeof Table.Meta = Table.Meta
+  export const indexes: typeof Table.Indexes = Table.Indexes
 }

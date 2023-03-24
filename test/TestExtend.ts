@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {TableMeta, alias, column, create, index, table} from '../src/index.js'
+import {alias, column, create, index, table} from '../src/index.js'
 import {connect} from './DbSuite.js'
 
 const User = table({
@@ -38,14 +38,11 @@ const UserRoles = table({
   user_roles: class {
     userId = column.integer.references(() => User.id)
     roleId = column.integer.references(() => Role.id)
-
-    protected [table.meta](): TableMeta {
-      return {
-        indexes: {
-          userId: index(this.userId),
-          roleId: index(this.roleId)
-        }
-      }
+  },
+  [table.indexes]() {
+    return {
+      userId: index(this.userId),
+      roleId: index(this.roleId)
     }
   }
 })

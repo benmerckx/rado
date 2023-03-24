@@ -51,14 +51,11 @@ test('Add col', async () => {
       text = column.number().default(2)
       newCol = column.string().default('def')
       isFalse = column.boolean().default(false)
-
-      protected [table.meta]() {
-        return {
-          indexes: {
-            newCol: index(this.newCol),
-            multiple: index(this.newCol.concat('inline parameter test'))
-          }
-        }
+    },
+    [table.indexes]() {
+      return {
+        newCol: index(this.newCol),
+        multiple: index(this.newCol.concat('inline parameter test'))
       }
     }
   })
