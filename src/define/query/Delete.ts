@@ -1,4 +1,5 @@
 import {EV} from '../Expr.js'
+import {OrderBy} from '../OrderBy.js'
 import {Query, QueryData} from '../Query.js'
 
 export class Delete extends Query<{rowsAffected: number}> {
@@ -10,6 +11,10 @@ export class Delete extends Query<{rowsAffected: number}> {
 
   where(...where: Array<EV<boolean>>): Delete {
     return new Delete(this.addWhere(where))
+  }
+
+  orderBy(...orderBy: Array<OrderBy>): Delete {
+    return new Delete(this[Query.Data].with({orderBy}))
   }
 
   take(limit: number | undefined): Delete {

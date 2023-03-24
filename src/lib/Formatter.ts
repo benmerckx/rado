@@ -235,6 +235,7 @@ export abstract class Formatter implements Sanitizer {
       else this.formatValue({...ctx, formatAsInsert: true}, input)
     }
     this.formatWhere(ctx, query.where)
+    this.formatOrderBy(ctx, query.orderBy)
     this.formatLimit(ctx, query)
     return stmt
   }
@@ -242,9 +243,8 @@ export abstract class Formatter implements Sanitizer {
   formatDelete(ctx: FormatContext, query: QueryData.Delete): Statement {
     const {stmt} = ctx
     stmt.add('DELETE FROM').addIdentifier(query.table.name)
-    stmt.space()
     this.formatWhere(ctx, query.where)
-    stmt.space()
+    this.formatOrderBy(ctx, query.orderBy)
     this.formatLimit(ctx, query)
     return stmt
   }

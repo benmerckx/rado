@@ -84,8 +84,10 @@ export class Statement {
   /**
    * Adds a newline
    */
-  newline() {
-    if (this.options.skipNewlines) return this
+  newline(spaceRequired = true) {
+    if (this.options.skipNewlines)
+      if (spaceRequired) return this.space()
+      else return this
     return this.raw(NEWLINE + this.currentIndent)
   }
 
@@ -137,14 +139,14 @@ export class Statement {
    * Opens a parenthesis and indents the next line
    */
   openParenthesis() {
-    return this.raw('(').indent().newline()
+    return this.raw('(').indent().newline(false)
   }
 
   /**
    * Closes a parenthesis and dedents the next line
    */
   closeParenthesis() {
-    return this.dedent().newline().raw(')')
+    return this.dedent().newline(false).raw(')')
   }
 
   /**
@@ -163,7 +165,7 @@ export class Statement {
    */
   *separate<T>(parts: Array<T>, separator = SEPARATE) {
     for (let i = 0; i < parts.length; i++) {
-      if (i > 0) this.raw(separator).newline()
+      if (i > 0) this.raw(separator).newline(false)
       yield parts[i]
     }
   }
