@@ -1,10 +1,11 @@
 import {EV, Expr, ExprData} from '../Expr.js'
 import {Functions} from '../Functions.js'
+import {IndexData} from '../Index.js'
 import {OrderBy} from '../OrderBy.js'
 import {Query, QueryData} from '../Query.js'
 import {Selection} from '../Selection.js'
 import {Table} from '../Table.js'
-import {Target} from '../Target.js'
+import {Target, TargetType} from '../Target.js'
 import {VirtualTable, VirtualTableData} from '../VirtualTable.js'
 import {Union} from './Union.js'
 
@@ -44,6 +45,20 @@ export class Select<Row> extends Union<Row> {
     return new Select(
       this[Query.Data].with({from: virtual?.target || new Target.Table(table)})
     )
+  }
+
+  indexedBy(index: IndexData) {
+    const from = this[Query.Data].from
+    switch (from?.type) {
+      case TargetType.Table:
+        return new Select(
+          this[Query.Data].with({
+            from: new Target.Table(from.table, index)
+          })
+        )
+      default:
+        throw new Error('Cannot index by without table target')
+    }
   }
 
   leftJoin<C>(

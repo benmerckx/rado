@@ -1,4 +1,5 @@
 import type {ExprData} from './Expr.js'
+import {IndexData} from './Index.js'
 import type {QueryData} from './Query.js'
 import type {TableData} from './Table.js'
 
@@ -32,7 +33,7 @@ export namespace Target {
   }
   export class Table {
     type = TargetType.Table as const
-    constructor(public table: TableData) {}
+    constructor(public table: TableData, public indexedBy?: IndexData) {}
   }
   export class Join {
     type = TargetType.Join as const

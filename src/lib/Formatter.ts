@@ -492,6 +492,9 @@ export abstract class Formatter implements Sanitizer {
       case TargetType.Table:
         stmt.identifier(target.table.name)
         if (target.table.alias) stmt.add('AS').addIdentifier(target.table.alias)
+        if (target.indexedBy) {
+          stmt.add('INDEXED BY').addIdentifier(target.indexedBy.name)
+        }
         return stmt
       case TargetType.Join:
         const {left, right, joinType} = target

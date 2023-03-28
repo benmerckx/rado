@@ -54,7 +54,7 @@ export declare class TableInstance<Definition> {
 export type Table<Definition> = Definition & TableInstance<Definition>
 
 declare class HasIndexes<Indexes extends string | number | symbol> {
-  get [Table.Indexes](): Record<Indexes, Index>
+  get [Table.Indexes](): Record<Indexes, IndexData>
 }
 
 export type IndexedTable<
@@ -157,9 +157,11 @@ export function createTable<Definition>(data: TableData): Table<Definition> {
   for (const [key, value] of entries(expressions))
     defineProperty(call, key, {value, enumerable: true, configurable: true})
   defineProperty(call, Table.Data, {value: data, enumerable: false})
+  let indexes: Record<string, IndexData>
   defineProperty(call, Table.Indexes, {
     get() {
-      return data.meta().indexes
+      if (indexes) return indexes
+      return (indexes = data.meta().indexes)
     },
     enumerable: false
   })
@@ -215,7 +217,7 @@ export function table<
           indexes: fromEntries(
             entries(indexes || {}).map(([key, index]) => {
               const indexName = `${name}.${key}`
-              return [indexName, {name: indexName, ...index.data}]
+              return [key, {name: indexName, ...index.data}]
             })
           )
         }

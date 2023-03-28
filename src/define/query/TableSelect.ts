@@ -1,5 +1,4 @@
 import {EV, Expr, ExprData} from '../Expr.js'
-import {Index} from '../Index.js'
 import {Query, QueryData} from '../Query.js'
 import {Table, TableData, createTable} from '../Table.js'
 import {Target} from '../Target.js'
@@ -25,10 +24,6 @@ export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
 
   as(alias: string): Table<Definition> {
     return createTable({...this.table, alias})
-  }
-
-  indexedBy(index: Index) {
-    throw 'todo'
   }
 
   create() {
