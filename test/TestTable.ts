@@ -1,30 +1,17 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {Index, Table, column, index, table} from '../src/index.js'
+import {Table, column, index, table} from '../src/index.js'
 
 const Notification = table({
   Notification: class {
     id = column.string().primaryKey<'Notification'>()
-    shortCode = column.string()
     language = column.string()
-    feedLink = column.string()
-    feedItem = column.string()
-    feedItemNotification = column.string()
-    surveys = column.array()
-    sendAt = column.string()
-    sentAt = column.string().nullable()
     completed = column.boolean().default(false)
     completedAt = column.string().nullable()
   },
   [table.indexes]() {
     return {
-      key: index(this.feedLink, this.feedItem, this.feedItemNotification),
-      feedLink: index(this.feedLink),
-      feedItem: index(this.feedItem),
-      sendAt: index(this.sendAt),
-      sentAt: index(this.sentAt),
-      completed: index(this.completed),
-      completedAt: index(this.completedAt)
+      completed: index(this.completed)
     }
   }
 })
@@ -61,20 +48,12 @@ test('Available metadata', async () => {
     {...Notification},
     {
       id: Notification.id,
-      shortCode: Notification.shortCode,
       language: Notification.language,
-      feedLink: Notification.feedLink,
-      feedItem: Notification.feedItem,
-      feedItemNotification: Notification.feedItemNotification,
-      surveys: Notification.surveys,
-      sendAt: Notification.sendAt,
-      sentAt: Notification.sentAt,
       completed: Notification.completed,
       completedAt: Notification.completedAt
     }
   )
-  console.log(Notification[table.indexes].completed)
-  assert.instance(Notification[table.indexes].completed, Index)
+  assert.is(Notification[table.indexes].completed, 'Notification.completed')
 })
 
 test.run()
