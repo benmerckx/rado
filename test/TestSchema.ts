@@ -72,6 +72,24 @@ test('Add col', async () => {
     .maybeFirst()
     .on(db)
   assert.equal(rowOne, {id: 1, newCol: 'new'})
+
+  const AlterIndex = table({
+    test: class AddCol {
+      id = column.integer().primaryKey<AddCol>()
+      createdAt = createdAt
+      text = column.number().default(2)
+      newCol = column.string().default('def')
+      isFalse = column.boolean().default(false)
+    },
+    [table.indexes]() {
+      return {
+        newCol: index(this.newCol),
+        added: index(this.createdAt)
+      }
+    }
+  })
+
+  await db.migrateSchema(AlterIndex)
 })
 
 test.run()

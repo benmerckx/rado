@@ -133,15 +133,20 @@ export namespace Schema {
     }
 
     const meta = schema.meta()
+    const schemaIndexes = new Map(
+      Object.values(meta.indexes).map(index => [index.name, index])
+    )
     const indexNames = new Set([
       ...Object.keys(local.indexes),
-      ...Object.keys(meta.indexes)
+      ...schemaIndexes.keys()
     ])
     for (const indexName of indexNames) {
       const localInstruction = local.indexes[indexName]
-      const schemaIndex = meta.indexes[indexName]
+      const schemaIndex = schemaIndexes.get(indexName)
       if (!localInstruction) {
-        res.push(new QueryData.CreateIndex({table: schema, index: schemaIndex}))
+        res.push(
+          new QueryData.CreateIndex({table: schema, index: schemaIndex!})
+        )
         if (verbose) console.log(`Adding index ${indexName}`)
       } else if (!schemaIndex) {
         res.unshift(new QueryData.DropIndex({table: schema, name: indexName}))
