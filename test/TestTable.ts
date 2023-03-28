@@ -53,7 +53,10 @@ test('Available metadata', async () => {
       completedAt: Notification.completedAt
     }
   )
-  assert.is(Notification[table.indexes].completed, 'Notification.completed')
+  assert.is(
+    Notification[table.indexes].completed.name,
+    'Notification.completed'
+  )
 })
 
 test.run()
