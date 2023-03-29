@@ -49,6 +49,7 @@ const UserRoles = table({
 
 test('Extend', async () => {
   const db = await connect()
+  await db`PRAGMA foreign_keys=ON`
   await create(Role, User, UserRoles).on(db)
   const user1 = await User()
     .insertOne({
