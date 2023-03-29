@@ -19,6 +19,8 @@ export interface PartialColumnData {
   primaryKey?: boolean
   unique?: boolean
   references?: () => ExprData
+  onUpdate?: Action
+  onDelete?: Action
   enumerable?: boolean
 }
 
@@ -79,8 +81,8 @@ export class ValueColumn<T> extends Callable implements Column<T> {
     })
   }
 
-  references<X extends T>(column: Expr<X> | (() => Expr<X>)): ValueColumn<X> {
-    return new ValueColumn({
+  references<X extends T>(column: Expr<X> | (() => Expr<X>)): ForeignKey<X> {
+    return new ForeignKey({
       ...this[Column.Data],
       references() {
         return ExprData.create(Expr.isExpr<X>(column) ? column : column())
@@ -102,6 +104,30 @@ function createDefaultValue<T>(
   return typeof value === 'function' && !Expr.isExpr(value)
     ? () => ExprData.create((value as Function)())
     : ExprData.create(value)
+}
+
+export enum Action {
+  NoAction = 'no action',
+  Restrict = 'restrict',
+  SetNull = 'set null',
+  SetDefault = 'set default',
+  Cascade = 'cascade'
+}
+
+export class ForeignKey<T> extends ValueColumn<T> {
+  onUpdate(value: `${Action}`) {
+    return new ForeignKey({
+      ...this[Column.Data],
+      onUpdate: value as Action
+    })
+  }
+
+  onDelete(value: `${Action}`) {
+    return new ForeignKey({
+      ...this[Column.Data],
+      onDelete: value as Action
+    })
+  }
 }
 
 export class OptionalColumn<T> extends ValueColumn<T> {

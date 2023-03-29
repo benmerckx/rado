@@ -1,6 +1,6 @@
 import {test} from 'uvu'
 import * as assert from 'uvu/assert'
-import {alias, column, create, index, table} from '../src/index.js'
+import {Action, alias, column, create, index, table} from '../src/index.js'
 import {connect} from './DbSuite.js'
 
 const User = table({
@@ -36,8 +36,8 @@ const Role = table({
 
 const UserRoles = table({
   user_roles: class {
-    userId = column.integer.references(() => User.id)
-    roleId = column.integer.references(() => Role.id)
+    userId = column.integer.references(() => User.id).onDelete(Action.Cascade)
+    roleId = column.integer.references(() => Role.id).onDelete(Action.Cascade)
   },
   [table.indexes]() {
     return {
@@ -76,6 +76,9 @@ test('Extend', async () => {
     name: 'a b',
     roles: [role1, role2]
   })
+  await User({id: user1.id}).delete().on(db)
+  const roles = await UserRoles().count().on(db)
+  assert.is(roles, 0)
 })
 
 test.run()

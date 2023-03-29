@@ -1,4 +1,4 @@
-import {ColumnData, ColumnType} from '../define/Column.js'
+import {Action, ColumnData, ColumnType} from '../define/Column.js'
 import {BinOpType, Expr, ExprData, ExprType, UnOpType} from '../define/Expr.js'
 import {OrderBy, OrderDirection} from '../define/OrderBy.js'
 import {ParamType} from '../define/Param.js'
@@ -39,6 +39,14 @@ const unions = {
   [QueryData.UnionOperation.UnionAll]: 'UNION ALL',
   [QueryData.UnionOperation.Intersect]: 'INTERSECT',
   [QueryData.UnionOperation.Except]: 'EXCEPT'
+}
+
+const actions = {
+  [Action.NoAction]: 'NO ACTION',
+  [Action.Restrict]: 'RESTRICT',
+  [Action.Cascade]: 'CASCADE',
+  [Action.SetNull]: 'SET NULL',
+  [Action.SetDefault]: 'SET DEFAULT'
 }
 
 export interface FormatContext {
@@ -387,28 +395,34 @@ export abstract class Formatter implements Sanitizer {
         stmt.closeParenthesis()
       }
     }
-    if (column.references)
-      this.formatConstraintReference(ctx, column.references())
+    if (column.references) this.formatConstraintReference(ctx, column)
     return stmt
   }
 
   formatConstraintReference(
     ctx: FormatContext,
-    reference: ExprData
+    {references, onDelete, onUpdate}: ColumnData
   ): Statement {
     const {stmt} = ctx
+    if (!references) return stmt
+    const reference = references()
     if (
       reference.type !== ExprType.Field ||
       reference.expr.type !== ExprType.Row
     )
       throw new Error('not supported')
     const from = reference.expr.target
-    return stmt
+    stmt
       .add('REFERENCES')
       .addIdentifier(Target.source(from)!.name)
       .openParenthesis()
       .identifier(reference.field)
       .closeParenthesis()
+    if (onDelete && actions[onDelete])
+      stmt.add('ON DELETE').add(actions[onDelete])
+    if (onUpdate && actions[onUpdate])
+      stmt.add('ON UPDATE').add(actions[onUpdate])
+    return stmt
   }
 
   formatType(ctx: FormatContext, type: ColumnType): Statement {
