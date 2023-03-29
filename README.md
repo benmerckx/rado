@@ -1,3 +1,5 @@
+[![npm](https://img.shields.io/npm/v/rado.svg)](https://npmjs.org/package/rado)
+
 # rado
 
 Fully typed, lightweight TypeScript query builder.
