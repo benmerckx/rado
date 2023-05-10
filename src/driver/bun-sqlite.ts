@@ -1,7 +1,6 @@
 import type {Database, Statement as NativeStatement} from 'bun:sqlite'
-import {QueryData} from '../define/Query.js'
+import {QueryData, SelectFirst} from '../define/Query.js'
 import {SchemaInstructions} from '../define/Schema.js'
-import {SelectFirst} from '../define/query/Select.js'
 import {Driver, DriverOptions} from '../lib/Driver.js'
 import {Statement} from '../lib/Statement.js'
 import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'

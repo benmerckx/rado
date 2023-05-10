@@ -2,10 +2,9 @@ import {randomAlias} from '../util/Alias.js'
 import {Fields} from './Fields.js'
 import {OrderBy, OrderDirection} from './OrderBy.js'
 import {ParamData, ParamType} from './Param.js'
-import {QueryData} from './Query.js'
+import {QueryData, Select, SelectFirst} from './Query.js'
 import {Selection} from './Selection.js'
 import {Target} from './Target.js'
-import {Select, SelectFirst} from './query/Select.js'
 
 const {fromEntries, entries} = Object
 
@@ -407,6 +406,10 @@ export class Expr<T> {
   get<T>(name: string): Expr<T> {
     return new Expr(new ExprData.Field(this[Expr.Data], name as string))
   }
+
+  static [Symbol.hasInstance](instance: any) {
+    return instance?.[Expr.IsExpr]
+  }
 }
 
 export interface ObjectExpr {
@@ -453,10 +456,6 @@ export namespace Expr {
   }
 
   export function isExpr<T>(input: any): input is Expr<T> {
-    return (
-      input !== null &&
-      (typeof input === 'object' || typeof input === 'function') &&
-      input[Expr.IsExpr]
-    )
+    return input instanceof Expr
   }
 }

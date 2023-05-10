@@ -1,15 +1,18 @@
 import {ExprData} from './Expr.js'
-import {Query, QueryData} from './Query.js'
+import {
+  Batch,
+  Delete,
+  InsertInto,
+  Query,
+  QueryData,
+  RecursiveUnion,
+  Select,
+  Update
+} from './Query.js'
 import {Schema} from './Schema.js'
 import {Selection} from './Selection.js'
 import {Table, createTable} from './Table.js'
 import {Target} from './Target.js'
-import {Batch} from './query/Batch.js'
-import {Delete} from './query/Delete.js'
-import {InsertInto} from './query/Insert.js'
-import {Select} from './query/Select.js'
-import {RecursiveUnion} from './query/Union.js'
-import {Update} from './query/Update.js'
 
 export function withRecursive<Row>(initialSelect: Select<Row>) {
   return new RecursiveUnion<Row>(initialSelect[Query.Data])

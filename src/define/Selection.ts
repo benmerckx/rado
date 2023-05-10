@@ -1,6 +1,6 @@
 import type {Column} from './Column.js'
 import type {Expr} from './Expr.js'
-import type {Select, SelectFirst} from './query/Select.js'
+import type {Select, SelectFirst} from './Query.js'
 
 type SelectionBase =
   | unknown

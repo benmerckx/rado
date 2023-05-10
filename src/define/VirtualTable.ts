@@ -2,10 +2,10 @@ import {Callable} from '../util/Callable.js'
 import {Column} from './Column.js'
 import {BinOpType, EV, Expr, ExprData} from './Expr.js'
 import {Fields} from './Fields.js'
+import {Select} from './Query.js'
 import {Selection} from './Selection.js'
 import {Table} from './Table.js'
 import {Target} from './Target.js'
-import {Select} from './query/Select.js'
 
 const {create, entries} = Object
 

@@ -1,14 +1,22 @@
 import {Driver} from '../lib/Driver.js'
 import {CompileOptions} from '../lib/Formatter.js'
+import {randomAlias} from '../util/Alias.js'
 import {ColumnData} from './Column.js'
-import {EV, Expr, ExprData} from './Expr.js'
+import {EV, Expr, ExprData, ExprType} from './Expr.js'
+import {Functions} from './Functions.js'
 import {IndexData} from './Index.js'
 import {OrderBy} from './OrderBy.js'
+import {Schema} from './Schema.js'
 import {Selection} from './Selection.js'
-import {TableData} from './Table.js'
-import {Target} from './Target.js'
+import {Table, TableData, createTable} from './Table.js'
+import {Target, TargetType} from './Target.js'
+import {
+  VirtualTable,
+  VirtualTableData,
+  createVirtualTable
+} from './VirtualTable.js'
 
-const {assign} = Object
+const {keys, assign, fromEntries} = Object
 
 export enum QueryType {
   Insert = 'QueryData.Insert',
@@ -204,5 +212,543 @@ export namespace Query {
 
   export function isQuery<T>(input: any): input is Query<T> {
     return input !== null && Boolean(Query.Data in input)
+  }
+}
+
+export class Batch<T = void> extends Query<T> {
+  declare [Query.Data]: QueryData.Batch
+
+  constructor(protected queries: Array<QueryData>) {
+    super(new QueryData.Batch({queries}))
+  }
+
+  next<T>(cursor: Query<T>): Query<T> {
+    return new Query<T>(
+      new QueryData.Batch({
+        queries: [...this[Query.Data].queries, cursor[Query.Data]]
+      })
+    )
+  }
+}
+
+export class CreateTable extends Query<void> {
+  constructor(protected table: TableData) {
+    super(Schema.create(table))
+  }
+}
+
+export class Delete extends Query<{rowsAffected: number}> {
+  declare [Query.Data]: QueryData.Delete
+
+  constructor(query: QueryData.Delete) {
+    super(query)
+  }
+
+  where(...where: Array<EV<boolean>>): Delete {
+    return new Delete(this.addWhere(where))
+  }
+
+  orderBy(...orderBy: Array<OrderBy>): Delete {
+    return new Delete(this[Query.Data].with({orderBy}))
+  }
+
+  take(limit: number | undefined): Delete {
+    return new Delete(this[Query.Data].with({limit}))
+  }
+
+  skip(offset: number | undefined): Delete {
+    return new Delete(this[Query.Data].with({offset}))
+  }
+}
+
+export class Insert<T = {rowsAffected: number}> extends Query<T> {
+  declare [Query.Data]: QueryData.Insert
+
+  constructor(query: QueryData.Insert) {
+    super(query)
+  }
+
+  returning<X extends Selection>(
+    selection: X
+  ): Insert<Array<Selection.Infer<X>>> {
+    return new Insert<Array<Selection.Infer<X>>>(
+      new QueryData.Insert({
+        ...this[Query.Data],
+        selection: ExprData.create(selection)
+      })
+    )
+  }
+}
+
+export class InsertOne<T> extends Query<T> {
+  declare [Query.Data]: QueryData.Insert
+
+  constructor(query: QueryData.Insert) {
+    super(query)
+  }
+
+  returning<X extends Selection>(selection: X): Insert<Selection.Infer<X>> {
+    return new Insert<Selection.Infer<X>>(
+      new QueryData.Insert({
+        ...this[Query.Data],
+        selection: ExprData.create(selection),
+        singleResult: true
+      })
+    )
+  }
+}
+
+export class InsertInto<Definition> {
+  constructor(protected into: TableData) {}
+
+  selection(query: Select<Table.Select<Definition>>): Insert {
+    return new Insert(
+      new QueryData.Insert({into: this.into, select: query[Query.Data]})
+    )
+  }
+
+  values(...data: Array<Table.Insert<Definition>>): Insert {
+    return new Insert(new QueryData.Insert({into: this.into, data}))
+  }
+}
+
+function joinTarget(
+  joinType: 'left' | 'inner',
+  query: QueryData.Select,
+  to: Table<any> | Select<any>,
+  on: Array<EV<boolean>>
+) {
+  const toQuery = Query.isQuery(to)
+    ? (to[Query.Data] as QueryData.Select)
+    : undefined
+  const target = toQuery ? toQuery.from : new Target.Table(to[Table.Data])
+  if (!query.from || !target) throw new Error('No from clause')
+  const conditions = [...on]
+  if (toQuery) {
+    const where = toQuery.where
+    if (where) conditions.push(new Expr(where))
+  }
+  return new Target.Join(
+    query.from,
+    target,
+    joinType,
+    Expr.and(...conditions)[Expr.Data]
+  )
+}
+
+function columnsOf(expr: ExprData) {
+  switch (expr.type) {
+    case ExprType.Record:
+      return keys(expr.fields)
+    case ExprType.Row:
+      switch (expr.target.type) {
+        case TargetType.Table:
+          return keys(expr.target.table.columns)
+        default:
+          throw new Error('Could not retrieve CTE columns')
+      }
+    default:
+      throw new Error('Could not retrieve CTE columns')
+  }
+}
+
+function makeRecursiveUnion<T>(
+  initial: QueryData.Select,
+  createUnion: () => Select<T> | Union<T>,
+  operator: QueryData.UnionOperation
+): VirtualTable.Of<T> {
+  const name = randomAlias()
+  const cols = columnsOf(initial.selection)
+  const union = new QueryData.Union({
+    a: initial,
+    operator,
+    b: () => createUnion()[Query.Data]
+  })
+  const target = new Target.CTE(name, union)
+  const row = new ExprData.Row(target)
+  const selection = new ExprData.Record(
+    fromEntries(cols.map(col => [col, new ExprData.Field(row, col)]))
+  )
+  const select = (conditions: Array<EV<boolean>>) => {
+    const where = Expr.and(...conditions)[Expr.Data]
+    return new Select(
+      new QueryData.Select({
+        selection,
+        from: target,
+        where
+      })
+    )
+  }
+  const cte = createVirtualTable<Record<string, any>>({
+    name,
+    target,
+    select
+  })
+  return cte as VirtualTable.Of<T>
+}
+
+export class RecursiveUnion<Row> {
+  constructor(public initialSelect: QueryData.Select) {}
+
+  union(create: () => Select<Row> | Union<Row>): VirtualTable.Of<Row> {
+    return makeRecursiveUnion(
+      this.initialSelect,
+      create,
+      QueryData.UnionOperation.Union
+    )
+  }
+
+  unionAll(create: () => Select<Row> | Union<Row>): VirtualTable.Of<Row> {
+    return makeRecursiveUnion(
+      this.initialSelect,
+      create,
+      QueryData.UnionOperation.UnionAll
+    )
+  }
+}
+
+export class Union<Row> extends Query<Array<Row>> {
+  declare [Query.Data]: QueryData.Union | QueryData.Select
+
+  constructor(query: QueryData.Union | QueryData.Select) {
+    super(query)
+  }
+
+  union(query: Select<Row> | Union<Row>): Union<Row> {
+    return new Union(
+      new QueryData.Union({
+        a: this[Query.Data],
+        operator: QueryData.UnionOperation.Union,
+        b: query[Query.Data]
+      })
+    )
+  }
+
+  unionAll(query: Select<Row> | Union<Row>): Union<Row> {
+    return new Union(
+      new QueryData.Union({
+        a: this[Query.Data],
+        operator: QueryData.UnionOperation.UnionAll,
+        b: query[Query.Data]
+      })
+    )
+  }
+
+  except(query: Select<Row> | Union<Row>): Union<Row> {
+    return new Union(
+      new QueryData.Union({
+        a: this[Query.Data],
+        operator: QueryData.UnionOperation.Except,
+        b: query[Query.Data]
+      })
+    )
+  }
+
+  intersect(query: Select<Row> | Union<Row>): Union<Row> {
+    return new Union(
+      new QueryData.Union({
+        a: this[Query.Data],
+        operator: QueryData.UnionOperation.Intersect,
+        b: query[Query.Data]
+      })
+    )
+  }
+}
+
+export class Select<Row> extends Union<Row> {
+  declare [Query.Data]: QueryData.Select
+
+  constructor(query: QueryData.Select) {
+    super(query)
+  }
+
+  from(table: Table<any> | VirtualTable<any>): Select<Row> {
+    const virtual: VirtualTableData = table[VirtualTable.Data]
+    return new Select(
+      this[Query.Data].with({from: virtual?.target || new Target.Table(table)})
+    )
+  }
+
+  indexedBy(index: IndexData) {
+    const from = this[Query.Data].from
+    switch (from?.type) {
+      case TargetType.Table:
+        return new Select(
+          this[Query.Data].with({
+            from: new Target.Table(from.table, index)
+          })
+        )
+      default:
+        throw new Error('Cannot index by without table target')
+    }
+  }
+
+  leftJoin<C>(
+    that: Table<C> | Select<C>,
+    ...on: Array<EV<boolean>>
+  ): Select<Row> {
+    const query = this[Query.Data]
+    return new Select(
+      this[Query.Data].with({
+        from: joinTarget('left', query, that, on)
+      })
+    )
+  }
+
+  innerJoin<C>(
+    that: Table<C> | Select<C>,
+    ...on: Array<EV<boolean>>
+  ): Select<Row> {
+    const query = this[Query.Data]
+    return new Select(
+      this[Query.Data].with({
+        from: joinTarget('inner', query, that, on)
+      })
+    )
+  }
+
+  select<X extends Selection>(selection: X): Select<Selection.Infer<X>> {
+    return new Select(
+      this[Query.Data].with({
+        selection: ExprData.create(selection)
+      })
+    )
+  }
+
+  count(): SelectFirst<number> {
+    return new SelectFirst(
+      this[Query.Data].with({
+        selection: Functions.count()[Expr.Data],
+        singleResult: true
+      })
+    )
+  }
+
+  orderBy(...orderBy: Array<Expr<any> | OrderBy>): Select<Row> {
+    return new Select(
+      this[Query.Data].with({
+        orderBy: orderBy.map((e): OrderBy => {
+          return Expr.isExpr<any>(e) ? e.asc() : e
+        })
+      })
+    )
+  }
+
+  groupBy(...groupBy: Array<Expr<any>>): Select<Row> {
+    return new Select(
+      this[Query.Data].with({
+        groupBy: groupBy.map(ExprData.create)
+      })
+    )
+  }
+
+  maybeFirst(): SelectFirst<Row | null> {
+    return new SelectFirst(this[Query.Data].with({singleResult: true}))
+  }
+
+  first(): SelectFirst<Row> {
+    return new SelectFirst(
+      this[Query.Data].with({
+        singleResult: true,
+        validate: true
+      })
+    )
+  }
+
+  where(...where: Array<EV<boolean>>): Select<Row> {
+    return new Select(this.addWhere(where))
+  }
+
+  take(limit: number | undefined): Select<Row> {
+    return new Select(this[Query.Data].with({limit}))
+  }
+
+  skip(offset: number | undefined): Select<Row> {
+    return new Select(this[Query.Data].with({offset}))
+  }
+
+  [Expr.ToExpr](): Expr<Row> {
+    return new Expr<Row>(new ExprData.Query(this[Query.Data]))
+  }
+}
+
+export class SelectFirst<Row> extends Query<Row> {
+  declare [Query.Data]: QueryData.Select
+
+  constructor(query: QueryData.Select) {
+    super(query)
+  }
+
+  from(table: Table<any>): Select<Row> {
+    return new Select(this[Query.Data].with({from: new Target.Table(table)}))
+  }
+
+  leftJoin<C>(
+    that: Table<C> | Select<C>,
+    ...on: Array<EV<boolean>>
+  ): SelectFirst<Row> {
+    const query = this[Query.Data]
+    return new SelectFirst(
+      this[Query.Data].with({
+        from: joinTarget('left', query, that, on)
+      })
+    )
+  }
+
+  innerJoin<C>(
+    that: Table<C> | Select<C>,
+    ...on: Array<EV<boolean>>
+  ): SelectFirst<Row> {
+    const query = this[Query.Data]
+    return new SelectFirst(
+      this[Query.Data].with({
+        from: joinTarget('inner', query, that, on)
+      })
+    )
+  }
+
+  select<X extends Selection>(selection: X): SelectFirst<Selection.Infer<X>> {
+    return new SelectFirst(
+      this[Query.Data].with({
+        selection: ExprData.create(selection)
+      })
+    )
+  }
+
+  orderBy(...orderBy: Array<OrderBy>): SelectFirst<Row> {
+    return new SelectFirst(
+      this[Query.Data].with({
+        orderBy
+      })
+    )
+  }
+
+  groupBy(...groupBy: Array<Expr<any>>): SelectFirst<Row> {
+    return new SelectFirst(
+      this[Query.Data].with({
+        groupBy: groupBy.map(ExprData.create)
+      })
+    )
+  }
+
+  where(...where: Array<EV<boolean>>): SelectFirst<Row> {
+    return new SelectFirst(this.addWhere(where))
+  }
+
+  take(limit: number | undefined): SelectFirst<Row> {
+    return new SelectFirst(this[Query.Data].with({limit}))
+  }
+
+  skip(offset: number | undefined): SelectFirst<Row> {
+    return new SelectFirst(this[Query.Data].with({offset}))
+  }
+
+  all(): Select<Row> {
+    return new Select(this[Query.Data].with({singleResult: false}))
+  }
+
+  [Expr.ToExpr](): Expr<Row> {
+    return new Expr<Row>(new ExprData.Query(this[Query.Data]))
+  }
+}
+
+export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
+  declare [Query.Data]: QueryData.Select
+
+  constructor(protected table: TableData, conditions: Array<EV<boolean>> = []) {
+    const target = new Target.Table(table)
+    super(
+      new QueryData.Select({
+        from: target,
+        selection: new ExprData.Row(target),
+        where: Expr.and(...conditions)[Expr.Data]
+      })
+    )
+  }
+
+  as(alias: string): Table<Definition> {
+    return createTable({...this.table, alias})
+  }
+
+  create() {
+    return new CreateTable(this.table)
+  }
+
+  insert(query: Select<Table.Insert<Definition>>): Insert
+  insert(rows: Array<Table.Insert<Definition>>): Insert
+  insert(row: Table.Insert<Definition>): InsertOne<Table.Select<Definition>>
+  insert(input: any) {
+    if (input instanceof Select) {
+      return this.insertSelect(input)
+    } else if (Array.isArray(input)) {
+      return this.insertAll(input)
+    } else {
+      return this.insertOne(input)
+    }
+  }
+
+  insertSelect(query: Select<Table.Insert<Definition>>) {
+    return new Insert(
+      new QueryData.Insert({into: this.table, select: query[Query.Data]})
+    )
+  }
+
+  insertOne(record: Table.Insert<Definition>) {
+    return new InsertOne<Table.Select<Definition>>(
+      new QueryData.Insert({
+        into: this.table,
+        data: [record],
+        selection: new ExprData.Row(new Target.Table(this.table)),
+        singleResult: true
+      })
+    )
+  }
+
+  insertAll(data: Array<Table.Insert<Definition>>) {
+    return new InsertInto<Definition>(this.table).values(...data)
+  }
+
+  set(data: Table.Update<Definition>) {
+    return new Update<Definition>(
+      new QueryData.Update({
+        table: this.table,
+        where: this[Query.Data].where
+      })
+    ).set(data)
+  }
+
+  delete() {
+    return new Delete(
+      new QueryData.Delete({
+        table: this.table,
+        where: this[Query.Data].where
+      })
+    )
+  }
+
+  get(name: string): Expr<any> {
+    return new Expr(
+      new ExprData.Field(new ExprData.Row(new Target.Table(this.table)), name)
+    )
+  }
+}
+
+export class Update<Definition> extends Query<{rowsAffected: number}> {
+  declare [Query.Data]: QueryData.Update
+
+  set(set: Table.Update<Definition>): Update<Definition> {
+    return new Update(this[Query.Data].with({set}))
+  }
+
+  where(...where: Array<EV<boolean>>): Update<Definition> {
+    return new Update(this.addWhere(where))
+  }
+
+  take(limit: number | undefined): Update<Definition> {
+    return new Update(this[Query.Data].with({limit}))
+  }
+
+  skip(offset: number | undefined): Update<Definition> {
+    return new Update(this[Query.Data].with({offset}))
   }
 }

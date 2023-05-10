@@ -9,10 +9,9 @@ import {
 import {BinOpType, EV, Expr, ExprData} from './Expr.js'
 import type {Fields} from './Fields.js'
 import {Index, IndexData} from './Index.js'
+import {SelectFirst, TableSelect} from './Query.js'
 import type {Selection} from './Selection.js'
 import {Target} from './Target.js'
-import {SelectFirst} from './query/Select.js'
-import {TableSelect} from './query/TableSelect.js'
 
 const {
   assign,
