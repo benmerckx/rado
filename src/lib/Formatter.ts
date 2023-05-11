@@ -704,7 +704,7 @@ export abstract class Formatter implements Sanitizer {
       case UnOpType.IsNull:
         return this.formatExprValue(ctx, expr.expr).add('IS NULL')
       case UnOpType.Not:
-        stmt.raw('NOT').openParenthesis()
+        stmt.raw('NOT').space().openParenthesis()
         this.formatExprValue(ctx, expr.expr)
         return stmt.closeParenthesis()
     }
