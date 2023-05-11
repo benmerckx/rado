@@ -264,10 +264,24 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     stmt.add('CREATE TABLE')
     if (query.ifNotExists) stmt.add('IF NOT EXISTS')
-    stmt.addIdentifier(query.table.name)
-    for (const column of stmt.call(Object.values(query.table.columns))) {
+    stmt.addIdentifier(query.table.name).space()
+    stmt.openParenthesis()
+    for (const column of stmt.separate(Object.values(query.table.columns))) {
       this.formatColumn(ctx, column)
     }
+    const meta = query.table.meta()
+    if (meta.primaryKey) {
+      stmt.raw(',').newline().raw('PRIMARY KEY').space()
+      for (const expr of stmt.call(meta.primaryKey))
+        switch (expr.type) {
+          case ExprType.Field:
+            stmt.identifier(expr.field)
+            continue
+          default:
+            throw new Error(`Cannot format index of type ${expr.type}`)
+        }
+    }
+    stmt.closeParenthesis()
     return stmt
   }
 

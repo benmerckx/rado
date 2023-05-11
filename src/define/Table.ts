@@ -29,7 +29,10 @@ export class TableData {
   declare alias?: string
   declare definition: {}
   declare columns: Record<string, ColumnData>
-  declare meta: () => {indexes: Record<string, IndexData>}
+  declare meta: () => {
+    primaryKey?: Array<ExprData>
+    indexes: Record<string, IndexData>
+  }
 
   constructor(data: TableData) {
     assign(this, data)
@@ -83,6 +86,7 @@ type UpdateOf<Definition> = Partial<{
 export namespace Table {
   export const Data = Symbol('Table.Data')
   export const Indexes = Symbol('Table.Indexes')
+  export const PrimaryKey = Symbol('Table.PrimaryKey')
 
   export type Of<Row> = TableOf<Row>
   export type Select<Definition> = RowOf<Definition>
@@ -175,6 +179,7 @@ export function table<
 >(define: {
   [key: string]: T | Define<T>
   [Table.Indexes]?: (this: T) => Indexes
+  [Table.PrimaryKey]?: (this: T) => Array<Column<any>>
 }): {} extends Indexes ? Table<T> : IndexedTable<T, keyof Indexes> {
   const names = keys(define)
   if (names.length !== 1) throw new Error('Table must have a single name')
@@ -212,7 +217,12 @@ export function table<
         const indexes: Record<string, Index> = createIndexes
           ? createIndexes.apply(res)
           : {}
+        const createPrimaryKey = define[Table.PrimaryKey]
+        const primaryKey = createPrimaryKey
+          ? createPrimaryKey.apply(res).map(ExprData.create)
+          : undefined
         return {
+          primaryKey,
           indexes: fromEntries(
             entries(indexes || {}).map(([key, index]) => {
               const indexName = `${name}.${key}`
@@ -228,4 +238,5 @@ export function table<
 
 export namespace table {
   export const indexes: typeof Table.Indexes = Table.Indexes
+  export const primaryKey: typeof Table.PrimaryKey = Table.PrimaryKey
 }

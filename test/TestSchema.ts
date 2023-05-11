@@ -92,4 +92,20 @@ test('Add col', async () => {
   await db.migrateSchema(AlterIndex)
 })
 
+test('primary key with multiple columns', async () => {
+  const db = await connect()
+  const Table = table({
+    test: class {
+      a = column.integer
+      b = column.integer
+    },
+    [table.primaryKey]() {
+      return [this.a, this.b]
+    }
+  })
+  const create = Table().create().toSql(db, {skipNewlines: true})
+  assert.ok(create.includes('PRIMARY KEY (`a`, `b`)'))
+  await db(Table().create())
+})
+
 test.run()
