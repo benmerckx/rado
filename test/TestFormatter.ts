@@ -82,4 +82,18 @@ test('delete', async () => {
   )
 })
 
+test('(1, 2) in ...', async () => {
+  const formatter = new SqliteFormatter()
+  const ctx = formatter.createContext({skipNewlines: true})
+  const stmt = formatter.formatExpr(
+    ctx,
+    new ExprData.BinOp(
+      BinOpType.In,
+      new ExprData.Param(new ParamData.Value([1, 2])),
+      new ExprData.Param(new ParamData.Value([1, 2, 3]))
+    )
+  )
+  assert.is(stmt.sql, `((?, ?) IN (?, ?, ?))`)
+})
+
 test.run()
