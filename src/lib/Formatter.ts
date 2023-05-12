@@ -596,10 +596,10 @@ export abstract class Formatter implements Sanitizer {
     ctx: FormatContext,
     {limit, offset, singleResult}: QueryData
   ): Statement {
-    const {stmt, forceInline} = ctx
+    const {stmt} = ctx
     if (!limit && !offset && !singleResult) return stmt
     stmt.addLine('LIMIT').space()
-    this.formatValue(ctx, singleResult ? 1 : limit)
+    this.formatValue(ctx, (singleResult ? 1 : limit) || -1)
     if (offset && offset > 0) {
       stmt.add('OFFSET').space()
       this.formatValue(ctx, offset)
