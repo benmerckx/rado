@@ -115,6 +115,16 @@ export class Sqlite3Driver extends Driver.Async {
     this.lock = Promise.resolve(this.lock).then(() => trigger)
     return [connection, release]
   }
+
+  async close(): Promise<void> {
+    await this.lock
+    return new Promise<void>((resolve, reject) => {
+      this.db.close(err => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+  }
 }
 
 export function connect(db: Database, options?: DriverOptions) {

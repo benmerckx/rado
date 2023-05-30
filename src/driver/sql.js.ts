@@ -46,6 +46,10 @@ export class SqlJsDriver extends Driver.Sync {
     super(new SqliteFormatter(), options)
   }
 
+  close() {
+    this.db.close()
+  }
+
   prepareStatement(
     stmt: Statement,
     discardAfter: boolean

@@ -39,6 +39,10 @@ export class BetterSqlite3Driver extends Driver.Sync {
     this.indexData = this.prepare(SqliteSchema.indexData)
   }
 
+  close() {
+    this.db.close()
+  }
+
   prepareStatement(stmt: Statement): Driver.Sync.PreparedStatement {
     return new PreparedStatement(this.db.prepare(stmt.sql))
   }

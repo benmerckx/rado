@@ -76,6 +76,7 @@ abstract class SyncDriver extends DriverBase {
     this.transactionId = 0
   }
 
+  abstract close(): void
   abstract prepareStatement(
     stmt: Statement,
     discardAfter: boolean
@@ -259,6 +260,7 @@ abstract class AsyncDriver extends DriverBase {
     this.transactionId = 0
   }
 
+  abstract close(): Promise<void>
   abstract isolate(): [connection: AsyncDriver, release: () => Promise<void>]
   abstract prepareStatement(
     stmt: Statement,
@@ -458,6 +460,10 @@ class SyncWrapper extends AsyncDriver {
 
   constructor(private sync: SyncDriver) {
     super(sync.formatter, sync.options)
+  }
+
+  async close(): Promise<void> {
+    this.sync.close()
   }
 
   async executeQuery(

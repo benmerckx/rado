@@ -54,6 +54,10 @@ export class BunSqliteDriver extends Driver.Sync {
     })
   }
 
+  close() {
+    this.db.close()
+  }
+
   prepareStatement(stmt: Statement): Driver.Sync.PreparedStatement {
     return new PreparedStatement(this.lastChanges, this.db.prepare(stmt.sql))
   }
