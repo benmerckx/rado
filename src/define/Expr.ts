@@ -404,7 +404,13 @@ export class Expr<T> {
   }
 
   get<T>(name: string): Expr<T> {
-    return new Expr(new ExprData.Field(this[Expr.Data], name as string))
+    switch (this[Expr.Data].type) {
+      case ExprType.Record:
+        if (name in this[Expr.Data].fields)
+          return new Expr(this[Expr.Data].fields[name])
+      default:
+        return new Expr(new ExprData.Field(this[Expr.Data], name as string))
+    }
   }
 
   static [Symbol.hasInstance](instance: any) {
