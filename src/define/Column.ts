@@ -47,7 +47,7 @@ export namespace Column {
 }
 
 export interface ValueColumn<T> extends Expr<T> {
-  <X extends T = T>(): ValueColumn<T extends null ? X | null : X>
+  <X = T>(): ValueColumn<X>
 }
 
 export class ValueColumn<T> extends Callable implements Column<T> {
@@ -97,6 +97,12 @@ export class ValueColumn<T> extends Callable implements Column<T> {
     })
   }
 }
+
+export interface NullableValueColumn<T> extends Expr<T | null> {
+  <X extends T = T>(): ValueColumn<X | null>
+}
+
+export declare class NullableValueColumn<T> extends ValueColumn<T | null> {}
 
 function createDefaultValue<T>(
   value: DefaultValue<T>
@@ -232,7 +238,7 @@ export class UnTyped extends Callable {
   }
 
   get json() {
-    return new ValueColumn<any>({
+    return new ValueColumn<unknown>({
       ...this[Column.Data],
       type: ColumnType.Json
     })
@@ -257,13 +263,13 @@ export declare class NullableUnTyped {
   [Column.Data]: PartialColumnData
 
   get unique(): UnTyped
-  get string(): ValueColumn<string | null>
-  get integer(): ValueColumn<number | null>
-  get number(): ValueColumn<number | null>
-  get boolean(): ValueColumn<boolean | null>
-  get json(): ValueColumn<any | null>
+  get string(): NullableValueColumn<string>
+  get integer(): NullableValueColumn<number>
+  get number(): NullableValueColumn<number>
+  get boolean(): NullableValueColumn<boolean>
+  get json(): NullableValueColumn<unknown>
   get object(): ObjectColumn<{} | null>
-  get array(): ValueColumn<Array<any> | null>
+  get array(): NullableValueColumn<Array<any>>
 }
 
 export const column = new UnTyped()

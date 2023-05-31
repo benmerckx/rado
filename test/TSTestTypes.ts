@@ -53,3 +53,9 @@ const tableOfExampleInstance: TableOfExample = undefined!
 
 tableOfExampleInstance({id: 123})
 tableOfExampleInstance.name.sub
+
+const Dynamic = table({
+  Dynamic: class {
+    json = column.nullable.json<string>()
+  }
+})
