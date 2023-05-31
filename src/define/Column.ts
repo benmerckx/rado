@@ -59,7 +59,7 @@ export class ValueColumn<T> extends Callable implements Column<T> {
     this[Column.Data] = data
   }
 
-  get nullable(): ValueColumn<T | null> {
+  get nullable(): NullableValueColumn<T> {
     return new ValueColumn({...this[Column.Data], nullable: true})
   }
 
