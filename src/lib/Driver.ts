@@ -292,7 +292,7 @@ abstract class AsyncDriver extends DriverBase {
         const startTime = performance.now()
         try {
           const res = await fn(...args)
-          if (logQuery) logQuery(stmt, (performance.now() - startTime) / 1000)
+          if (logQuery) logQuery(stmt, performance.now() - startTime)
           return res
         } catch (e) {
           throw new SqlError(e, stmt.sql)
