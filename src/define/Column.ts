@@ -1,3 +1,4 @@
+import {PostgresColumn} from '../postgres/PostgresColumn.js'
 import {Callable} from '../util/Callable.js'
 import {EV, Expr, ExprData} from './Expr.js'
 import {Fields} from './Fields.js'
@@ -22,6 +23,7 @@ export interface PartialColumnData {
   onUpdate?: Action
   onDelete?: Action
   enumerable?: boolean
+  [PostgresColumn.Column]?: string
 }
 
 export interface ColumnData extends PartialColumnData {
@@ -227,6 +229,15 @@ export class UnTyped extends Callable {
     return new ValueColumn<number>({
       ...this[Column.Data],
       type: ColumnType.Number
+    })
+  }
+
+  get serial(): NullableValueColumn<number> {
+    return new ValueColumn<number>({
+      ...this[Column.Data],
+      type: ColumnType.Integer,
+      primaryKey: true,
+      autoIncrement: true
     })
   }
 

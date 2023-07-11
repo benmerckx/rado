@@ -173,8 +173,12 @@ abstract class SyncDriver extends DriverBase {
         params = params || compiled!.params()
         if ('selection' in query || query.type === QueryType.Union) {
           const res = stmt
-            .all<{result: string}>(params)
-            .map(row => JSON.parse(row.result).result)
+            .all<{result: string | {result: object}}>(params)
+            .map(row =>
+              typeof row.result === 'string'
+                ? JSON.parse(row.result).result
+                : row.result.result
+            )
           if (query.singleResult) {
             const row = res[0]
             if (query.validate && row === undefined)
@@ -366,8 +370,12 @@ abstract class AsyncDriver extends DriverBase {
         stmt = stmt || this.createStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query || query.type === QueryType.Union) {
-          const res = (await stmt.all<{result: string}>(params)).map(
-            item => JSON.parse(item.result).result
+          const res = (
+            await stmt.all<{result: string | {result: string}}>(params)
+          ).map(item =>
+            typeof item.result === 'string'
+              ? JSON.parse(item.result).result
+              : item.result.result
           )
           if (query.singleResult) {
             const row = res[0]

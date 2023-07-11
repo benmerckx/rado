@@ -71,12 +71,6 @@ export interface FormatContext {
 
 type FormatSubject = (stmt: Statement, mkSubject: () => void) => void
 
-function formatAsResultObject(stmt: Statement, mkSubject: () => void) {
-  stmt.raw("json_object('result', ")
-  mkSubject()
-  stmt.raw(')')
-}
-
 export interface CompileOptions
   extends Partial<FormatContext>,
     StatementOptions {}
@@ -84,8 +78,12 @@ export interface CompileOptions
 export abstract class Formatter implements Sanitizer {
   constructor() {}
 
+  abstract defaultKeyword: string
+  abstract jsonObjectFn: string
+  abstract insertParam(index: number): string
   abstract escapeValue(value: any): string
   abstract escapeIdentifier(ident: string): string
+  abstract escapeColumn(column: string): string
   abstract formatParamValue(paramValue: any): any
   abstract formatAccess(
     ctx: FormatContext,
@@ -137,6 +135,13 @@ export abstract class Formatter implements Sanitizer {
     }
   }
 
+  formatAsResultObject(stmt: Statement, mkSubject: () => void) {
+    stmt.raw(this.jsonObjectFn)
+    stmt.raw("('result', ")
+    mkSubject()
+    stmt.raw(')')
+  }
+
   formatSelect(
     {topLevel, ...ctx}: FormatContext,
     query: QueryData.Select
@@ -167,7 +172,7 @@ export abstract class Formatter implements Sanitizer {
         this.formatSelection(
           ctx,
           query.selection,
-          topLevel ? formatAsResultObject : undefined
+          topLevel ? this.formatAsResultObject.bind(this) : undefined
         )
         if (query.from) {
           stmt.addLine('FROM').space()
@@ -198,7 +203,7 @@ export abstract class Formatter implements Sanitizer {
     const columns = Object.values(query.into.columns).map(c => c.name)
     stmt.add('INSERT INTO').addIdentifier(query.into.name)
     if (query.into.alias) stmt.raw('AS').addIdentifier(query.into.alias)
-    for (const column of stmt.call(columns)) this.formatString(ctx, column)
+    for (const column of stmt.call(columns)) stmt.add(this.escapeColumn(column))
     if (query.data) {
       stmt.add('VALUES').space()
       for (const row of stmt.separate(query.data))
@@ -217,7 +222,11 @@ export abstract class Formatter implements Sanitizer {
     }
     if (query.selection) {
       stmt.add('RETURNING').space()
-      this.formatSelection(ctx, query.selection, formatAsResultObject)
+      this.formatSelection(
+        ctx,
+        query.selection,
+        this.formatAsResultObject.bind(this)
+      )
     }
     return stmt
   }
@@ -389,10 +398,10 @@ export abstract class Formatter implements Sanitizer {
   formatColumn(ctx: FormatContext, column: ColumnData): Statement {
     const {stmt} = ctx
     stmt.identifier(column.name).space()
-    this.formatType(ctx, column.type)
+    this.formatType(ctx, column)
     if (column.unique) stmt.add('UNIQUE')
-    if (column.autoIncrement) stmt.add('AUTOINCREMENT')
     if (column.primaryKey) stmt.add('PRIMARY KEY')
+    if (column.autoIncrement) stmt.add('AUTOINCREMENT')
     if (!column.nullable) stmt.add('NOT NULL')
     if (column.defaultValue !== undefined) {
       if (typeof column.defaultValue !== 'function') {
@@ -439,7 +448,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatType(ctx: FormatContext, type: ColumnType): Statement {
+  formatType(ctx: FormatContext, {type}: ColumnData): Statement {
     const {stmt} = ctx
     switch (type) {
       case ColumnType.String:
@@ -491,9 +500,9 @@ export abstract class Formatter implements Sanitizer {
           column.defaultValue
         )
       }
-      if (!isOptional)
-        throw new TypeError(`Expected value for column ${column.name}`)
-      return stmt.raw('NULL')
+      /*if (!isOptional)
+        throw new TypeError(`Expected value for column ${column.name}`)*/
+      return stmt.raw(this.defaultKeyword)
     }
     switch (column.type) {
       case ColumnType.String:
@@ -502,8 +511,8 @@ export abstract class Formatter implements Sanitizer {
         return stmt.value(columnValue)
       case ColumnType.Integer:
       case ColumnType.Number:
-        if (typeof columnValue !== 'number')
-          throw new TypeError(`Expected number for column ${column.name}`)
+        /*if (typeof columnValue !== 'number')
+          throw new TypeError(`Expected number for column ${column.name}`)*/
         return stmt.value(columnValue)
       case ColumnType.Boolean:
         if (typeof columnValue !== 'boolean')
@@ -654,7 +663,7 @@ export abstract class Formatter implements Sanitizer {
       case rawValue === null || rawValue === undefined:
         return stmt.raw('NULL')
       case (formatAsInsert || !formatAsJson) && typeof rawValue === 'boolean':
-        return rawValue ? stmt.raw('1') : stmt.raw('0')
+        return stmt.raw(this.escapeValue(rawValue))
       case !formatAsInsert && Array.isArray(rawValue):
         if (asJson) stmt.raw('json_array')
         stmt.openParenthesis()
@@ -916,7 +925,7 @@ export abstract class Formatter implements Sanitizer {
           }
           return stmt
         }
-        stmt.identifier('json_object')
+        stmt.raw(this.jsonObjectFn)
         for (const [key, column] of stmt.call(Object.entries(table.columns))) {
           this.formatString(ctx, key).raw(', ')
           this.formatFieldOf(ctx, expr, column.name!)
@@ -949,7 +958,7 @@ export abstract class Formatter implements Sanitizer {
       }
       return stmt
     }
-    stmt.identifier('json_object').openParenthesis()
+    stmt.raw(this.jsonObjectFn).openParenthesis()
     for (const [key, value] of stmt.separate(Object.entries(expr.fields))) {
       this.formatString(ctx, key).raw(', ')
       this.formatExprJson(ctx, value)

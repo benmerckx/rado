@@ -32,6 +32,15 @@ export async function connect(
       // @ts-ignore
       return connect(env.DB, options)
     }
+    case 'pg': {
+      const {connect} = await import('../src/driver/pg.js')
+      const {default: PG} = await import('pg')
+      const client = new PG.Client({
+        connectionString: 'postgresql://test:test@localhost:5432/postgres'
+      })
+      await client.connect()
+      return connect(client, options)
+    }
     default:
       throw new Error(`Unknown driver ${process.env.TEST_DRIVER}`)
   }

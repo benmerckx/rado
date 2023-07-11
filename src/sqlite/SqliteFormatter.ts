@@ -10,6 +10,13 @@ const MATCH_BACKTICK = /`/g
 const MATCH_SINGLE_QUOTE = /'/g
 
 export class SqliteFormatter extends Formatter {
+  defaultKeyword = 'NULL'
+  jsonObjectFn = 'json_object'
+
+  insertParam(index: number): string {
+    return '?'
+  }
+
   formatParamValue(paramValue: any): any {
     if (paramValue === null || paramValue === undefined) return null
     if (typeof paramValue === 'boolean') return paramValue ? 1 : 0
@@ -28,6 +35,10 @@ export class SqliteFormatter extends Formatter {
 
   escapeIdentifier(input: string): string {
     return BACKTICK + input.replace(MATCH_BACKTICK, ESCAPE_BACKTICK) + BACKTICK
+  }
+
+  escapeColumn(input: string): string {
+    return this.escapeString(input)
   }
 
   escapeString(input: string) {

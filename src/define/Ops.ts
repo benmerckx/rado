@@ -71,3 +71,9 @@ export function create(...tables: Array<Table<any>>): Batch {
     tables.flatMap(table => Schema.create(table[Table.Data]).queries)
   )
 }
+
+export function drop(...tables: Array<Table<any>>): Batch {
+  return new Batch(
+    tables.flatMap(table => new QueryData.DropTable(table[Table.Data]))
+  )
+}

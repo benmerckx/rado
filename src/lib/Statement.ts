@@ -4,7 +4,6 @@ import {Sanitizer} from './Sanitizer.js'
 const SEPARATE = ', '
 const WHITESPACE = ' '
 const NEWLINE = '\n'
-const INSERT_PARAM = '?'
 
 export interface StatementOptions {
   /**
@@ -110,7 +109,7 @@ export class Statement {
    */
   value(value: any) {
     this.paramData.push(new ParamData.Value(value))
-    return this.raw(INSERT_PARAM)
+    return this.raw(this.sanitizer.insertParam(this.paramData.length - 1))
   }
 
   /**
@@ -125,7 +124,7 @@ export class Statement {
    */
   param(data: ParamData) {
     this.paramData.push(data)
-    return this.raw(INSERT_PARAM)
+    return this.raw(this.sanitizer.insertParam(this.paramData.length - 1))
   }
 
   /**

@@ -4,24 +4,25 @@ import {
   Expr,
   PrimaryKey,
   alias,
-  column,
   create,
   from,
   insertInto,
   table
 } from '../src/index.js'
+import {column} from '../src/postgres/PostgresColumn.js'
 import {connect} from './DbSuite.js'
 
-test('basic', async () => {
+test.only('basic', async () => {
   const db = await connect()
+  type Node = table<typeof Node>
   const Node = table({
     Node: class {
-      id = column.integer().primaryKey<'node'>()
+      id = column.serial
       index = column.number()
     }
   })
-  type Node = table<typeof Node>
-  await create(Node).on(db)
+  await Node().drop(true).on(db)
+  await Node().create().on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
   assert.equal(objects.length, amount)
