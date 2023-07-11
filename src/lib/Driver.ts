@@ -300,7 +300,7 @@ abstract class AsyncDriver extends DriverBase {
       }
     return {
       run: wrap(prepared.run.bind(prepared)),
-      async *iterate<T>(params?: Array<any>) {
+      async *iterate<T>(params: Array<any>) {
         const iterator = prepared.iterate<T>(params)
         try {
           yield* iterator
@@ -397,7 +397,7 @@ abstract class AsyncDriver extends DriverBase {
       this.formatter.compile(cursor[Query.Data]),
       true
     )
-    for await (const row of stmt.iterate<{result: string}>()) {
+    for await (const row of stmt.iterate<{result: string}>([])) {
       yield JSON.parse(row.result).result
     }
   }
@@ -502,11 +502,11 @@ class SyncWrapper extends AsyncDriver {
 }
 
 interface AsyncPreparedStatement {
-  run(params?: Array<any>): Promise<{rowsAffected: number}>
-  iterate<T>(params?: Array<any>): AsyncIterable<T>
-  all<T>(params?: Array<any>): Promise<Array<T>>
-  get<T>(params?: Array<any>): Promise<T>
-  execute(params?: Array<any>): Promise<void>
+  run(params: Array<any>): Promise<{rowsAffected: number}>
+  iterate<T>(params: Array<any>): AsyncIterable<T>
+  all<T>(params: Array<any>): Promise<Array<T>>
+  get<T>(params: Array<any>): Promise<T>
+  execute(params: Array<any>): Promise<void>
 }
 
 export type Driver = SyncDriver | AsyncDriver

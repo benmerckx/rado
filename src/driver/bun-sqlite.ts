@@ -12,24 +12,24 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
     private stmt: NativeStatement
   ) {}
 
-  *iterate<T>(params: Array<any> = []): IterableIterator<T> {
+  *iterate<T>(params: Array<any>): IterableIterator<T> {
     for (const row of this.stmt.all(...params)) yield row
   }
 
-  all<T>(params: Array<any> = []): Array<T> {
+  all<T>(params: Array<any>): Array<T> {
     return this.stmt.all(...params)
   }
 
-  run(params: Array<any> = []): {rowsAffected: number} {
+  run(params: Array<any>): {rowsAffected: number} {
     this.stmt.run(...params)
     return this.lastChanges()
   }
 
-  get<T>(params: Array<any> = []): T {
+  get<T>(params: Array<any>): T {
     return this.stmt.get(...params)
   }
 
-  execute(params: Array<any> = []): void {
+  execute(params: Array<any>): void {
     this.stmt.run(...params)
   }
 }

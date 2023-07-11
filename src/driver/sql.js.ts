@@ -12,27 +12,27 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
     private discardAfter: boolean
   ) {}
 
-  *iterate<T>(params?: Array<any>): IterableIterator<T> {
+  *iterate<T>(params: Array<any>): IterableIterator<T> {
     this.stmt.bind(params)
     while (this.stmt.step()) yield this.stmt.getAsObject()
     if (this.discardAfter) this.stmt.free()
   }
 
-  all<T>(params?: Array<any>): Array<T> {
+  all<T>(params: Array<any>): Array<T> {
     return Array.from(this.iterate(params))
   }
 
-  run(params?: Array<any>): {rowsAffected: number} {
+  run(params: Array<any>): {rowsAffected: number} {
     this.stmt.run(params)
     if (this.discardAfter) this.stmt.free()
     return {rowsAffected: this.db.getRowsModified()}
   }
 
-  get<T>(params?: Array<any>): T {
+  get<T>(params: Array<any>): T {
     return this.all(params)[0] as T
   }
 
-  execute(params?: Array<any>): void {
+  execute(params: Array<any>): void {
     this.stmt.run(params)
     if (this.discardAfter) this.stmt.free()
   }
