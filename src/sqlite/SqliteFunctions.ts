@@ -229,7 +229,7 @@ export type SqliteFunctions = {
   mod(x: EV<number>, y: EV<number>): Expr<number>
 
   /** Return an approximation for π. */
-  pi(x: EV<number>): Expr<number>
+  pi(): Expr<number>
 
   /** Compute X raised to the power Y. */
   pow(x: EV<number>, y: EV<number>): Expr<number>
