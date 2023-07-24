@@ -1,4 +1,4 @@
-import {ExprData} from './Expr.js'
+import {EV, Expr, ExprData} from './Expr.js'
 import {
   Batch,
   Delete,
@@ -13,6 +13,49 @@ import {Schema} from './Schema.js'
 import {Selection} from './Selection.js'
 import {Table, createTable} from './Table.js'
 import {Target} from './Target.js'
+
+/* Expressions */
+
+export const value = Expr.value
+export const and = Expr.and
+export const or = Expr.or
+export const not = <T>(a: EV<T>) => Expr.create(a).not()
+export const is = <T>(a: EV<T>, b: EV<T>) => Expr.create(a).is(b)
+export const isNot = <T>(a: EV<T>, b: EV<T>) => Expr.create(a).isNot(b)
+export const isNull = <T>(a: EV<T>) => Expr.create(a).isNull()
+export const isNotNull = <T>(a: EV<T>) => Expr.create(a).isNotNull()
+export const isIn = <T>(a: EV<T>, b: EV<Array<T>> | Select<T>) =>
+  Expr.create(a).isIn(b)
+export const isNotIn = <T>(a: EV<T>, b: EV<Array<T>> | Select<T>) =>
+  Expr.create(a).isNotIn(b)
+export const isGreater = <T>(a: EV<T>, b: EV<T>) => Expr.create(a).isGreater(b)
+export const isGreaterOrEqual = <T>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).isGreaterOrEqual(b)
+export const isLess = <T>(a: EV<T>, b: EV<T>) => Expr.create(a).isLess(b)
+export const isLessOrEqual = <T>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).isLessOrEqual(b)
+export const add = <T extends number>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).add(b)
+export const subtract = <T extends number>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).subtract(b)
+export const multiply = <T extends number>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).multiply(b)
+export const divide = <T extends number>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).divide(b)
+export const remainder = <T extends number>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).remainder(b)
+export const concat = <T extends string>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).concat(b)
+export const like = <T extends string>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).like(b)
+export const glob = <T extends string>(a: EV<T>, b: EV<T>) =>
+  Expr.create(a).glob(b)
+export const at = <T extends string>(a: EV<Array<T>>, index: number) =>
+  Expr.create(a).at(index)
+export const includes = <T extends string>(a: EV<Array<T>>, value: EV<T>) =>
+  Expr.create(a).includes(value)
+
+/* Queries */
 
 export function withRecursive<Row>(initialSelect: Select<Row>) {
   return new RecursiveUnion<Row>(initialSelect[Query.Data])
