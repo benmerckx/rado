@@ -121,6 +121,10 @@ export namespace ExprData {
       )
     return new ExprData.Param(new ParamData.Value(input))
   }
+
+  export function createAll(...inputs: Array<any>): Array<ExprData> {
+    return inputs.map(create)
+  }
 }
 
 /** Expression or value of type T */
@@ -271,21 +275,39 @@ export class Expr<T> {
     )
   }
 
-  add(this: Expr<number>, that: EV<number>): Expr<number> {
+  add(
+    this: Expr<number>,
+    that: EV<number>,
+    ...rest: Array<EV<number>>
+  ): Expr<number> {
     return new Expr(
-      new ExprData.BinOp(BinOpType.Add, this[Expr.Data], ExprData.create(that))
+      ExprData.createAll(this, that, ...rest).reduce(
+        (a, b) => new ExprData.BinOp(BinOpType.Add, a, b)
+      )
     )
   }
 
-  subtract(this: Expr<number>, that: EV<number>): Expr<number> {
+  subtract(
+    this: Expr<number>,
+    that: EV<number>,
+    ...rest: Array<EV<number>>
+  ): Expr<number> {
     return new Expr(
-      new ExprData.BinOp(BinOpType.Subt, this[Expr.Data], ExprData.create(that))
+      ExprData.createAll(this, that, ...rest).reduce(
+        (a, b) => new ExprData.BinOp(BinOpType.Subt, a, b)
+      )
     )
   }
 
-  multiply(this: Expr<number>, that: EV<number>): Expr<number> {
+  multiply(
+    this: Expr<number>,
+    that: EV<number>,
+    ...rest: Array<EV<number>>
+  ): Expr<number> {
     return new Expr(
-      new ExprData.BinOp(BinOpType.Mult, this[Expr.Data], ExprData.create(that))
+      ExprData.createAll(this, that, ...rest).reduce(
+        (a, b) => new ExprData.BinOp(BinOpType.Mult, a, b)
+      )
     )
   }
 
@@ -295,18 +317,26 @@ export class Expr<T> {
     )
   }
 
-  divide(this: Expr<number>, that: EV<number>): Expr<number> {
+  divide(
+    this: Expr<number>,
+    that: EV<number>,
+    ...rest: Array<EV<number>>
+  ): Expr<number> {
     return new Expr(
-      new ExprData.BinOp(BinOpType.Div, this[Expr.Data], ExprData.create(that))
+      ExprData.createAll(this, that, ...rest).reduce(
+        (a, b) => new ExprData.BinOp(BinOpType.Div, a, b)
+      )
     )
   }
 
-  concat(this: Expr<string>, that: EV<string>): Expr<string> {
+  concat(
+    this: Expr<string>,
+    that: EV<string>,
+    ...rest: Array<EV<string>>
+  ): Expr<string> {
     return new Expr(
-      new ExprData.BinOp(
-        BinOpType.Concat,
-        this[Expr.Data],
-        ExprData.create(that)
+      ExprData.createAll(this, that, ...rest).reduce(
+        (a, b) => new ExprData.BinOp(BinOpType.Concat, a, b)
       )
     )
   }

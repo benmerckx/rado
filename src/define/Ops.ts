@@ -35,37 +35,22 @@ export const isLess = <T>(a: EV<T>, b: EV<T>) => Expr.create(a).isLess(b)
 export const isLessOrEqual = <T>(a: EV<T>, b: EV<T>) =>
   Expr.create(a).isLessOrEqual(b)
 export const add = (a: EV<number>, b: EV<number>, ...rest: Array<EV<number>>) =>
-  [a, b]
-    .concat(rest)
-    .map(Expr.create)
-    .reduce((a, b) => a.add(b))
+  Expr.create(a).add(b, ...rest)
 export const subtract = (
   a: EV<number>,
   b: EV<number>,
   ...rest: Array<EV<number>>
-) =>
-  [a, b]
-    .concat(rest)
-    .map(Expr.create)
-    .reduce((a, b) => a.subtract(b))
+) => Expr.create(a).subtract(b, ...rest)
 export const multiply = (
   a: EV<number>,
   b: EV<number>,
   ...rest: Array<EV<number>>
-) =>
-  [a, b]
-    .concat(rest)
-    .map(Expr.create)
-    .reduce((a, b) => a.multiply(b))
+) => Expr.create(a).multiply(b, ...rest)
 export const divide = (
   a: EV<number>,
   b: EV<number>,
   ...rest: Array<EV<number>>
-) =>
-  [a, b]
-    .concat(rest)
-    .map(Expr.create)
-    .reduce((a, b) => a.divide(b))
+) => Expr.create(a).divide(b, ...rest)
 export const remainder = (a: EV<number>, b: EV<number>) =>
   Expr.create(a).remainder(b)
 export const concat = (a: EV<string>, b: EV<string>) => Expr.create(a).concat(b)
