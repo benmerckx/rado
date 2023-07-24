@@ -34,25 +34,46 @@ export const isGreaterOrEqual = <T>(a: EV<T>, b: EV<T>) =>
 export const isLess = <T>(a: EV<T>, b: EV<T>) => Expr.create(a).isLess(b)
 export const isLessOrEqual = <T>(a: EV<T>, b: EV<T>) =>
   Expr.create(a).isLessOrEqual(b)
-export const add = <T extends number>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).add(b)
-export const subtract = <T extends number>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).subtract(b)
-export const multiply = <T extends number>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).multiply(b)
-export const divide = <T extends number>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).divide(b)
-export const remainder = <T extends number>(a: EV<T>, b: EV<T>) =>
+export const add = (a: EV<number>, b: EV<number>, ...rest: Array<EV<number>>) =>
+  [a, b]
+    .concat(rest)
+    .map(Expr.create)
+    .reduce((a, b) => a.add(b))
+export const subtract = (
+  a: EV<number>,
+  b: EV<number>,
+  ...rest: Array<EV<number>>
+) =>
+  [a, b]
+    .concat(rest)
+    .map(Expr.create)
+    .reduce((a, b) => a.subtract(b))
+export const multiply = (
+  a: EV<number>,
+  b: EV<number>,
+  ...rest: Array<EV<number>>
+) =>
+  [a, b]
+    .concat(rest)
+    .map(Expr.create)
+    .reduce((a, b) => a.multiply(b))
+export const divide = (
+  a: EV<number>,
+  b: EV<number>,
+  ...rest: Array<EV<number>>
+) =>
+  [a, b]
+    .concat(rest)
+    .map(Expr.create)
+    .reduce((a, b) => a.divide(b))
+export const remainder = (a: EV<number>, b: EV<number>) =>
   Expr.create(a).remainder(b)
-export const concat = <T extends string>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).concat(b)
-export const like = <T extends string>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).like(b)
-export const glob = <T extends string>(a: EV<T>, b: EV<T>) =>
-  Expr.create(a).glob(b)
-export const at = <T extends string>(a: EV<Array<T>>, index: number) =>
+export const concat = (a: EV<string>, b: EV<string>) => Expr.create(a).concat(b)
+export const like = (a: EV<string>, b: EV<string>) => Expr.create(a).like(b)
+export const glob = (a: EV<string>, b: EV<string>) => Expr.create(a).glob(b)
+export const at = <T>(a: EV<Array<T>>, index: number) =>
   Expr.create(a).at(index)
-export const includes = <T extends string>(a: EV<Array<T>>, value: EV<T>) =>
+export const includes = <T>(a: EV<Array<T>>, value: EV<T>) =>
   Expr.create(a).includes(value)
 
 /* Queries */
