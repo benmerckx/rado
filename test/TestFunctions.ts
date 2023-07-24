@@ -23,8 +23,8 @@ test('Functions', async () => {
   const now = '1920-01-01'
   const int = (e: Expr<any>) => cast(e, 'integer')
   const age: Expr<number> = int(strftime('%Y', now))
-    .substract(int(strftime('%Y', User.birthdate)))
-    .substract(
+    .subtract(int(strftime('%Y', User.birthdate)))
+    .subtract(
       int(strftime('%m-%d', now).isLess(strftime('%m-%d', User.birthdate)))
     )
   const me = await User().insertOne({birthdate: '1900-01-01'}).on(db)
