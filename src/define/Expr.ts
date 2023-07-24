@@ -277,7 +277,7 @@ export class Expr<T> {
     )
   }
 
-  substract(this: Expr<number>, that: EV<number>): Expr<number> {
+  subtract(this: Expr<number>, that: EV<number>): Expr<number> {
     return new Expr(
       new ExprData.BinOp(BinOpType.Subt, this[Expr.Data], ExprData.create(that))
     )
@@ -429,6 +429,7 @@ export namespace Expr {
   export const NULL = create(null)
 
   export function value<T>(value: T, inline = false): Expr<T> {
+    if (isExpr<T>(value)) return value
     return new Expr<T>(new ExprData.Param(new ParamData.Value(value, inline)))
   }
 
