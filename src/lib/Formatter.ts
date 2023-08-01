@@ -835,7 +835,7 @@ export abstract class Formatter implements Sanitizer {
                 .raw('.')
             }
             stmt.identifier(field)
-            if (asBoolean) stmt.add(`, 'true', 'false'))`)
+            if (asBoolean) stmt.raw(`, 'true', 'false'))`)
             if (asJson) stmt.closeParenthesis()
             if (jsonColumn && !asJson) stmt.raw("->>'$'")
             return stmt
