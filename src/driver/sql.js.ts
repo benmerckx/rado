@@ -16,6 +16,7 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
     this.stmt.bind(params)
     while (this.stmt.step()) yield this.stmt.getAsObject()
     if (this.discardAfter) this.stmt.free()
+    else this.stmt.reset()
   }
 
   all<T>(params: Array<any>): Array<T> {
@@ -25,6 +26,7 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   run(params: Array<any>): {rowsAffected: number} {
     this.stmt.run(params)
     if (this.discardAfter) this.stmt.free()
+    else this.stmt.reset()
     return {rowsAffected: this.db.getRowsModified()}
   }
 
@@ -35,6 +37,7 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   execute(params: Array<any>): void {
     this.stmt.run(params)
     if (this.discardAfter) this.stmt.free()
+    else this.stmt.reset()
   }
 }
 

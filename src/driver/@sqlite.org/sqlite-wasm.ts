@@ -1,12 +1,11 @@
-import type {
-  DatabaseApi,
-  PreparedStatement as SWPreparedStatement
-} from '@sqlite.org/sqlite-wasm'
 import {SchemaInstructions} from '../../define/Schema.js'
 import {Driver, DriverOptions} from '../../lib/Driver.js'
 import {Statement} from '../../lib/Statement.js'
 import {SqliteFormatter} from '../../sqlite/SqliteFormatter.js'
 import {SqliteSchema} from '../../sqlite/SqliteSchema.js'
+
+type DatabaseApi = any
+type SWPreparedStatement = any
 
 class PreparedStatement implements Driver.Sync.PreparedStatement {
   constructor(
@@ -16,9 +15,10 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   ) {}
 
   *iterate<T>(params: Array<any>): IterableIterator<T> {
-    this.stmt.bind(params)
+    if (params.length > 0) this.stmt.bind(params)
     while (this.stmt.step()) yield this.stmt.get({})
     if (this.discardAfter) this.stmt.finalize()
+    else this.stmt.reset()
   }
 
   all<T>(params: Array<any>): Array<T> {
@@ -26,8 +26,10 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   }
 
   run(params: Array<any>): {rowsAffected: number} {
-    this.stmt.bind(params).step()
+    if (params.length > 0) this.stmt.bind(params)
+    this.stmt.step()
     if (this.discardAfter) this.stmt.finalize()
+    else this.stmt.reset()
     return {rowsAffected: this.db.changes()}
   }
 
@@ -36,8 +38,10 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   }
 
   execute(params: Array<any>): void {
-    this.stmt.bind(params).step()
+    if (params.length > 0) this.stmt.bind(params)
+    this.stmt.step()
     if (this.discardAfter) this.stmt.finalize()
+    else this.stmt.reset()
   }
 }
 

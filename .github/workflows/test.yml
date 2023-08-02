@@ -24,6 +24,7 @@ jobs:
       - run: yarn test --driver=better-sqlite3
       - run: yarn test --driver=sql.js
       - run: yarn test --driver=sqlite3
+      - run: yarn test --driver=@sqlite.org/sqlite-wasm
       - uses: oven-sh/setup-bun@v0.1.8
         with:
           bun-version: latest
