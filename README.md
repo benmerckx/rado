@@ -222,7 +222,7 @@ const PostTags = table({
 ## Connections
 
 Currently supported SQLite drivers:
-`better-sqlite3`, `sql.js`, `sqlite3`, `bun:sqlite`
+`better-sqlite3`, `sql.js`, `sqlite3`, `bun:sqlite`, `@sqlite.org/sqlite-wasm`
 
 Pass an instance of the database to the `connect` function to get started:
 
