@@ -20,6 +20,23 @@ export async function connect(
       const {connect} = await import('../src/driver/sql.js.js')
       return connect(new Database(), options).toAsync()
     }
+    case '@sqlite.org/sqlite-wasm': {
+      // @ts-ignore
+      const {default: init} = await import('@sqlite.org/sqlite-wasm')
+      const {readFileSync} = await import('node:fs')
+      const global = globalThis as any
+      global.self = globalThis
+      global.crypto = await import('crypto')
+      global.sqlite3 ??= await init({
+        wasmBinary: readFileSync(
+          './node_modules/@sqlite.org/sqlite-wasm/sqlite-wasm/jswasm/sqlite3.wasm'
+        ),
+        print: console.log.bind(console),
+        printErr: console.error.bind(console)
+      })
+      const {connect} = await import('../src/driver/@sqlite.org/sqlite-wasm.js')
+      return connect(new global.sqlite3.oo1.DB(':memory:'), options).toAsync()
+    }
     case 'sqlite3': {
       const {
         default: {Database}

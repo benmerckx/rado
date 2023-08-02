@@ -1,21 +1,23 @@
-import type {Database} from 'sql.js'
-import {SchemaInstructions} from '../define/Schema.js'
-import {Driver, DriverOptions} from '../lib/Driver.js'
-import {Statement} from '../lib/Statement.js'
-import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
-import {SqliteSchema} from '../sqlite/SqliteSchema.js'
+import {SchemaInstructions} from '../../define/Schema.js'
+import {Driver, DriverOptions} from '../../lib/Driver.js'
+import {Statement} from '../../lib/Statement.js'
+import {SqliteFormatter} from '../../sqlite/SqliteFormatter.js'
+import {SqliteSchema} from '../../sqlite/SqliteSchema.js'
+
+type DatabaseApi = any
+type SWPreparedStatement = any
 
 class PreparedStatement implements Driver.Sync.PreparedStatement {
   constructor(
-    private db: Database,
-    private stmt: any,
+    private db: DatabaseApi,
+    private stmt: SWPreparedStatement,
     private discardAfter: boolean
   ) {}
 
   *iterate<T>(params: Array<any>): IterableIterator<T> {
-    this.stmt.bind(params)
-    while (this.stmt.step()) yield this.stmt.getAsObject()
-    if (this.discardAfter) this.stmt.free()
+    if (params.length > 0) this.stmt.bind(params)
+    while (this.stmt.step()) yield this.stmt.get({})
+    if (this.discardAfter) this.stmt.finalize()
     else this.stmt.reset()
   }
 
@@ -24,10 +26,11 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   }
 
   run(params: Array<any>): {rowsAffected: number} {
-    this.stmt.run(params)
-    if (this.discardAfter) this.stmt.free()
+    if (params.length > 0) this.stmt.bind(params)
+    this.stmt.step()
+    if (this.discardAfter) this.stmt.finalize()
     else this.stmt.reset()
-    return {rowsAffected: this.db.getRowsModified()}
+    return {rowsAffected: this.db.changes()}
   }
 
   get<T>(params: Array<any>): T {
@@ -35,17 +38,18 @@ class PreparedStatement implements Driver.Sync.PreparedStatement {
   }
 
   execute(params: Array<any>): void {
-    this.stmt.run(params)
-    if (this.discardAfter) this.stmt.free()
+    if (params.length > 0) this.stmt.bind(params)
+    this.stmt.step()
+    if (this.discardAfter) this.stmt.finalize()
     else this.stmt.reset()
   }
 }
 
-export class SqlJsDriver extends Driver.Sync {
+export class SqliteWasmDriver extends Driver.Sync {
   tableData?: (tableName: string) => Array<SqliteSchema.Column>
   indexData?: (tableName: string) => Array<SqliteSchema.Index>
 
-  constructor(public db: Database, options?: DriverOptions) {
+  constructor(public db: DatabaseApi, options?: DriverOptions) {
     super(new SqliteFormatter(), options)
   }
 
@@ -75,10 +79,10 @@ export class SqlJsDriver extends Driver.Sync {
   }
 
   export(): Uint8Array {
-    return this.db.export()
+    throw new Error('Not implemented')
   }
 }
 
-export function connect(db: Database, options?: DriverOptions) {
-  return new SqlJsDriver(db, options)
+export function connect(db: DatabaseApi, options?: DriverOptions) {
+  return new SqliteWasmDriver(db, options)
 }

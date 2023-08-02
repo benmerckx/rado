@@ -276,6 +276,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sqlite.org/sqlite-wasm@npm:^3.42.0-build4":
+  version: 3.42.0-build4
+  resolution: "@sqlite.org/sqlite-wasm@npm:3.42.0-build4"
+  dependencies:
+    comlink: ^4.4.1
+  dependenciesMeta:
+    comlink:
+      optional: true
+  bin:
+    sqlite-wasm: bin/index.js
+  checksum: 028bb67197d1d59daf7e941f407b20869a3f7e5743bd0810d59f5060c2b1bdedd644cb42af57dc82ad1898420db69dbb7b6b622756c6753e86823fd4fcd47d6a
+  languageName: node
+  linkType: hard
+
 "@tootallnate/once@npm:1":
   version: 1.1.2
   resolution: "@tootallnate/once@npm:1.1.2"
@@ -585,6 +599,13 @@ __metadata:
   bin:
     color-support: bin.js
   checksum: 9b7356817670b9a13a26ca5af1c21615463b500783b739b7634a0c2047c16cef4b2865d7576875c31c3cddf9dd621fa19285e628f20198b233a5cfdda6d0793b
+  languageName: node
+  linkType: hard
+
+"comlink@npm:^4.4.1":
+  version: 4.4.1
+  resolution: "comlink@npm:4.4.1"
+  checksum: 16d58a8f590087fc45432e31d6c138308dfd4b75b89aec0b7f7bb97ad33d810381bd2b1e608a1fb2cf05979af9cbfcdcaf1715996d5fcf77aeb013b6da3260af
   languageName: node
   linkType: hard
 
@@ -1798,6 +1819,7 @@ __metadata:
   resolution: "rado@workspace:."
   dependencies:
     "@cloudflare/workers-types": ^4.20230628.0
+    "@sqlite.org/sqlite-wasm": ^3.42.0-build4
     "@types/better-sqlite3": ^5.4.1
     "@types/glob": ^8.0.0
     "@types/sql.js": ^1.4.2
