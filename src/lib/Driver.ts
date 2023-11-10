@@ -402,7 +402,7 @@ abstract class AsyncDriver extends DriverBase {
     }
   }
 
-  async transaction<T>(run: (query: AsyncDriver) => T): Promise<T> {
+  async transaction<T>(run: (query: AsyncDriver) => Promise<T>): Promise<T> {
     const id = `t${this.transactionId++}`
     const [connection, release] = this.isolate()
     await connection.executeQuery(
