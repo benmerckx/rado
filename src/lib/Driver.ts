@@ -418,12 +418,14 @@ abstract class AsyncDriver extends DriverBase {
       )
       return res
     } catch (e) {
-      await connection.executeQuery(
-        new QueryData.Transaction({
-          op: QueryData.TransactionOperation.Rollback,
-          id
-        })
-      )
+      await connection
+        .executeQuery(
+          new QueryData.Transaction({
+            op: QueryData.TransactionOperation.Rollback,
+            id
+          })
+        )
+        .catch(() => {})
       throw e
     } finally {
       await release()
