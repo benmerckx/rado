@@ -66,13 +66,17 @@ export class D1Driver extends Driver.Async {
     return SqliteSchema.createInstructions(columnData, indexData)
   }
 
-  isolate(): [connection: Driver.Async, release: () => Promise<void>] {
+  async isolate(): Promise<
+    [connection: Driver.Async, release: () => Promise<void>]
+  > {
+    const currentLock = this.lock
     const connection = new D1Driver(this.db)
     let release!: () => Promise<void>,
       trigger = new Promise<void>(resolve => {
         release = async () => resolve()
       })
-    this.lock = Promise.resolve(this.lock).then(() => trigger)
+    this.lock = Promise.resolve(currentLock).then(() => trigger)
+    await currentLock
     return [connection, release]
   }
 
