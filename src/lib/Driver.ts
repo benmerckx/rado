@@ -261,7 +261,9 @@ abstract class AsyncDriver extends DriverBase {
   }
 
   abstract close(): Promise<void>
-  abstract isolate(): [connection: AsyncDriver, release: () => Promise<void>]
+  abstract isolate(): Promise<
+    [connection: AsyncDriver, release: () => Promise<void>]
+  >
   abstract prepareStatement(
     stmt: Statement,
     discardAfter: boolean
@@ -404,7 +406,7 @@ abstract class AsyncDriver extends DriverBase {
 
   async transaction<T>(run: (query: AsyncDriver) => Promise<T>): Promise<T> {
     const id = `t${this.transactionId++}`
-    const [connection, release] = this.isolate()
+    const [connection, release] = await this.isolate()
     await connection.executeQuery(
       new QueryData.Transaction({op: QueryData.TransactionOperation.Begin, id})
     )
@@ -492,13 +494,17 @@ class SyncWrapper extends AsyncDriver {
     return this.sync.schemaInstructions(tableName)
   }
 
-  isolate(): [connection: AsyncDriver, release: () => Promise<void>] {
+  async isolate(): Promise<
+    [connection: AsyncDriver, release: () => Promise<void>]
+  > {
+    const currentLock = this.lock
     const connection = new SyncWrapper(this.sync)
     let release!: () => Promise<void>,
       trigger = new Promise<void>(resolve => {
         release = async () => resolve()
       })
-    this.lock = Promise.resolve(this.lock).then(() => trigger)
+    this.lock = Promise.resolve(currentLock).then(() => trigger)
+    await currentLock
     return [connection, release]
   }
 }

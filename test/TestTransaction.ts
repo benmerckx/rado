@@ -16,16 +16,23 @@ test('Transaction', async () => {
   // stays locked during the transaction. Once we add pooled drivers the
   // transaction should run on an isolated connection and then this test stops
   // making sense.
-  const [_, bob] = await Promise.all([
-    db.transaction(async function (query) {
-      return User()
+  const [_, ted, bob] = await Promise.all([
+    db.transaction(async function (tx) {
+      await User()
         .create()
         .next(User().insertOne({name: 'Alice'}))
         .next(User().insertOne({name: 'Bob'}))
-        .on(query)
+        .on(tx)
+      return tx.transaction(async function (tx) {
+        await tx(User().insertOne({name: 'Ted'}))
+      })
+    }),
+    db.transaction(async function (query) {
+      return query(User().maybeFirst().where(User.name.is('Ted')))
     }),
     db(User().maybeFirst().where(User.name.is('Bob')))
   ])
+  assert.equal(ted?.name, 'Ted')
   assert.equal(bob?.name, 'Bob')
 })
 
