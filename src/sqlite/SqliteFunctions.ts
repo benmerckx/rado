@@ -281,6 +281,7 @@ export const {
   iif,
   exists,
   match,
+  bm25,
   highlight,
   snippet,
   cast,
