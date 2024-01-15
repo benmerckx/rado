@@ -20,6 +20,9 @@ export type SqliteFunctions = {
   /** Use the match operator for the FTS5 module */
   match(table: Table<any>, searchTerm: EV<string>): Expr<boolean>
 
+  /** Returns a real value reflecting the accuracy of the current match */
+  bm25(table: Table<any>, ...weights: Array<EV<number>>): Expr<number>
+
   /** The highlight() function returns a copy of the text from a specified column of the current row with extra markup text inserted to mark the start and end of phrase matches. */
   highlight(
     table: Table<any>,
