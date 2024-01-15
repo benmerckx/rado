@@ -58,6 +58,7 @@ export class SqliteFormatter extends Formatter {
         stmt.raw(' MATCH ')
         this.formatExprValue(ctx, query)
         return stmt
+      case 'bm25':
       case 'highlight':
       case 'snippet':
         stmt.identifier(expr.method)
