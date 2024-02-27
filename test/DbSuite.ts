@@ -4,6 +4,16 @@ export async function connect(
   options: DriverOptions = {}
 ): Promise<Driver.Async> {
   switch (process.env.TEST_DRIVER) {
+    case 'pglite': {
+      const {PGlite} = await import('@electric-sql/pglite')
+      const {connect} = await import('../src/driver/pglite.js')
+      return connect(new PGlite(), {
+        ...options,
+        logQuery(stmt) {
+          //console.log(stmt.inlineParams())
+        }
+      })
+    }
     case 'bun:sqlite': {
       const {Database} = await import('bun:sqlite')
       const {connect} = await import('../src/driver/bun-sqlite.js')

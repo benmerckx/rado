@@ -78,7 +78,7 @@ test('delete', async () => {
   )
   assert.is(
     stmt.sql,
-    'DELETE FROM `example` WHERE 1 ORDER BY `example`.`id` DESC LIMIT 1 OFFSET 15'
+    'DELETE FROM `example` WHERE TRUE ORDER BY `example`.`id` DESC LIMIT 1 OFFSET 15'
   )
 })
 

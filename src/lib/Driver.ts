@@ -368,8 +368,12 @@ abstract class AsyncDriver extends DriverBase {
         stmt = stmt || this.createStatement(compiled!, true)
         params = params || compiled!.params()
         if ('selection' in query || query.type === QueryType.Union) {
-          const res = (await stmt.all<{result: string}>(params)).map(
-            item => JSON.parse(item.result).result
+          const res = (
+            await stmt.all<{result: string | {result: any}}>(params)
+          ).map(item =>
+            typeof item.result === 'string'
+              ? JSON.parse(item.result).result
+              : item.result.result
           )
           if (query.singleResult) {
             const row = res[0]

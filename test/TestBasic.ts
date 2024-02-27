@@ -16,11 +16,10 @@ test('basic', async () => {
   const db = await connect()
   const Node = table({
     Node: class {
-      id = column.integer().primaryKey<'node'>()
+      id = column.serial
       index = column.number()
     }
   })
-  type Node = table<typeof Node>
   await create(Node).on(db)
   const amount = 10
   const objects = Array.from({length: amount}).map((_, index) => ({index}))
@@ -41,13 +40,14 @@ test('basic', async () => {
     ).id,
     id
   )
+  await db.close()
 })
 
 test('filters', async () => {
   const db = await connect()
   const Test = table({
     Test: {
-      id: column.integer().primaryKey(),
+      id: column.serial,
       prop: column.number()
     }
   })
@@ -57,13 +57,14 @@ test('filters', async () => {
   await Test().insert([a, b]).on(db)
   const gt10 = await Test(Test.prop.isGreater(10)).first().on(db)
   assert.equal(gt10.prop, 20)
+  await db.close()
 })
 
 test('select', async () => {
   const db = await connect()
   const Test = table({
     test: {
-      id: column.integer().primaryKey(),
+      id: column.serial,
       propA: column.number(),
       propB: column.number()
     }
@@ -90,13 +91,14 @@ test('select', async () => {
   assert.is(res3, 'test')
   const res4 = await Test().first().select(Expr.value(true)).on(db)
   assert.is(res4, true)
+  await db.close()
 })
 
 test('update', async () => {
   const query = await connect()
   const Test = table({
     test: {
-      id: column.integer().primaryKey<'test'>(),
+      id: column.serial,
       propA: column.number(),
       propB: column.number()
     }
@@ -117,13 +119,14 @@ test('update', async () => {
     })
   )
   assert.ok(await query(Test().first().where(Test.propA.is(55))))
+  await query.close()
 })
 
 test('json', async () => {
   const query = await connect()
   const Test = table({
     test: {
-      id: column.integer().primaryKey(),
+      id: column.serial,
       prop: column.number(),
       propB: column.number()
     }
@@ -143,9 +146,10 @@ test('json', async () => {
   )
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 5)
+  await query.close()
 })
 
-test('each', async () => {
+test.only('each', async () => {
   const query = await connect()
   const a = {
     refs: [
@@ -156,7 +160,7 @@ test('each', async () => {
   }
   const Test = table({
     test: {
-      id: column.integer().primaryKey<'test'>(),
+      id: column.serial,
       refs: column.array<
         {
           id: PrimaryKey<number, 'Entry'>
@@ -169,11 +173,10 @@ test('each', async () => {
 
   const Entry = table({
     Entry: class {
-      id = column.integer.primaryKey<'Entry'>()
+      id = column.serial
       title = column.string
     }
   })
-  type Entry = table<typeof Entry>
 
   await query(create(Test, Entry))
   await query(insertInto(Test).values(a))
@@ -207,6 +210,7 @@ test('each', async () => {
     {id: 1, title: 'Entry B'},
     {id: 2, title: 'Entry C'}
   ])
+  await query.close()
 })
 
 test.run()

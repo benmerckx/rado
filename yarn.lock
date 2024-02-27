@@ -12,6 +12,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@electric-sql/pglite@npm:^0.0.1-alpha.2":
+  version: 0.0.1-alpha.2
+  resolution: "@electric-sql/pglite@npm:0.0.1-alpha.2"
+  checksum: 44fd09675e5eca1546c70050ded38778d23a684112ae411d6742463d8e9a4bc4b19bb4375865c3b12cfa80a590de5cd391200d923408f32fa6fb2f42f87e2521
+  languageName: node
+  linkType: hard
+
 "@esbuild-kit/cjs-loader@npm:^2.4.2":
   version: 2.4.2
   resolution: "@esbuild-kit/cjs-loader@npm:2.4.2"
@@ -1819,6 +1826,7 @@ __metadata:
   resolution: "rado@workspace:."
   dependencies:
     "@cloudflare/workers-types": ^4.20230628.0
+    "@electric-sql/pglite": ^0.0.1-alpha.2
     "@sqlite.org/sqlite-wasm": ^3.42.0-build4
     "@types/better-sqlite3": ^5.4.1
     "@types/glob": ^8.0.0
