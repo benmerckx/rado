@@ -26,7 +26,8 @@ const binOps = {
   [BinOpType.Match]: 'MATCH',
   [BinOpType.In]: 'IN',
   [BinOpType.NotIn]: 'NOT IN',
-  [BinOpType.Concat]: '||'
+  [BinOpType.Concat]: '||',
+  [BinOpType.Collate]: 'COLLATE'
 }
 
 const joins = {
@@ -728,10 +729,23 @@ export abstract class Formatter implements Sanitizer {
     const {stmt} = ctx
     stmt.openParenthesis()
     this.formatExprValue(ctx, expr.a).add(binOps[expr.op]).space()
-    const asIn = expr.op === BinOpType.In || expr.op === BinOpType.NotIn
-    if (asIn) this.formatIn(ctx, expr.b)
-    else this.formatExprValue(ctx, expr.b)
-    return stmt.closeParenthesis()
+    switch (expr.op) {
+      case BinOpType.Collate:
+        const value =
+          expr.b.type === ExprType.Param &&
+          expr.b.param.type === ParamType.Value &&
+          expr.b.param.value
+        if (typeof value !== 'string') throw new Error('Expected string')
+        stmt.add(this.escapeIdentifier(value))
+        return stmt.closeParenthesis()
+      case BinOpType.In:
+      case BinOpType.NotIn:
+        this.formatIn(ctx, expr.b)
+        return stmt.closeParenthesis()
+      default:
+        this.formatExprValue(ctx, expr.b)
+        return stmt.closeParenthesis()
+    }
   }
 
   formatParam(ctx: FormatContext, expr: ExprData.Param): Statement {

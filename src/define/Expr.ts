@@ -32,7 +32,8 @@ export enum BinOpType {
   Match = 'Match',
   In = 'In',
   NotIn = 'NotIn',
-  Concat = 'Concat'
+  Concat = 'Concat',
+  Collate = 'Collate'
 }
 
 export enum ExprType {
@@ -287,6 +288,15 @@ export class Expr<T> {
     )
   }
 
+  collate(collation: string): Expr<string> {
+    return new Expr(
+      new ExprData.BinOp(
+        BinOpType.Collate,
+        this[Expr.Data],
+        ExprData.create(collation)
+      )
+    )
+  }
   subtract(
     this: Expr<number>,
     that: EV<number>,
