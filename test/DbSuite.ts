@@ -49,6 +49,25 @@ export async function connect(
       // @ts-ignore
       return connect(env.DB, options)
     }
+    case 'pglite': {
+      const {PGlite} = await import('@electric-sql/pglite')
+      const {connect} = await import('../src/driver/@electric-sql/pglite.js')
+      return connect(new PGlite(), {
+        ...options,
+        logQuery(stmt) {
+          //console.log(stmt.inlineParams())
+        }
+      })
+    }
+    case 'pg': {
+      const {connect} = await import('../src/driver/pg.js')
+      const {default: PG} = await import('pg')
+      const client = new PG.Client({
+        connectionString: 'postgresql://test:test@localhost:5432/postgres'
+      })
+      await client.connect()
+      return connect(client, options)
+    }
     default:
       throw new Error(`Unknown driver ${process.env.TEST_DRIVER}`)
   }

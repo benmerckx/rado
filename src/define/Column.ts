@@ -5,6 +5,7 @@ import {Fields} from './Fields.js'
 export enum ColumnType {
   String = 'String',
   Integer = 'Integer',
+  Serial = 'Serial',
   Number = 'Number',
   Boolean = 'Boolean',
   Json = 'Json'
@@ -213,6 +214,14 @@ export class UnTyped extends Callable {
     return new ValueColumn<string>({
       ...this[Column.Data],
       type: ColumnType.String
+    })
+  }
+
+  get serial() {
+    return new PrimaryColumn({
+      ...this[Column.Data],
+      nullable: true,
+      type: ColumnType.Serial
     })
   }
 

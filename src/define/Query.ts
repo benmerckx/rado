@@ -237,6 +237,12 @@ export class CreateTable extends Query<void> {
   }
 }
 
+export class DropTable extends Query<void> {
+  constructor(table: TableData, ifExists = false) {
+    super(new QueryData.DropTable({table, ifExists}))
+  }
+}
+
 export class Delete extends Query<{rowsAffected: number}> {
   declare [Query.Data]: QueryData.Delete
 
@@ -672,6 +678,10 @@ export class TableSelect<Definition> extends Select<Table.Select<Definition>> {
 
   create() {
     return new CreateTable(this.table)
+  }
+
+  drop(ifExists = false) {
+    return new DropTable(this.table, ifExists)
   }
 
   insert(query: Select<Table.Insert<Definition>>): Insert

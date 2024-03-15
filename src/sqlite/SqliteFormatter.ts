@@ -1,3 +1,4 @@
+import {ColumnData, ColumnType} from '../define/Column.js'
 import {ExprData} from '../define/Expr.js'
 import {FormatContext, Formatter} from '../lib/Formatter.js'
 import {Statement} from '../lib/Statement.js'
@@ -10,6 +11,9 @@ const MATCH_BACKTICK = /`/g
 const MATCH_SINGLE_QUOTE = /'/g
 
 export class SqliteFormatter extends Formatter {
+  defaultKeyword = 'NULL'
+  jsonObjectFn = 'json_object'
+
   formatParamValue(paramValue: any): any {
     if (paramValue === null || paramValue === undefined) return null
     if (typeof paramValue === 'boolean') return paramValue ? 1 : 0
@@ -30,12 +34,20 @@ export class SqliteFormatter extends Formatter {
     return BACKTICK + input.replace(MATCH_BACKTICK, ESCAPE_BACKTICK) + BACKTICK
   }
 
+  escapeColumn(input: string): string {
+    return this.escapeString(input)
+  }
+
   escapeString(input: string) {
     return (
       SINGLE_QUOTE +
       input.replace(MATCH_SINGLE_QUOTE, ESCAPE_SINGLE_QUOTE) +
       SINGLE_QUOTE
     )
+  }
+
+  formatDefaultValue(ctx: FormatContext) {
+    return ctx.stmt.raw('NULL')
   }
 
   formatAccess(
@@ -67,6 +79,16 @@ export class SqliteFormatter extends Formatter {
         return stmt
       default:
         return super.formatCall(ctx, expr)
+    }
+  }
+
+  formatType(ctx: FormatContext, column: ColumnData): Statement {
+    const {stmt} = ctx
+    switch (column.type) {
+      case ColumnType.Serial:
+        return stmt.raw('INTEGER PRIMARY KEY')
+      default:
+        return super.formatType(ctx, column)
     }
   }
 }
