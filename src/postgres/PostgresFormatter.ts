@@ -1,20 +1,10 @@
-import {ColumnType} from '../index.js'
+import {ColumnData, ColumnType} from '../define/Column.js'
 import {FormatContext, Formatter} from '../lib/Formatter.js'
 import {Statement} from '../lib/Statement.js'
 
-const DOUBLE_QUOTE = `"`
-const ESCAPE_DOUBLE_QUOTE = `\"`
-const MATCH_DOUBLE_QUOTE = /"/g
-const SINGLE_QUOTE = "'"
-const ESCAPE_SINGLE_QUOTE = `\'`
-const MATCH_SINGLE_QUOTE = /'/g
-
 export class PostgresFormatter extends Formatter {
+  defaultKeyword = 'DEFAULT'
   jsonObjectFn = 'json_build_object'
-
-  formatDefaultValue(ctx: FormatContext) {
-    return ctx.stmt.raw('DEFAULT')
-  }
 
   formatParamValue(paramValue: any): any {
     if (paramValue === null || paramValue === undefined) return null
@@ -32,20 +22,35 @@ export class PostgresFormatter extends Formatter {
     return 'json(' + this.escapeString(JSON.stringify(value)) + ')'
   }
 
+  // https://github.com/brianc/node-postgres/blob/970804b6c110fab500da9db71d68d04e0ecea406/packages/pg/lib/utils.js#L165
   escapeIdentifier(input: string): string {
-    return (
-      DOUBLE_QUOTE +
-      input.replace(MATCH_DOUBLE_QUOTE, ESCAPE_DOUBLE_QUOTE) +
-      DOUBLE_QUOTE
-    )
+    return '"' + input.replace(/"/g, '""') + '"'
   }
 
+  // https://github.com/brianc/node-postgres/blob/970804b6c110fab500da9db71d68d04e0ecea406/packages/pg/lib/utils.js#L170
   escapeString(input: string) {
-    return (
-      SINGLE_QUOTE +
-      input.replace(MATCH_SINGLE_QUOTE, ESCAPE_SINGLE_QUOTE) +
-      SINGLE_QUOTE
-    )
+    let hasBackslash = false
+    let escaped = "'"
+
+    for (let i = 0; i < input.length; i++) {
+      let c = input[i]
+      if (c === "'") {
+        escaped += c + c
+      } else if (c === '\\') {
+        escaped += c + c
+        hasBackslash = true
+      } else {
+        escaped += c
+      }
+    }
+
+    escaped += "'"
+
+    if (hasBackslash === true) {
+      escaped = ' E' + escaped
+    }
+
+    return escaped
   }
 
   formatAccess(
@@ -59,13 +64,13 @@ export class PostgresFormatter extends Formatter {
     return this.formatString(ctx, `$.${field}`)
   }
 
-  formatType(ctx: FormatContext, type: ColumnType): Statement {
+  formatType(ctx: FormatContext, column: ColumnData): Statement {
     const {stmt} = ctx
-    switch (type) {
+    switch (column.type) {
       case ColumnType.Serial:
         return stmt.raw('INT GENERATED ALWAYS AS IDENTITY')
       default:
-        return super.formatType(ctx, type)
+        return super.formatType(ctx, column)
     }
   }
 }

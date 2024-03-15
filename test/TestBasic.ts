@@ -4,16 +4,17 @@ import {
   Expr,
   PrimaryKey,
   alias,
-  column,
   create,
   from,
   insertInto,
   table
 } from '../src/index.js'
+import {column} from '../src/postgres/PostgresColumn.js'
 import {connect} from './DbSuite.js'
 
 test('basic', async () => {
   const db = await connect()
+  type Node = table<typeof Node>
   const Node = table({
     Node: class {
       id = column.serial
@@ -40,7 +41,6 @@ test('basic', async () => {
     ).id,
     id
   )
-  await db.close()
 })
 
 test('filters', async () => {
@@ -57,7 +57,6 @@ test('filters', async () => {
   await Test().insert([a, b]).on(db)
   const gt10 = await Test(Test.prop.isGreater(10)).first().on(db)
   assert.equal(gt10.prop, 20)
-  await db.close()
 })
 
 test('select', async () => {
@@ -91,7 +90,6 @@ test('select', async () => {
   assert.is(res3, 'test')
   const res4 = await Test().first().select(Expr.value(true)).on(db)
   assert.is(res4, true)
-  await db.close()
 })
 
 test('update', async () => {
@@ -119,7 +117,6 @@ test('update', async () => {
     })
   )
   assert.ok(await query(Test().first().where(Test.propA.is(55))))
-  await query.close()
 })
 
 test('json', async () => {
@@ -146,10 +143,9 @@ test('json', async () => {
   )
   assert.is(res1.fieldA, 12)
   assert.is(res1.fieldB, 5)
-  await query.close()
 })
 
-test.only('each', async () => {
+test('each', async () => {
   const query = await connect()
   const a = {
     refs: [
@@ -210,7 +206,6 @@ test.only('each', async () => {
     {id: 1, title: 'Entry B'},
     {id: 2, title: 'Entry C'}
   ])
-  await query.close()
 })
 
 test.run()

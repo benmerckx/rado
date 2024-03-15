@@ -1,3 +1,4 @@
+import {PostgresColumn} from '../postgres/PostgresColumn.js'
 import {Callable} from '../util/Callable.js'
 import {EV, Expr, ExprData} from './Expr.js'
 import {Fields} from './Fields.js'
@@ -23,6 +24,7 @@ export interface PartialColumnData {
   onUpdate?: Action
   onDelete?: Action
   enumerable?: boolean
+  [PostgresColumn.Column]?: string
 }
 
 export interface ColumnData extends PartialColumnData {

@@ -93,6 +93,7 @@ export abstract class Formatter implements Sanitizer {
   constructor() {}
 
   abstract jsonObjectFn: string
+  abstract defaultKeyword: string
   abstract escapeValue(value: any): string
   abstract escapeIdentifier(ident: string): string
   abstract formatParamValue(paramValue: any): any
@@ -101,7 +102,6 @@ export abstract class Formatter implements Sanitizer {
     mkSubject: () => void,
     field: string
   ): Statement
-  abstract formatDefaultValue(ctx: FormatContext): Statement
 
   compile(query: QueryData, options?: CompileOptions): Statement {
     const result = this.format(
@@ -145,6 +145,13 @@ export abstract class Formatter implements Sanitizer {
       case QueryType.Raw:
         return this.formatRaw(ctx, query)
     }
+  }
+
+  formatAsResultObject(stmt: Statement, mkSubject: () => void) {
+    stmt.raw(this.jsonObjectFn)
+    stmt.raw("('result', ")
+    mkSubject()
+    stmt.raw(')')
   }
 
   formatSelect(
@@ -399,10 +406,10 @@ export abstract class Formatter implements Sanitizer {
   formatColumn(ctx: FormatContext, column: ColumnData): Statement {
     const {stmt} = ctx
     stmt.identifier(column.name).space()
-    this.formatType(ctx, column.type)
+    this.formatType(ctx, column)
     if (column.unique) stmt.add('UNIQUE')
-    if (column.autoIncrement) stmt.add('AUTOINCREMENT')
     if (column.primaryKey) stmt.add('PRIMARY KEY')
+    if (column.autoIncrement) stmt.add('AUTOINCREMENT')
     if (!column.nullable) stmt.add('NOT NULL')
     if (column.defaultValue !== undefined) {
       if (typeof column.defaultValue !== 'function') {
@@ -449,7 +456,7 @@ export abstract class Formatter implements Sanitizer {
     return stmt
   }
 
-  formatType(ctx: FormatContext, type: ColumnType): Statement {
+  formatType(ctx: FormatContext, {type}: ColumnData): Statement {
     const {stmt} = ctx
     switch (type) {
       case ColumnType.String:
@@ -942,6 +949,10 @@ export abstract class Formatter implements Sanitizer {
       default:
         throw new Error(`Cannot select from ${expr.target.type}`)
     }
+  }
+
+  formatDefaultValue(ctx: FormatContext): Statement {
+    return ctx.stmt.raw(this.defaultKeyword)
   }
 
   formatMerge(ctx: FormatContext, expr: ExprData.Merge): Statement {

@@ -1,5 +1,5 @@
+import {ColumnData, ColumnType} from '../define/Column.js'
 import {ExprData} from '../define/Expr.js'
-import {ColumnType} from '../index.js'
 import {FormatContext, Formatter} from '../lib/Formatter.js'
 import {Statement} from '../lib/Statement.js'
 
@@ -11,6 +11,7 @@ const MATCH_BACKTICK = /`/g
 const MATCH_SINGLE_QUOTE = /'/g
 
 export class SqliteFormatter extends Formatter {
+  defaultKeyword = 'NULL'
   jsonObjectFn = 'json_object'
 
   formatParamValue(paramValue: any): any {
@@ -31,6 +32,10 @@ export class SqliteFormatter extends Formatter {
 
   escapeIdentifier(input: string): string {
     return BACKTICK + input.replace(MATCH_BACKTICK, ESCAPE_BACKTICK) + BACKTICK
+  }
+
+  escapeColumn(input: string): string {
+    return this.escapeString(input)
   }
 
   escapeString(input: string) {
@@ -77,13 +82,13 @@ export class SqliteFormatter extends Formatter {
     }
   }
 
-  formatType(ctx: FormatContext, type: ColumnType): Statement {
+  formatType(ctx: FormatContext, column: ColumnData): Statement {
     const {stmt} = ctx
-    switch (type) {
+    switch (column.type) {
       case ColumnType.Serial:
         return stmt.raw('INTEGER PRIMARY KEY')
       default:
-        return super.formatType(ctx, type)
+        return super.formatType(ctx, column)
     }
   }
 }

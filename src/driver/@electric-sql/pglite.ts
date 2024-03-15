@@ -1,8 +1,8 @@
 import {PGlite} from '@electric-sql/pglite'
-import {SchemaInstructions} from '../define/Schema.js'
-import {Driver, DriverOptions} from '../lib/Driver.js'
-import {Statement} from '../lib/Statement.js'
-import {PostgresFormatter} from '../postgres/PostgresFormatter.js'
+import {SchemaInstructions} from '../../define/Schema.js'
+import {Driver, DriverOptions} from '../../lib/Driver.js'
+import {Statement} from '../../lib/Statement.js'
+import {PostgresFormatter} from '../../postgres/PostgresFormatter.js'
 
 class PreparedStatement implements Driver.Async.PreparedStatement {
   constructor(private db: PGlite, private stmt: Statement) {}
@@ -12,7 +12,6 @@ class PreparedStatement implements Driver.Async.PreparedStatement {
   async all<T>() {
     const sql = this.stmt.inlineParams()
     const res = await this.db.query(sql)
-    console.dir(res, {depth: null})
     return res as Promise<Array<T>>
   }
 
@@ -51,11 +50,11 @@ export class PGliteDriver extends Driver.Async {
   async isolate(): Promise<
     [connection: Driver.Async, release: () => Promise<void>]
   > {
-    return [this, async () => {}]
+    throw new Error(`Not implemented`)
   }
 
-  close(): Promise<void> {
-    return this.db.close()
+  async close(): Promise<void> {
+    await this.db.close()
   }
 }
 
