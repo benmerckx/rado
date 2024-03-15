@@ -176,7 +176,7 @@ export class Expr<T> {
   }
 
   is(that: EV<T> | SelectFirst<T>): Expr<boolean> {
-    if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
+    if (that === null || (Expr.isExpr<null>(that) && that.isConstant(null)))
       return this.isNull()
     return new Expr(
       new ExprData.BinOp(
@@ -204,7 +204,7 @@ export class Expr<T> {
   }
 
   isNot(that: EV<T>): Expr<boolean> {
-    if (that === null || (Expr.isExpr(that) && that.isConstant(null)))
+    if (that === null || (Expr.isExpr<null>(that) && that.isConstant(null)))
       return this.isNotNull()
     return new Expr(
       new ExprData.BinOp(
