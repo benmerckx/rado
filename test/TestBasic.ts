@@ -4,12 +4,12 @@ import {
   Expr,
   PrimaryKey,
   alias,
+  column,
   create,
   from,
   insertInto,
   table
 } from '../src/index.js'
-import {column} from '../src/postgres/PostgresColumn.js'
 import {connect} from './DbSuite.js'
 
 test('basic', async () => {
