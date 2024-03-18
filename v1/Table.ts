@@ -84,6 +84,12 @@ type OptionalInput<D> = {
 export type TableInsert<Definition extends TableDefinition> =
   RequiredInput<Definition> & OptionalInput<Definition>
 
+export type TableUpdate<Definition extends TableDefinition> = {
+  [K in keyof Definition]?: Definition[K] extends Column<infer T>
+    ? Input<T>
+    : never
+}
+
 export function table<Definition extends TableDefinition>(
   name: string,
   columns: Definition

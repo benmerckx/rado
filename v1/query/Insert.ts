@@ -16,7 +16,7 @@ const {fromEntries, entries} = Object
 
 class InsertIntoData {
   into!: HasTable
-  values?: Array<Record<string, Sql>>
+  values?: Array<Record<string, Sql | HasExpr>>
   select?: Sql
 }
 
@@ -50,7 +50,11 @@ class Insert<Returning> implements HasQuery {
               Object.entries(table.columns).map(([key, column]) => {
                 const value = row[key]
                 const {defaultValue, notNull} = getColumn(column)
-                if (value !== undefined) return value
+                if (value !== undefined) {
+                  if (hasExpr(value))
+                    return getExpr(value)({includeTableName: false})
+                  return value
+                }
                 if (defaultValue) return defaultValue()
                 if (notNull) throw new Error(`Column "${key}" is not nullable`)
                 return sql.defaultValue()

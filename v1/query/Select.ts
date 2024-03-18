@@ -1,9 +1,9 @@
 import type {Expr} from '../Expr.ts'
 import {
+  HasExpr,
   HasQuery,
   HasSelection,
   HasTable,
-  getExpr,
   getQuery,
   getSelection,
   getTable,
@@ -20,9 +20,9 @@ class SelectData {
   distinct?: boolean
   from?: HasQuery | HasTable
   subject?: Sql
-  where?: Sql
+  where?: HasExpr
   groupBy?: Sql
-  having?: Sql
+  having?: HasExpr
   orderBy?: Sql
   limit?: Sql
 }
@@ -50,11 +50,7 @@ export class Select<T> implements HasQuery, HasSelection {
   }
 
   where(where: Expr<boolean>) {
-    return new Select<T>({...this.#data, where: getExpr(where)})
-  }
-
-  having(having: Expr<boolean>) {
-    return new Select<T>({...this.#data, having: getExpr(having)})
+    return new Select<T>({...this.#data, where})
   }
 
   groupBy(...exprs: Array<Expr>) {
@@ -62,6 +58,10 @@ export class Select<T> implements HasQuery, HasSelection {
       ...this.#data,
       groupBy: sql.join(exprs, sql.unsafe(', '))
     })
+  }
+
+  having(having: Expr<boolean>) {
+    return new Select<T>({...this.#data, having})
   }
 
   orderBy(...exprs: Array<Expr>) {
@@ -117,7 +117,7 @@ export class Select<T> implements HasQuery, HasSelection {
       ? from && hasTable(from)
         ? getTable(from).listColumns()
         : sql`*`
-      : getSelection(this).toSql()
+      : getSelection(this).toSql({includeTableName: true})
     parts.push(sql`select ${select}`)
     if (from) {
       const target = hasTable(from)
