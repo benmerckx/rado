@@ -9,7 +9,7 @@ import {
 
 enum ChunkType {
   Unsafe,
-  Expr,
+  Expr, // Todo: should be field
   Identifier,
   Value,
   Placeholder,
@@ -143,4 +143,8 @@ export namespace sql {
       : input
     return sql.inline()
   }
+}
+
+export function isSql(input: unknown): input is Sql {
+  return input instanceof SqlImpl
 }

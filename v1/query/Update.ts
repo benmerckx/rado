@@ -29,6 +29,7 @@ export class Update<Definition extends TableDefinition> implements HasQuery {
   set(values: TableUpdate<Definition>) {
     const update = fromEntries(
       entries(values).map(([key, value]) => {
+        console.log(key, value)
         const expr = input(value)
         const sql = hasExpr(expr)
           ? getExpr(expr)({includeTableName: false})

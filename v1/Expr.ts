@@ -1,10 +1,11 @@
 import {ExprToSqlOptions, getExpr, hasExpr, meta, type HasExpr} from './Meta.ts'
-import {Sql, sql} from './Sql.ts'
+import {Sql, isSql, sql} from './Sql.ts'
 
 export type Input<T = unknown> = Expr<T> | T | Sql<T>
 
 export function input(value: Input): Sql | HasExpr {
   if (value && typeof value === 'object' && hasExpr(value)) return value
+  if (isSql(value)) return value
   return sql.value(value)
 }
 
