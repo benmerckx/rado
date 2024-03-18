@@ -1,5 +1,4 @@
 import {expect, test} from 'bun:test'
-import {getTable} from '../Is.ts'
 import {sql} from '../Sql.ts'
 import {table} from '../Table.ts'
 import {integer} from '../sqlite/SqliteColumns.ts'
@@ -10,14 +9,14 @@ const Node = table('Node', {
 })
 
 test('create table', () => {
-  const query = new Create({table: getTable(Node)})
+  const query = new Create({table: Node})
   expect(sql.inline(query)).toBe(
     'create table "Node" ("id" integer primary key)'
   )
 })
 
 test('if not exists', () => {
-  const query = new Create({table: getTable(Node)}).ifNotExists()
+  const query = new Create({table: Node}).ifNotExists()
   expect(sql.inline(query)).toBe(
     'create table if not exists "Node" ("id" integer primary key)'
   )

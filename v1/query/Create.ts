@@ -1,9 +1,8 @@
-import {Is, getSql, type IsSql} from '../Is.ts'
+import {Is, IsTable, getSql, getTable, type IsSql} from '../Is.ts'
 import {sql} from '../Sql.ts'
-import type {TableApi} from '../Table.ts'
 
 interface CreateData {
-  table: TableApi
+  table: IsTable
   ifNotExists?: boolean
 }
 
@@ -19,7 +18,8 @@ export class Create implements IsSql {
   }
 
   get [Is.sql]() {
-    const {table, ifNotExists} = this.#data
+    const {ifNotExists} = this.#data
+    const table = getTable(this.#data.table)
     return getSql(
       sql.join([
         sql`create table`,
