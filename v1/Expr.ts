@@ -1,28 +1,33 @@
-import {type IsSql, isSql} from './Is.ts'
-import {ContainsSql, type TypedSql, sql} from './Sql.ts'
+import {ExprToSqlOptions, getExpr, hasExpr, meta, type HasExpr} from './Meta.ts'
+import {Sql, sql} from './Sql.ts'
 
-export type Input<T = unknown> = Expr<T> | T | TypedSql<T>
+export type Input<T = unknown> = Expr<T> | T | Sql<T>
 
-export function input(value: Input): IsSql {
-  if (isSql(value)) return value
+export function input(value: Input): Sql | HasExpr {
+  if (value && typeof value === 'object' && hasExpr(value)) return value
   return sql.value(value)
 }
 
-export class Expr<T = unknown> extends ContainsSql {
-  asc(): IsSql {
+export interface ExprApi {
+  (options: ExprToSqlOptions): Sql
+}
+
+export class Expr<T = unknown> implements HasExpr {
+  readonly [meta.expr]: ExprApi
+  constructor(readonly inner: Sql | HasExpr) {
+    this[meta.expr] = hasExpr(inner) ? getExpr(inner) : () => inner
+  }
+
+  asc(): Sql {
     return sql`${this} asc`
   }
-  desc(): IsSql {
+  desc(): Sql {
     return sql`${this} desc`
   }
 }
 
-export function expr<T>(sql: IsSql): Expr<T> {
+export function expr<T>(sql: Sql<T> | HasExpr): Expr<T> {
   return new Expr(sql)
-}
-
-export function value<T>(value: T) {
-  return expr<T>(sql.value(value))
 }
 
 export function eq<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
@@ -35,13 +40,13 @@ export function ne<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
 
 export function and(...conditions: Array<Input<boolean>>): Expr<boolean> {
   if (conditions.length === 0) return expr(sql`true`)
-  if (conditions.length === 1) return expr(input(conditions[0]))
+  if (conditions.length === 1) return expr(input(conditions[0]!))
   return expr(sql`(${sql.join(conditions.map(input), sql.unsafe(' and '))})`)
 }
 
 export function or(...conditions: Array<Input<boolean>>): Expr<boolean> {
   if (conditions.length === 0) return expr(sql`true`)
-  if (conditions.length === 1) return expr(input(conditions[0]))
+  if (conditions.length === 1) return expr(input(conditions[0]!))
   return expr(sql`(${sql.join(conditions.map(input), sql.unsafe(' or '))})`)
 }
 

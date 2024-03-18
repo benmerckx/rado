@@ -1,26 +1,26 @@
 import {input, type Input} from './Expr.ts'
-import {Is, type IsColumn, type IsSql} from './Is.ts'
-import {sql} from './Sql.ts'
+import {HasColumn, meta} from './Meta.ts'
+import {Sql, sql} from './Sql.ts'
 
 const {assign} = Object
 
 class ColumnData {
-  type!: IsSql
+  type!: Sql
   name?: string
   primary?: boolean
   notNull?: boolean
   isUnique?: boolean
   autoIncrement?: boolean
-  defaultValue?(): IsSql
-  references?(): IsSql
-  onUpdate?: IsSql
-  onDelete?: IsSql
+  defaultValue?(): Sql
+  references?(): Sql
+  onUpdate?: Sql
+  onDelete?: Sql
   mapFromDriverValue?(value: unknown): unknown
   mapToDriverValue?(value: unknown): unknown
 }
 
 export class ColumnApi extends ColumnData {
-  sqlType(): IsSql {
+  sqlType(): Sql {
     return sql.join([
       this.type,
       this.primary && sql`primary key`,
@@ -35,28 +35,36 @@ export class ColumnApi extends ColumnData {
   }
 }
 
-export class Column<T = unknown> implements IsColumn {
-  readonly [Is.column]: ColumnApi
+export class Column<Value = unknown> implements HasColumn {
+  readonly [meta.column]: ColumnApi
   constructor(data: ColumnData) {
-    this[Is.column] = assign(new ColumnApi(), data)
+    this[meta.column] = assign(new ColumnApi(), data)
   }
-  notNull(): Column<NonNullable<T>> {
-    return new Column({...this[Is.column], notNull: true})
+  notNull(): RequiredColumn<NonNullable<Value>> {
+    return new Column({
+      ...this[meta.column],
+      notNull: true
+    }) as RequiredColumn
   }
   default(
-    value: Input<NonNullable<T>> | (() => Input<NonNullable<T>>)
-  ): Column<NonNullable<T>> {
+    value: Input<NonNullable<Value>> | (() => Input<NonNullable<Value>>)
+  ): Column<NonNullable<Value>> {
     return new Column({
-      ...this[Is.column],
-      defaultValue(): IsSql {
+      ...this[meta.column],
+      defaultValue(): Sql {
         return input(value instanceof Function ? value() : value)
       }
     })
   }
-  primaryKey(): Column<NonNullable<T>> {
-    return new Column({...this[Is.column], primary: true})
+  primaryKey(): Column<NonNullable<Value>> {
+    return new Column({...this[meta.column], primary: true})
   }
-  unique(name?: string): Column<T> {
-    return new Column({...this[Is.column], isUnique: true})
+  unique(name?: string): Column<Value> {
+    return new Column({...this[meta.column], isUnique: true})
   }
+}
+
+declare const __required: unique symbol
+export interface RequiredColumn<Value = unknown> extends Column<Value> {
+  [__required]: true
 }

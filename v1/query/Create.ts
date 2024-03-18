@@ -1,12 +1,12 @@
-import {Is, IsTable, getSql, getTable, type IsSql} from '../Is.ts'
+import {HasQuery, HasTable, getTable, meta} from '../Meta.ts'
 import {sql} from '../Sql.ts'
 
 interface CreateData {
-  table: IsTable
+  table: HasTable
   ifNotExists?: boolean
 }
 
-export class Create implements IsSql {
+export class Create implements HasQuery {
   #data: CreateData
 
   constructor(data: CreateData) {
@@ -17,16 +17,14 @@ export class Create implements IsSql {
     return new Create({...this.#data, ifNotExists: true})
   }
 
-  get [Is.sql]() {
+  get [meta.query]() {
     const {ifNotExists} = this.#data
     const table = getTable(this.#data.table)
-    return getSql(
-      sql.join([
-        sql`create table`,
-        ifNotExists ? sql`if not exists` : undefined,
-        sql.identifier(table.name),
-        sql`(${table.createColumns()})`
-      ])
-    )
+    return sql.join([
+      sql`create table`,
+      ifNotExists ? sql`if not exists` : undefined,
+      sql.identifier(table.name),
+      sql`(${table.createColumns()})`
+    ])
   }
 }

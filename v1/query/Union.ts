@@ -1,21 +1,17 @@
-import {Is, getSql, type IsQuery, type IsSql} from '../Is.ts'
-import {Query} from '../Query.ts'
-import {sql} from '../Sql.ts'
+import {HasQuery, getQuery, meta} from '../Meta.ts'
+import {Sql, sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
 class UnionData {
-  left!: IsQuery
-  operator!: IsSql
-  right!: IsQuery
+  left!: HasQuery
+  operator!: Sql
+  right!: HasQuery
 }
 
-export class Union<T> implements IsQuery {
-  readonly [Is.query]: Query
-
+export class Union<T> implements HasQuery {
   #data: UnionData
   constructor(data: UnionData) {
     this.#data = data
-    this[Is.query] = new Query(this)
   }
 
   union(right: Select<T> | Union<T>): Union<T> {
@@ -50,8 +46,8 @@ export class Union<T> implements IsQuery {
     })
   }
 
-  get [Is.sql]() {
+  get [meta.query]() {
     const {left, operator, right} = this.#data
-    return getSql(sql.join([left, operator, right]))
+    return sql.join([getQuery(left), operator, getQuery(right)])
   }
 }

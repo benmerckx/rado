@@ -1,10 +1,19 @@
-import {Is, type IsSql} from './Is.ts'
+import {
+  HasExpr,
+  HasQuery,
+  getExpr,
+  getQuery,
+  hasExpr,
+  hasQuery
+} from './Meta.ts'
 
 enum ChunkType {
-  Unsafe = 0,
-  Value = 1,
-  Placeholder = 2,
-  Identifier = 3
+  Unsafe,
+  Expr,
+  Identifier,
+  Value,
+  Placeholder,
+  DefaultValue
 }
 
 class Chunk {
@@ -22,8 +31,9 @@ class SqlImpl {
     return this
   }
 
-  add(sql: Sql) {
-    this.#chunks.push(...sql.#chunks)
+  add(sql: Sql | HasExpr) {
+    if (hasExpr(sql)) this.#chunks.push(new Chunk(ChunkType.Expr, sql))
+    else this.#chunks.push(...sql.#chunks)
     return this
   }
 
@@ -42,86 +52,95 @@ class SqlImpl {
     return this
   }
 
+  defaultValue() {
+    this.#chunks.push(new Chunk(ChunkType.DefaultValue, null))
+    return this
+  }
+
   inline() {
     return this.#chunks
-      .map(chunk => {
+      .map((chunk): string => {
         switch (chunk.type) {
           case ChunkType.Unsafe:
-            return chunk.inner
+            return chunk.inner as string
+          case ChunkType.Expr:
+            throw new Error('Should be resolved')
           case ChunkType.Value:
             return JSON.stringify(chunk.inner)
           case ChunkType.Placeholder:
             return `?${chunk.inner}`
           case ChunkType.Identifier:
             return JSON.stringify(chunk.inner)
+          case ChunkType.DefaultValue:
+            return 'default'
         }
       })
       .join('')
   }
 }
 
-export type Sql = SqlImpl
+export type Sql<T = unknown> = SqlImpl
 
-export class TypedSql<T> implements IsSql {
-  readonly [Is.sql]: Sql
-  constructor(sql: Sql) {
-    this[Is.sql] = sql
-  }
-}
-
-export class ContainsSql implements IsSql {
-  readonly [Is.sql]: Sql
-  constructor(sql: IsSql) {
-    this[Is.sql] = sql[Is.sql]
-  }
-}
-
-export function sql<T>(strings: TemplateStringsArray, ...inner: Array<IsSql>) {
+export function sql<T>(
+  strings: TemplateStringsArray,
+  ...inner: Array<Sql | HasExpr>
+): Sql<T> {
   const sql = new SqlImpl()
 
   for (let i = 0; i < strings.length; i++) {
-    sql.unsafe(strings[i])
-    if (i < inner.length) {
-      sql.add(inner[i][Is.sql])
-    }
+    sql.unsafe(strings[i]!)
+    if (i < inner.length) sql.add(inner[i]!)
   }
 
-  return new TypedSql<T>(sql)
+  return sql
 }
 
 export namespace sql {
-  export function unsafe<T>(directSql: string) {
-    return new TypedSql<T>(new SqlImpl().unsafe(directSql))
+  export function empty() {
+    return new SqlImpl()
   }
 
-  export function value<T>(value: T) {
-    return new TypedSql<T>(new SqlImpl().value(value))
+  export function unsafe<T>(directSql: string): Sql<T> {
+    return empty().unsafe(directSql)
   }
 
-  export function placeholder<T>(name: string) {
-    return new TypedSql<T>(new SqlImpl().placeholder(name))
+  export function value<T>(value: T): Sql<T> {
+    return empty().value(value)
   }
 
-  export function identifier<T>(identifier: string) {
-    return new TypedSql<T>(new SqlImpl().identifier(identifier))
+  export function placeholder<T>(name: string): Sql<T> {
+    return empty().placeholder(name)
+  }
+
+  export function identifier<T>(identifier: string): Sql<T> {
+    return empty().identifier(identifier)
+  }
+
+  export function defaultValue(): Sql<unknown> {
+    return empty().defaultValue()
   }
 
   export function join<T>(
-    items: Array<IsSql | undefined | false>,
-    separator: IsSql = unsafe(' ')
-  ) {
-    const parts = items.filter(Boolean) as Array<IsSql>
+    items: Array<Sql | HasExpr | undefined | false>,
+    separator: Sql = sql` `
+  ): Sql<T> {
+    const parts = items.filter(Boolean) as Array<Sql | HasExpr>
     const sql = new SqlImpl()
 
     for (let i = 0; i < parts.length; i++) {
-      if (i > 0) sql.add(separator[Is.sql])
-      sql.add(parts[i][Is.sql])
+      if (i > 0) sql.add(separator)
+      sql.add(parts[i]!)
     }
 
-    return new TypedSql<T>(sql)
+    return sql
   }
 
-  export function inline(hasSql: IsSql) {
-    return hasSql[Is.sql].inline()
+  export function inline(input: Sql | HasExpr | HasQuery) {
+    const sql: Sql = hasExpr(input)
+      ? getExpr(input)({includeTableName: true})
+      : hasQuery(input)
+      ? getQuery(input)
+      : input
+    return sql.inline()
   }
 }

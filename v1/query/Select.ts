@@ -1,57 +1,60 @@
 import type {Expr} from '../Expr.ts'
 import {
-  Is,
+  HasQuery,
+  HasSelection,
+  HasTable,
+  getExpr,
   getQuery,
-  getSql,
+  getSelection,
   getTable,
-  isTable,
-  type IsQuery,
-  type IsSql,
-  type IsTable
-} from '../Is.ts'
-import {Query} from '../Query.ts'
-import {sql} from '../Sql.ts'
-import type {Table} from '../Table.ts'
+  hasTable,
+  meta
+} from '../Meta.ts'
+import {Selection, SelectionInput} from '../Selection.ts'
+import {Sql, sql} from '../Sql.ts'
+import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import {Union} from './Union.ts'
 
 class SelectData {
-  select?: IsSql
-  from?: IsQuery | IsTable
-  subject?: IsSql
-  where?: IsSql
-  groupBy?: IsSql
-  having?: IsSql
-  orderBy?: IsSql
-  limit?: IsSql
+  selection?: SelectionInput
+  distinct?: boolean
+  from?: HasQuery | HasTable
+  subject?: Sql
+  where?: Sql
+  groupBy?: Sql
+  having?: Sql
+  orderBy?: Sql
+  limit?: Sql
 }
 
-export class Select<T> implements IsQuery {
-  readonly [Is.query]: Query
-
+export class Select<T> implements HasQuery, HasSelection {
   #data: SelectData
   constructor(data: SelectData = {}) {
     this.#data = data
-    this[Is.query] = new Query(this)
   }
 
-  select<T>(select: Expr<T>): Select<T> {
-    return new Select<T>({...this.#data, select: select})
+  select<T>(selection: SelectionInput): Select<T> {
+    return new Select<T>({...this.#data, selection})
   }
 
-  from<Row>(from: IsQuery | Table<Row>): Select<Row> {
+  from<Definition extends TableDefinition>(
+    from: Table<Definition>
+  ): Select<TableRow<Definition>>
+  from(from: HasQuery): Select<unknown>
+  from(from: HasQuery | Table) {
     return new Select<T>({...this.#data, from})
   }
 
-  selectDistinct(select: Expr<T>): Select<T> {
-    return new Select<T>({...this.#data, select: sql`distinct ${select}`})
+  selectDistinct(selection: SelectionInput): Select<T> {
+    return new Select<T>({...this.#data, selection})
   }
 
   where(where: Expr<boolean>) {
-    return new Select<T>({...this.#data, where})
+    return new Select<T>({...this.#data, where: getExpr(where)})
   }
 
   having(having: Expr<boolean>) {
-    return new Select<T>({...this.#data, having})
+    return new Select<T>({...this.#data, having: getExpr(having)})
   }
 
   groupBy(...exprs: Array<Expr>) {
@@ -100,19 +103,26 @@ export class Select<T> implements IsQuery {
     })
   }
 
-  get [Is.sql]() {
-    const parts: Array<IsSql> = []
-    const {select, from, where, groupBy, having, orderBy, limit} = this.#data
-    const selection = !select
-      ? isTable(from)
-        ? getTable(from).selectColumns()
+  get [meta.selection]() {
+    const {selection} = this.#data
+    if (!selection) throw new Error('todo')
+    return new Selection(selection)
+  }
+
+  get [meta.query]() {
+    const parts: Array<Sql> = []
+    const {selection, distinct, from, where, groupBy, having, orderBy, limit} =
+      this.#data
+    const select = !selection
+      ? from && hasTable(from)
+        ? getTable(from).listColumns()
         : sql`*`
-      : select
-    parts.push(sql`select ${selection}`)
+      : getSelection(this).toSql()
+    parts.push(sql`select ${select}`)
     if (from) {
-      const target = isTable(from)
+      const target = hasTable(from)
         ? sql.identifier(getTable(from).name)
-        : getQuery(from).toSubquery()
+        : sql`(${getQuery(from)})`
       parts.push(sql`from ${target}`)
     }
     if (where) parts.push(sql`where ${where}`)
@@ -120,6 +130,6 @@ export class Select<T> implements IsQuery {
     if (having) parts.push(sql`having ${having}`)
     if (orderBy) parts.push(sql`order by ${orderBy}`)
     if (limit) parts.push(sql`limit ${limit}`)
-    return getSql(sql.join(parts))
+    return sql.join(parts)
   }
 }
