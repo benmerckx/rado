@@ -1,17 +1,18 @@
 import {
-  type HasExpr,
-  type HasTable,
   getExpr,
   hasExpr,
-  hasTable
+  hasTable,
+  type HasExpr,
+  type HasTable
 } from './Meta.ts'
-import {type Sql, sql} from './Sql.ts'
+import {isSql, sql, type Sql} from './Sql.ts'
 
-type SelectionBase = HasExpr | HasTable
+type SelectionBase = HasExpr | HasTable | Sql
 interface SelectionRecord extends Record<string, SelectionInput> {}
 export type SelectionInput = SelectionBase | SelectionRecord
 
 function selectionToSql(input: SelectionInput): Sql {
+  if (isSql(input)) return input
   if (hasExpr(input)) return getExpr(input)
   if (hasTable(input)) throw new Error('todo')
   const entries = Object.entries(input)

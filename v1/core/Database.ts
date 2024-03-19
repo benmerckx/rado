@@ -13,17 +13,17 @@ export class Database<Mode extends QueryMode> {
 
   constructor(driver: Driver<Mode>) {
     this.#resolver = {
-      all: (query: HasQuery) => {
+      all(query: HasQuery) {
         const [sql, params] = driver.emitter.emit(query)
         const stmt = driver.prepare(sql)
         return stmt.all(params)
       },
-      get: (query: HasQuery) => {
+      get(query: HasQuery) {
         const [sql, params] = driver.emitter.emit(query)
         const stmt = driver.prepare(sql)
         return stmt.get(params)
       },
-      run: (query: HasQuery) => {
+      run(query: HasQuery) {
         const [sql, params] = driver.emitter.emit(query)
         const stmt = driver.prepare(sql)
         return stmt.run(params)

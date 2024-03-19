@@ -6,6 +6,38 @@ import {sql} from '../core/Sql.ts'
 const SqliteFunctions = Functions as SqliteFunctions
 
 type SqliteFunctions = {
+  /*
+  json(json: Expr): Expr
+  jsonb(json: Expr): Expr
+  json_array<T>(...values: Expr<T>): Expr<Array<T>>
+  jsonb_array<T>(...values: Expr<T>): Expr<Array<T>>
+  json_array_length(json: Expr<Array<unknown>>): Expr<number>
+  json_array_length(json,path)
+  json_error_position(json)
+  json_extract(json,path,...)
+  jsonb_extract(json,path,...)
+  json_insert(json,path,value,...)
+  jsonb_insert(json,path,value,...)
+  json_object(label1,value1,...)
+  jsonb_object(label1,value1,...)
+  json_patch(json1,json2)
+  jsonb_patch(json1,json2)
+  json_remove(json,path,...)
+  jsonb_remove(json,path,...)
+  json_replace(json,path,value,...)
+  jsonb_replace(json,path,value,...)
+  json_set(json,path,value,...)
+  jsonb_set(json,path,value,...)
+  json_type(json)
+  json_type(json,path)
+  json_valid(json)
+  json_valid(json,flags)
+  json_quote(value)
+  json_group_array(value)
+  jsonb_group_array(value)
+  json_group_object(label,value)
+  jsonb_group_object(name,value)*/
+
   /** The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
   count(x?: Expr): Expr<number>
 

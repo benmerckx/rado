@@ -1,4 +1,4 @@
-import type {Expr} from '../Expr.ts'
+import {type Expr} from '../Expr.ts'
 import {
   getQuery,
   getSelection,
@@ -7,8 +7,7 @@ import {
   meta,
   type HasExpr,
   type HasQuery,
-  type HasSelection,
-  type HasTable
+  type HasSelection
 } from '../Meta.ts'
 import {Query, QueryData, QueryMode} from '../Query.ts'
 import {Selection, type SelectionInput} from '../Selection.ts'
@@ -19,7 +18,7 @@ import {Union} from './Union.ts'
 class SelectData extends QueryData {
   selection?: SelectionInput
   distinct?: boolean
-  from?: HasQuery | HasTable
+  from?: Sql
   subject?: Sql
   where?: HasExpr
   groupBy?: Sql
@@ -47,8 +46,30 @@ export class Select<Result, Mode extends QueryMode>
   ): Select<TableRow<Definition>, Mode>
   from(from: HasQuery): Select<unknown, Mode>
   from(from: HasQuery | Table) {
-    return new Select({...this.#data, from})
+    const selection =
+      this.#data.selection ??
+      (hasTable(from) ? getTable(from).selectColumns() : sql`*`)
+    const target = hasTable(from)
+      ? sql.identifier(getTable(from).name)
+      : sql`(${getQuery(from).inlineFields(true)})`
+    return new Select({...this.#data, selection, from: target})
   }
+
+  /*leftJoin<Definition extends TableDefinition>(
+    that: Table<Definition>,
+    ...on: Array<Input<boolean>>
+  ): Select<Result, Mode> {
+    const {from} = this.#data
+    if (!from) throw new Error('Cannot join without a from clause')
+    const right = getTable(that)
+    return new Select({
+      ...this.#data,
+      from: sql`${from} left join ${sql.identifier(right.name)} on ${sql.join(
+        on.map(input),
+        sql.unsafe(' and ')
+      )}`
+    })
+  }*/
 
   selectDistinct(selection: SelectionInput): Select<Result, Mode> {
     return new Select<Result, Mode>({...this.#data, selection})
@@ -121,24 +142,12 @@ export class Select<Result, Mode extends QueryMode>
   }
 
   get [meta.query]() {
-    const {selection, distinct, from, where, groupBy, having, orderBy, limit} =
-      this.#data
-    const select = !selection
-      ? from && hasTable(from)
-        ? getTable(from).selectColumns()
-        : sql`*`
-      : getSelection(this).toSql()
-    const target = from
-      ? sql`from ${
-          hasTable(from)
-            ? sql.identifier(getTable(from).name)
-            : sql`(${getQuery(from).inlineFields(true)})`
-        }`
-      : undefined
+    const {distinct, from, where, groupBy, having, orderBy, limit} = this.#data
+    const select = getSelection(this).toSql()
     return sql.join([
       distinct ? sql`select distinct` : sql`select`,
       select,
-      target,
+      from && sql`from ${from}`,
       where && sql`where ${where}`,
       groupBy && sql`group by ${groupBy}`,
       having && sql`having ${having}`,
