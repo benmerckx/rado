@@ -1,23 +1,21 @@
-import type {Sql, SqlEmmiter} from '../lib/Sql.ts'
+import {Emitter} from '../core/Emitter.ts'
+import {HasQuery, getQuery} from '../core/Meta.ts'
+import type {SqlEmmiter} from '../core/Sql.ts'
 
-export class SqliteEmitter implements SqlEmmiter {
-  emit(sql: Sql): [string, Array<unknown>] {
-    return sql.emit(this)
+export class SqliteEmitter implements Emitter, SqlEmmiter {
+  emit(query: HasQuery): [string, Array<unknown>] {
+    return getQuery(query).emit(this)
   }
-
-  emitValue(value: unknown): [string, Array<unknown>] {
-    return [JSON.stringify(value), []]
+  emitValue(value: unknown): [string, unknown] {
+    return [JSON.stringify(value), undefined]
   }
-
   emitPlaceholder(name: string): string {
     return `?${name}`
   }
-
   emitIdentifier(identifier: string): string {
     return JSON.stringify(identifier)
   }
-
   emitDefaultValue(): string {
-    return 'default'
+    return 'null'
   }
 }

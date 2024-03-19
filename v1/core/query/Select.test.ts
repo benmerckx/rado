@@ -10,7 +10,7 @@ const Node = table('Node', {
 })
 
 test('select all available columns', () => {
-  const query = new Select().from(Node)
+  const query = new Select({}).from(Node)
   expect(sql.inline(query)).toBe(
     'select "Node"."id", "Node"."field1" from "Node"'
   )
@@ -24,6 +24,6 @@ test('select distinct', () => {
 })
 
 test('select single field', () => {
-  const query = new Select().select(Node.id).from(Node)
+  const query = new Select({}).select(Node.id).from(Node)
   expect(sql.inline(query)).toBe('select "Node"."id" from "Node"')
 })

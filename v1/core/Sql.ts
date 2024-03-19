@@ -33,7 +33,7 @@ type SqlChunk =
   | Chunk<ChunkType.Field, FieldApi>
 
 export interface SqlEmmiter {
-  emitValue(value: unknown): [sql: string, params: Array<unknown>]
+  emitValue(value: unknown): [sql: string, param: unknown]
   emitPlaceholder(name: string): string
   emitIdentifier(identifier: string): string
   emitDefaultValue(): string
@@ -116,7 +116,7 @@ export class Sql<T = unknown> {
         case ChunkType.Value: {
           const [s, p] = emitter.emitValue(chunk.inner)
           sql += s
-          params.push(...p)
+          params.push(p)
           break
         }
         case ChunkType.Placeholder:

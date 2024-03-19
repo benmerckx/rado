@@ -1,45 +1,53 @@
 import {getQuery, meta, type HasQuery} from '../Meta.ts'
+import {Query, QueryData, QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
-class UnionData {
+class UnionData extends QueryData {
   left!: HasQuery
   operator!: Sql
   right!: HasQuery
 }
 
-export class Union<T> implements HasQuery {
+export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
   #data: UnionData
   constructor(data: UnionData) {
+    super(data)
     this.#data = data
   }
 
-  union(right: Select<T> | Union<T>): Union<T> {
-    return new Union<T>({
+  union(
+    right: Select<Result, Mode> | Union<Result, Mode>
+  ): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`union`,
       right
     })
   }
 
-  unionAll(right: Select<T>): Union<T> {
-    return new Union<T>({
+  unionAll(right: Select<Result, Mode>): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`union all`,
       right
     })
   }
 
-  intersect(right: Select<T>): Union<T> {
-    return new Union<T>({
+  intersect(right: Select<Result, Mode>): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`intersect`,
       right
     })
   }
 
-  except(right: Select<T>): Union<T> {
-    return new Union<T>({
+  except(right: Select<Result, Mode>): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`except`,
       right

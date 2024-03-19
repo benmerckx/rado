@@ -10,12 +10,13 @@ import {
   type HasSelection,
   type HasTable
 } from '../Meta.ts'
+import {Query, QueryData, QueryMode} from '../Query.ts'
 import {Selection, type SelectionInput} from '../Selection.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import {Union} from './Union.ts'
 
-class SelectData {
+class SelectData extends QueryData {
   selection?: SelectionInput
   distinct?: boolean
   from?: HasQuery | HasTable
@@ -27,76 +28,86 @@ class SelectData {
   limit?: Sql
 }
 
-export class Select<T> implements HasQuery, HasSelection {
+export class Select<Result, Mode extends QueryMode>
+  extends Query<Result, Mode>
+  implements HasSelection
+{
   #data: SelectData
-  constructor(data: SelectData = {}) {
+  constructor(data: SelectData) {
+    super(data)
     this.#data = data
   }
 
-  select<T>(selection: SelectionInput): Select<T> {
-    return new Select<T>({...this.#data, selection})
+  select<T>(selection: SelectionInput): Select<T, Mode> {
+    return new Select<T, Mode>({...this.#data, selection})
   }
 
   from<Definition extends TableDefinition>(
     from: Table<Definition>
-  ): Select<TableRow<Definition>>
-  from(from: HasQuery): Select<unknown>
+  ): Select<TableRow<Definition>, Mode>
+  from(from: HasQuery): Select<unknown, Mode>
   from(from: HasQuery | Table) {
-    return new Select<T>({...this.#data, from})
+    return new Select({...this.#data, from})
   }
 
-  selectDistinct(selection: SelectionInput): Select<T> {
-    return new Select<T>({...this.#data, selection})
+  selectDistinct(selection: SelectionInput): Select<Result, Mode> {
+    return new Select<Result, Mode>({...this.#data, selection})
   }
 
   where(where: Expr<boolean>) {
-    return new Select<T>({...this.#data, where})
+    return new Select<Result, Mode>({...this.#data, where})
   }
 
   groupBy(...exprs: Array<Expr>) {
-    return new Select<T>({
+    return new Select<Result, Mode>({
       ...this.#data,
       groupBy: sql.join(exprs, sql.unsafe(', '))
     })
   }
 
   having(having: Expr<boolean>) {
-    return new Select<T>({...this.#data, having})
+    return new Select<Result, Mode>({...this.#data, having})
   }
 
   orderBy(...exprs: Array<Expr>) {
-    return new Select<T>({
+    return new Select<Result, Mode>({
       ...this.#data,
       orderBy: sql.join(exprs, sql.unsafe(', '))
     })
   }
 
-  union(right: Select<T> | Union<T>): Union<T> {
-    return new Union<T>({
+  union(
+    right: Select<Result, Mode> | Union<Result, Mode>
+  ): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`union`,
       right
     })
   }
 
-  unionAll(right: Select<T>): Union<T> {
-    return new Union<T>({
+  unionAll(right: Select<Result, Mode>): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`union all`,
       right
     })
   }
 
-  intersect(right: Select<T>): Union<T> {
-    return new Union<T>({
+  intersect(right: Select<Result, Mode>): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`intersect`,
       right
     })
   }
 
-  except(right: Select<T>): Union<T> {
-    return new Union<T>({
+  except(right: Select<Result, Mode>): Union<Result, Mode> {
+    return new Union<Result, Mode>({
+      ...this.#data,
       left: this,
       operator: sql`except`,
       right

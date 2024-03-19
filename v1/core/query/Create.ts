@@ -1,15 +1,17 @@
-import {getTable, meta, type HasQuery, type HasTable} from '../Meta.ts'
+import {getTable, meta, type HasTable} from '../Meta.ts'
+import {Query, QueryData, QueryMode} from '../Query.ts'
 import {sql} from '../Sql.ts'
 
-interface CreateData {
+interface CreateData extends QueryData {
   table: HasTable
   ifNotExists?: boolean
 }
 
-export class Create implements HasQuery {
+export class Create<Mode extends QueryMode> extends Query<void, Mode> {
   #data: CreateData
 
   constructor(data: CreateData) {
+    super(data)
     this.#data = data
   }
 

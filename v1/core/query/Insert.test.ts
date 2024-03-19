@@ -13,7 +13,7 @@ const definition = {
 
 const Node = table('Node', definition)
 
-const insert = new InsertInto<typeof definition>({into: Node})
+const insert = new InsertInto<typeof definition, undefined>({into: Node})
 const query = insert.values({id: 1, required: 3})
 
 test('insert into', () => {

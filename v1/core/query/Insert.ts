@@ -6,15 +6,15 @@ import {
   hasExpr,
   meta,
   type HasExpr,
-  type HasQuery,
   type HasTable
 } from '../Meta.ts'
+import {Query, QueryData, QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {TableDefinition, TableInsert} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
-class InsertIntoData {
+class InsertIntoData extends QueryData {
   into!: HasTable
   values?: Array<Record<string, Sql | HasExpr>>
   select?: Sql
@@ -24,13 +24,14 @@ class InsertData extends InsertIntoData {
   returning?: HasExpr
 }
 
-class Insert<Returning> implements HasQuery {
+class Insert<Result, Mode extends QueryMode> extends Query<Result, Mode> {
   #data: InsertData
   constructor(data: InsertData) {
+    super(data)
     this.#data = data
   }
 
-  returning<T>(returning: Expr<T>): Insert<T> {
+  returning<T>(returning: Expr<T>): Insert<T, Mode> {
     return new Insert({...this.#data, returning})
   }
 
@@ -68,14 +69,17 @@ class Insert<Returning> implements HasQuery {
   }
 }
 
-export class InsertInto<Definition extends TableDefinition> {
+export class InsertInto<
+  Definition extends TableDefinition,
+  Mode extends QueryMode
+> {
   #data: InsertData
   constructor(data: InsertData) {
     this.#data = data
   }
 
-  values(value: TableInsert<Definition>): Insert<Definition>
-  values(values: Array<TableInsert<Definition>>): Insert<Definition>
+  values(value: TableInsert<Definition>): Insert<Definition, Mode>
+  values(values: Array<TableInsert<Definition>>): Insert<Definition, Mode>
   values(values: TableInsert<Definition> | Array<TableInsert<Definition>>) {
     const rows = (Array.isArray(values) ? values : [values]).map(row => {
       return fromEntries(
@@ -86,7 +90,7 @@ export class InsertInto<Definition extends TableDefinition> {
         })
       )
     })
-    return new Insert<Definition>({...this.#data, values: rows})
+    return new Insert<Definition, Mode>({...this.#data, values: rows})
   }
 
   /*select<T>(query: Expr<T>) {

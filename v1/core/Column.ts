@@ -64,7 +64,7 @@ export class Column<Value = unknown> implements HasColumn {
   }
 }
 
-declare const __required: unique symbol
+declare const required: unique symbol
 export interface RequiredColumn<Value = unknown> extends Column<Value> {
-  [__required]: true
+  [required]: true
 }

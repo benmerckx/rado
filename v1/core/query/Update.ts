@@ -5,24 +5,28 @@ import {
   hasExpr,
   meta,
   type HasExpr,
-  type HasQuery,
   type HasTable
 } from '../Meta.ts'
+import {Query, QueryData, QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
-class UpdateData {
+class UpdateData extends QueryData {
   table!: HasTable
   values?: Record<string, Sql>
   where?: HasExpr
 }
 
-export class Update<Definition extends TableDefinition> implements HasQuery {
+export class Update<
+  Definition extends TableDefinition,
+  Mode extends QueryMode
+> extends Query<void, Mode> {
   #data: UpdateData
 
   constructor(data: UpdateData) {
+    super(data)
     this.#data = data
   }
 

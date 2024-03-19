@@ -8,8 +8,8 @@ const Node = table('Node', {
   id: integer().primaryKey()
 })
 
-const a = new Select().from(Node)
-const b = new Select().from(Node)
+const a = new Select({}).from(Node)
+const b = new Select({}).from(Node)
 
 test('a union b', () => {
   const query = a.union(b)

@@ -1,6 +1,6 @@
 import {expect, test} from 'bun:test'
-import {sql} from '../lib/Sql.ts'
-import {table} from '../lib/Table.ts'
+import {sql} from '../core/Sql.ts'
+import {table} from '../core/Table.ts'
 import {integer} from './SqliteColumns.ts'
 import {bm25, cast} from './SqliteFunctions.ts'
 
