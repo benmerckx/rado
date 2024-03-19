@@ -1,7 +1,7 @@
 import {expect, test} from 'bun:test'
+import {integer} from '../../sqlite/SqliteColumns.ts'
 import {sql} from '../Sql.ts'
 import {table} from '../Table.ts'
-import {integer} from '../sqlite/SqliteColumns.ts'
 import {InsertInto} from './Insert.ts'
 
 const definition = {
@@ -17,13 +17,13 @@ const insert = new InsertInto<typeof definition>({into: Node})
 const query = insert.values({id: 1, required: 3})
 
 test('insert into', () => {
-  expect(sql.inline(query)).toEqual(
+  expect(sql.inline(query)).toBe(
     'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default)'
   )
 })
 
 test('returning', () => {
-  expect(sql.inline(query.returning(Node.id))).toEqual(
+  expect(sql.inline(query.returning(Node.id))).toBe(
     'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) returning "id"'
   )
 })

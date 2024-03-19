@@ -1,4 +1,4 @@
-import {HasQuery, HasTable, getTable, meta} from '../Meta.ts'
+import {getTable, meta, type HasQuery, type HasTable} from '../Meta.ts'
 import {sql} from '../Sql.ts'
 
 interface CreateData {

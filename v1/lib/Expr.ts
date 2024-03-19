@@ -1,22 +1,27 @@
-import {ExprToSqlOptions, getExpr, hasExpr, meta, type HasExpr} from './Meta.ts'
-import {Sql, isSql, sql} from './Sql.ts'
+import {
+  getExpr,
+  getTable,
+  hasExpr,
+  hasTable,
+  meta,
+  type HasExpr
+} from './Meta.ts'
+import {isSql, sql, type Sql} from './Sql.ts'
 
-export type Input<T = unknown> = Expr<T> | T | Sql<T>
+export type Input<T = unknown> = Expr<T> | Sql<T> | T
 
-export function input(value: Input): Sql | HasExpr {
-  if (value && typeof value === 'object' && hasExpr(value)) return value
+export function input(value: Input): Sql {
+  if (typeof value !== 'object' || value === null) return sql.value(value)
+  if (hasTable(value)) return sql.identifier(getTable(value).name)
+  if (hasExpr(value)) return getExpr(value)
   if (isSql(value)) return value
   return sql.value(value)
 }
 
-export interface ExprApi {
-  (options: ExprToSqlOptions): Sql
-}
-
 export class Expr<T = unknown> implements HasExpr {
-  readonly [meta.expr]: ExprApi
-  constructor(readonly inner: Sql | HasExpr) {
-    this[meta.expr] = hasExpr(inner) ? getExpr(inner) : () => inner
+  readonly [meta.expr]: Sql
+  constructor(readonly inner: Sql) {
+    this[meta.expr] = inner
   }
 
   asc(): Sql {
@@ -27,7 +32,7 @@ export class Expr<T = unknown> implements HasExpr {
   }
 }
 
-export function expr<T>(sql: Sql<T> | HasExpr): Expr<T> {
+export function expr<T>(sql: Sql<T>): Expr<T> {
   return new Expr(sql)
 }
 

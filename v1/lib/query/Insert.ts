@@ -1,16 +1,16 @@
-import {Expr, input} from '../Expr.ts'
+import {input, type Expr} from '../Expr.ts'
 import {
-  HasExpr,
-  HasQuery,
-  HasTable,
   getColumn,
   getExpr,
   getTable,
   hasExpr,
-  meta
+  meta,
+  type HasExpr,
+  type HasQuery,
+  type HasTable
 } from '../Meta.ts'
-import {Sql, sql} from '../Sql.ts'
-import {TableDefinition, TableInsert} from '../Table.ts'
+import {sql, type Sql} from '../Sql.ts'
+import type {TableDefinition, TableInsert} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
@@ -51,8 +51,7 @@ class Insert<Returning> implements HasQuery {
                 const value = row[key]
                 const {defaultValue, notNull} = getColumn(column)
                 if (value !== undefined) {
-                  if (hasExpr(value))
-                    return getExpr(value)({includeTableName: false})
+                  if (hasExpr(value)) return getExpr(value)
                   return value
                 }
                 if (defaultValue) return defaultValue()
@@ -64,8 +63,7 @@ class Insert<Returning> implements HasQuery {
           }),
           sql`, `
         )}`,
-      returning &&
-        sql`returning ${getExpr(returning)({includeTableName: false})}`
+      returning && sql`returning ${getExpr(returning).inlineFields(false)}`
     ])
   }
 }
@@ -83,9 +81,7 @@ export class InsertInto<Definition extends TableDefinition> {
       return fromEntries(
         entries(row).map(([key, value]) => {
           const expr = input(value)
-          const sql = hasExpr(expr)
-            ? getExpr(expr)({includeTableName: false})
-            : expr
+          const sql = hasExpr(expr) ? getExpr(expr) : expr
           return [key, sql]
         })
       )

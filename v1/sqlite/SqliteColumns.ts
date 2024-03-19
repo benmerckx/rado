@@ -1,5 +1,5 @@
-import {Column} from '../Column.ts'
-import {sql} from '../Sql.ts'
+import {Column} from '../lib/Column.ts'
+import {sql} from '../lib/Sql.ts'
 
 export function boolean(name?: string): Column<boolean | null> {
   return new Column({

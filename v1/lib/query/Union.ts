@@ -1,5 +1,5 @@
-import {HasQuery, getQuery, meta} from '../Meta.ts'
-import {Sql, sql} from '../Sql.ts'
+import {getQuery, meta, type HasQuery} from '../Meta.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
 class UnionData {

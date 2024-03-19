@@ -1,21 +1,23 @@
-import {HasExpr, HasTable, getExpr, hasExpr, hasTable} from './Meta.ts'
-import {Sql, sql} from './Sql.ts'
+import {
+  type HasExpr,
+  type HasTable,
+  getExpr,
+  hasExpr,
+  hasTable
+} from './Meta.ts'
+import {type Sql, sql} from './Sql.ts'
 
 type SelectionBase = HasExpr | HasTable
 interface SelectionRecord extends Record<string, SelectionInput> {}
 export type SelectionInput = SelectionBase | SelectionRecord
 
-interface SqlOptions {
-  includeTableName: boolean
-}
-
-function selectionToSql(input: SelectionInput, options: SqlOptions): Sql {
-  if (hasExpr(input)) return getExpr(input)(options)
+function selectionToSql(input: SelectionInput): Sql {
+  if (hasExpr(input)) return getExpr(input)
   if (hasTable(input)) throw new Error('todo')
   const entries = Object.entries(input)
   return sql.join(
     entries.map(([name, value]): Sql => {
-      const sqlValue = selectionToSql(value, options)
+      const sqlValue = selectionToSql(value)
       return sql`${sqlValue} as ${sql.identifier(name)}`
     }),
     sql`, `
@@ -25,7 +27,7 @@ function selectionToSql(input: SelectionInput, options: SqlOptions): Sql {
 export class Selection {
   constructor(public input: SelectionInput) {}
 
-  toSql(options: SqlOptions): Sql {
-    return selectionToSql(this.input, options)
+  toSql(): Sql {
+    return selectionToSql(this.input)
   }
 }

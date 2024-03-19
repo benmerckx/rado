@@ -1,17 +1,17 @@
 import type {Expr} from '../Expr.ts'
 import {
-  HasExpr,
-  HasQuery,
-  HasSelection,
-  HasTable,
   getQuery,
   getSelection,
   getTable,
   hasTable,
-  meta
+  meta,
+  type HasExpr,
+  type HasQuery,
+  type HasSelection,
+  type HasTable
 } from '../Meta.ts'
-import {Selection, SelectionInput} from '../Selection.ts'
-import {Sql, sql} from '../Sql.ts'
+import {Selection, type SelectionInput} from '../Selection.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import {Union} from './Union.ts'
 
@@ -110,26 +110,29 @@ export class Select<T> implements HasQuery, HasSelection {
   }
 
   get [meta.query]() {
-    const parts: Array<Sql> = []
     const {selection, distinct, from, where, groupBy, having, orderBy, limit} =
       this.#data
     const select = !selection
       ? from && hasTable(from)
-        ? getTable(from).listColumns()
+        ? getTable(from).selectColumns()
         : sql`*`
-      : getSelection(this).toSql({includeTableName: true})
-    parts.push(sql`select ${select}`)
-    if (from) {
-      const target = hasTable(from)
-        ? sql.identifier(getTable(from).name)
-        : sql`(${getQuery(from)})`
-      parts.push(sql`from ${target}`)
-    }
-    if (where) parts.push(sql`where ${where}`)
-    if (groupBy) parts.push(sql`group by ${groupBy}`)
-    if (having) parts.push(sql`having ${having}`)
-    if (orderBy) parts.push(sql`order by ${orderBy}`)
-    if (limit) parts.push(sql`limit ${limit}`)
-    return sql.join(parts)
+      : getSelection(this).toSql()
+    const target = from
+      ? sql`from ${
+          hasTable(from)
+            ? sql.identifier(getTable(from).name)
+            : sql`(${getQuery(from).inlineFields(true)})`
+        }`
+      : undefined
+    return sql.join([
+      distinct ? sql`select distinct` : sql`select`,
+      select,
+      target,
+      where && sql`where ${where}`,
+      groupBy && sql`group by ${groupBy}`,
+      having && sql`having ${having}`,
+      orderBy && sql`order by ${orderBy}`,
+      limit && sql`limit ${limit}`
+    ])
   }
 }

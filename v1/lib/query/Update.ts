@@ -1,15 +1,15 @@
-import {Expr, input} from '../Expr.ts'
+import {input, type Expr} from '../Expr.ts'
 import {
-  HasExpr,
-  HasQuery,
-  HasTable,
   getExpr,
   getTable,
   hasExpr,
-  meta
+  meta,
+  type HasExpr,
+  type HasQuery,
+  type HasTable
 } from '../Meta.ts'
-import {Sql, sql} from '../Sql.ts'
-import {TableDefinition, TableUpdate} from '../Table.ts'
+import {sql, type Sql} from '../Sql.ts'
+import type {TableDefinition, TableUpdate} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
@@ -29,11 +29,8 @@ export class Update<Definition extends TableDefinition> implements HasQuery {
   set(values: TableUpdate<Definition>) {
     const update = fromEntries(
       entries(values).map(([key, value]) => {
-        console.log(key, value)
         const expr = input(value)
-        const sql = hasExpr(expr)
-          ? getExpr(expr)({includeTableName: false})
-          : expr
+        const sql = hasExpr(expr) ? getExpr(expr) : expr
         return [key, sql]
       })
     )
@@ -48,17 +45,19 @@ export class Update<Definition extends TableDefinition> implements HasQuery {
     const {values, where} = this.#data
     const table = getTable(this.#data.table)
     if (!values) throw new Error('No values to update')
-    return sql.join([
-      sql`update`,
-      sql.identifier(table.name),
-      sql`set`,
-      sql.join(
-        entries(values).map(
-          ([key, value]) => sql`${sql.identifier(key)} = ${value}`
+    return sql
+      .join([
+        sql`update`,
+        sql.identifier(table.name),
+        sql`set`,
+        sql.join(
+          entries(values).map(
+            ([key, value]) => sql`${sql.identifier(key)} = ${value}`
+          ),
+          sql`, `
         ),
-        sql`, `
-      ),
-      where ? sql`where ${where}` : undefined
-    ])
+        where ? sql`where ${getExpr(where)}` : undefined
+      ])
+      .inlineFields(false)
   }
 }

@@ -58,6 +58,18 @@ test('isNull', () => {
   expect(sql.inline(e.isNull('a'))).toBe('"a" is null')
 })
 
+test('isNotNull', () => {
+  expect(sql.inline(e.isNotNull('a'))).toBe('"a" is not null')
+})
+
+test('between', () => {
+  expect(sql.inline(e.between(1, 2, 3))).toBe('1 between 2 and 3')
+})
+
+test('notBetween', () => {
+  expect(sql.inline(e.notBetween(1, 2, 3))).toBe('1 not between 2 and 3')
+})
+
 test('ilike', () => {
   expect(sql.inline(e.ilike('a', 'b'))).toBe('"a" ilike "b"')
 })
@@ -76,4 +88,10 @@ test('arrayContained', () => {
 
 test('arrayOverlaps', () => {
   expect(sql.inline(e.arrayOverlaps(['a'], ['b']))).toBe('["a"] && ["b"]')
+})
+
+test('order by', () => {
+  const a = e.expr(sql`test`)
+  expect(sql.inline(a.asc())).toBe('test asc')
+  expect(sql.inline(a.desc())).toBe('test desc')
 })

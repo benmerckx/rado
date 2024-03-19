@@ -25,6 +25,9 @@
       "recommended": true,
       "correctness": {
         "noConstructorReturn": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
       }
     }
   }

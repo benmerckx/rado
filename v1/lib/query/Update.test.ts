@@ -1,7 +1,7 @@
 import {expect, test} from 'bun:test'
+import {integer} from '../../sqlite/SqliteColumns.ts'
 import {sql} from '../Sql.ts'
 import {table} from '../Table.ts'
-import {integer} from '../sqlite/SqliteColumns.ts'
 import {Update} from './Update.ts'
 
 const definition = {
@@ -19,9 +19,9 @@ test('update', () => {
   const query = update.set({
     nullable: null,
     required: 3,
-    withDefault: sql<string>`${Node.required} + 1 `
+    withDefault: sql<number>`${Node.required} + 1`
   })
-  expect(sql.inline(query)).toEqual(
+  expect(sql.inline(query)).toBe(
     'update "Node" set "nullable" = null, "required" = 3, "withDefault" = "required" + 1'
   )
 })

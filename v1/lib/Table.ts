@@ -1,7 +1,7 @@
-import {RequiredColumn, type Column} from './Column.ts'
-import {ExprApi, Input, expr, type Expr} from './Expr.ts'
-import {HasExpr, HasTable, getColumn, meta} from './Meta.ts'
-import {Sql, sql} from './Sql.ts'
+import type {Column, RequiredColumn} from './Column.ts'
+import {Expr, type Input} from './Expr.ts'
+import {getColumn, meta, type HasField, type HasTable} from './Meta.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -10,19 +10,6 @@ export type TableDefinition = Record<string, Column>
 class TableData {
   name!: string
   columns!: TableDefinition
-}
-
-class Field implements HasExpr {
-  readonly [meta.expr]: ExprApi
-  constructor(private tableName: string, private fieldName: string) {
-    this[meta.expr] = this.toSql.bind(this)
-  }
-
-  toSql(options: {includeTableName: boolean}): Sql {
-    return options.includeTableName
-      ? sql`${sql.identifier(this.tableName)}.${sql.identifier(this.fieldName)}`
-      : sql.identifier(this.fieldName)
-  }
 }
 
 export class TableApi extends TableData {
@@ -37,12 +24,22 @@ export class TableApi extends TableData {
     )
   }
 
+  selectColumns(): Sql {
+    return sql.join(
+      entries(this.columns).map(([name, column]) => {
+        const {name: givenName} = getColumn(column)
+        const api = new FieldApi(this.name, givenName ?? name)
+        return sql.field(api)
+      }),
+      sql`, `
+    )
+  }
+
   listColumns(): Sql {
     return sql.join(
-      entries(this.columns).map(([name, isColumn]) => {
-        const column = getColumn(isColumn)
-        const columnName = sql.identifier(column.name ?? name)
-        return sql`${columnName}`
+      entries(this.columns).map(([name, column]) => {
+        const {name: givenName} = getColumn(column)
+        return sql.identifier(givenName ?? name)
       }),
       sql`, `
     )
@@ -52,10 +49,29 @@ export class TableApi extends TableData {
     return fromEntries(
       entries(this.columns).map(([name, column]) => {
         const {name: givenName} = getColumn(column)
-        const field = expr(new Field(this.name, givenName ?? name))
+        const field = new Field(this.name, givenName ?? name)
         return [name, field]
       })
     )
+  }
+}
+
+export class FieldApi {
+  constructor(public tableName: string, public fieldName: string) {}
+
+  toSql(): Sql {
+    return sql`${sql.identifier(this.tableName)}.${sql.identifier(
+      this.fieldName
+    )}`
+  }
+}
+
+class Field extends Expr implements HasField {
+  readonly [meta.field]: FieldApi
+  constructor(tableName: string, fieldName: string) {
+    const api = new FieldApi(tableName, fieldName)
+    super(sql.field(api))
+    this[meta.field] = api
   }
 }
 
@@ -96,7 +112,7 @@ export function table<Definition extends TableDefinition>(
 ) {
   const api = assign(new TableApi(), {name, columns})
   return <Table<Definition>>{
-    [meta.table]: assign(new TableApi(), {name, columns}),
+    [meta.table]: api,
     ...api.fields()
   }
 }

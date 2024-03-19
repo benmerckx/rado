@@ -1,6 +1,6 @@
 import {input, type Input} from './Expr.ts'
-import {HasColumn, meta} from './Meta.ts'
-import {Sql, sql} from './Sql.ts'
+import {meta, type HasColumn} from './Meta.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign} = Object
 

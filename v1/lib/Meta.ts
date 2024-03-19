@@ -1,8 +1,7 @@
 import type {ColumnApi} from './Column.ts'
-import {ExprApi} from './Expr.ts'
-import {Selection} from './Selection.ts'
+import type {Selection} from './Selection.ts'
 import type {Sql} from './Sql.ts'
-import type {TableApi} from './Table.ts'
+import type {FieldApi, TableApi} from './Table.ts'
 
 export namespace meta {
   export const expr = Symbol.for('rado:sql')
@@ -10,13 +9,11 @@ export namespace meta {
   export const query = Symbol.for('rado:query')
   export const table = Symbol.for('rado:table')
   export const column = Symbol.for('rado:column')
+  export const field = Symbol.for('rado:field')
 }
 
-export interface ExprToSqlOptions {
-  includeTableName: boolean
-}
 export interface HasExpr {
-  readonly [meta.expr]: ExprApi
+  readonly [meta.expr]: Sql
 }
 export interface HasSelection {
   readonly [meta.selection]: Selection
@@ -30,6 +27,9 @@ export interface HasTable {
 export interface HasColumn {
   readonly [meta.column]: ColumnApi
 }
+export interface HasField {
+  readonly [meta.field]: FieldApi
+}
 
 export const hasExpr = (obj: object): obj is HasExpr => meta.expr in obj
 export const getExpr = (obj: HasExpr) => obj[meta.expr]
@@ -42,3 +42,5 @@ export const hasTable = (obj: object): obj is HasTable => meta.table in obj
 export const getTable = (obj: HasTable) => obj[meta.table]
 export const hasColumn = (obj: object): obj is HasColumn => meta.column in obj
 export const getColumn = (obj: HasColumn) => obj[meta.column]
+export const hasField = (obj: object): obj is HasField => meta.field in obj
+export const getField = (obj: HasField) => obj[meta.field]
