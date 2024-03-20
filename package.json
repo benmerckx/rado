@@ -44,7 +44,8 @@
     "test": "tsx test",
     "test:bun": "bun test/index.ts --driver=bun:sqlite",
     "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
-    "prepublishOnly": "tsc -p tsconfig.build.json && tsx build.ts"
+    "prepublishOnly": "tsc -p tsconfig.build.json && tsx build.ts",
+    "cycles": "madge --warning --circular v1/index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.6.1",
@@ -65,7 +66,8 @@
     "sqlite3": "^5.1.6",
     "tsx": "^3.12.3",
     "typescript": "beta",
-    "uvu": "^0.5.6"
+    "uvu": "^0.5.6",
+    "madge": "^6.1.0"
   },
   "volta": {
     "node": "18.12.1"

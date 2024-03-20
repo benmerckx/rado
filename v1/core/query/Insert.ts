@@ -1,13 +1,14 @@
 import {input, type Expr} from '../Expr.ts'
 import {
   getColumn,
+  getData,
   getExpr,
   getTable,
   hasExpr,
-  meta,
+  internal,
   type HasExpr,
   type HasTable
-} from '../Meta.ts'
+} from '../Internal.ts'
 import {Query, QueryData, type QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableInsert} from '../Table.ts'
@@ -25,18 +26,19 @@ class InsertData<Mode extends QueryMode> extends InsertIntoData<Mode> {
 }
 
 class Insert<Result, Mode extends QueryMode> extends Query<Result, Mode> {
-  #data: InsertData<Mode>
+  readonly [internal.data]: InsertData<Mode>
+
   constructor(data: InsertData<Mode>) {
     super(data)
-    this.#data = data
+    this[internal.data] = data
   }
 
   returning<T>(returning: Expr<T>): Insert<T, Mode> {
-    return new Insert({...this.#data, returning})
+    return new Insert({...getData(this), returning})
   }
 
-  get [meta.query]() {
-    const {into, values, select, returning} = this.#data
+  get [internal.query]() {
+    const {into, values, select, returning} = getData(this)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
     if (values && select) throw new Error('Cannot have both values and select')
@@ -76,9 +78,9 @@ export class InsertInto<
   Definition extends TableDefinition,
   Mode extends QueryMode
 > {
-  #data: InsertData<Mode>
+  [internal.data]: InsertData<Mode>
   constructor(data: InsertData<Mode>) {
-    this.#data = data
+    this[internal.data] = data
   }
 
   values(value: TableInsert<Definition>): Insert<Definition, Mode>
@@ -93,11 +95,11 @@ export class InsertInto<
         })
       )
     })
-    return new Insert<Definition, Mode>({...this.#data, values: rows})
+    return new Insert<Definition, Mode>({...getData(this), values: rows})
   }
 
   /*select<T>(query: Expr<T>) {
-    return new Insert({...this.#data, select: getExpr(query)})
+    return new Insert({...getData(this), select: getExpr(query)})
   }*/
 }
 

@@ -3,9 +3,9 @@ import {
   getTable,
   hasExpr,
   hasTable,
-  meta,
+  internal,
   type HasExpr
-} from './Meta.ts'
+} from './Internal.ts'
 import {isSql, sql, type Sql} from './Sql.ts'
 
 export type Input<T = unknown> = Expr<T> | Sql<T> | T
@@ -19,9 +19,9 @@ export function input(value: Input): Sql {
 }
 
 export class Expr<T = unknown> implements HasExpr {
-  readonly [meta.expr]: Sql
+  readonly [internal.expr]: Sql
   constructor(readonly inner: Sql) {
-    this[meta.expr] = inner
+    this[internal.expr] = inner
   }
 
   asc(): Sql {

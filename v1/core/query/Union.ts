@@ -1,4 +1,4 @@
-import {getQuery, meta, type HasQuery} from '../Meta.ts'
+import {getData, getQuery, internal, type HasQuery} from '../Internal.ts'
 import {Query, QueryData, type QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
@@ -10,17 +10,18 @@ class UnionData<Mode extends QueryMode> extends QueryData<Mode> {
 }
 
 export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
-  #data: UnionData<Mode>
+  readonly [internal.data]: UnionData<Mode>
+
   constructor(data: UnionData<Mode>) {
     super(data)
-    this.#data = data
+    this[internal.data] = data
   }
 
   union(
     right: Select<Result, Mode> | Union<Result, Mode>
   ): Union<Result, Mode> {
     return new Union<Result, Mode>({
-      ...this.#data,
+      ...getData(this),
       left: this,
       operator: sql`union`,
       right
@@ -29,7 +30,7 @@ export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
 
   unionAll(right: Select<Result, Mode>): Union<Result, Mode> {
     return new Union<Result, Mode>({
-      ...this.#data,
+      ...getData(this),
       left: this,
       operator: sql`union all`,
       right
@@ -38,7 +39,7 @@ export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
 
   intersect(right: Select<Result, Mode>): Union<Result, Mode> {
     return new Union<Result, Mode>({
-      ...this.#data,
+      ...getData(this),
       left: this,
       operator: sql`intersect`,
       right
@@ -47,15 +48,15 @@ export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
 
   except(right: Select<Result, Mode>): Union<Result, Mode> {
     return new Union<Result, Mode>({
-      ...this.#data,
+      ...getData(this),
       left: this,
       operator: sql`except`,
       right
     })
   }
 
-  get [meta.query]() {
-    const {left, operator, right} = this.#data
+  get [internal.query]() {
+    const {left, operator, right} = getData(this)
     return sql.join([getQuery(left), operator, getQuery(right)])
   }
 }

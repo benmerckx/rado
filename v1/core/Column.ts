@@ -1,5 +1,5 @@
 import {input, type Input} from './Expr.ts'
-import {meta, type HasColumn} from './Meta.ts'
+import {internal, type HasColumn} from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
 
 const {assign} = Object
@@ -36,13 +36,13 @@ export class ColumnApi extends ColumnData {
 }
 
 export class Column<Value = unknown> implements HasColumn {
-  readonly [meta.column]: ColumnApi
+  readonly [internal.column]: ColumnApi
   constructor(data: ColumnData) {
-    this[meta.column] = assign(new ColumnApi(), data)
+    this[internal.column] = assign(new ColumnApi(), data)
   }
   notNull(): RequiredColumn<NonNullable<Value>> {
     return new Column({
-      ...this[meta.column],
+      ...this[internal.column],
       notNull: true
     }) as RequiredColumn
   }
@@ -50,17 +50,17 @@ export class Column<Value = unknown> implements HasColumn {
     value: Input<NonNullable<Value>> | (() => Input<NonNullable<Value>>)
   ): Column<NonNullable<Value>> {
     return new Column({
-      ...this[meta.column],
+      ...this[internal.column],
       defaultValue(): Sql {
         return input(value instanceof Function ? value() : value)
       }
     })
   }
   primaryKey(): Column<NonNullable<Value>> {
-    return new Column({...this[meta.column], primary: true})
+    return new Column({...this[internal.column], primary: true})
   }
   unique(name?: string): Column<Value> {
-    return new Column({...this[meta.column], isUnique: true})
+    return new Column({...this[internal.column], isUnique: true})
   }
 }
 

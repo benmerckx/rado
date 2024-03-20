@@ -8,7 +8,7 @@ import {
   type HasExpr,
   type HasField,
   type HasQuery
-} from './Meta.ts'
+} from './Internal.ts'
 import type {FieldApi} from './Table.ts'
 
 enum ChunkType {

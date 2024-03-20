@@ -35,3 +35,17 @@ test('select single field', () => {
     'select "Node"."id", "Node"."field1" from "Node" left join "Node" on "Node"."id" = 1'
   )
 })*/
+
+test('order by', () => {
+  const query = select().from(Node).orderBy(Node.id)
+  expect(sql.inline(query)).toBe(
+    'select "Node"."id", "Node"."field1" from "Node" order by "Node"."id"'
+  )
+})
+
+test('limit and offset', () => {
+  const query = select().from(Node).limit(10).offset(5)
+  expect(sql.inline(query)).toBe(
+    'select "Node"."id", "Node"."field1" from "Node" limit 10 offset 5'
+  )
+})

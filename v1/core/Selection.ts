@@ -5,7 +5,7 @@ import {
   hasTable,
   type HasExpr,
   type HasTable
-} from './Meta.ts'
+} from './Internal.ts'
 import {isSql, sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 

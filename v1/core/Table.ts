@@ -3,10 +3,10 @@ import {Expr, type Input} from './Expr.ts'
 import {
   getColumn,
   getTable,
-  meta,
+  internal,
   type HasField,
   type HasTable
-} from './Meta.ts'
+} from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
@@ -76,11 +76,11 @@ export class FieldApi {
 }
 
 class Field extends Expr implements HasField {
-  readonly [meta.field]: FieldApi
+  readonly [internal.field]: FieldApi
   constructor(tableName: string, fieldName: string) {
     const api = new FieldApi(tableName, fieldName)
     super(sql.field(api))
-    this[meta.field] = api
+    this[internal.field] = api
   }
 }
 
@@ -124,7 +124,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
 ) {
   const api = assign(new TableApi(), {name, columns})
   return <Table<Definition, Name>>{
-    [meta.table]: api,
+    [internal.table]: api,
     ...api.fields()
   }
 }
@@ -135,7 +135,7 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
 ) {
   const api = assign(new TableApi(), {...getTable(table), alias})
   return <Table<Definition, Alias>>{
-    [meta.table]: api,
+    [internal.table]: api,
     ...api.fields()
   }
 }

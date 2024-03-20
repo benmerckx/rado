@@ -1,4 +1,4 @@
-import {getTable, meta, type HasTable} from '../Meta.ts'
+import {getData, getTable, internal, type HasTable} from '../Internal.ts'
 import {Query, type QueryData, type QueryMode} from '../Query.ts'
 import {sql} from '../Sql.ts'
 import type {Table, TableDefinition} from '../Table.ts'
@@ -9,20 +9,20 @@ interface CreateData<Mode extends QueryMode> extends QueryData<Mode> {
 }
 
 export class Create<Mode extends QueryMode> extends Query<void, Mode> {
-  #data: CreateData<Mode>
+  readonly [internal.data]: CreateData<Mode>
 
   constructor(data: CreateData<Mode>) {
     super(data)
-    this.#data = data
+    this[internal.data] = data
   }
 
   ifNotExists() {
-    return new Create({...this.#data, ifNotExists: true})
+    return new Create({...getData(this), ifNotExists: true})
   }
 
-  get [meta.query]() {
-    const {ifNotExists} = this.#data
-    const table = getTable(this.#data.table)
+  get [internal.query]() {
+    const {ifNotExists} = getData(this)
+    const table = getTable(getData(this).table)
     return sql.join([
       sql`create table`,
       ifNotExists ? sql`if not exists` : undefined,

@@ -1,15 +1,16 @@
-import type {Expr} from '../Expr.ts'
+import {input, type Expr, type Input} from '../Expr.ts'
 import {
+  getData,
   getQuery,
   getSelection,
   getTable,
   hasQuery,
-  meta,
+  internal,
   type HasExpr,
   type HasQuery,
   type HasSelection,
   type HasTable
-} from '../Meta.ts'
+} from '../Internal.ts'
 import {Query, QueryData, type QueryMode} from '../Query.ts'
 import {
   Selection,
@@ -31,39 +32,50 @@ class SelectData<Mode extends QueryMode> extends QueryData<Mode> {
   having?: HasExpr
   orderBy?: Sql
   limit?: Sql
+  offset?: Sql
 }
-
-const internal = Symbol()
 
 export class Select<Result, Mode extends QueryMode>
   extends Query<Result, Mode>
   implements HasSelection
 {
-  [internal]: SelectData<Mode>
+  readonly [internal.data]: SelectData<Mode>
+
   constructor(data: SelectData<Mode>) {
     super(data)
-    this[internal] = data
+    this[internal.data] = data
   }
 
   where(where: Expr<boolean>): Select<Result, Mode> {
-    return new Select({...this[internal], where})
+    return new Select({...getData(this), where})
   }
 
   groupBy(...exprs: Array<Expr>): Select<Result, Mode> {
     return new Select({
-      ...this[internal],
+      ...getData(this),
       groupBy: sql.join(exprs, sql.unsafe(', '))
     })
   }
 
   having(having: Expr<boolean>): Select<Result, Mode> {
-    return new Select({...this[internal], having})
+    return new Select({...getData(this), having})
   }
 
   orderBy(...exprs: Array<Expr>): Select<Result, Mode> {
     return new Select({
-      ...this[internal],
+      ...getData(this),
       orderBy: sql.join(exprs, sql.unsafe(', '))
+    })
+  }
+
+  limit(limit: Input<number>): Select<Result, Mode> {
+    return new Select({...getData(this), limit: input(limit)})
+  }
+
+  offset(offset: Input<number>): Select<Result, Mode> {
+    return new Select({
+      ...getData(this),
+      offset: input(offset)
     })
   }
 
@@ -71,7 +83,7 @@ export class Select<Result, Mode extends QueryMode>
     right: Select<Result, Mode> | Union<Result, Mode>
   ): Union<Result, Mode> {
     return new Union({
-      ...this[internal],
+      ...getData(this),
       left: this,
       operator: sql`union`,
       right
@@ -80,7 +92,7 @@ export class Select<Result, Mode extends QueryMode>
 
   unionAll(right: Select<Result, Mode>): Union<Result, Mode> {
     return new Union({
-      ...this[internal],
+      ...getData(this),
       left: this,
       operator: sql`union all`,
       right
@@ -89,7 +101,7 @@ export class Select<Result, Mode extends QueryMode>
 
   intersect(right: Select<Result, Mode>): Union<Result, Mode> {
     return new Union({
-      ...this[internal],
+      ...getData(this),
       left: this,
       operator: sql`intersect`,
       right
@@ -98,22 +110,22 @@ export class Select<Result, Mode extends QueryMode>
 
   except(right: Select<Result, Mode>): Union<Result, Mode> {
     return new Union({
-      ...this[internal],
+      ...getData(this),
       left: this,
       operator: sql`except`,
       right
     })
   }
 
-  get [meta.selection]() {
-    const {selection} = this[internal]
+  get [internal.selection]() {
+    const {selection} = getData(this)
     if (!selection) throw new Error('todo')
     return new Selection(selection)
   }
 
-  get [meta.query]() {
-    const {distinct, from, where, groupBy, having, orderBy, limit} =
-      this[internal]
+  get [internal.query]() {
+    const {distinct, from, where, groupBy, having, orderBy, limit, offset} =
+      getData(this)
     const select = getSelection(this).toSql()
     return sql.join([
       distinct ? sql`select distinct` : sql`select`,
@@ -123,7 +135,8 @@ export class Select<Result, Mode extends QueryMode>
       groupBy && sql`group by ${groupBy}`,
       having && sql`having ${having}`,
       orderBy && sql`order by ${orderBy}`,
-      limit && sql`limit ${limit}`
+      limit && sql`limit ${limit}`,
+      offset && sql`offset ${offset}`
     ])
   }
 }
@@ -132,9 +145,9 @@ class Joinable extends Select<unknown, QueryMode> {
   #join(operator: Sql, right: HasTable, on: Expr<boolean>) {
     const rightTable = getTable(right)
     return new Joinable({
-      ...this[internal],
+      ...getData(this),
       from: sql.join([
-        this[internal].from,
+        this[internal.data].from,
         operator,
         sql.identifier(rightTable.alias ?? rightTable.name),
         sql`on ${on}`
@@ -216,13 +229,14 @@ export class WithSelection<Result, Mode extends QueryMode> extends Select<
   from(from: HasQuery | Table) {
     if (hasQuery(from))
       return new Select({
-        ...this[internal],
-        selection: this[internal].selection ?? sql`*`,
+        ...getData(this),
+        selection: this[internal.data].selection ?? sql`*`,
         from: sql`(${getQuery(from).inlineFields(true)})`
       })
     return new Joinable({
-      ...this[internal],
-      selection: this[internal].selection ?? getTable(from).selectColumns(),
+      ...getData(this),
+      selection:
+        this[internal.data].selection ?? getTable(from).selectColumns(),
       from: sql.identifier(getTable(from).name)
     })
   }

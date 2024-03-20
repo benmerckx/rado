@@ -1,6 +1,6 @@
 import {expr, input, type Expr, type Input} from '../core/Expr.ts'
 import {Functions} from '../core/Functions.ts'
-import type {HasQuery, HasTable} from '../core/Meta.ts'
+import type {HasQuery, HasTable} from '../core/Internal.ts'
 import {sql} from '../core/Sql.ts'
 
 const SqliteFunctions = Functions as SqliteFunctions
