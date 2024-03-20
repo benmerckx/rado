@@ -1,35 +1,36 @@
-import type {Database as SqlJsDatabase} from 'sql.js'
+import type {BindParams, Database as SqlJsDatabase} from 'sql.js'
 import {Database} from '../core/Database.ts'
-import {SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
     private db: SqlJsDatabase,
-    private stmt: any,
-    private freeAfter: boolean
+    private stmt: ReturnType<SqlJsDatabase['prepare']>
   ) {}
 
-  *iterate<T>(params: Array<any>): IterableIterator<T> {
-    this.stmt.bind(params)
-    while (this.stmt.step()) yield this.stmt.getAsObject()
-    if (this.freeAfter) this.stmt.free()
-    else this.stmt.reset()
+  *iterate<T>(params: Array<unknown>): IterableIterator<T> {
+    this.stmt.bind(params as BindParams)
+    while (this.stmt.step()) yield this.stmt.getAsObject() as T
+    this.stmt.reset()
   }
 
-  all(params: Array<any>) {
+  all(params: Array<unknown>) {
     return Array.from(this.iterate(params))
   }
 
-  run(params: Array<any>): {rowsAffected: number} {
-    this.stmt.run(params)
-    if (this.freeAfter) this.stmt.free()
-    else this.stmt.reset()
+  run(params: Array<unknown>): {rowsAffected: number} {
+    this.stmt.run(params as BindParams)
+    this.stmt.reset()
     return {rowsAffected: this.db.getRowsModified()}
   }
 
-  get(params: Array<any>) {
+  get(params: Array<unknown>) {
     return this.all(params)[0]
+  }
+
+  free() {
+    this.stmt.free()
   }
 }
 
@@ -47,7 +48,7 @@ class SqlJsDriver implements SyncDriver {
   }
 
   prepare(sql: string) {
-    return new PreparedStatement(this.db, this.db.prepare(sql), true)
+    return new PreparedStatement(this.db, this.db.prepare(sql))
   }
 }
 

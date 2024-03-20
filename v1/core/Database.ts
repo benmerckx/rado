@@ -12,22 +12,17 @@ export class Database<Mode extends QueryMode> implements HasResolver<Mode> {
   [meta.resolver]: QueryResolver<Mode>
 
   constructor(driver: Driver<Mode>) {
+    function exec(method: 'all' | 'get' | 'run', query: HasQuery) {
+      const [sql, params] = driver.emitter.emit(query)
+      const stmt = driver.prepare(sql)
+      const res = stmt[method](params)
+      stmt.free()
+      return res
+    }
     this[meta.resolver] = {
-      all(query: HasQuery) {
-        const [sql, params] = driver.emitter.emit(query)
-        const stmt = driver.prepare(sql)
-        return stmt.all(params)
-      },
-      get(query: HasQuery) {
-        const [sql, params] = driver.emitter.emit(query)
-        const stmt = driver.prepare(sql)
-        return stmt.get(params)
-      },
-      run(query: HasQuery) {
-        const [sql, params] = driver.emitter.emit(query)
-        const stmt = driver.prepare(sql)
-        return stmt.run(params)
-      }
+      all: exec.bind(null, 'all'),
+      get: exec.bind(null, 'get'),
+      run: exec.bind(null, 'run')
     }
   }
 

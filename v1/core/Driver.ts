@@ -15,6 +15,7 @@ export interface SyncStatement {
   all(params: Array<unknown>): Array<unknown>
   run(params: Array<unknown>): void
   get(params: Array<unknown>): unknown
+  free(): void
 }
 export interface AsyncDriver {
   emitter: Emitter
@@ -26,4 +27,5 @@ export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<unknown>>
   run(params: Array<unknown>): Promise<void>
   get(params: Array<unknown>): Promise<unknown>
+  free(): void
 }

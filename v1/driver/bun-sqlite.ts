@@ -3,22 +3,26 @@ import type {
   Statement as NativeStatement
 } from 'bun:sqlite'
 import {Database} from '../core/Database.ts'
-import {SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(private stmt: NativeStatement) {}
 
-  all(params: Array<any>) {
+  all(params: Array<unknown>) {
     return this.stmt.all(...params)
   }
 
-  run(params: Array<any>) {
+  run(params: Array<unknown>) {
     return this.stmt.run(...params)
   }
 
-  get(params: Array<any>) {
+  get(params: Array<unknown>) {
     return this.stmt.get(...params)
+  }
+
+  free() {
+    this.stmt.finalize()
   }
 }
 
