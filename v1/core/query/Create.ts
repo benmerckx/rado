@@ -1,16 +1,17 @@
 import {getTable, meta, type HasTable} from '../Meta.ts'
-import {Query, QueryData, QueryMode} from '../Query.ts'
+import {Query, type QueryData, type QueryMode} from '../Query.ts'
 import {sql} from '../Sql.ts'
+import type {Table, TableDefinition} from '../Table.ts'
 
-interface CreateData extends QueryData {
+interface CreateData<Mode extends QueryMode> extends QueryData<Mode> {
   table: HasTable
   ifNotExists?: boolean
 }
 
 export class Create<Mode extends QueryMode> extends Query<void, Mode> {
-  #data: CreateData
+  #data: CreateData<Mode>
 
-  constructor(data: CreateData) {
+  constructor(data: CreateData<Mode>) {
     super(data)
     this.#data = data
   }
@@ -29,4 +30,10 @@ export class Create<Mode extends QueryMode> extends Query<void, Mode> {
       sql`(${table.createColumns()})`
     ])
   }
+}
+
+export function create<Definition extends TableDefinition>(
+  table: Table<Definition>
+): Create<undefined> {
+  return new Create({table})
 }

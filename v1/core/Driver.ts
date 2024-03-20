@@ -1,5 +1,5 @@
-import {Emitter} from './Emitter.ts'
-import {QueryMode} from './Query.ts'
+import type {Emitter} from './Emitter.ts'
+import type {QueryMode} from './Query.ts'
 
 export type Driver<Mode extends QueryMode> = Mode extends 'sync'
   ? SyncDriver

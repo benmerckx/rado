@@ -1,5 +1,5 @@
-import {Emitter} from '../core/Emitter.ts'
-import {HasQuery, getQuery} from '../core/Meta.ts'
+import type {Emitter} from '../core/Emitter.ts'
+import {type HasQuery, getQuery} from '../core/Meta.ts'
 import type {SqlEmmiter} from '../core/Sql.ts'
 
 export class SqliteEmitter implements Emitter, SqlEmmiter {

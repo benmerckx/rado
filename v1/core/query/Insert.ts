@@ -8,25 +8,25 @@ import {
   type HasExpr,
   type HasTable
 } from '../Meta.ts'
-import {Query, QueryData, QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
-import type {TableDefinition, TableInsert} from '../Table.ts'
+import type {Table, TableDefinition, TableInsert} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
-class InsertIntoData extends QueryData {
+class InsertIntoData<Mode extends QueryMode> extends QueryData<Mode> {
   into!: HasTable
   values?: Array<Record<string, Sql | HasExpr>>
   select?: Sql
 }
 
-class InsertData extends InsertIntoData {
+class InsertData<Mode extends QueryMode> extends InsertIntoData<Mode> {
   returning?: HasExpr
 }
 
 class Insert<Result, Mode extends QueryMode> extends Query<Result, Mode> {
-  #data: InsertData
-  constructor(data: InsertData) {
+  #data: InsertData<Mode>
+  constructor(data: InsertData<Mode>) {
     super(data)
     this.#data = data
   }
@@ -40,32 +40,35 @@ class Insert<Result, Mode extends QueryMode> extends Query<Result, Mode> {
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
     if (values && select) throw new Error('Cannot have both values and select')
-    return sql.join([
-      sql`insert into`,
-      sql`${tableName}(${table.listColumns()})`,
-      select,
-      values &&
-        sql`values ${sql.join(
-          values.map(row => {
-            return sql`(${sql.join(
-              Object.entries(table.columns).map(([key, column]) => {
-                const value = row[key]
-                const {defaultValue, notNull} = getColumn(column)
-                if (value !== undefined) {
-                  if (hasExpr(value)) return getExpr(value)
-                  return value
-                }
-                if (defaultValue) return defaultValue()
-                if (notNull) throw new Error(`Column "${key}" is not nullable`)
-                return sql.defaultValue()
-              }),
-              sql`, `
-            )})`
-          }),
-          sql`, `
-        )}`,
-      returning && sql`returning ${getExpr(returning).inlineFields(false)}`
-    ])
+    return sql
+      .join([
+        sql`insert into`,
+        sql`${tableName}(${table.listColumns()})`,
+        select,
+        values &&
+          sql`values ${sql.join(
+            values.map(row => {
+              return sql`(${sql.join(
+                Object.entries(table.columns).map(([key, column]) => {
+                  const value = row[key]
+                  const {defaultValue, notNull} = getColumn(column)
+                  if (value !== undefined) {
+                    if (hasExpr(value)) return getExpr(value)
+                    return value
+                  }
+                  if (defaultValue) return defaultValue()
+                  if (notNull)
+                    throw new Error(`Column "${key}" is not nullable`)
+                  return sql.defaultValue()
+                }),
+                sql`, `
+              )})`
+            }),
+            sql`, `
+          )}`,
+        returning && sql`returning ${getExpr(returning)}`
+      ])
+      .inlineFields(false)
   }
 }
 
@@ -73,8 +76,8 @@ export class InsertInto<
   Definition extends TableDefinition,
   Mode extends QueryMode
 > {
-  #data: InsertData
-  constructor(data: InsertData) {
+  #data: InsertData<Mode>
+  constructor(data: InsertData<Mode>) {
     this.#data = data
   }
 
@@ -96,4 +99,10 @@ export class InsertInto<
   /*select<T>(query: Expr<T>) {
     return new Insert({...this.#data, select: getExpr(query)})
   }*/
+}
+
+export function insert<Definition extends TableDefinition>(
+  into: Table<Definition>
+): InsertInto<Definition, undefined> {
+  return new InsertInto({into})
 }

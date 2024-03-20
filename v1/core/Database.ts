@@ -1,18 +1,18 @@
-import {Driver} from './Driver.ts'
-import {HasQuery} from './Meta.ts'
-import {QueryMode, QueryResolver} from './Query.ts'
-import {SelectionInput} from './Selection.ts'
-import {Table, TableDefinition} from './Table.ts'
+import type {Driver} from './Driver.ts'
+import {getResolver, meta, type HasQuery, type HasResolver} from './Meta.ts'
+import type {QueryMode, QueryResolver} from './Query.ts'
+import type {SelectionInput} from './Selection.ts'
+import type {Table, TableDefinition} from './Table.ts'
 import {Create} from './query/Create.ts'
 import {InsertInto} from './query/Insert.ts'
-import {Select} from './query/Select.ts'
+import {WithSelection} from './query/Select.ts'
 import {Update} from './query/Update.ts'
 
-export class Database<Mode extends QueryMode> {
-  #resolver: QueryResolver
+export class Database<Mode extends QueryMode> implements HasResolver<Mode> {
+  [meta.resolver]: QueryResolver<Mode>
 
   constructor(driver: Driver<Mode>) {
-    this.#resolver = {
+    this[meta.resolver] = {
       all(query: HasQuery) {
         const [sql, params] = driver.emitter.emit(query)
         const stmt = driver.prepare(sql)
@@ -34,26 +34,30 @@ export class Database<Mode extends QueryMode> {
   create<Definition extends TableDefinition>(
     table: Table<Definition>
   ): Create<Mode> {
-    return new Create({resolver: this.#resolver, table})
+    return new Create({resolver: getResolver(this), table})
   }
 
-  select<T>(selection: SelectionInput): Select<T, Mode> {
-    return new Select({resolver: this.#resolver, selection})
+  select<T>(selection: SelectionInput): WithSelection<T, Mode> {
+    return new WithSelection({resolver: getResolver(this), selection})
   }
 
-  selectDistinct<T>(selection: SelectionInput): Select<T, Mode> {
-    return new Select({resolver: this.#resolver, selection, distinct: true})
+  selectDistinct<T>(selection: SelectionInput): WithSelection<T, Mode> {
+    return new WithSelection({
+      resolver: getResolver(this),
+      selection,
+      distinct: true
+    })
   }
 
   update<Definition extends TableDefinition>(
     table: Table<Definition>
   ): Update<Definition, Mode> {
-    return new Update({resolver: this.#resolver, table})
+    return new Update({resolver: getResolver(this), table})
   }
 
   insert<Definition extends TableDefinition>(
     into: Table<Definition>
   ): InsertInto<Definition, Mode> {
-    return new InsertInto({resolver: this.#resolver, into})
+    return new InsertInto({resolver: getResolver(this), into})
   }
 }

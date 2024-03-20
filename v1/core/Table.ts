@@ -11,7 +11,9 @@ import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
-export type TableDefinition = Record<string, Column>
+export interface TableDefinition {
+  [name: string]: Column
+}
 
 class TableData {
   name!: string
@@ -82,10 +84,11 @@ class Field extends Expr implements HasField {
   }
 }
 
+declare const name: unique symbol
 export type Table<
-  // Name extends string,
-  Definition extends TableDefinition = TableDefinition
-> = HasTable & TableRow<Definition>
+  Definition extends TableDefinition = TableDefinition,
+  Name extends string = string
+> = HasTable & TableRow<Definition> & {[name]?: Name}
 
 export type TableRow<Definition extends TableDefinition> = {
   [K in keyof Definition]: Definition[K] extends Column<infer T>
@@ -115,23 +118,23 @@ export type TableUpdate<Definition extends TableDefinition> = {
     : never
 }
 
-export function table<Name extends string, Definition extends TableDefinition>(
+export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition
 ) {
   const api = assign(new TableApi(), {name, columns})
-  return <Table<Definition>>{
+  return <Table<Definition, Name>>{
     [meta.table]: api,
     ...api.fields()
   }
 }
 
-export function alias<Name extends string, Definition extends TableDefinition>(
+export function alias<Definition extends TableDefinition, Alias extends string>(
   table: Table<Definition>,
-  alias: string
+  alias: Alias
 ) {
   const api = assign(new TableApi(), {...getTable(table), alias})
-  return <Table<Definition>>{
+  return <Table<Definition, Alias>>{
     [meta.table]: api,
     ...api.fields()
   }

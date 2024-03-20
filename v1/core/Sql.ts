@@ -46,8 +46,8 @@ export const testEmitter: SqlEmmiter = {
   emitDefaultValue: () => 'default'
 }
 
-export class Sql<T = unknown> {
-  #brand?: T
+export class Sql<Value = unknown> {
+  #value?: Value
 
   #chunks: Array<SqlChunk>
   constructor(chunks: Array<SqlChunk> = []) {

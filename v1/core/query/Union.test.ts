@@ -2,14 +2,14 @@ import {expect, test} from 'bun:test'
 import {integer} from '../../sqlite/SqliteColumns.ts'
 import {sql} from '../Sql.ts'
 import {table} from '../Table.ts'
-import {Select} from './Select.ts'
+import {select} from './Select.ts'
 
 const Node = table('Node', {
   id: integer().primaryKey()
 })
 
-const a = new Select({}).from(Node)
-const b = new Select({}).from(Node)
+const a = select().from(Node)
+const b = select().from(Node)
 
 test('a union b', () => {
   const query = a.union(b)

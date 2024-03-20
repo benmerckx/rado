@@ -1,3 +1,4 @@
+import type {Expr} from './Expr.ts'
 import {
   getExpr,
   hasExpr,
@@ -6,10 +7,23 @@ import {
   type HasTable
 } from './Meta.ts'
 import {isSql, sql, type Sql} from './Sql.ts'
+import type {Table, TableRow} from './Table.ts'
 
 type SelectionBase = HasExpr | HasTable | Sql
 interface SelectionRecord extends Record<string, SelectionInput> {}
 export type SelectionInput = SelectionBase | SelectionRecord
+
+export type SelectionRow<Input extends SelectionInput> = Input extends Expr<
+  infer Value
+>
+  ? Value
+  : Input extends Sql<infer Value>
+  ? Value
+  : Input extends Table<infer Definition>
+  ? TableRow<Definition>
+  : Input extends SelectionRecord
+  ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
+  : never
 
 function selectionToSql(input: SelectionInput): Sql {
   if (isSql(input)) return input

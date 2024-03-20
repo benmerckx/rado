@@ -7,13 +7,13 @@ import {
   type HasExpr,
   type HasTable
 } from '../Meta.ts'
-import {Query, QueryData, QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMode} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
-import type {TableDefinition, TableUpdate} from '../Table.ts'
+import type {Table, TableDefinition, TableUpdate} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
-class UpdateData extends QueryData {
+class UpdateData<Mode extends QueryMode> extends QueryData<Mode> {
   table!: HasTable
   values?: Record<string, Sql>
   where?: HasExpr
@@ -23,14 +23,14 @@ export class Update<
   Definition extends TableDefinition,
   Mode extends QueryMode
 > extends Query<void, Mode> {
-  #data: UpdateData
+  #data: UpdateData<Mode>
 
-  constructor(data: UpdateData) {
+  constructor(data: UpdateData<Mode>) {
     super(data)
     this.#data = data
   }
 
-  set(values: TableUpdate<Definition>) {
+  set(values: TableUpdate<Definition>): Update<Definition, Mode> {
     const update = fromEntries(
       entries(values).map(([key, value]) => {
         const expr = input(value)
@@ -41,7 +41,7 @@ export class Update<
     return new Update({...this.#data, values: update})
   }
 
-  where(condition: Expr<boolean>) {
+  where(condition: Expr<boolean>): Update<Definition, Mode> {
     return new Update({...this.#data, where: condition})
   }
 
@@ -64,4 +64,10 @@ export class Update<
       ])
       .inlineFields(false)
   }
+}
+
+export function update<Definition extends TableDefinition>(
+  table: Table<Definition>
+): Update<Definition, undefined> {
+  return new Update({table})
 }
