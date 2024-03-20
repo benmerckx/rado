@@ -10,17 +10,17 @@ import {isSql, sql, type Sql} from './Sql.ts'
 
 export type Input<T = unknown> = Expr<T> | Sql<T> | T
 
-export function input(value: Input): Sql {
+export function input<T>(value: Input<T>): Sql<T> {
   if (typeof value !== 'object' || value === null) return sql.value(value)
   if (hasTable(value)) return sql.identifier(getTable(value).name)
-  if (hasExpr(value)) return getExpr(value)
+  if (hasExpr(value)) return getExpr(value) as Sql<T>
   if (isSql(value)) return value
   return sql.value(value)
 }
 
 export class Expr<T = unknown> implements HasExpr {
-  readonly [internal.expr]: Sql
-  constructor(readonly inner: Sql) {
+  readonly [internal.expr]: Sql<T>
+  constructor(readonly inner: Sql<T>) {
     this[internal.expr] = inner
   }
 

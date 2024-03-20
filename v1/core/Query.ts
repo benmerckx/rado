@@ -21,7 +21,7 @@ export class QueryData<Mode extends QueryMode> {
 }
 
 export abstract class Query<Result, Mode extends QueryMode>
-  implements HasQuery
+  implements HasQuery, PromiseLike<Array<Result>>
 {
   readonly [internal.data]: QueryData<Mode>;
   abstract [internal.query]: Sql
@@ -52,5 +52,37 @@ export abstract class Query<Result, Mode extends QueryMode>
   run(db: HasResolver<'async'>): Promise<void>
   run(db?: HasResolver) {
     return (db ? getResolver(db) : this[internal.data].resolver)!.run(this)
+  }
+
+  // biome-ignore lint/suspicious/noThenProperty:
+  then<TResult1 = Array<Result>, TResult2 = never>(
+    this: Query<Result, 'async'>,
+    onfulfilled?:
+      | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
+      | undefined
+      | null,
+    onrejected?:
+      | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
+      | undefined
+      | null
+  ): Promise<TResult1 | TResult2> {
+    return this.all().then(onfulfilled, onrejected)
+  }
+
+  catch<TResult = never>(
+    this: Query<Result, 'async'>,
+    onrejected?:
+      | ((reason: unknown) => TResult | PromiseLike<TResult>)
+      | undefined
+      | null
+  ): Promise<Array<Result> | TResult> {
+    return this.all().catch(onrejected)
+  }
+
+  finally(
+    this: Query<Result, 'async'>,
+    onfinally?: (() => void) | undefined | null
+  ): Promise<Array<Result>> {
+    return this.all().finally(onfinally)
   }
 }
