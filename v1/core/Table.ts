@@ -1,13 +1,13 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import {Expr, type Input} from './Expr.ts'
 import {
+  type HasField,
+  type HasTable,
   getColumn,
   getTable,
-  internal,
-  type HasField,
-  type HasTable
+  internal
 } from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -85,7 +85,7 @@ class Field extends Expr implements HasField {
 }
 
 declare class Named<Name extends string> {
-  #name: Name
+  #name?: Name
 }
 export type Table<
   Definition extends TableDefinition = TableDefinition,
@@ -123,18 +123,9 @@ export type TableUpdate<Definition extends TableDefinition> = {
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition
-): Table<Definition, Name>
-export function table<Definition extends {}, Name extends string>(
-  name: Name,
-  columns: new () => Definition
-): Table<Definition, Name>
-export function table<Definition extends TableDefinition, Name extends string>(
-  name: Name,
-  definition: Definition | {new (): Definition}
 ) {
-  const columns = definition instanceof Function ? new definition() : definition
   const api = assign(new TableApi(), {name, columns})
-  return {[internal.table]: api, ...api.fields()}
+  return <Table<Definition, Name>>{[internal.table]: api, ...api.fields()}
 }
 
 export function alias<Definition extends TableDefinition, Alias extends string>(
@@ -142,5 +133,5 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   alias: Alias
 ) {
   const api = assign(new TableApi(), {...getTable(table), alias})
-  return {[internal.table]: api, ...api.fields()}
+  return <Table<Definition, Alias>>{[internal.table]: api, ...api.fields()}
 }
