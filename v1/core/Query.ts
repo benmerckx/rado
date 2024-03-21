@@ -7,47 +7,61 @@ import {
 import type {Sql} from './Sql.ts'
 
 export type QueryMode = 'sync' | 'async' | undefined
+export type QueryDialect = 'universal' | 'sqlite' | 'mysql' | 'postgres'
+export interface QueryMeta {
+  mode: QueryMode
+  dialect: QueryDialect
+}
+export interface SyncQuery<Dialect extends QueryDialect = QueryDialect>
+  extends QueryMeta {
+  mode: 'sync'
+  dialect: Dialect
+}
+export interface AsyncQuery<Dialect extends QueryDialect = QueryDialect>
+  extends QueryMeta {
+  mode: 'async'
+  dialect: Dialect
+}
 
-declare const mode: unique symbol
-export interface QueryResolver<Mode extends QueryMode = QueryMode> {
-  [mode]?: Mode
+export declare class QueryResolver<Mode extends QueryMode = QueryMode> {
+  #mode?: Mode
   all(query: HasQuery): unknown
   get(query: HasQuery): unknown
   run(query: HasQuery): unknown
 }
 
-export class QueryData<Mode extends QueryMode> {
-  resolver?: QueryResolver<Mode>
+export class QueryData<Meta extends QueryMeta> {
+  resolver?: QueryResolver<Meta['mode']>
 }
 
-export abstract class Query<Result, Mode extends QueryMode>
+export abstract class Query<Result, Meta extends QueryMeta>
   implements HasQuery, PromiseLike<Array<Result>>
 {
-  readonly [internal.data]: QueryData<Mode>;
+  readonly [internal.data]: QueryData<Meta>;
   abstract [internal.query]: Sql
 
-  constructor(data: QueryData<Mode>) {
+  constructor(data: QueryData<Meta>) {
     this[internal.data] = data
   }
 
-  all(this: Query<Result, 'sync'>): Array<Result>
-  all(this: Query<Result, 'async'>): Promise<Array<Result>>
+  all(this: Query<Result, SyncQuery>): Array<Result>
+  all(this: Query<Result, AsyncQuery>): Promise<Array<Result>>
   all(db: HasResolver<'sync'>): Array<Result>
   all(db: HasResolver<'async'>): Promise<Array<Result>>
   all(db?: HasResolver) {
     return (db ? getResolver(db) : this[internal.data].resolver)!.all(this)
   }
 
-  get(this: Query<Result, 'sync'>): Result
-  get(this: Query<Result, 'async'>): Promise<Result>
+  get(this: Query<Result, SyncQuery>): Result
+  get(this: Query<Result, AsyncQuery>): Promise<Result>
   get(db: HasResolver<'sync'>): Result
   get(db: HasResolver<'async'>): Promise<Result>
   get(db?: HasResolver) {
     return (db ? getResolver(db) : this[internal.data].resolver)!.get(this)
   }
 
-  run(this: Query<unknown, 'sync'>): void
-  run(this: Query<unknown, 'async'>): Promise<void>
+  run(this: Query<unknown, SyncQuery>): void
+  run(this: Query<unknown, AsyncQuery>): Promise<void>
   run(db: HasResolver<'sync'>): void
   run(db: HasResolver<'async'>): Promise<void>
   run(db?: HasResolver) {
@@ -56,7 +70,7 @@ export abstract class Query<Result, Mode extends QueryMode>
 
   // biome-ignore lint/suspicious/noThenProperty:
   then<TResult1 = Array<Result>, TResult2 = never>(
-    this: Query<Result, 'async'>,
+    this: Query<Result, AsyncQuery>,
     onfulfilled?:
       | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
       | undefined
@@ -70,7 +84,7 @@ export abstract class Query<Result, Mode extends QueryMode>
   }
 
   catch<TResult = never>(
-    this: Query<Result, 'async'>,
+    this: Query<Result, AsyncQuery>,
     onrejected?:
       | ((reason: unknown) => TResult | PromiseLike<TResult>)
       | undefined
@@ -80,7 +94,7 @@ export abstract class Query<Result, Mode extends QueryMode>
   }
 
   finally(
-    this: Query<Result, 'async'>,
+    this: Query<Result, AsyncQuery>,
     onfinally?: (() => void) | undefined | null
   ): Promise<Array<Result>> {
     return this.all().finally(onfinally)

@@ -8,7 +8,7 @@ import {
   type HasExpr,
   type HasTable
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
   Selection,
   type SelectionInput,
@@ -19,20 +19,20 @@ import type {Table, TableDefinition, TableUpdate} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
-class UpdateData<Mode extends QueryMode = QueryMode> extends QueryData<Mode> {
+class UpdateData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
   table!: HasTable
   values?: Record<string, Sql>
   where?: HasExpr
   returning?: Sql
 }
 
-export class Update<Result, Mode extends QueryMode> extends Query<
+export class Update<Result, Meta extends QueryMeta> extends Query<
   Result,
-  Mode
+  Meta
 > {
-  readonly [internal.data]: UpdateData<Mode>
+  readonly [internal.data]: UpdateData<Meta>
 
-  constructor(data: UpdateData<Mode>) {
+  constructor(data: UpdateData<Meta>) {
     super(data)
     this[internal.data] = data
   }
@@ -61,9 +61,9 @@ export class Update<Result, Mode extends QueryMode> extends Query<
 
 export class UpdateTable<
   Definition extends TableDefinition,
-  Mode extends QueryMode
-> extends Update<void, Mode> {
-  set(values: TableUpdate<Definition>): Update<Definition, Mode> {
+  Meta extends QueryMeta
+> extends Update<void, Meta> {
+  set(values: TableUpdate<Definition>): Update<Definition, Meta> {
     const update = fromEntries(
       entries(values).map(([key, value]) => {
         const expr = input(value)
@@ -74,13 +74,13 @@ export class UpdateTable<
     return new Update({...getData(this), values: update})
   }
 
-  where(condition: Expr<boolean>): Update<Definition, Mode> {
+  where(condition: Expr<boolean>): Update<Definition, Meta> {
     return new Update({...getData(this), where: condition})
   }
 
   returning<Input extends SelectionInput>(
     selection: Input
-  ): Update<SelectionRow<Input>, Mode> {
+  ): Update<SelectionRow<Input>, Meta> {
     return new Update({
       ...getData(this),
       returning: new Selection(selection).toSql()
@@ -90,6 +90,6 @@ export class UpdateTable<
 
 export function update<Definition extends TableDefinition>(
   table: Table<Definition>
-): UpdateTable<Definition, undefined> {
+): UpdateTable<Definition, QueryMeta> {
   return new UpdateTable({table})
 }

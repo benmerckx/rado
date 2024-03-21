@@ -1,5 +1,5 @@
 import type {BindParams, Database as SqlJsDatabase} from 'sql.js'
-import {Database} from '../core/Database.ts'
+import {SyncDatabase} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
@@ -53,5 +53,5 @@ class SqlJsDriver implements SyncDriver {
 }
 
 export function connect(db: SqlJsDatabase) {
-  return new Database<'sync'>(new SqlJsDriver(db))
+  return new SyncDatabase<'sqlite'>(new SqlJsDriver(db))
 }

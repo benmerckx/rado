@@ -1,7 +1,7 @@
 import type {Emitter} from './Emitter.ts'
-import type {QueryMode} from './Query.ts'
+import type {QueryMeta} from './Query.ts'
 
-export type Driver<Mode extends QueryMode> = Mode extends 'sync'
+export type Driver<Meta extends QueryMeta> = Meta['mode'] extends 'sync'
   ? SyncDriver
   : AsyncDriver
 

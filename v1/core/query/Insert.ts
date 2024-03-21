@@ -9,31 +9,31 @@ import {
   type HasExpr,
   type HasTable
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableInsert} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
-class InsertIntoData<Mode extends QueryMode> extends QueryData<Mode> {
+class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into!: HasTable
   values?: Array<Record<string, Sql | HasExpr>>
   select?: Sql
 }
 
-class InsertData<Mode extends QueryMode> extends InsertIntoData<Mode> {
+class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
   returning?: HasExpr
 }
 
-class Insert<Result, Mode extends QueryMode> extends Query<Result, Mode> {
-  readonly [internal.data]: InsertData<Mode>
+class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
+  readonly [internal.data]: InsertData<Meta>
 
-  constructor(data: InsertData<Mode>) {
+  constructor(data: InsertData<Meta>) {
     super(data)
     this[internal.data] = data
   }
 
-  returning<T>(returning: Expr<T>): Insert<T, Mode> {
+  returning<T>(returning: Expr<T>): Insert<T, Meta> {
     return new Insert({...getData(this), returning})
   }
 
@@ -76,15 +76,15 @@ class Insert<Result, Mode extends QueryMode> extends Query<Result, Mode> {
 
 export class InsertInto<
   Definition extends TableDefinition,
-  Mode extends QueryMode
+  Meta extends QueryMeta
 > {
-  [internal.data]: InsertData<Mode>
-  constructor(data: InsertData<Mode>) {
+  [internal.data]: InsertData<Meta>
+  constructor(data: InsertData<Meta>) {
     this[internal.data] = data
   }
 
-  values(value: TableInsert<Definition>): Insert<Definition, Mode>
-  values(values: Array<TableInsert<Definition>>): Insert<Definition, Mode>
+  values(value: TableInsert<Definition>): Insert<Definition, Meta>
+  values(values: Array<TableInsert<Definition>>): Insert<Definition, Meta>
   values(values: TableInsert<Definition> | Array<TableInsert<Definition>>) {
     const rows = (Array.isArray(values) ? values : [values]).map(row => {
       return fromEntries(
@@ -95,7 +95,7 @@ export class InsertInto<
         })
       )
     })
-    return new Insert<Definition, Mode>({...getData(this), values: rows})
+    return new Insert<Definition, Meta>({...getData(this), values: rows})
   }
 
   /*select<T>(query: Expr<T>) {
@@ -105,6 +105,6 @@ export class InsertInto<
 
 export function insert<Definition extends TableDefinition>(
   into: Table<Definition>
-): InsertInto<Definition, undefined> {
+): InsertInto<Definition, QueryMeta> {
   return new InsertInto({into})
 }

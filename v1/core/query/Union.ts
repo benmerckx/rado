@@ -1,26 +1,26 @@
 import {getData, getQuery, internal, type HasQuery} from '../Internal.ts'
-import {Query, QueryData, type QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
-class UnionData<Mode extends QueryMode> extends QueryData<Mode> {
+class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
   left!: HasQuery
   operator!: Sql
   right!: HasQuery
 }
 
-export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
-  readonly [internal.data]: UnionData<Mode>
+export class Union<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
+  readonly [internal.data]: UnionData<Meta>
 
-  constructor(data: UnionData<Mode>) {
+  constructor(data: UnionData<Meta>) {
     super(data)
     this[internal.data] = data
   }
 
   union(
-    right: Select<Result, Mode> | Union<Result, Mode>
-  ): Union<Result, Mode> {
-    return new Union<Result, Mode>({
+    right: Select<Result, Meta> | Union<Result, Meta>
+  ): Union<Result, Meta> {
+    return new Union<Result, Meta>({
       ...getData(this),
       left: this,
       operator: sql`union`,
@@ -28,8 +28,8 @@ export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
     })
   }
 
-  unionAll(right: Select<Result, Mode>): Union<Result, Mode> {
-    return new Union<Result, Mode>({
+  unionAll(right: Select<Result, Meta>): Union<Result, Meta> {
+    return new Union<Result, Meta>({
       ...getData(this),
       left: this,
       operator: sql`union all`,
@@ -37,8 +37,8 @@ export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
     })
   }
 
-  intersect(right: Select<Result, Mode>): Union<Result, Mode> {
-    return new Union<Result, Mode>({
+  intersect(right: Select<Result, Meta>): Union<Result, Meta> {
+    return new Union<Result, Meta>({
       ...getData(this),
       left: this,
       operator: sql`intersect`,
@@ -46,8 +46,8 @@ export class Union<Result, Mode extends QueryMode> extends Query<Result, Mode> {
     })
   }
 
-  except(right: Select<Result, Mode>): Union<Result, Mode> {
-    return new Union<Result, Mode>({
+  except(right: Select<Result, Meta>): Union<Result, Meta> {
+    return new Union<Result, Meta>({
       ...getData(this),
       left: this,
       operator: sql`except`,

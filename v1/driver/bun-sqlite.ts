@@ -2,7 +2,7 @@ import type {
   Database as BunDatabase,
   Statement as NativeStatement
 } from 'bun:sqlite'
-import {Database} from '../core/Database.ts'
+import {SyncDatabase} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
@@ -45,5 +45,5 @@ class BunSqliteDriver implements SyncDriver {
 }
 
 export function connect(db: BunDatabase) {
-  return new Database<'sync'>(new BunSqliteDriver(db))
+  return new SyncDatabase<'sqlite'>(new BunSqliteDriver(db))
 }

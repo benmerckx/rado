@@ -7,7 +7,7 @@ import {
   type HasExpr,
   type HasTable
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
   Selection,
   type SelectionInput,
@@ -15,19 +15,19 @@ import {
 } from '../Selection.ts'
 import {sql, type Sql} from '../Sql.ts'
 
-class DeleteData<Mode extends QueryMode = QueryMode> extends QueryData<Mode> {
+class DeleteData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
   from!: HasTable
   where?: HasExpr
   returning?: Sql
 }
 
-export class Delete<Result, Mode extends QueryMode> extends Query<
+export class Delete<Result, Meta extends QueryMeta> extends Query<
   Result,
-  Mode
+  Meta
 > {
-  readonly [internal.data]: DeleteData<Mode>
+  readonly [internal.data]: DeleteData<Meta>
 
-  constructor(data: DeleteData<Mode>) {
+  constructor(data: DeleteData<Meta>) {
     super(data)
     this[internal.data] = data
   }
@@ -44,14 +44,14 @@ export class Delete<Result, Mode extends QueryMode> extends Query<
   }
 }
 
-export class DeleteFrom<Mode extends QueryMode> extends Delete<void, Mode> {
-  where(condition: Expr<boolean>): DeleteFrom<Mode> {
+export class DeleteFrom<Meta extends QueryMeta> extends Delete<void, Meta> {
+  where(condition: Expr<boolean>): DeleteFrom<Meta> {
     return new DeleteFrom({...getData(this), where: condition})
   }
 
   returning<Input extends SelectionInput>(
     selection: Input
-  ): Delete<SelectionRow<Input>, Mode> {
+  ): Delete<SelectionRow<Input>, Meta> {
     return new Delete({
       ...getData(this),
       returning: new Selection(selection).toSql()
@@ -59,7 +59,7 @@ export class DeleteFrom<Mode extends QueryMode> extends Delete<void, Mode> {
   }
 }
 
-function remove(from: HasTable): DeleteFrom<undefined> {
+function remove(from: HasTable): DeleteFrom<QueryMeta> {
   return new DeleteFrom({from})
 }
 

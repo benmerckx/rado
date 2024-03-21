@@ -11,7 +11,7 @@ import {
   type HasSelection,
   type HasTable
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMode} from '../Query.ts'
+import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
   Selection,
   type SelectionInput,
@@ -22,7 +22,7 @@ import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
 
-class SelectData<Mode extends QueryMode> extends QueryData<Mode> {
+class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
   selection?: SelectionInput
   distinct?: boolean
   from?: Sql
@@ -35,44 +35,44 @@ class SelectData<Mode extends QueryMode> extends QueryData<Mode> {
   offset?: Sql
 }
 
-export class Select<Result, Mode extends QueryMode>
-  extends Query<Result, Mode>
+export class Select<Result, Meta extends QueryMeta>
+  extends Query<Result, Meta>
   implements HasSelection
 {
-  readonly [internal.data]: SelectData<Mode>
+  readonly [internal.data]: SelectData<Meta>
 
-  constructor(data: SelectData<Mode>) {
+  constructor(data: SelectData<Meta>) {
     super(data)
     this[internal.data] = data
   }
 
-  where(where: Expr<boolean>): Select<Result, Mode> {
+  where(where: Expr<boolean>): Select<Result, Meta> {
     return new Select({...getData(this), where})
   }
 
-  groupBy(...exprs: Array<Expr>): Select<Result, Mode> {
+  groupBy(...exprs: Array<Expr>): Select<Result, Meta> {
     return new Select({
       ...getData(this),
       groupBy: sql.join(exprs, sql.unsafe(', '))
     })
   }
 
-  having(having: Expr<boolean>): Select<Result, Mode> {
+  having(having: Expr<boolean>): Select<Result, Meta> {
     return new Select({...getData(this), having})
   }
 
-  orderBy(...exprs: Array<Expr>): Select<Result, Mode> {
+  orderBy(...exprs: Array<Expr>): Select<Result, Meta> {
     return new Select({
       ...getData(this),
       orderBy: sql.join(exprs, sql.unsafe(', '))
     })
   }
 
-  limit(limit: Input<number>): Select<Result, Mode> {
+  limit(limit: Input<number>): Select<Result, Meta> {
     return new Select({...getData(this), limit: input(limit)})
   }
 
-  offset(offset: Input<number>): Select<Result, Mode> {
+  offset(offset: Input<number>): Select<Result, Meta> {
     return new Select({
       ...getData(this),
       offset: input(offset)
@@ -80,8 +80,8 @@ export class Select<Result, Mode extends QueryMode>
   }
 
   union(
-    right: Select<Result, Mode> | Union<Result, Mode>
-  ): Union<Result, Mode> {
+    right: Select<Result, Meta> | Union<Result, Meta>
+  ): Union<Result, Meta> {
     return new Union({
       ...getData(this),
       left: this,
@@ -90,7 +90,7 @@ export class Select<Result, Mode extends QueryMode>
     })
   }
 
-  unionAll(right: Select<Result, Mode>): Union<Result, Mode> {
+  unionAll(right: Select<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
       left: this,
@@ -99,7 +99,7 @@ export class Select<Result, Mode extends QueryMode>
     })
   }
 
-  intersect(right: Select<Result, Mode>): Union<Result, Mode> {
+  intersect(right: Select<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
       left: this,
@@ -108,7 +108,7 @@ export class Select<Result, Mode extends QueryMode>
     })
   }
 
-  except(right: Select<Result, Mode>): Union<Result, Mode> {
+  except(right: Select<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
       left: this,
@@ -141,7 +141,7 @@ export class Select<Result, Mode extends QueryMode>
   }
 }
 
-class Joinable extends Select<unknown, QueryMode> {
+class Joinable extends Select<unknown, QueryMeta> {
   #join(operator: Sql, right: HasTable, on: Expr<boolean>) {
     const rightTable = getTable(right)
     return new Joinable({
@@ -168,64 +168,64 @@ class Joinable extends Select<unknown, QueryMode> {
   }
 }
 
-interface AllFrom<Result, Mode extends QueryMode, Tables = Result>
-  extends Select<Result, Mode> {
+interface AllFrom<Result, Meta extends QueryMeta, Tables = Result>
+  extends Select<Result, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition> | null>>, Mode>
+  ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition> | null>>, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
   ): AllFrom<
     Expand<Nullable<Tables> & Record<Name, TableRow<Definition>>>,
-    Mode
+    Meta
   >
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition>>>, Mode>
+  ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition>>>, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
   ): AllFrom<
     Expand<Nullable<Tables> & Record<Name, TableRow<Definition> | null>>,
-    Mode
+    Meta
   >
 }
 
-interface SelectionFrom<Result, Mode extends QueryMode>
-  extends Select<Result, Mode> {
+interface SelectionFrom<Result, Meta extends QueryMeta>
+  extends Select<Result, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Mode>
+  ): SelectionFrom<Result, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Mode>
+  ): SelectionFrom<Result, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Mode>
+  ): SelectionFrom<Result, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Mode>
+  ): SelectionFrom<Result, Meta>
 }
 
-export class WithSelection<Result, Mode extends QueryMode> extends Select<
+export class WithSelection<Result, Meta extends QueryMeta> extends Select<
   Result,
-  Mode
+  Meta
 > {
   from<Definition extends TableDefinition, Name extends string>(
-    this: WithSelection<undefined, Mode>,
+    this: WithSelection<undefined, Meta>,
     from: Table<Definition, Name>
-  ): AllFrom<TableRow<Definition>, Mode, Record<Name, TableRow<Definition>>>
+  ): AllFrom<TableRow<Definition>, Meta, Record<Name, TableRow<Definition>>>
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
-  ): SelectionFrom<Result, Mode>
-  from(from: HasQuery): Select<unknown, Mode>
+  ): SelectionFrom<Result, Meta>
+  from(from: HasQuery): Select<unknown, Meta>
   from(from: HasQuery | Table) {
     if (hasQuery(from))
       return new Select({
@@ -242,18 +242,18 @@ export class WithSelection<Result, Mode extends QueryMode> extends Select<
   }
 }
 
-export function select(): WithSelection<undefined, undefined>
+export function select(): WithSelection<undefined, QueryMeta>
 export function select<Input extends SelectionInput>(
   selection: Input
-): WithSelection<SelectionRow<Input>, undefined>
+): WithSelection<SelectionRow<Input>, QueryMeta>
 export function select(selection?: SelectionInput) {
   return new WithSelection({selection})
 }
 
-export function selectDistinct(): WithSelection<undefined, undefined>
+export function selectDistinct(): WithSelection<undefined, QueryMeta>
 export function selectDistinct<Input extends SelectionInput>(
   selection: Input
-): WithSelection<SelectionRow<Input>, undefined>
+): WithSelection<SelectionRow<Input>, QueryMeta>
 export function selectDistinct(selection?: SelectionInput) {
   return new WithSelection({selection, distinct: true})
 }

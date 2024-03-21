@@ -15,29 +15,29 @@ export namespace internal {
   export const resolver = Symbol.for('rado:resolver')
 }
 
-export interface HasData<Data> {
-  readonly [internal.data]: Data
+export declare class HasData<Data> {
+  get [internal.data](): Data
 }
-export interface HasExpr {
-  readonly [internal.expr]: Sql
+export declare class HasExpr {
+  get [internal.expr](): Sql
 }
-export interface HasSelection {
-  readonly [internal.selection]: Selection
+export declare class HasSelection {
+  get [internal.selection](): Selection
 }
-export interface HasQuery {
-  readonly [internal.query]: Sql
+export declare class HasQuery {
+  get [internal.query](): Sql
 }
-export interface HasTable {
-  readonly [internal.table]: TableApi
+export declare class HasTable {
+  get [internal.table](): TableApi
 }
-export interface HasColumn {
-  readonly [internal.column]: ColumnApi
+export declare class HasColumn {
+  get [internal.column](): ColumnApi
 }
-export interface HasField {
-  readonly [internal.field]: FieldApi
+export declare class HasField {
+  get [internal.field](): FieldApi
 }
-export interface HasResolver<Mode extends QueryMode = QueryMode> {
-  readonly [internal.resolver]: QueryResolver<Mode>
+export declare class HasResolver<Mode extends QueryMode = QueryMode> {
+  get [internal.resolver](): QueryResolver<Mode>
 }
 
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
