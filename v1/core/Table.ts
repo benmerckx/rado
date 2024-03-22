@@ -1,13 +1,13 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import {Expr, type Input} from './Expr.ts'
 import {
-  type HasField,
-  type HasTable,
   getColumn,
   getTable,
-  internal
+  internal,
+  type HasField,
+  type HasTable
 } from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -16,12 +16,16 @@ export type TableDefinition = {
 }
 
 class TableData {
+  source = Symbol()
   name!: string
   alias?: string
   columns!: TableDefinition
 }
 
-export class TableApi extends TableData {
+export class TableApi<
+  Definition extends TableDefinition = TableDefinition,
+  Name extends string = string
+> extends TableData {
   createColumns(): Sql {
     return sql.join(
       entries(this.columns).map(([name, isColumn]) => {
@@ -84,16 +88,13 @@ class Field extends Expr implements HasField {
   }
 }
 
-declare class Named<Name extends string> {
-  #name?: Name
-}
 export type Table<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> = HasTable & TableRow<Definition> & Named<Name>
+> = HasTable<Definition, Name> & TableRow<Definition>
 
 export type TableRow<Definition extends TableDefinition> = {
-  [K in keyof Definition]: Definition[K] extends Column<infer T>
+  readonly [K in keyof Definition]: Definition[K] extends Column<infer T>
     ? Expr<T>
     : never
 }
@@ -106,16 +107,20 @@ type Optional<D> = {
   [K in keyof D as false extends IsReq<D[K]> ? K : never]: D[K]
 }
 type RequiredInput<D> = {
-  [K in keyof Required<D>]: D[K] extends Column<infer V> ? Input<V> : never
+  readonly [K in keyof Required<D>]: D[K] extends Column<infer V>
+    ? Input<V>
+    : never
 }
 type OptionalInput<D> = {
-  [K in keyof Optional<D>]?: D[K] extends Column<infer V> ? Input<V> : never
+  readonly [K in keyof Optional<D>]?: D[K] extends Column<infer V>
+    ? Input<V>
+    : never
 }
 export type TableInsert<Definition extends TableDefinition> =
   RequiredInput<Definition> & OptionalInput<Definition>
 
 export type TableUpdate<Definition extends TableDefinition> = {
-  [K in keyof Definition]?: Definition[K] extends Column<infer T>
+  readonly [K in keyof Definition]?: Definition[K] extends Column<infer T>
     ? Input<T>
     : never
 }

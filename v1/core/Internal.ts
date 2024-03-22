@@ -2,7 +2,7 @@ import type {ColumnApi} from './Column.ts'
 import type {QueryMode, QueryResolver} from './Query.ts'
 import type {Selection} from './Selection.ts'
 import type {Sql} from './Sql.ts'
-import type {FieldApi, TableApi} from './Table.ts'
+import type {FieldApi, TableApi, TableDefinition} from './Table.ts'
 
 export namespace internal {
   export const data = Symbol.for('rado:data')
@@ -27,8 +27,11 @@ export declare class HasSelection {
 export declare class HasQuery {
   get [internal.query](): Sql
 }
-export declare class HasTable {
-  get [internal.table](): TableApi
+export declare class HasTable<
+  Definition extends TableDefinition = TableDefinition,
+  Name extends string = string
+> {
+  get [internal.table](): TableApi<Definition, Name>
 }
 export declare class HasColumn {
   get [internal.column](): ColumnApi
