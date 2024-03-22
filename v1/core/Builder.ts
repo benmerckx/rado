@@ -1,6 +1,6 @@
 import {getData, internal, type HasTable} from './Internal.ts'
 import type {QueryData, QueryMeta} from './Query.ts'
-import type {SelectionInput} from './Selection.ts'
+import type {SelectionInput, SelectionRow} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {Create} from './query/Create.ts'
 import {DeleteFrom} from './query/Delete.ts'
@@ -11,7 +11,7 @@ import {UpdateTable} from './query/Update.ts'
 export class Builder<Meta extends QueryMeta> {
   readonly [internal.data]: QueryData<Meta>
 
-  constructor(data: QueryData<Meta> = {}) {
+  constructor(data: QueryData<Meta>) {
     this[internal.data] = data
   }
 
@@ -21,16 +21,20 @@ export class Builder<Meta extends QueryMeta> {
     return new Create({...getData(this), table})
   }
 
-  select<T>(selection: SelectionInput): WithSelection<T, Meta> {
+  select(): WithSelection<undefined, Meta>
+  select<Input extends SelectionInput>(
+    selection: Input
+  ): WithSelection<SelectionRow<Input>, Meta>
+  select(selection?: SelectionInput) {
     return new WithSelection({...getData(this), selection})
   }
 
-  selectDistinct<T>(selection: SelectionInput): WithSelection<T, Meta> {
-    return new WithSelection({
-      ...getData(this),
-      selection,
-      distinct: true
-    })
+  selectDistinct(): WithSelection<undefined, Meta>
+  selectDistinct<Input extends SelectionInput>(
+    selection: Input
+  ): WithSelection<SelectionRow<Input>, Meta>
+  selectDistinct(selection?: SelectionInput) {
+    return new WithSelection({...getData(this), selection, distinct: true})
   }
 
   update<Definition extends TableDefinition>(

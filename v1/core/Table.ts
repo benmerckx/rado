@@ -26,6 +26,9 @@ export class TableApi<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends TableData {
+  #definition?: Definition
+  #name?: Name
+
   createColumns(): Sql {
     return sql.join(
       entries(this.columns).map(([name, isColumn]) => {

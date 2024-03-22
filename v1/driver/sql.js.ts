@@ -1,12 +1,12 @@
-import type {BindParams, Database as SqlJsDatabase} from 'sql.js'
+import type {BindParams, Database as Client} from 'sql.js'
 import {SyncDatabase} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
-    private db: SqlJsDatabase,
-    private stmt: ReturnType<SqlJsDatabase['prepare']>
+    private client: Client,
+    private stmt: ReturnType<Client['prepare']>
   ) {}
 
   *iterate<T>(params: Array<unknown>): IterableIterator<T> {
@@ -22,7 +22,7 @@ class PreparedStatement implements SyncStatement {
   run(params: Array<unknown>): {rowsAffected: number} {
     this.stmt.run(params as BindParams)
     this.stmt.reset()
-    return {rowsAffected: this.db.getRowsModified()}
+    return {rowsAffected: this.client.getRowsModified()}
   }
 
   get(params: Array<unknown>) {
@@ -37,21 +37,21 @@ class PreparedStatement implements SyncStatement {
 class SqlJsDriver implements SyncDriver {
   emitter = new SqliteEmitter()
 
-  constructor(public db: SqlJsDatabase) {}
+  constructor(public client: Client) {}
 
   exec(query: string): void {
-    this.db.exec(query)
+    this.client.exec(query)
   }
 
   close() {
-    this.db.close()
+    this.client.close()
   }
 
   prepare(sql: string) {
-    return new PreparedStatement(this.db, this.db.prepare(sql))
+    return new PreparedStatement(this.client, this.client.prepare(sql))
   }
 }
 
-export function connect(db: SqlJsDatabase) {
-  return new SyncDatabase<'sqlite'>(new SqlJsDriver(db))
+export function connect(db: Client) {
+  return new SyncDatabase(new SqlJsDriver(db))
 }

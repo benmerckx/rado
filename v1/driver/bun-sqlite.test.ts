@@ -1,22 +1,8 @@
 import {Database} from 'bun:sqlite'
-import {expect, test} from 'bun:test'
-import {table} from '../core/Table.ts'
-import {integer} from '../sqlite.ts'
+import {test} from 'bun:test'
+import {testCreate} from './DriverTests.ts'
 import {connect} from './bun-sqlite.ts'
 
-const Node = table('Node', {
-  id: integer().primaryKey()
-})
+const db = connect(new Database(':memory:'))
 
-test('create table', () => {
-  const db = connect(new Database(':memory:'))
-  db.create(Node).run()
-  const cr = db.update(Node)
-  db.transaction(tx => {
-    tx.insert(Node)
-    return 123
-  })
-  db.insert(Node).values({}).run()
-  const nodes = db.select({id: Node.id}).from(Node).all()
-  expect(nodes).toEqual([{id: 1}])
-})
+test('create table', testCreate(db))

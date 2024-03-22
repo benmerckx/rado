@@ -1,18 +1,9 @@
-import {expect, test} from 'bun:test'
+import {test} from 'bun:test'
 import init from 'sql.js'
-import {table} from '../core/Table.ts'
-import {integer} from '../sqlite.ts'
+import {testCreate} from './DriverTests.ts'
 import {connect} from './sql.js.ts'
 
-const Node = table('Node', {
-  id: integer().primaryKey()
-})
+const {Database} = await init()
+const db = connect(new Database())
 
-test('create table', async () => {
-  const {Database} = await init()
-  const db = connect(new Database())
-  db.create(Node).run()
-  db.insert(Node).values({}).run()
-  const nodes = db.select({id: Node.id}).from(Node).all()
-  expect(nodes).toEqual([{id: 1}])
-})
+test('create table', testCreate(db))

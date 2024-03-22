@@ -1,5 +1,7 @@
 import {
+  getData,
   getResolver,
+  hasResolver,
   internal,
   type HasQuery,
   type HasResolver
@@ -46,10 +48,15 @@ export abstract class Query<Result, Meta extends QueryMeta>
 
   all(this: Query<Result, SyncQuery>): Array<Result>
   all(this: Query<Result, AsyncQuery>): Promise<Array<Result>>
-  all(db: HasResolver<'sync'>): Array<Result>
-  all(db: HasResolver<'async'>): Promise<Array<Result>>
-  all(db?: HasResolver) {
-    return (db ? getResolver(db) : this[internal.data].resolver)!.all(this)
+  all(db: HasResolver<'sync'> | QueryResolver<'sync'>): Array<Result>
+  all(db: HasResolver<'async'> | QueryResolver<'async'>): Promise<Array<Result>>
+  all(db?: HasResolver | QueryResolver) {
+    const resolver = db
+      ? hasResolver(db)
+        ? getResolver(db)
+        : db
+      : getData(this).resolver
+    return resolver!.all(this)
   }
 
   get(this: Query<Result, SyncQuery>): Result
@@ -57,7 +64,12 @@ export abstract class Query<Result, Meta extends QueryMeta>
   get(db: HasResolver<'sync'>): Result
   get(db: HasResolver<'async'>): Promise<Result>
   get(db?: HasResolver) {
-    return (db ? getResolver(db) : this[internal.data].resolver)!.get(this)
+    const resolver = db
+      ? hasResolver(db)
+        ? getResolver(db)
+        : db
+      : getData(this).resolver
+    return resolver!.get(this)
   }
 
   run(this: Query<unknown, SyncQuery>): void
@@ -65,12 +77,17 @@ export abstract class Query<Result, Meta extends QueryMeta>
   run(db: HasResolver<'sync'>): void
   run(db: HasResolver<'async'>): Promise<void>
   run(db?: HasResolver) {
-    return (db ? getResolver(db) : this[internal.data].resolver)!.run(this)
+    const resolver = db
+      ? hasResolver(db)
+        ? getResolver(db)
+        : db
+      : getData(this).resolver
+    return resolver!.run(this)
   }
 
   // biome-ignore lint/suspicious/noThenProperty:
   then<TResult1 = Array<Result>, TResult2 = never>(
-    this: Query<Result, AsyncQuery>,
+    this: Query<Result, SyncQuery | AsyncQuery>,
     onfulfilled?:
       | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
       | undefined
@@ -80,7 +97,10 @@ export abstract class Query<Result, Meta extends QueryMeta>
       | undefined
       | null
   ): Promise<TResult1 | TResult2> {
-    return this.all().then(onfulfilled, onrejected)
+    const resolver = getData(this).resolver
+    // biome-ignore lint/suspicious/noExplicitAny:
+    const result = this.all(resolver as QueryResolver<any>)
+    return Promise.resolve(result).then(onfulfilled, onrejected)
   }
 
   catch<TResult = never>(

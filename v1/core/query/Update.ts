@@ -63,7 +63,7 @@ export class UpdateTable<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > extends Update<void, Meta> {
-  set(values: TableUpdate<Definition>): Update<Definition, Meta> {
+  set(values: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
     const update = fromEntries(
       entries(values).map(([key, value]) => {
         const expr = input(value)
@@ -71,11 +71,11 @@ export class UpdateTable<
         return [key, sql]
       })
     )
-    return new Update({...getData(this), values: update})
+    return new UpdateTable({...getData(this), values: update})
   }
 
-  where(condition: Expr<boolean>): Update<Definition, Meta> {
-    return new Update({...getData(this), where: condition})
+  where(condition: Expr<boolean>): UpdateTable<Definition, Meta> {
+    return new UpdateTable({...getData(this), where: condition})
   }
 
   returning<Input extends SelectionInput>(

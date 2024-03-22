@@ -1,13 +1,10 @@
-import type {
-  Database as BunDatabase,
-  Statement as NativeStatement
-} from 'bun:sqlite'
+import type {Database as Client, Statement} from 'bun:sqlite'
 import {SyncDatabase} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: NativeStatement) {}
+  constructor(private stmt: Statement) {}
 
   all(params: Array<unknown>) {
     return this.stmt.all(...params)
@@ -29,21 +26,21 @@ class PreparedStatement implements SyncStatement {
 class BunSqliteDriver implements SyncDriver {
   emitter = new SqliteEmitter()
 
-  constructor(public db: BunDatabase) {}
+  constructor(public client: Client) {}
 
   exec(query: string): void {
-    this.db.exec(query)
+    this.client.exec(query)
   }
 
   close() {
-    this.db.close()
+    this.client.close()
   }
 
   prepare(sql: string) {
-    return new PreparedStatement(this.db.prepare(sql))
+    return new PreparedStatement(this.client.prepare(sql))
   }
 }
 
-export function connect(db: BunDatabase) {
+export function connect(db: Client) {
   return new SyncDatabase<'sqlite'>(new BunSqliteDriver(db))
 }
