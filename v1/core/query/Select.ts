@@ -1,23 +1,25 @@
-import {input, type Expr, type Input} from '../Expr.ts'
+import {type Expr, type Input, input} from '../Expr.ts'
+import type {Field} from '../Field.ts'
 import {
+  type HasExpr,
+  type HasQuery,
+  type HasSelection,
+  type HasTable,
   getData,
   getQuery,
   getSelection,
   getTable,
   hasQuery,
-  internal,
-  type HasExpr,
-  type HasQuery,
-  type HasSelection,
-  type HasTable
+  internal
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
   Selection,
   type SelectionInput,
+  type SelectionRecord,
   type SelectionRow
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
@@ -198,28 +200,38 @@ interface AllFrom<Result, Meta extends QueryMeta, Tables = Result>
   >
 }
 
-interface SelectionFrom<Result, Meta extends QueryMeta>
-  extends Select<Result, Meta> {
+type MarkFieldsAsNullable<Input, Table extends string> = Expand<{
+  [K in keyof Input]: Input[K] extends Field<infer T, Table>
+    ? Expr<T | null>
+    : Input[K] extends Record<string, Field<unknown, Table> | Sql<unknown>>
+    ? Input[K] | null
+    : Input[K] extends SelectionRecord
+    ? MarkFieldsAsNullable<Input[K], Table>
+    : Input[K]
+}>
+
+interface SelectionFrom<Input, Meta extends QueryMeta>
+  extends Select<SelectionRow<Input>, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Meta>
+  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Meta>
+  ): SelectionFrom<Input, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Meta>
+  ): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: Expr<boolean>
-  ): SelectionFrom<Result, Meta>
+  ): SelectionFrom<Input, Meta>
 }
 
-export class WithSelection<Result, Meta extends QueryMeta> extends Select<
-  Result,
+export class WithSelection<Input, Meta extends QueryMeta> extends Select<
+  SelectionRow<Input>,
   Meta
 > {
   from<Definition extends TableDefinition, Name extends string>(
@@ -228,7 +240,7 @@ export class WithSelection<Result, Meta extends QueryMeta> extends Select<
   ): AllFrom<TableRow<Definition>, Meta, Record<Name, TableRow<Definition>>>
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
-  ): SelectionFrom<Result, Meta>
+  ): SelectionFrom<Input, Meta>
   from(from: HasQuery): Select<unknown, Meta>
   from(from: HasQuery | Table) {
     if (hasQuery(from))
@@ -249,7 +261,7 @@ export class WithSelection<Result, Meta extends QueryMeta> extends Select<
 export function select(): WithSelection<undefined, QueryMeta>
 export function select<Input extends SelectionInput>(
   selection: Input
-): WithSelection<SelectionRow<Input>, QueryMeta>
+): WithSelection<Input, QueryMeta>
 export function select(selection?: SelectionInput) {
   return new WithSelection({selection})
 }
@@ -257,7 +269,7 @@ export function select(selection?: SelectionInput) {
 export function selectDistinct(): WithSelection<undefined, QueryMeta>
 export function selectDistinct<Input extends SelectionInput>(
   selection: Input
-): WithSelection<SelectionRow<Input>, QueryMeta>
+): WithSelection<Input, QueryMeta>
 export function selectDistinct(selection?: SelectionInput) {
   return new WithSelection({selection, distinct: true})
 }

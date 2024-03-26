@@ -1,21 +1,19 @@
 import type {Expr} from './Expr.ts'
 import {
+  type HasExpr,
+  type HasTable,
   getExpr,
   hasExpr,
-  hasTable,
-  type HasExpr,
-  type HasTable
+  hasTable
 } from './Internal.ts'
-import {isSql, sql, type Sql} from './Sql.ts'
+import {type Sql, isSql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 
-type SelectionBase = HasExpr | HasTable | Sql
-interface SelectionRecord extends Record<string, SelectionInput> {}
+export type SelectionBase = HasExpr | HasTable | Sql
+export interface SelectionRecord extends Record<string, SelectionInput> {}
 export type SelectionInput = SelectionBase | SelectionRecord
 
-export type SelectionRow<Input extends SelectionInput> = Input extends Expr<
-  infer Value
->
+export type SelectionRow<Input> = Input extends Expr<infer Value>
   ? Value
   : Input extends Sql<infer Value>
   ? Value
@@ -26,6 +24,7 @@ export type SelectionRow<Input extends SelectionInput> = Input extends Expr<
   : never
 
 function selectionToSql(input: SelectionInput): Sql {
+  if (input === undefined) return sql`*`
   if (isSql(input)) return input
   if (hasExpr(input)) return getExpr(input)
   if (hasTable(input)) throw new Error('todo')

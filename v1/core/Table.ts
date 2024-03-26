@@ -1,13 +1,8 @@
 import type {Column, RequiredColumn} from './Column.ts'
-import {Expr, type Input} from './Expr.ts'
-import {
-  getColumn,
-  getTable,
-  internal,
-  type HasField,
-  type HasTable
-} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import type {Input} from './Expr.ts'
+import {Field, FieldApi} from './Field.ts'
+import {type HasTable, getColumn, getTable, internal} from './Internal.ts'
+import {type Sql, sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -72,34 +67,21 @@ export class TableApi<
   }
 }
 
-export class FieldApi {
-  constructor(public tableName: string, public fieldName: string) {}
-
-  toSql(): Sql {
-    return sql`${sql.identifier(this.tableName)}.${sql.identifier(
-      this.fieldName
-    )}`
-  }
-}
-
-class Field extends Expr implements HasField {
-  readonly [internal.field]: FieldApi
-  constructor(tableName: string, fieldName: string) {
-    const api = new FieldApi(tableName, fieldName)
-    super(sql.field(api))
-    this[internal.field] = api
-  }
-}
-
 export type Table<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> = HasTable<Definition, Name> & TableRow<Definition>
+> = HasTable<Definition, Name> & TableRow<Definition, Name>
 
-export type TableRow<Definition extends TableDefinition> = {
+export type TableRow<
+  Definition extends TableDefinition,
+  TableName extends string = string
+> = {
   readonly [K in keyof Definition]: Definition[K] extends Column<infer T>
-    ? Expr<T>
-    : never
+    ? Field<T, TableName>
+    : /*? K extends string
+      ? Field<T, `${TableName}.${K}`>
+      : never*/
+      never
 }
 
 type IsReq<Col> = Col extends RequiredColumn ? true : false

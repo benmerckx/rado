@@ -1,15 +1,15 @@
+import type {FieldApi} from './Field.ts'
 import {
+  type HasExpr,
+  type HasField,
+  type HasQuery,
   getExpr,
   getField,
   getQuery,
   hasExpr,
   hasField,
-  hasQuery,
-  type HasExpr,
-  type HasField,
-  type HasQuery
+  hasQuery
 } from './Internal.ts'
-import type {FieldApi} from './Table.ts'
 
 enum ChunkType {
   Unsafe = 0,
@@ -182,8 +182,8 @@ export namespace sql {
     return empty().defaultValue()
   }
 
-  export function field(field: FieldApi): Sql {
-    return empty().field(field)
+  export function field<T>(field: FieldApi): Sql<T> {
+    return empty<T>().field(field)
   }
 
   export function join<T>(

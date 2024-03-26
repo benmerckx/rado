@@ -1,7 +1,6 @@
-import {expr, input, type Expr, type Input} from './Expr.ts'
+import {type Expr, type Input, expr, input} from './Expr.ts'
 import {sql} from './Sql.ts'
 
-// biome-ignore lint/complexity/noBannedTypes:
 function get(target: Record<string, Function>, method: string) {
   // biome-ignore lint/suspicious/noAssignInExpressions:
   return (target[method] ??= (...args: Array<Input<unknown>>) => {

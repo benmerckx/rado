@@ -1,8 +1,9 @@
 import type {ColumnApi} from './Column.ts'
+import type {FieldApi} from './Field.ts'
 import type {QueryMode, QueryResolver} from './Query.ts'
 import type {Selection} from './Selection.ts'
 import type {Sql} from './Sql.ts'
-import type {FieldApi, TableApi, TableDefinition} from './Table.ts'
+import type {TableApi, TableDefinition} from './Table.ts'
 
 export namespace internal {
   export const data = Symbol.for('rado:data')
