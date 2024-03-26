@@ -81,10 +81,6 @@ export class Select<Result, Meta extends QueryMeta>
     })
   }
 
-  get 0() {
-    return this.limit(1)
-  }
-
   union(
     right: Select<Result, Meta> | Union<Result, Meta>
   ): Union<Result, Meta> {
