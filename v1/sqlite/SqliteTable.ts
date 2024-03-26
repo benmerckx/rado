@@ -1,4 +1,4 @@
-import {TableDefinition, table} from '../core/Table.ts'
+import {type TableDefinition, table} from '../core/Table.ts'
 
 export function sqliteTable<Definition extends TableDefinition>(
   name: string,

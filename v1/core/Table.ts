@@ -78,10 +78,7 @@ export type TableRow<
 > = {
   readonly [K in keyof Definition]: Definition[K] extends Column<infer T>
     ? Field<T, TableName>
-    : /*? K extends string
-      ? Field<T, `${TableName}.${K}`>
-      : never*/
-      never
+    : never
 }
 
 type IsReq<Col> = Col extends RequiredColumn ? true : false

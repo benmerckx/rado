@@ -1,5 +1,6 @@
 import {expect, test} from 'bun:test'
 import {integer, text} from '../../sqlite/SqliteColumns.ts'
+import {eq} from '../Expr.ts'
 import {sql} from '../Sql.ts'
 import {alias, table} from '../Table.ts'
 import {select, selectDistinct} from './Select.ts'
@@ -29,12 +30,12 @@ test('select single field', () => {
   expect(sql.inline(query)).toBe('select "Node"."id" from "Node"')
 })
 
-/*test('left join', () => {
-  const query = new Select({}).from(Node).leftJoin(Node, eq(Node.id, 1))
+test('left join', () => {
+  const query = select().from(Node).leftJoin(Node, eq(Node.id, 1))
   expect(sql.inline(query)).toBe(
     'select "Node"."id", "Node"."field1" from "Node" left join "Node" on "Node"."id" = 1'
   )
-})*/
+})
 
 test('order by', () => {
   const query = select().from(Node).orderBy(Node.id)
