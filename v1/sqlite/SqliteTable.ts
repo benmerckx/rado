@@ -1,8 +1,1 @@
-import {type TableDefinition, table} from '../core/Table.ts'
-
-export function sqliteTable<Definition extends TableDefinition>(
-  name: string,
-  columns: Definition
-) {
-  return table(name, columns)
-}
+export {table as sqliteTable} from '../core/Table.ts'
