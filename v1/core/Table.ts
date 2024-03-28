@@ -1,8 +1,8 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import type {Input} from './Expr.ts'
 import {Field} from './Field.ts'
-import {type HasTable, getColumn, getTable, internal} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {getColumn, getTable, internal, type HasTable} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -65,15 +65,19 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> = HasTable<Definition, Name> & TableRow<Definition, Name>
+> = HasTable<Definition, Name> & TableFields<Definition, Name>
 
-export type TableRow<
+export type TableFields<
   Definition extends TableDefinition,
   TableName extends string = string
 > = {
   readonly [K in keyof Definition]: Definition[K] extends Column<infer T>
     ? Field<T, TableName>
     : never
+}
+
+export type TableRow<Definition extends TableDefinition> = {
+  [K in keyof Definition]: Definition[K] extends Column<infer T> ? T : never
 }
 
 type IsReq<Col> = Col extends RequiredColumn ? true : false

@@ -1,16 +1,16 @@
-import {type Expr, type Input, input} from '../Expr.ts'
+import {input, type Expr, type Input} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
-  type HasExpr,
-  type HasQuery,
-  type HasSelection,
-  type HasTable,
   getData,
   getQuery,
   getSelection,
   getTable,
   hasQuery,
-  internal
+  internal,
+  type HasExpr,
+  type HasQuery,
+  type HasSelection,
+  type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
@@ -19,7 +19,7 @@ import {
   type SelectionRecord,
   type SelectionRow
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
@@ -226,18 +226,10 @@ interface SelectionFrom<Input, Meta extends QueryMeta>
   ): SelectionFrom<Input, Meta>
 }
 
-export class WithSelection<Input, Meta extends QueryMeta> extends Select<
+export class Selected<Input, Meta extends QueryMeta> extends Select<
   SelectionRow<Input>,
   Meta
 > {
-  from<Definition extends TableDefinition, Name extends string>(
-    this: WithSelection<undefined, Meta>,
-    from: Table<Definition, Name>
-  ): AllFrom<TableRow<Definition>, Meta, Record<Name, TableRow<Definition>>>
-  from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>
-  ): SelectionFrom<Input, Meta>
-  from(from: HasQuery): Select<unknown, Meta>
   from(from: HasQuery | Table) {
     if (hasQuery(from))
       return new Select({
@@ -253,18 +245,32 @@ export class WithSelection<Input, Meta extends QueryMeta> extends Select<
   }
 }
 
-export function select(): WithSelection<undefined, QueryMeta>
+export interface WithoutSelection<Meta extends QueryMeta>
+  extends Selected<undefined, Meta> {
+  from<Definition extends TableDefinition, Name extends string>(
+    from: Table<Definition, Name>
+  ): AllFrom<TableRow<Definition>, Meta, Record<Name, TableRow<Definition>>>
+}
+
+export interface WithSelection<Input, Meta extends QueryMeta>
+  extends Selected<undefined, Meta> {
+  from<Definition extends TableDefinition, Name extends string>(
+    from: Table<Definition, Name>
+  ): SelectionFrom<Input, Meta>
+}
+
+export function select(): WithoutSelection<QueryMeta>
 export function select<Input extends SelectionInput>(
   selection: Input
 ): WithSelection<Input, QueryMeta>
 export function select(selection?: SelectionInput) {
-  return new WithSelection({selection})
+  return new Selected({selection})
 }
 
-export function selectDistinct(): WithSelection<undefined, QueryMeta>
+export function selectDistinct(): WithoutSelection<QueryMeta>
 export function selectDistinct<Input extends SelectionInput>(
   selection: Input
 ): WithSelection<Input, QueryMeta>
 export function selectDistinct(selection?: SelectionInput) {
-  return new WithSelection({selection, distinct: true})
+  return new Selected({selection, distinct: true})
 }

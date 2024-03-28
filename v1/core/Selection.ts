@@ -1,13 +1,13 @@
 import type {Expr} from './Expr.ts'
 import {
-  type HasExpr,
-  type HasTable,
   getExpr,
   getField,
   hasExpr,
-  hasField
+  hasField,
+  type HasExpr,
+  type HasTable
 } from './Internal.ts'
-import {type Sql, isSql, sql} from './Sql.ts'
+import {isSql, sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 
 export type SelectionBase = HasExpr | HasTable | Sql
