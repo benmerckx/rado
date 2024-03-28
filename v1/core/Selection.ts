@@ -24,14 +24,19 @@ export type SelectionRow<Input> = Input extends Expr<infer Value>
   ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
   : never
 
+function getSql(input: SelectionInput): Sql | undefined {
+  if (isSql(input)) return input
+  if (hasExpr(input)) return getExpr(input)
+  return undefined
+}
+
 function selectionToSql(input: SelectionInput, name?: string): Sql {
-  const single = isSql(input)
-    ? input
-    : hasExpr(input)
-    ? getExpr(input)
-    : undefined
+  const single = getSql(input)
   if (single) {
-    if (!name) return single
+    if (!name) {
+      if (single.alias) return sql`${single} as ${sql.identifier(single.alias)}`
+      return single
+    }
     return sql`${single} as ${sql.identifier(name)}`
   }
   const entries = Object.entries(input)
@@ -45,11 +50,15 @@ function selectionToSql(input: SelectionInput, name?: string): Sql {
 }
 
 function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
-  if (isSql(input) || hasExpr(input)) return values.shift()
+  const single = getSql(input)
+  if (single) {
+    const value = values.shift()
+    if (single.decoder) return single.decoder(value)
+    return value
+  }
   const result = Object.create(null)
   for (const [name, value] of Object.entries(input)) {
-    if (isSql(value) || hasExpr(value)) result[name] = values.shift()
-    else result[name] = mapResult(value, values)
+    result[name] = mapResult(value, values)
   }
   return result
 }

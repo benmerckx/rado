@@ -46,12 +46,32 @@ export const testEmitter: SqlEmmiter = {
   emitDefaultValue: () => 'default'
 }
 
+export type Decoder<T> =
+  | ((value: unknown) => T)
+  | {mapFromDriverValue?(value: unknown): T}
+
 export class Sql<Value = unknown> {
   #value?: Value
+
+  alias?: string
+  decoder?: (input: unknown) => Value
 
   #chunks: Array<SqlChunk>
   constructor(chunks: Array<SqlChunk> = []) {
     this.#chunks = chunks
+  }
+
+  as(name: string): Sql<Value> {
+    this.alias = name
+    return this
+  }
+
+  mapWith<T>(decoder: Decoder<T>): Sql<T> {
+    // biome-ignore lint/suspicious/noExplicitAny:
+    const res: Sql<T> = this as any
+    res.decoder =
+      typeof decoder === 'function' ? decoder : decoder.mapFromDriverValue
+    return res
   }
 
   unsafe(sql: string) {

@@ -1,6 +1,6 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import type {Input} from './Expr.ts'
-import {Field, FieldApi} from './Field.ts'
+import {Field} from './Field.ts'
 import {type HasTable, getColumn, getTable, internal} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 
@@ -35,21 +35,11 @@ export class TableApi<
     )
   }
 
-  selectColumns(): Sql {
-    return sql.join(
-      entries(this.columns).map(([name, column]) => {
-        const {name: givenName} = getColumn(column)
-        const api = new FieldApi(this.alias ?? this.name, givenName ?? name)
-        return sql.field(api)
-      }),
-      sql`, `
-    )
-  }
-
   listColumns(): Sql {
     return sql.join(
       entries(this.columns).map(([name, column]) => {
-        const {name: givenName} = getColumn(column)
+        const columnApi = getColumn(column)
+        const {name: givenName} = columnApi
         return sql.identifier(givenName ?? name)
       }),
       sql`, `
@@ -59,8 +49,13 @@ export class TableApi<
   fields() {
     return fromEntries(
       entries(this.columns).map(([name, column]) => {
-        const {name: givenName} = getColumn(column)
-        const field = new Field(this.alias ?? this.name, givenName ?? name)
+        const columnApi = getColumn(column)
+        const {name: givenName} = columnApi
+        const field = new Field(
+          columnApi,
+          this.alias ?? this.name,
+          givenName ?? name
+        )
         return [name, field]
       })
     )

@@ -1,3 +1,4 @@
+import type {ColumnApi} from './Column.ts'
 import {Expr} from './Expr.ts'
 import {type HasField, internal} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
@@ -18,9 +19,9 @@ export class Field<T, Table extends string>
 {
   #table?: Table;
   readonly [internal.field]: FieldApi
-  constructor(tableName: string, fieldName: string) {
+  constructor(columnApi: ColumnApi, tableName: string, fieldName: string) {
     const api = new FieldApi(tableName, fieldName)
-    super(sql.field<T>(api))
+    super(sql.field(api).mapWith(columnApi) as Sql<T>)
     this[internal.field] = api
   }
 }

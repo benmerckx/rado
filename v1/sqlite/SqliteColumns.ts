@@ -6,7 +6,7 @@ export function boolean(name?: string): Column<boolean | null> {
     name,
     type: sql`integer`,
     mapFromDriverValue(value: number): boolean {
-      return Number(value) === 1
+      return value === 1
     },
     mapToDriverValue(value: boolean): number {
       return value ? 1 : 0

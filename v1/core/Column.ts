@@ -1,6 +1,6 @@
-import {input, type Input} from './Expr.ts'
-import {internal, type HasColumn} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Input, input} from './Expr.ts'
+import {type HasColumn, internal} from './Internal.ts'
+import {type Sql, sql} from './Sql.ts'
 
 const {assign} = Object
 

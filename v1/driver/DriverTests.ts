@@ -2,11 +2,12 @@ import {expect} from 'bun:test'
 import type {Database} from '../core/Database.ts'
 import {table} from '../core/Table.ts'
 import {type SyncQuery, eq} from '../index.ts'
-import {integer, text} from '../sqlite.ts'
+import {boolean, integer, text} from '../sqlite.ts'
 
 const Node = table('Node', {
   id: integer().primaryKey(),
-  textField: text().notNull()
+  textField: text().notNull(),
+  bool: boolean('y')
 })
 
 export function testCreate(db: Database<SyncQuery>) {
@@ -15,11 +16,12 @@ export function testCreate(db: Database<SyncQuery>) {
       tx.create(Node).run()
       tx.insert(Node)
         .values({
-          textField: 'hello'
+          textField: 'hello',
+          bool: true
         })
         .run()
       const nodes = tx.select().from(Node).all()
-      expect(nodes).toEqual([{id: 1, textField: 'hello'}])
+      expect(nodes).toEqual([{id: 1, textField: 'hello', bool: true}])
       tx.transaction(tx => {
         tx.update(Node).set({textField: 'world'}).where(eq(Node.id, 1)).run()
       })
