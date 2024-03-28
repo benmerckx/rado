@@ -10,6 +10,7 @@ export interface SyncDriver {
   close(): void
   exec(query: string): void
   prepare(query: string): SyncStatement
+  transaction<T>(run: () => T, options: unknown, depth: number): T
 }
 export interface SyncStatement {
   all(params: Array<unknown>): Array<unknown>
@@ -23,6 +24,7 @@ export interface AsyncDriver {
   close(): Promise<void>
   exec(query: string): Promise<void>
   prepare(query: string): AsyncStatement
+  transaction<T>(run: () => T, options: unknown, depth: number): Promise<T>
 }
 export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<unknown>>

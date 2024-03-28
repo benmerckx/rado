@@ -10,7 +10,24 @@ const Node = table('Node', {
 })
 
 export function testCreate(db: Database<SyncQuery>) {
-  return async () => {
+  return () => {
+    db.transaction(tx => {
+      tx.create(Node).run()
+      tx.insert(Node)
+        .values({
+          textField: 'hello'
+        })
+        .run()
+      const nodes = tx.select().from(Node).all()
+      expect(nodes).toEqual([{id: 1, textField: 'hello'}])
+      tx.transaction(tx => {
+        tx.update(Node).set({textField: 'world'}).where(eq(Node.id, 1)).run()
+      })
+      const [node] = tx.select(Node.textField).from(Node).all()
+      expect(node).toEqual('world')
+    })
+  }
+  /*return async () => {
     await db.create(Node)
     await db.insert(Node).values({
       textField: 'hello'
@@ -20,5 +37,5 @@ export function testCreate(db: Database<SyncQuery>) {
     await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
     const [node] = await db.select(Node.textField).from(Node)
     expect(node).toEqual('world')
-  }
+  }*/
 }

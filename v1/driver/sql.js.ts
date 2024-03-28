@@ -1,5 +1,5 @@
 import type {BindParams, Database as Client} from 'sql.js'
-import {SyncDatabase} from '../core/Database.ts'
+import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
@@ -59,6 +59,23 @@ class SqlJsDriver implements SyncDriver {
 
   prepare(sql: string) {
     return new PreparedStatement(this.client, this.client.prepare(sql))
+  }
+
+  transaction<T>(
+    run: () => T,
+    options: TransactionOptions['sqlite'],
+    depth: number
+  ): T {
+    const behavior = options.behavior ?? 'deferred'
+    this.exec(depth > 0 ? `savepoint d${depth}` : `begin ${behavior}`)
+    try {
+      const result = run()
+      this.exec(depth > 0 ? `release d${depth}` : 'commit')
+      return result
+    } catch (err) {
+      this.exec(depth > 0 ? `rollback to d${depth}` : 'rollback')
+      throw err
+    }
   }
 }
 

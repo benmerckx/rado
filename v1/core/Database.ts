@@ -20,6 +20,7 @@ export class Database<Meta extends QueryMeta>
   implements HasResolver<Meta['mode']>
 {
   readonly [internal.resolver]: QueryResolver<Meta['mode']>
+  protected transactionDepth = 0
   #driver: Driver<Meta>
 
   constructor(driver: Driver<Meta>) {
@@ -34,7 +35,6 @@ export class Database<Meta extends QueryMeta>
 
     function exec(method: 'all' | 'get' | 'run', query: HasQuery) {
       const [sql, params] = driver.emitter.emit(query)
-      console.log(sql)
       const stmt = driver.prepare(sql)
       try {
         if (!hasSelection(query) || method === 'run')
@@ -66,12 +66,16 @@ export class Database<Meta extends QueryMeta>
     options?: TransactionOptions[Meta['dialect']]
   ): Promise<T>
   transaction(run: Function, options = {}) {
-    const tx = new Transaction(this.#driver)
-    return undefined!
+    const tx = new Transaction(this.#driver, this.transactionDepth++)
+    return this.#driver.transaction(
+      () => run(tx),
+      options,
+      this.transactionDepth
+    )
   }
 }
 
-interface TransactionOptions {
+export interface TransactionOptions {
   universal: never
   sqlite: {
     behavior?: 'deferred' | 'immediate' | 'exclusive'
@@ -96,9 +100,13 @@ interface TransactionOptions {
   }
 }
 
-class Rollback extends Error {}
+export class Rollback extends Error {}
 
-class Transaction<Meta extends QueryMeta> extends Database<Meta> {
+export class Transaction<Meta extends QueryMeta> extends Database<Meta> {
+  constructor(driver: Driver<Meta>, depth: number) {
+    super(driver)
+    this.transactionDepth = depth
+  }
   rollback(): never {
     throw new Rollback('Rollback')
   }

@@ -1,5 +1,5 @@
 import type {Database as Client, Statement} from 'bun:sqlite'
-import {SyncDatabase} from '../core/Database.ts'
+import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
@@ -42,6 +42,16 @@ class BunSqliteDriver implements SyncDriver {
 
   prepare(sql: string) {
     return new PreparedStatement(this.client.prepare(sql))
+  }
+
+  transaction<T>(run: () => T, options: TransactionOptions['sqlite']): T {
+    let result: T | undefined
+    this.client
+      .transaction(() => {
+        result = run()
+      })
+      [options.behavior ?? 'deferred']()
+    return result!
   }
 }
 
