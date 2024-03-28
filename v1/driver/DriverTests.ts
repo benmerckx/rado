@@ -18,7 +18,7 @@ export function testCreate(db: Database<SyncQuery>) {
     const nodes = await db.select().from(Node)
     expect(nodes).toEqual([{id: 1, textField: 'hello'}])
     await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
-    const [node] = await db.select({textField: Node.textField}).from(Node)
-    expect(node).toEqual({textField: 'world'})
+    const [node] = await db.select(Node.textField).from(Node)
+    expect(node).toEqual('world')
   }
 }

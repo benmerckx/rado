@@ -15,6 +15,7 @@ export interface SyncStatement {
   all(params: Array<unknown>): Array<unknown>
   run(params: Array<unknown>): void
   get(params: Array<unknown>): unknown
+  values(params: Array<unknown>): Array<Array<unknown>>
   free(): void
 }
 export interface AsyncDriver {
@@ -27,5 +28,6 @@ export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<unknown>>
   run(params: Array<unknown>): Promise<void>
   get(params: Array<unknown>): Promise<unknown>
+  values(params: Array<unknown>): Promise<Array<Array<unknown>>>
   free(): void
 }

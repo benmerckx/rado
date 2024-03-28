@@ -1,15 +1,26 @@
-import {getData, getQuery, internal, type HasQuery} from '../Internal.ts'
+import {
+  type HasQuery,
+  type HasSelection,
+  getData,
+  getQuery,
+  internal
+} from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {Selection, type SelectionInput} from '../Selection.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
 class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
+  selection?: SelectionInput
   left!: HasQuery
   operator!: Sql
   right!: HasQuery
 }
 
-export class Union<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
+export class Union<Result, Meta extends QueryMeta>
+  extends Query<Result, Meta>
+  implements HasSelection
+{
   readonly [internal.data]: UnionData<Meta>
 
   constructor(data: UnionData<Meta>) {
@@ -53,6 +64,12 @@ export class Union<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
       operator: sql`except`,
       right
     })
+  }
+
+  get [internal.selection]() {
+    const {selection} = getData(this)
+    if (!selection) throw new Error('todo')
+    return new Selection(selection)
   }
 
   get [internal.query]() {

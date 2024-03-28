@@ -3,8 +3,9 @@ import {
   type HasExpr,
   type HasTable,
   getExpr,
+  getField,
   hasExpr,
-  hasTable
+  hasField
 } from './Internal.ts'
 import {type Sql, isSql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
@@ -23,23 +24,42 @@ export type SelectionRow<Input> = Input extends Expr<infer Value>
   ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
   : never
 
-function selectionToSql(input: SelectionInput): Sql {
-  if (input === undefined) return sql`*`
-  if (isSql(input)) return input
-  if (hasExpr(input)) return getExpr(input)
-  if (hasTable(input)) throw new Error('todo')
+function selectionToSql(input: SelectionInput, name?: string): Sql {
+  const single = isSql(input)
+    ? input
+    : hasExpr(input)
+    ? getExpr(input)
+    : undefined
+  if (single) {
+    if (!name) return single
+    return sql`${single} as ${sql.identifier(name)}`
+  }
   const entries = Object.entries(input)
   return sql.join(
     entries.map(([name, value]): Sql => {
-      const sqlValue = selectionToSql(value)
-      return sql`${sqlValue} as ${sql.identifier(name)}`
+      if (hasField(value)) return sql.field(getField(value))
+      return selectionToSql(value, name)
     }),
     sql`, `
   )
 }
 
+function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
+  if (isSql(input) || hasExpr(input)) return values.shift()
+  const result = Object.create(null)
+  for (const [name, value] of Object.entries(input)) {
+    if (isSql(value) || hasExpr(value)) result[name] = values.shift()
+    else result[name] = mapResult(value, values)
+  }
+  return result
+}
+
 export class Selection {
   constructor(public input: SelectionInput) {}
+
+  mapRow = (values: Array<unknown>) => {
+    return mapResult(this.input, values)
+  }
 
   toSql(): Sql {
     return selectionToSql(this.input)

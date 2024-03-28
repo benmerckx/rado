@@ -50,3 +50,12 @@ test('limit and offset', () => {
     'select "Node"."id", "Node"."field1" from "Node" limit 10 offset 5'
   )
 })
+
+test('gather fields in an object', () => {
+  const query = select({
+    result: {id: Node.id, field1: Node.field1}
+  }).from(Node)
+  expect(sql.inline(query)).toBe(
+    'select "Node"."id", "Node"."field1" from "Node"'
+  )
+})

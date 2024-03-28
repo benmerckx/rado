@@ -18,6 +18,10 @@ class PreparedStatement implements SyncStatement {
     return this.stmt.get(...params)
   }
 
+  values(params: Array<unknown>) {
+    return this.stmt.values(...params)
+  }
+
   free() {
     this.stmt.finalize()
   }

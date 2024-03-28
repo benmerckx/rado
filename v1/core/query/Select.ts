@@ -247,8 +247,7 @@ export class WithSelection<Input, Meta extends QueryMeta> extends Select<
       })
     return new Joinable({
       ...getData(this),
-      selection:
-        this[internal.data].selection ?? getTable(from).selectColumns(),
+      selection: this[internal.data].selection ?? from,
       from: sql.identifier(getTable(from).name)
     })
   }

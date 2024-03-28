@@ -15,6 +15,12 @@ class PreparedStatement implements SyncStatement {
     this.stmt.reset()
   }
 
+  *iterateValues(params: Array<unknown>) {
+    this.stmt.bind(params as BindParams)
+    while (this.stmt.step()) yield this.stmt.get()
+    this.stmt.reset()
+  }
+
   all(params: Array<unknown>) {
     return Array.from(this.iterate(params))
   }
@@ -27,6 +33,10 @@ class PreparedStatement implements SyncStatement {
 
   get(params: Array<unknown>) {
     return this.all(params)[0]
+  }
+
+  values(params: Array<unknown>) {
+    return Array.from(this.iterateValues(params))
   }
 
   free() {
