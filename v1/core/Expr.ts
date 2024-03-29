@@ -1,72 +1,55 @@
-import {
-  getExpr,
-  getTable,
-  hasExpr,
-  hasTable,
-  internal,
-  type HasExpr
-} from './Internal.ts'
-import {isSql, sql, type Sql} from './Sql.ts'
+import {getSql, getTable, hasSql, hasTable, type HasSql} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 export type Input<T = unknown> = Expr<T> | Sql<T> | T
 
-export function input<T>(value: Input<T>): Sql<T> {
+export function input<T>(value: Input<T>): HasSql<T> {
   if (typeof value !== 'object' || value === null) return sql.value(value)
   if (hasTable(value)) return sql.identifier(getTable(value).name)
-  if (hasExpr(value)) return getExpr(value) as Sql<T>
-  if (isSql(value)) return value
+  if (hasSql(value)) return getSql(value) as Sql<T>
   return sql.value(value)
 }
 
-export class Expr<Value = unknown> implements HasExpr {
-  readonly [internal.expr]: Sql<Value>
-  constructor(inner: Sql<Value>) {
-    this[internal.expr] = inner
-  }
-}
-
-export function expr<T>(sql: Sql<T>): Expr<T> {
-  return new Expr(sql)
-}
+export type Expr<Value = unknown> = HasSql<Value>
 
 export function eq<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
-  return expr(sql`${input(left)} = ${input(right)}`)
+  return sql`${input(left)} = ${input(right)}`
 }
 
 export function ne<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
-  return expr(sql`${input(left)} <> ${input(right)}`)
+  return sql`${input(left)} <> ${input(right)}`
 }
 
 export function and(...conditions: Array<Input<boolean>>): Expr<boolean> {
-  if (conditions.length === 0) return expr(sql`true`)
-  if (conditions.length === 1) return expr(input(conditions[0]!))
-  return expr(sql`(${sql.join(conditions.map(input), sql.unsafe(' and '))})`)
+  if (conditions.length === 0) return sql`true`
+  if (conditions.length === 1) return input(conditions[0]!)
+  return sql`(${sql.join(conditions.map(input), sql.unsafe(' and '))})`
 }
 
 export function or(...conditions: Array<Input<boolean>>): Expr<boolean> {
-  if (conditions.length === 0) return expr(sql`true`)
-  if (conditions.length === 1) return expr(input(conditions[0]!))
-  return expr(sql`(${sql.join(conditions.map(input), sql.unsafe(' or '))})`)
+  if (conditions.length === 0) return sql`true`
+  if (conditions.length === 1) return input(conditions[0]!)
+  return sql`(${sql.join(conditions.map(input), sql.unsafe(' or '))})`
 }
 
 export function not(condition: Input): Expr<boolean> {
-  return expr(sql`not ${input(condition)}`)
+  return sql`not ${input(condition)}`
 }
 
 export function gt<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
-  return expr(sql`${input(left)} > ${input(right)}`)
+  return sql`${input(left)} > ${input(right)}`
 }
 
 export function gte<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
-  return expr(sql`${input(left)} >= ${input(right)}`)
+  return sql`${input(left)} >= ${input(right)}`
 }
 
 export function lt<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
-  return expr(sql`${input(left)} < ${input(right)}`)
+  return sql`${input(left)} < ${input(right)}`
 }
 
 export function lte<T>(left: Input<T>, right: Input<T>): Expr<boolean> {
-  return expr(sql`${input(left)} <= ${input(right)}`)
+  return sql`${input(left)} <= ${input(right)}`
 }
 
 export function inArray<T>(
@@ -74,12 +57,13 @@ export function inArray<T>(
   right: Input<Array<T>>
 ): Expr<boolean> {
   if (Array.isArray(right)) {
-    if (right.length === 0) return expr(sql`false`)
-    return expr(
-      sql`${input(left)} in (${sql.join(right.map(input), sql.unsafe(', '))})`
-    )
+    if (right.length === 0) return sql`false`
+    return sql`${input(left)} in (${sql.join(
+      right.map(input),
+      sql.unsafe(', ')
+    )})`
   }
-  return expr(sql`${input(left)} in ${input(right)}`)
+  return sql`${input(left)} in ${input(right)}`
 }
 
 export function notInArray<T>(
@@ -87,20 +71,18 @@ export function notInArray<T>(
   right: Input<Array<T>>
 ): Expr<boolean> {
   if (Array.isArray(right)) {
-    if (right.length === 0) return expr(sql`true`)
-    return expr(
-      sql`${input(left)} not in (${sql.join(right.map(input), sql`, `)})`
-    )
+    if (right.length === 0) return sql`true`
+    return sql`${input(left)} not in (${sql.join(right.map(input), sql`, `)})`
   }
-  return expr(sql`${input(left)} not in ${input(right)}`)
+  return sql`${input(left)} not in ${input(right)}`
 }
 
 export function isNull(value: Input): Expr<boolean> {
-  return expr(sql`${input(value)} is null`)
+  return sql`${input(value)} is null`
 }
 
 export function isNotNull(value: Input): Expr<boolean> {
-  return expr(sql`${input(value)} is not null`)
+  return sql`${input(value)} is not null`
 }
 
 export function between<T>(
@@ -108,7 +90,7 @@ export function between<T>(
   left: Input<T>,
   right: Input<T>
 ): Expr<boolean> {
-  return expr(sql`${input(value)} between ${input(left)} and ${input(right)}`)
+  return sql`${input(value)} between ${input(left)} and ${input(right)}`
 }
 
 export function notBetween<T>(
@@ -116,58 +98,56 @@ export function notBetween<T>(
   left: Input<T>,
   right: Input<T>
 ): Expr<boolean> {
-  return expr(
-    sql`${input(value)} not between ${input(left)} and ${input(right)}`
-  )
+  return sql`${input(value)} not between ${input(left)} and ${input(right)}`
 }
 
 export function like(
   left: Input<string>,
   pattern: Input<string>
 ): Expr<boolean> {
-  return expr(sql`${input(left)} like ${input(pattern)}`)
+  return sql`${input(left)} like ${input(pattern)}`
 }
 
 export function notLike(
   value: Input<string>,
   pattern: Input<string>
 ): Expr<boolean> {
-  return expr(sql`${input(value)} not like ${input(pattern)}`)
+  return sql`${input(value)} not like ${input(pattern)}`
 }
 
 export function ilike(
   value: Input<string>,
   pattern: Input<string>
 ): Expr<boolean> {
-  return expr(sql`${input(value)} ilike ${input(pattern)}`)
+  return sql`${input(value)} ilike ${input(pattern)}`
 }
 
 export function notILike(
   value: Input<string>,
   pattern: Input<string>
 ): Expr<boolean> {
-  return expr(sql`${input(value)} not ilike ${input(pattern)}`)
+  return sql`${input(value)} not ilike ${input(pattern)}`
 }
 
 export function arrayContains<T>(
   left: Input<Array<T>>,
   right: Input<T>
 ): Expr<boolean> {
-  return expr(sql`${input(left)} @> ${input(right)}`)
+  return sql`${input(left)} @> ${input(right)}`
 }
 
 export function arrayContained<T>(
   left: Input<T>,
   right: Input<Array<T>>
 ): Expr<boolean> {
-  return expr(sql`${input(left)} <@ ${input(right)}`)
+  return sql`${input(left)} <@ ${input(right)}`
 }
 
 export function arrayOverlaps<T>(
   left: Input<Array<T>>,
   right: Input<Array<T>>
 ): Expr<boolean> {
-  return expr(sql`${input(left)} && ${input(right)}`)
+  return sql`${input(left)} && ${input(right)}`
 }
 
 export function asc<T>(column: Expr<T>): Sql {
@@ -178,11 +158,11 @@ export function desc<T>(column: Expr<T>): Sql {
   return sql`${column} desc`
 }
 
-export interface JsonArrayExpr<Value> extends HasExpr {
+export interface JsonArrayExpr<Value> extends HasSql<Value> {
   [index: number]: JsonExpr<Value>
 }
 
-export type JsonRecordExpr<Row> = HasExpr & {
+export type JsonRecordExpr<Row> = HasSql<Row> & {
   [K in keyof Row]: JsonExpr<Row[K]>
 }
 
@@ -202,13 +182,7 @@ export namespace expr {
       get(target, prop) {
         if (typeof prop !== 'string') return Reflect.get(target, prop)
         const isNumber = INDEX_PROPERTY.test(prop)
-        return json(
-          expr(
-            sql`${target}->${sql.inline(
-              isNumber ? Number(prop) : prop
-            )}`.mapWith(v => JSON.parse(v as string))
-          )
-        )
+        return json(sql`${target}`.jsonPath([isNumber ? Number(prop) : prop]))
       }
     })
   }

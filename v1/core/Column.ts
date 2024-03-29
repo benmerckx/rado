@@ -1,6 +1,6 @@
-import {type Input, input} from './Expr.ts'
-import {type HasColumn, internal} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {input, type Input} from './Expr.ts'
+import {type HasSql, internal, type HasColumn} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign} = Object
 
@@ -11,10 +11,10 @@ class ColumnData {
   notNull?: boolean
   isUnique?: boolean
   autoIncrement?: boolean
-  defaultValue?(): Sql
-  references?(): Sql
-  onUpdate?: Sql
-  onDelete?: Sql
+  defaultValue?(): HasSql
+  references?(): HasSql
+  onUpdate?: HasSql
+  onDelete?: HasSql
   mapFromDriverValue?(value: unknown): unknown
   mapToDriverValue?(value: unknown): unknown
 }
@@ -51,7 +51,7 @@ export class Column<Value = unknown> implements HasColumn {
   ): Column<NonNullable<Value>> {
     return new Column({
       ...this[internal.column],
-      defaultValue(): Sql {
+      defaultValue(): HasSql {
         return input(value instanceof Function ? value() : value)
       }
     })

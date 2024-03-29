@@ -91,20 +91,20 @@ test('arrayOverlaps', () => {
 })
 
 test('order by', () => {
-  const a = e.expr(sql`test`)
+  const a = sql`test`
   expect(sql.test(e.asc(a))).toBe('test asc')
   expect(sql.test(e.desc(a))).toBe('test desc')
 })
 
 test('json array', () => {
-  const arr = e.expr.json(e.expr<Array<number> | null>(sql`test`))
+  const arr = e.expr.json(sql<Array<number> | null>`test`)
   const row = arr[0]
-  expect(sql.test(row)).toBe('test->0')
+  expect(sql.test(row)).toBe('test->"$.0"')
 })
 
 test('json object', () => {
-  const obj = e.expr.json(e.expr<{a: {x: number}} | null>(sql`test`))
+  const obj = e.expr.json(sql<{a: {x: number}} | null>`test`)
   const a = obj.a
   const x = obj.a.x
-  expect(sql.test(x)).toBe('test->"a"->"x"')
+  expect(sql.test(x)).toBe('test->"$.a.x"')
 })

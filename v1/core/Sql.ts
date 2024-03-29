@@ -1,14 +1,14 @@
 import type {FieldApi} from './Field.ts'
 import {
-  getExpr,
   getField,
   getQuery,
-  hasExpr,
+  getSql,
   hasField,
-  hasQuery,
-  type HasExpr,
+  hasSql,
+  internal,
   type HasField,
-  type HasQuery
+  type HasQuery,
+  type HasSql
 } from './Internal.ts'
 
 enum ChunkType {
@@ -16,9 +16,10 @@ enum ChunkType {
   Identifier = 1,
   Value = 2,
   Inline = 3,
-  Placeholder = 4,
-  DefaultValue = 5,
-  Field = 6
+  JsonPath = 4,
+  Placeholder = 5,
+  DefaultValue = 6,
+  Field = 7
 }
 
 class Chunk<Type extends ChunkType, Inner> {
@@ -29,6 +30,7 @@ type SqlChunk =
   | Chunk<ChunkType.Unsafe, string>
   | Chunk<ChunkType.Value, unknown>
   | Chunk<ChunkType.Inline, unknown>
+  | Chunk<ChunkType.JsonPath, Array<number | string>>
   | Chunk<ChunkType.Placeholder, string>
   | Chunk<ChunkType.Identifier, string>
   | Chunk<ChunkType.DefaultValue, null>
@@ -37,6 +39,7 @@ type SqlChunk =
 export interface SqlEmmiter {
   emitValue(value: unknown): [sql: string, param: unknown]
   emitInline(value: unknown): string
+  emitJsonPath(path: Array<number | string>): string
   emitPlaceholder(name: string): string
   emitIdentifier(identifier: string): string
   emitDefaultValue(): string
@@ -45,6 +48,7 @@ export interface SqlEmmiter {
 export const testEmitter: SqlEmmiter = {
   emitValue: v => [JSON.stringify(v), []],
   emitInline: JSON.stringify,
+  emitJsonPath: path => `->${JSON.stringify(`$.${path.join('.')}`)}`,
   emitIdentifier: JSON.stringify,
   emitPlaceholder: (name: string) => `?${name}`,
   emitDefaultValue: () => 'default'
@@ -54,11 +58,12 @@ export type Decoder<T> =
   | ((value: unknown) => T)
   | {mapFromDriverValue?(value: unknown): T}
 
-export class Sql<Value = unknown> {
+export class Sql<Value = unknown> implements HasSql<Value> {
   #value?: Value
 
   alias?: string
-  mapFromDriverValue?: (input: unknown) => Value
+  mapFromDriverValue?: (input: unknown) => Value;
+  readonly [internal.sql] = this
 
   #chunks: Array<SqlChunk>
   constructor(chunks: Array<SqlChunk> = []) {
@@ -71,15 +76,14 @@ export class Sql<Value = unknown> {
   }
 
   mapWith<T = Value>(decoder: Decoder<T>): Sql<T> {
-    // biome-ignore lint/suspicious/noExplicitAny:
-    const res: Sql<T> = this as any
+    const res: Sql<T> = <any>this
     res.mapFromDriverValue =
       typeof decoder === 'function' ? decoder : decoder.mapFromDriverValue
     return res
   }
 
   unsafe(sql: string) {
-    this.#chunks.push(new Chunk(ChunkType.Unsafe, sql))
+    if (sql.length > 0) this.#chunks.push(new Chunk(ChunkType.Unsafe, sql))
     return this
   }
 
@@ -88,8 +92,8 @@ export class Sql<Value = unknown> {
     return this
   }
 
-  add(sql: Sql | HasExpr) {
-    const inner = hasExpr(sql) ? getExpr(sql) : sql
+  add(sql: Sql | HasSql) {
+    const inner = hasSql(sql) ? getSql(sql) : sql
     if (!isSql(inner)) throw new Error('Invalid SQL')
     this.#chunks.push(...inner.#chunks)
     return this
@@ -102,6 +106,13 @@ export class Sql<Value = unknown> {
 
   inline(value: unknown) {
     this.#chunks.push(new Chunk(ChunkType.Inline, value))
+    return this
+  }
+
+  jsonPath(path: Array<string | number>) {
+    const last = this.#chunks.at(-1)
+    if (last?.type === ChunkType.JsonPath) last.inner.push(...path)
+    else this.#chunks.push(new Chunk(ChunkType.JsonPath, path))
     return this
   }
 
@@ -152,6 +163,9 @@ export class Sql<Value = unknown> {
         case ChunkType.Inline:
           sql += emitter.emitInline(chunk.inner)
           break
+        case ChunkType.JsonPath:
+          sql += emitter.emitJsonPath(chunk.inner)
+          break
         case ChunkType.Placeholder:
           sql += emitter.emitPlaceholder(chunk.inner)
           break
@@ -170,7 +184,7 @@ export class Sql<Value = unknown> {
   }
 }
 
-export type SqlInsert = Sql | HasExpr | HasField
+export type SqlInsert = Sql | HasSql | HasField
 
 export function sql<T>(
   strings: TemplateStringsArray,
@@ -224,10 +238,10 @@ export namespace sql {
   }
 
   export function join<T>(
-    items: Array<Sql | HasExpr | undefined | false>,
+    items: Array<Sql | HasSql | undefined | false>,
     separator: Sql = sql` `
   ): Sql<T> {
-    const parts = items.filter(Boolean) as Array<Sql | HasExpr>
+    const parts = items.filter(Boolean) as Array<Sql | HasSql>
     const sql = new Sql<T>()
 
     for (let i = 0; i < parts.length; i++) {
@@ -238,12 +252,8 @@ export namespace sql {
     return sql
   }
 
-  export function test(input: Sql | HasExpr | HasQuery): string {
-    const sql: Sql = hasExpr(input)
-      ? getExpr(input)
-      : hasQuery(input)
-      ? getQuery(input)
-      : input
+  export function test(input: HasSql | HasQuery): string {
+    const sql: Sql = hasSql(input) ? getSql(input) : getQuery(input)
     return sql.emit(testEmitter)[0]
   }
 }

@@ -1,16 +1,16 @@
 import type {Expr} from './Expr.ts'
 import {
-  getExpr,
   getField,
-  hasExpr,
+  getSql,
   hasField,
-  type HasExpr,
+  hasSql,
+  type HasSql,
   type HasTable
 } from './Internal.ts'
-import {isSql, sql, type Sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 
-export type SelectionBase = HasExpr | HasTable | Sql
+export type SelectionBase = HasSql | HasTable | Sql
 export interface SelectionRecord extends Record<string, SelectionInput> {}
 export type SelectionInput = SelectionBase | SelectionRecord
 
@@ -24,14 +24,8 @@ export type SelectionRow<Input> = Input extends Expr<infer Value>
   ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
   : never
 
-function getSql(input: SelectionInput): Sql | undefined {
-  if (isSql(input)) return input
-  if (hasExpr(input)) return getExpr(input)
-  return undefined
-}
-
 function selectionToSql(input: SelectionInput, name?: string): Sql {
-  const single = getSql(input)
+  const single = hasSql(input) ? getSql(input) : undefined
   if (single) {
     if (!name) {
       if (single.alias) return sql`${single} as ${sql.identifier(single.alias)}`
@@ -50,7 +44,7 @@ function selectionToSql(input: SelectionInput, name?: string): Sql {
 }
 
 function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
-  const single = getSql(input)
+  const single = hasSql(input) ? getSql(input) : undefined
   if (single) {
     const value = values.shift()
     if (single.mapFromDriverValue) return single.mapFromDriverValue(value)

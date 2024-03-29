@@ -16,6 +16,9 @@ export class SqliteEmitter implements Emitter, SqlEmmiter {
   emitValue(value: unknown): [string, unknown] {
     return ['?', value]
   }
+  emitJsonPath(path: Array<number | string>): string {
+    return `->${this.emitString(`$.${path.join('.')}`)}`
+  }
   emitInline(value: unknown): string {
     if (value === null || value === undefined) return 'null'
     if (typeof value === 'number') return String(value)

@@ -1,4 +1,4 @@
-import {expr, input, type Expr, type Input} from '../core/Expr.ts'
+import {input, type Expr, type Input} from '../core/Expr.ts'
 import {Functions} from '../core/Functions.ts'
 import type {HasQuery, HasTable} from '../core/Internal.ts'
 import {sql} from '../core/Sql.ts'
@@ -382,5 +382,5 @@ export function cast(x: Input, type: 'real'): Expr<number>
 export function cast(x: Input, type: 'integer'): Expr<number>
 export function cast(x: Input, type: 'numeric'): Expr<number>
 export function cast(x: Input, type: string): Expr {
-  return expr(sql`cast(${input(x)} as ${sql.identifier(type)})`)
+  return sql`cast(${input(x)} as ${sql.identifier(type)})`
 }

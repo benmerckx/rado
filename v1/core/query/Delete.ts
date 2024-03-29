@@ -1,10 +1,10 @@
 import type {Expr} from '../Expr.ts'
 import {
   getData,
-  getExpr,
+  getSql,
   getTable,
   internal,
-  type HasExpr,
+  type HasSql,
   type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
@@ -17,7 +17,7 @@ import {sql, type Sql} from '../Sql.ts'
 
 class DeleteData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
   from!: HasTable
-  where?: HasExpr
+  where?: HasSql
   returning?: Sql
 }
 
@@ -38,7 +38,7 @@ export class Delete<Result, Meta extends QueryMeta> extends Query<
     return sql.join([
       sql`delete from`,
       sql.identifier(table.name),
-      where && sql`where ${getExpr(where)}`,
+      where && sql`where ${getSql(where)}`,
       returning && sql`returning ${returning}`
     ])
   }

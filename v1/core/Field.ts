@@ -1,7 +1,6 @@
 import type {ColumnApi} from './Column.ts'
-import {Expr} from './Expr.ts'
-import {type HasField, internal} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {internal, type HasField, type HasSql} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 export class FieldApi {
   constructor(public tableName: string, public fieldName: string) {}
@@ -13,15 +12,15 @@ export class FieldApi {
   }
 }
 
-export class Field<T, Table extends string>
-  extends Expr<T>
-  implements HasField
+export class Field<Value, Table extends string>
+  implements HasField, HasSql<Value>
 {
   #table?: Table;
-  readonly [internal.field]: FieldApi
+  readonly [internal.field]: FieldApi;
+  readonly [internal.sql]: Sql<Value>
   constructor(columnApi: ColumnApi, tableName: string, fieldName: string) {
     const api = new FieldApi(tableName, fieldName)
-    super(sql.field(api).mapWith(columnApi) as Sql<T>)
     this[internal.field] = api
+    this[internal.sql] = sql.field(api).mapWith(columnApi) as Sql<Value>
   }
 }

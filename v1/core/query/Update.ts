@@ -1,11 +1,11 @@
 import {input, type Expr} from '../Expr.ts'
 import {
   getData,
-  getExpr,
+  getSql,
   getTable,
-  hasExpr,
+  hasSql,
   internal,
-  type HasExpr,
+  type HasSql,
   type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
@@ -22,7 +22,7 @@ const {fromEntries, entries} = Object
 class UpdateData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
   table!: HasTable
   values?: Record<string, Sql>
-  where?: HasExpr
+  where?: HasSql
   returning?: Sql
 }
 
@@ -52,7 +52,7 @@ export class Update<Result, Meta extends QueryMeta> extends Query<
           ),
           sql`, `
         ),
-        where ? sql`where ${getExpr(where)}` : undefined,
+        where ? sql`where ${getSql(where)}` : undefined,
         returning && sql`returning ${returning}`
       ])
       .inlineFields(false)
@@ -67,7 +67,7 @@ export class UpdateTable<
     const update = fromEntries(
       entries(values).map(([key, value]) => {
         const expr = input(value)
-        const sql = hasExpr(expr) ? getExpr(expr) : expr
+        const sql = hasSql(expr) ? getSql(expr) : expr
         return [key, sql]
       })
     )

@@ -7,7 +7,8 @@ import type {TableApi, TableDefinition} from './Table.ts'
 
 export namespace internal {
   export const data = Symbol.for('rado:data')
-  export const expr = Symbol.for('rado:sql')
+  export const sql = Symbol.for('rado:sql')
+  export const json = Symbol.for('rado:json')
   export const selection = Symbol.for('rado:select')
   export const query = Symbol.for('rado:query')
   export const table = Symbol.for('rado:table')
@@ -19,8 +20,8 @@ export namespace internal {
 export declare class HasData<Data> {
   get [internal.data](): Data
 }
-export declare class HasExpr {
-  get [internal.expr](): Sql
+export declare class HasSql<Value = unknown> {
+  get [internal.sql](): Sql<Value>
 }
 export declare class HasSelection {
   get [internal.selection](): Selection
@@ -47,8 +48,9 @@ export declare class HasResolver<Mode extends QueryMode = QueryMode> {
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
   internal.data in obj
 export const getData = <Data>(obj: HasData<Data>) => obj[internal.data]
-export const hasExpr = (obj: object): obj is HasExpr => internal.expr in obj
-export const getExpr = (obj: HasExpr) => obj[internal.expr]
+export const hasSql = <Value>(obj: object): obj is HasSql<Value> =>
+  internal.sql in obj
+export const getSql = <Value>(obj: HasSql<Value>) => obj[internal.sql]
 export const hasSelection = (obj: object): obj is HasSelection =>
   internal.selection in obj
 export const getSelection = (obj: HasSelection) => obj[internal.selection]

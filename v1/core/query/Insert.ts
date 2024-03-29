@@ -2,11 +2,11 @@ import {input, type Expr} from '../Expr.ts'
 import {
   getColumn,
   getData,
-  getExpr,
+  getSql,
   getTable,
-  hasExpr,
+  hasSql,
   internal,
-  type HasExpr,
+  type HasSql,
   type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
@@ -17,12 +17,12 @@ const {fromEntries, entries} = Object
 
 class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into!: HasTable
-  values?: Array<Record<string, Sql | HasExpr>>
+  values?: Array<Record<string, Sql | HasSql>>
   select?: Sql
 }
 
 class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
-  returning?: HasExpr
+  returning?: HasSql
 }
 
 class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
@@ -55,7 +55,7 @@ class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
                   const value = row[key]
                   const {defaultValue, notNull} = getColumn(column)
                   if (value !== undefined) {
-                    if (hasExpr(value)) return getExpr(value)
+                    if (hasSql(value)) return getSql(value)
                     return value
                   }
                   if (defaultValue) return defaultValue()
@@ -68,7 +68,7 @@ class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
             }),
             sql`, `
           )}`,
-        returning && sql`returning ${getExpr(returning)}`
+        returning && sql`returning ${getSql(returning)}`
       ])
       .inlineFields(false)
   }
@@ -90,7 +90,7 @@ export class InsertInto<
       return fromEntries(
         entries(row).map(([key, value]) => {
           const expr = input(value)
-          const sql = hasExpr(expr) ? getExpr(expr) : expr
+          const sql = hasSql(expr) ? getSql(expr) : expr
           return [key, sql]
         })
       )

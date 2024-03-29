@@ -7,9 +7,9 @@ import {
   getTable,
   hasQuery,
   internal,
-  type HasExpr,
   type HasQuery,
   type HasSelection,
+  type HasSql,
   type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
@@ -27,14 +27,14 @@ import {Union} from './Union.ts'
 class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
   selection?: SelectionInput
   distinct?: boolean
-  from?: Sql
-  subject?: Sql
-  where?: HasExpr
-  groupBy?: Sql
-  having?: HasExpr
-  orderBy?: Sql
-  limit?: Sql
-  offset?: Sql
+  from?: HasSql
+  subject?: HasSql
+  where?: HasSql
+  groupBy?: HasSql
+  having?: HasSql
+  orderBy?: HasSql
+  limit?: HasSql
+  offset?: HasSql
 }
 
 export class Select<Result, Meta extends QueryMeta>
