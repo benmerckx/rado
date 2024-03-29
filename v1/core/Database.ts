@@ -1,11 +1,11 @@
 import {Builder} from './Builder.ts'
 import type {Driver} from './Driver.ts'
 import {
-  type HasQuery,
-  type HasResolver,
   getSelection,
   hasSelection,
-  internal
+  internal,
+  type HasQuery,
+  type HasResolver
 } from './Internal.ts'
 import type {
   AsyncQuery,
@@ -20,10 +20,10 @@ export class Database<Meta extends QueryMeta>
   implements HasResolver<Meta['mode']>
 {
   readonly [internal.resolver]: QueryResolver<Meta['mode']>
-  protected transactionDepth = 0
   #driver: Driver<Meta>
+  #transactionDepth: number
 
-  constructor(driver: Driver<Meta>) {
+  constructor(driver: Driver<Meta>, transactionDepth = 0) {
     const resolver = {
       all: exec.bind(null, 'all'),
       get: exec.bind(null, 'get'),
@@ -32,23 +32,25 @@ export class Database<Meta extends QueryMeta>
     super({resolver})
     this[internal.resolver] = resolver
     this.#driver = driver
+    this.#transactionDepth = transactionDepth
 
     function exec(method: 'all' | 'get' | 'run', query: HasQuery) {
       const [sql, params] = driver.emitter.emit(query)
       const stmt = driver.prepare(sql)
+      const isSelection = hasSelection(query) && method !== 'run'
+      const mapRow = isSelection ? getSelection(query).mapRow : undefined
+      const singleResult = method === 'get'
+      const transform = (rows: Array<unknown>) => {
+        const mappedRows: Array<unknown> = mapRow
+          ? (<Array<Array<unknown>>>rows).map(mapRow)
+          : rows
+        return singleResult ? mappedRows[0] : mappedRows
+      }
+      const rows = isSelection ? stmt.values(params) : stmt[method](params)
+      if (rows instanceof Promise)
+        return rows.then(transform).finally(stmt.free.bind(stmt))
       try {
-        if (!hasSelection(query) || method === 'run')
-          return stmt[method](params)
-        const selection = getSelection(query)
-        const rows = stmt.values(params)
-        const result =
-          rows instanceof Promise
-            ? rows.then(rows => rows.map(selection.mapRow))
-            : rows.map(selection.mapRow)
-        if (method === 'all') return result
-        return result instanceof Promise
-          ? result.then(rows => rows[0])
-          : result[0]
+        return transform(<Array<unknown>>rows)
       } finally {
         stmt.free()
       }
@@ -66,11 +68,11 @@ export class Database<Meta extends QueryMeta>
     options?: TransactionOptions[Meta['dialect']]
   ): Promise<T>
   transaction(run: Function, options = {}) {
-    const tx = new Transaction(this.#driver, this.transactionDepth++)
+    const tx = new Transaction(this.#driver, this.#transactionDepth++)
     return this.#driver.transaction(
       () => run(tx),
       options,
-      this.transactionDepth
+      this.#transactionDepth
     )
   }
 }
@@ -103,10 +105,6 @@ export interface TransactionOptions {
 export class Rollback extends Error {}
 
 export class Transaction<Meta extends QueryMeta> extends Database<Meta> {
-  constructor(driver: Driver<Meta>, depth: number) {
-    super(driver)
-    this.transactionDepth = depth
-  }
   rollback(): never {
     throw new Rollback('Rollback')
   }

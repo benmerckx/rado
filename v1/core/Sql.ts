@@ -1,14 +1,14 @@
 import type {FieldApi} from './Field.ts'
 import {
-  type HasExpr,
-  type HasField,
-  type HasQuery,
   getExpr,
   getField,
   getQuery,
   hasExpr,
   hasField,
-  hasQuery
+  hasQuery,
+  type HasExpr,
+  type HasField,
+  type HasQuery
 } from './Internal.ts'
 
 enum ChunkType {
@@ -54,7 +54,7 @@ export class Sql<Value = unknown> {
   #value?: Value
 
   alias?: string
-  decoder?: (input: unknown) => Value
+  mapFromDriverValue?: (input: unknown) => Value
 
   #chunks: Array<SqlChunk>
   constructor(chunks: Array<SqlChunk> = []) {
@@ -66,10 +66,10 @@ export class Sql<Value = unknown> {
     return this
   }
 
-  mapWith<T>(decoder: Decoder<T>): Sql<T> {
+  mapWith<T = Value>(decoder: Decoder<T>): Sql<T> {
     // biome-ignore lint/suspicious/noExplicitAny:
     const res: Sql<T> = this as any
-    res.decoder =
+    res.mapFromDriverValue =
       typeof decoder === 'function' ? decoder : decoder.mapFromDriverValue
     return res
   }
@@ -86,6 +86,7 @@ export class Sql<Value = unknown> {
 
   add(sql: Sql | HasExpr) {
     const inner = hasExpr(sql) ? getExpr(sql) : sql
+    if (!isSql(inner)) throw new Error('Invalid SQL')
     this.#chunks.push(...inner.#chunks)
     return this
   }

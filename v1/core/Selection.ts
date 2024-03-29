@@ -53,7 +53,7 @@ function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
   const single = getSql(input)
   if (single) {
     const value = values.shift()
-    if (single.decoder) return single.decoder(value)
+    if (single.mapFromDriverValue) return single.mapFromDriverValue(value)
     return value
   }
   const result = Object.create(null)
