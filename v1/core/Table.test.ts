@@ -8,5 +8,5 @@ const Node = table('Node', {
 })
 
 test('format table and column name', () => {
-  expect(sql.inline(Node.id)).toBe('"Node"."id"')
+  expect(sql.test(Node.id)).toBe('"Node"."id"')
 })

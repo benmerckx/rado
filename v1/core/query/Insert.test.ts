@@ -16,13 +16,13 @@ const Node = table('Node', definition)
 const query = insert(Node).values({id: 1, required: 3})
 
 test('insert into', () => {
-  expect(sql.inline(query)).toBe(
+  expect(sql.test(query)).toBe(
     'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default)'
   )
 })
 
 test('returning', () => {
-  expect(sql.inline(query.returning(Node.id))).toBe(
+  expect(sql.test(query.returning(Node.id))).toBe(
     'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) returning "id"'
   )
 })

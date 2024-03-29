@@ -18,17 +18,10 @@ export function input<T>(value: Input<T>): Sql<T> {
   return sql.value(value)
 }
 
-export class Expr<T = unknown> implements HasExpr {
-  readonly [internal.expr]: Sql<T>
-  constructor(readonly inner: Sql<T>) {
+export class Expr<Value = unknown> implements HasExpr {
+  readonly [internal.expr]: Sql<Value>
+  constructor(inner: Sql<Value>) {
     this[internal.expr] = inner
-  }
-
-  asc(): Sql {
-    return sql`${this} asc`
-  }
-  desc(): Sql {
-    return sql`${this} desc`
   }
 }
 
@@ -175,4 +168,48 @@ export function arrayOverlaps<T>(
   right: Input<Array<T>>
 ): Expr<boolean> {
   return expr(sql`${input(left)} && ${input(right)}`)
+}
+
+export function asc<T>(column: Expr<T>): Sql {
+  return sql`${column} asc`
+}
+
+export function desc<T>(column: Expr<T>): Sql {
+  return sql`${column} desc`
+}
+
+export interface JsonArrayExpr<Value> extends HasExpr {
+  [index: number]: JsonExpr<Value>
+}
+
+export type JsonRecordExpr<Row> = HasExpr & {
+  [K in keyof Row]: JsonExpr<Row[K]>
+}
+
+type Nullable<T> = {[P in keyof T]: T[P] | null}
+
+export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
+  ? JsonArrayExpr<null extends Value ? V | null : V>
+  : [NonNullable<Value>] extends [object]
+  ? JsonRecordExpr<null extends Value ? Nullable<Value> : Value>
+  : Expr<Value>
+
+export namespace expr {
+  const INDEX_PROPERTY = /^\d+$/
+
+  export function json<Value>(e: Expr<Value>): JsonExpr<Value> {
+    return new Proxy(<any>e, {
+      get(target, prop) {
+        if (typeof prop !== 'string') return Reflect.get(target, prop)
+        const isNumber = INDEX_PROPERTY.test(prop)
+        return json(
+          expr(
+            sql`${target}->${sql.inline(
+              isNumber ? Number(prop) : prop
+            )}`.mapWith(v => JSON.parse(v as string))
+          )
+        )
+      }
+    })
+  }
 }

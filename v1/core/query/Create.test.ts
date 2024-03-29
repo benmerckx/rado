@@ -10,14 +10,12 @@ const Node = table('Node', {
 
 test('create table', () => {
   const query = create(Node)
-  expect(sql.inline(query)).toBe(
-    'create table "Node" ("id" integer primary key)'
-  )
+  expect(sql.test(query)).toBe('create table "Node" ("id" integer primary key)')
 })
 
 test('if not exists', () => {
   const query = create(Node).ifNotExists()
-  expect(sql.inline(query)).toBe(
+  expect(sql.test(query)).toBe(
     'create table if not exists "Node" ("id" integer primary key)'
   )
 })

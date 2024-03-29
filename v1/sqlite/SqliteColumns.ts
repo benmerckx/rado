@@ -33,3 +33,16 @@ export function real(name?: string): Column<number | null> {
 export function numeric(name?: string): Column<number | null> {
   return new Column({name, type: sql`numeric`})
 }
+
+export function json<T>(name?: string): Column<T | null> {
+  return new Column({
+    name,
+    type: sql`json`,
+    mapFromDriverValue(value: string): T {
+      return JSON.parse(value)
+    },
+    mapToDriverValue(value: T): string {
+      return JSON.stringify(value)
+    }
+  })
+}

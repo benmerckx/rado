@@ -11,7 +11,7 @@ const Node = table('Node', {
 
 test('delete from', () => {
   const query = remove(Node).where(eq(Node.id, 1)).returning(Node.id)
-  expect(sql.inline(query)).toBe(
+  expect(sql.test(query)).toBe(
     'delete from "Node" where "Node"."id" = 1 returning "Node"."id"'
   )
 })

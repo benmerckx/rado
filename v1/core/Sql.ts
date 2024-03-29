@@ -15,9 +15,10 @@ enum ChunkType {
   Unsafe = 0,
   Identifier = 1,
   Value = 2,
-  Placeholder = 3,
-  DefaultValue = 4,
-  Field = 5
+  Inline = 3,
+  Placeholder = 4,
+  DefaultValue = 5,
+  Field = 6
 }
 
 class Chunk<Type extends ChunkType, Inner> {
@@ -27,6 +28,7 @@ class Chunk<Type extends ChunkType, Inner> {
 type SqlChunk =
   | Chunk<ChunkType.Unsafe, string>
   | Chunk<ChunkType.Value, unknown>
+  | Chunk<ChunkType.Inline, unknown>
   | Chunk<ChunkType.Placeholder, string>
   | Chunk<ChunkType.Identifier, string>
   | Chunk<ChunkType.DefaultValue, null>
@@ -34,6 +36,7 @@ type SqlChunk =
 
 export interface SqlEmmiter {
   emitValue(value: unknown): [sql: string, param: unknown]
+  emitInline(value: unknown): string
   emitPlaceholder(name: string): string
   emitIdentifier(identifier: string): string
   emitDefaultValue(): string
@@ -41,6 +44,7 @@ export interface SqlEmmiter {
 
 export const testEmitter: SqlEmmiter = {
   emitValue: v => [JSON.stringify(v), []],
+  emitInline: JSON.stringify,
   emitIdentifier: JSON.stringify,
   emitPlaceholder: (name: string) => `?${name}`,
   emitDefaultValue: () => 'default'
@@ -96,6 +100,11 @@ export class Sql<Value = unknown> {
     return this
   }
 
+  inline(value: unknown) {
+    this.#chunks.push(new Chunk(ChunkType.Inline, value))
+    return this
+  }
+
   placeholder(name: string) {
     this.#chunks.push(new Chunk(ChunkType.Placeholder, name))
     return this
@@ -140,6 +149,9 @@ export class Sql<Value = unknown> {
           params.push(p)
           break
         }
+        case ChunkType.Inline:
+          sql += emitter.emitInline(chunk.inner)
+          break
         case ChunkType.Placeholder:
           sql += emitter.emitPlaceholder(chunk.inner)
           break
@@ -191,6 +203,10 @@ export namespace sql {
     return empty<T>().value(value)
   }
 
+  export function inline<T>(value: T): Sql<T> {
+    return empty<T>().inline(value)
+  }
+
   export function placeholder<T>(name: string): Sql<T> {
     return empty<T>().placeholder(name)
   }
@@ -222,7 +238,7 @@ export namespace sql {
     return sql
   }
 
-  export function inline(input: Sql | HasExpr | HasQuery): string {
+  export function test(input: Sql | HasExpr | HasQuery): string {
     const sql: Sql = hasExpr(input)
       ? getExpr(input)
       : hasQuery(input)

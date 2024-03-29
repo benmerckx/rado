@@ -19,7 +19,7 @@ test('update', () => {
     required: 3,
     withDefault: sql<number>`${Node.required} + 1`
   })
-  expect(sql.inline(query)).toBe(
+  expect(sql.test(query)).toBe(
     'update "Node" set "nullable" = null, "required" = 3, "withDefault" = "required" + 1'
   )
 })

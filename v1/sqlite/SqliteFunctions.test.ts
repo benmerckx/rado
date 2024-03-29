@@ -9,9 +9,9 @@ const Node = table('Node', {
 })
 
 test('eq', () => {
-  expect(sql.inline(bm25(Node, 1, 2))).toBe('"bm25"("Node", 1, 2)')
+  expect(sql.test(bm25(Node, 1, 2))).toBe('"bm25"("Node", 1, 2)')
 })
 
 test('cast', () => {
-  expect(sql.inline(cast(123, 'text'))).toBe('cast(123 as "text")')
+  expect(sql.test(cast(123, 'text'))).toBe('cast(123 as "text")')
 })
