@@ -12,14 +12,14 @@ import {
 } from './Internal.ts'
 
 enum ChunkType {
-  Unsafe = 0,
-  Identifier = 1,
-  Value = 2,
-  Inline = 3,
-  JsonPath = 4,
-  Placeholder = 5,
-  DefaultValue = 6,
-  Field = 7
+  Unsafe,
+  Identifier,
+  Value,
+  Inline,
+  JsonPath,
+  Placeholder,
+  DefaultValue,
+  Field
 }
 
 class Chunk<Type extends ChunkType, Inner> {
@@ -92,8 +92,8 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return this
   }
 
-  add(sql: Sql | HasSql) {
-    const inner = hasSql(sql) ? getSql(sql) : sql
+  add(sql: HasSql) {
+    const inner = getSql(sql)
     if (!isSql(inner)) throw new Error('Invalid SQL')
     this.#chunks.push(...inner.#chunks)
     return this
