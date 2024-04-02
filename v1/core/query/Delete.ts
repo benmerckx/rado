@@ -10,16 +10,17 @@ import {
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
-  Selection,
+  type Selection,
   type SelectionInput,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 
 class DeleteData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
   from!: HasTable
   where?: HasSql
-  returning?: HasSql
+  returning?: Selection
 }
 
 export class Delete<Result, Meta extends QueryMeta> extends Query<
@@ -32,7 +33,7 @@ export class Delete<Result, Meta extends QueryMeta> extends Query<
   constructor(data: DeleteData<Meta>) {
     super(data)
     this[internalData] = data
-    if (data.returning) this[internalSelection] = new Selection(data.returning)
+    if (data.returning) this[internalSelection] = data.returning
   }
 
   get [internalQuery]() {
@@ -52,11 +53,8 @@ export class DeleteFrom<Meta extends QueryMeta> extends Delete<void, Meta> {
   }
 
   returning<Input extends SelectionInput>(
-    selection: Input
+    returning: Input
   ): Delete<SelectionRow<Input>, Meta> {
-    return new Delete({
-      ...getData(this),
-      returning: new Selection(selection).toSql()
-    })
+    return new Delete({...getData(this), returning: selection(returning)})
   }
 }

@@ -1,31 +1,26 @@
-import {type Expr, input} from '../Expr.ts'
+import {type Expr, type Input, input} from '../Expr.ts'
 import {
   type HasSql,
   type HasTable,
   getColumn,
   getData,
-  getSql,
   getTable,
-  hasSql,
   internalData,
   internalQuery,
   internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
-import {Selection} from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {type Selection, selection} from '../Selection.ts'
+import {sql} from '../Sql.ts'
 import type {TableDefinition, TableInsert} from '../Table.ts'
-
-const {fromEntries, entries} = Object
 
 class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into!: HasTable
-  values?: Array<Record<string, Sql | HasSql>>
-  select?: HasSql
+  values?: HasSql
 }
 
 class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
-  returning?: HasSql
+  returning?: Selection
 }
 
 class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
@@ -35,46 +30,23 @@ class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
   constructor(data: InsertData<Meta>) {
     super(data)
     this[internalData] = data
-    if (data.returning) this[internalSelection] = new Selection(data.returning)
+    if (data.returning) this[internalSelection] = data.returning
   }
 
   returning<T>(returning: Expr<T>): Insert<T, Meta> {
-    return new Insert({...getData(this), returning})
+    return new Insert({...getData(this), returning: selection(returning)})
   }
 
   get [internalQuery]() {
-    const {into, values, select, returning} = getData(this)
+    const {into, values, returning} = getData(this)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
-    if (values && select) throw new Error('Cannot have both values and select')
     return sql
-      .join([
-        sql`insert into`,
-        sql`${tableName}(${table.listColumns()})`,
-        select,
-        values &&
-          sql`values ${sql.join(
-            values.map(row => {
-              return sql`(${sql.join(
-                Object.entries(table.columns).map(([key, column]) => {
-                  const value = row[key]
-                  const {defaultValue, notNull} = getColumn(column)
-                  if (value !== undefined) {
-                    if (hasSql(value)) return getSql(value)
-                    return value
-                  }
-                  if (defaultValue) return defaultValue()
-                  if (notNull)
-                    throw new Error(`Column "${key}" is not nullable`)
-                  return sql.defaultValue()
-                }),
-                sql`, `
-              )})`
-            }),
-            sql`, `
-          )}`,
-        returning && sql`returning ${getSql(returning)}`
-      ])
+      .query({
+        'insert into': sql`${tableName}(${table.listColumns()})`,
+        values,
+        returning
+      })
       .inlineFields(false)
   }
 }
@@ -90,20 +62,26 @@ export class InsertInto<
 
   values(value: TableInsert<Definition>): Insert<Definition, Meta>
   values(values: Array<TableInsert<Definition>>): Insert<Definition, Meta>
-  values(values: TableInsert<Definition> | Array<TableInsert<Definition>>) {
-    const rows = (Array.isArray(values) ? values : [values]).map(row => {
-      return fromEntries(
-        entries(row).map(([key, value]) => {
-          const expr = input(value)
-          const sql = hasSql(expr) ? getSql(expr) : expr
-          return [key, sql]
-        })
-      )
-    })
-    return new Insert<Definition, Meta>({...getData(this), values: rows})
+  values(insert: TableInsert<Definition> | Array<TableInsert<Definition>>) {
+    const {into} = getData(this)
+    const rows = Array.isArray(insert) ? insert : [insert]
+    const table = getTable(into)
+    const values = sql.join(
+      rows.map((row: Record<string, Input>) => {
+        return sql`(${sql.join(
+          Object.entries(table.columns).map(([key, column]) => {
+            const value = row[key]
+            if (value !== undefined) return input(value)
+            const {defaultValue, notNull} = getColumn(column)
+            if (defaultValue) return defaultValue()
+            if (notNull) throw new Error(`Column "${key}" is not nullable`)
+            return sql.defaultValue()
+          }),
+          sql`, `
+        )})`
+      }),
+      sql`, `
+    )
+    return new Insert<Definition, Meta>({...getData(this), values})
   }
-
-  /*select<T>(query: Expr<T>) {
-    return new Insert({...getData(this), select: getExpr(query)})
-  }*/
 }

@@ -1,6 +1,6 @@
 import {type HasTable, getData, internalData} from './Internal.ts'
 import type {QueryData, QueryMeta} from './Query.ts'
-import type {SelectionInput} from './Selection.ts'
+import {type SelectionInput, selection} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {Create} from './query/Create.ts'
 import {DeleteFrom} from './query/Delete.ts'
@@ -18,35 +18,42 @@ export class Builder<Meta extends QueryMeta> {
   create<Definition extends TableDefinition>(
     table: Table<Definition>
   ): Create<Meta> {
-    return new Create({...getData(this), table})
+    return new Create<Meta>({...getData(this), table})
   }
 
   select(): Select.WithoutSelection<Meta>
   select<Input extends SelectionInput>(
     selection: Input
   ): Select.WithSelection<Input, Meta>
-  select(selection?: SelectionInput) {
-    return new Select({...getData(this), selection}) as any
+  select(input?: SelectionInput): any {
+    return new Select<unknown, Meta>({
+      ...getData(this),
+      select: input && selection(input)
+    })
   }
 
   selectDistinct(): Select.WithoutSelection<Meta>
   selectDistinct<Input extends SelectionInput>(
     selection: Input
   ): Select.WithSelection<Input, Meta>
-  selectDistinct(selection?: SelectionInput) {
-    return new Select({...getData(this), selection, distinct: true}) as any
+  selectDistinct(input?: SelectionInput): any {
+    return new Select({
+      ...getData(this),
+      select: input && selection(input),
+      distinct: true
+    })
   }
 
   update<Definition extends TableDefinition>(
     table: Table<Definition>
   ): UpdateTable<Definition, Meta> {
-    return new UpdateTable({...getData(this), table})
+    return new UpdateTable<Definition, Meta>({...getData(this), table})
   }
 
   insert<Definition extends TableDefinition>(
     into: Table<Definition>
   ): InsertInto<Definition, Meta> {
-    return new InsertInto({...getData(this), into})
+    return new InsertInto<Definition, Meta>({...getData(this), into})
   }
 
   delete(from: HasTable): DeleteFrom<Meta> {

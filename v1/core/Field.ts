@@ -1,10 +1,5 @@
 import type {ColumnApi} from './Column.ts'
-import {
-  type HasField,
-  type HasSql,
-  internalField,
-  internalSql
-} from './Internal.ts'
+import {type HasSql, internalField, internalSql} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 
 export class FieldApi {
@@ -17,9 +12,7 @@ export class FieldApi {
   }
 }
 
-export class Field<Value, Table extends string>
-  implements HasField, HasSql<Value>
-{
+export class Field<Value, Table extends string> implements HasSql<Value> {
   #table?: Table;
   readonly [internalField]: FieldApi;
   readonly [internalSql]: Sql<Value>

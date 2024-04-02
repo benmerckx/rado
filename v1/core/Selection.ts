@@ -5,7 +5,8 @@ import {
   getField,
   getSql,
   hasField,
-  hasSql
+  hasSql,
+  internalSql
 } from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
@@ -50,22 +51,29 @@ function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
     if (single.mapFromDriverValue) return single.mapFromDriverValue(value)
     return value
   }
-  const result = Object.create(null)
+  const result: Record<string, unknown> = {}
   for (const [name, value] of Object.entries(input)) {
     result[name] = mapResult(value, values)
   }
   return result
 }
 
-export class Selection {
-  constructor(public input: SelectionInput) {}
+export class Selection implements HasSql {
+  #input: SelectionInput
+
+  constructor(input: SelectionInput, distinct = false) {
+    this.#input = input
+  }
 
   mapRow = (values: Array<unknown>) => {
-    return mapResult(this.input, values)
+    return mapResult(this.#input, values)
   }
 
-  toSql(distinct = false): Sql {
-    const selection = selectionToSql(this.input)
-    return distinct ? sql`distinct ${selection}` : selection
+  get [internalSql]() {
+    return selectionToSql(this.#input)
   }
+}
+
+export function selection(input: SelectionInput): Selection {
+  return new Selection(input)
 }

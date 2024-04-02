@@ -3,8 +3,6 @@ import type {HasColumn, HasSql} from './Internal.ts'
 import {internalColumn} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 
-const {assign} = Object
-
 class ColumnData {
   type!: Sql
   name?: string
@@ -39,7 +37,7 @@ export class ColumnApi extends ColumnData {
 export class Column<Value = unknown> implements HasColumn {
   readonly [internalColumn]: ColumnApi
   constructor(data: ColumnData) {
-    this[internalColumn] = assign(new ColumnApi(), data)
+    this[internalColumn] = Object.assign(new ColumnApi(), data)
   }
   notNull(): RequiredColumn<NonNullable<Value>> {
     return new Column({

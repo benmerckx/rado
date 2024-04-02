@@ -50,9 +50,7 @@ test('limit and offset', () => {
 
 test('gather fields in an object', () => {
   const query = builder
-    .select({
-      result: {id: Node.id, field1: Node.field1}
-    })
+    .select({result: {id: Node.id, field1: Node.field1}})
     .from(Node)
   expect(emit(query)).toBe('select "Node"."id", "Node"."field1" from "Node"')
 })

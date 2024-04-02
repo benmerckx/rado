@@ -9,12 +9,12 @@ import {
   internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
-import {Selection, type SelectionInput} from '../Selection.ts'
+import type {Selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
 class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
-  selection?: SelectionInput
+  select?: Selection
   left!: HasQuery
   operator!: HasSql
   right!: HasQuery
@@ -24,16 +24,16 @@ export class Union<Result, Meta extends QueryMeta>
   extends Query<Result, Meta>
   implements HasSelection
 {
-  readonly [internalData]: UnionData<Meta>
+  readonly [internalData]: UnionData<Meta>;
+  readonly [internalSelection]: Selection
 
   constructor(data: UnionData<Meta>) {
     super(data)
     this[internalData] = data
+    this[internalSelection] = data.select!
   }
 
-  union(
-    right: Select<Result, Meta> | Union<Result, Meta>
-  ): Union<Result, Meta> {
+  union(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
@@ -42,7 +42,7 @@ export class Union<Result, Meta extends QueryMeta>
     })
   }
 
-  unionAll(right: Select<Result, Meta>): Union<Result, Meta> {
+  unionAll(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
@@ -51,7 +51,7 @@ export class Union<Result, Meta extends QueryMeta>
     })
   }
 
-  intersect(right: Select<Result, Meta>): Union<Result, Meta> {
+  intersect(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
@@ -60,19 +60,13 @@ export class Union<Result, Meta extends QueryMeta>
     })
   }
 
-  except(right: Select<Result, Meta>): Union<Result, Meta> {
+  except(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
       operator: sql`except`,
       right
     })
-  }
-
-  get [internalSelection]() {
-    const {selection} = getData(this)
-    if (!selection) throw new Error('todo')
-    return new Selection(selection)
   }
 
   get [internalQuery]() {
