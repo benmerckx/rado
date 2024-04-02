@@ -23,6 +23,13 @@ export class TableApi<
   #definition?: Definition
   #name?: Name
 
+  from(): Sql {
+    return sql.join([
+      sql.identifier(this.name),
+      this.alias ? sql`as ${sql.identifier(this.alias)}` : undefined
+    ])
+  }
+
   createColumns(): Sql {
     return sql.join(
       entries(this.columns).map(([name, isColumn]) => {

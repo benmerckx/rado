@@ -28,6 +28,7 @@ export class Builder<Meta extends QueryMeta> {
   select(input?: SelectionInput): any {
     return new Select<unknown, Meta>({
       ...getData(this),
+      selectAll: !input,
       select: input && selection(input)
     })
   }
@@ -39,8 +40,9 @@ export class Builder<Meta extends QueryMeta> {
   selectDistinct(input?: SelectionInput): any {
     return new Select({
       ...getData(this),
-      select: input && selection(input),
-      distinct: true
+      selectAll: !input,
+      distinct: true,
+      select: input && selection(input)
     })
   }
 

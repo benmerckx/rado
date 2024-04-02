@@ -27,6 +27,8 @@ import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
 
 class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
+  selectAll!: boolean
+  // tables?: Record<string, HasTable>
   select?: Selection
   distinct?: boolean
   from?: HasSql
@@ -53,7 +55,7 @@ export class Select<Result, Meta extends QueryMeta>
   from(target: HasQuery | Table) {
     const from = hasQuery(target)
       ? sql`(${getQuery(target).inlineFields(true)})`
-      : sql.identifier(getTable(target).name)
+      : getTable(target).from()
     const select =
       this[internalData].select ?? selection(hasTable(target) ? target : sql`*`)
     return new Select({
@@ -68,15 +70,11 @@ export class Select<Result, Meta extends QueryMeta>
     right: HasTable,
     on: Expr<boolean>
   ): Select<Result, Meta> {
+    const {from, selectAll, select} = getData(this)
     const rightTable = getTable(right)
     return new Select({
       ...getData(this),
-      from: sql.join([
-        this[internalData].from,
-        operator,
-        sql.identifier(rightTable.alias ?? rightTable.name),
-        sql`on ${on}`
-      ])
+      from: sql.join([from, operator, rightTable.from(), sql`on ${on}`])
     })
   }
 

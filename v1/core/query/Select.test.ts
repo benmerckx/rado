@@ -8,8 +8,7 @@ const Node = table('Node', {
   id: integer().primaryKey(),
   field1: text()
 })
-const x = alias(Node, 'x')
-const y = alias(Node, 'y')
+
 test('select all available columns', () => {
   const query = builder.select().from(Node)
   expect(emit(query)).toBe('select "Node"."id", "Node"."field1" from "Node"')
@@ -28,9 +27,10 @@ test('select single field', () => {
 })
 
 test('left join', () => {
-  const query = builder.select().from(Node).leftJoin(Node, eq(Node.id, 1))
+  const right = alias(Node, 'right')
+  const query = builder.select().from(Node).leftJoin(right, eq(right.id, 1))
   expect(emit(query)).toBe(
-    'select "Node"."id", "Node"."field1" from "Node" left join "Node" on "Node"."id" = 1'
+    'select "Node"."id", "Node"."field1", "right"."id", "right"."field1" from "Node" left join "Node" as "right" on "right"."id" = 1'
   )
 })
 
