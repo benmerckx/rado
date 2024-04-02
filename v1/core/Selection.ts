@@ -25,14 +25,15 @@ export type SelectionRow<Input> = Input extends Expr<infer Value>
   ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
   : never
 
+const exprOf = (input: SelectionInput) =>
+  hasSql(input) ? getSql(input) : undefined
+
 function selectionToSql(input: SelectionInput, name?: string): Sql {
-  const single = hasSql(input) ? getSql(input) : undefined
-  if (single) {
-    if (!name) {
-      if (single.alias) return sql`${single} as ${sql.identifier(single.alias)}`
-      return single
-    }
-    return sql`${single} as ${sql.identifier(name)}`
+  const expr = exprOf(input)
+  if (expr) {
+    const named = expr.alias ?? name
+    if (named) return sql`${expr} as ${sql.identifier(named)}`
+    return expr
   }
   const entries = Object.entries(input)
   return sql.join(
@@ -45,23 +46,24 @@ function selectionToSql(input: SelectionInput, name?: string): Sql {
 }
 
 function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
-  const single = hasSql(input) ? getSql(input) : undefined
-  if (single) {
+  const expr = exprOf(input)
+  if (expr) {
     const value = values.shift()
-    if (single.mapFromDriverValue) return single.mapFromDriverValue(value)
+    if (expr.mapFromDriverValue) return expr.mapFromDriverValue(value)
     return value
   }
-  const result: Record<string, unknown> = {}
-  for (const [name, value] of Object.entries(input)) {
-    result[name] = mapResult(value, values)
-  }
-  return result
+  return Object.fromEntries(
+    Object.entries(input).map(([name, value]) => [
+      name,
+      mapResult(value, values)
+    ])
+  )
 }
 
 export class Selection implements HasSql {
   #input: SelectionInput
 
-  constructor(input: SelectionInput, distinct = false) {
+  constructor(input: SelectionInput) {
     this.#input = input
   }
 
