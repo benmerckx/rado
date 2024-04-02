@@ -1,11 +1,11 @@
 import {Builder} from './Builder.ts'
 import type {Driver} from './Driver.ts'
 import {
+  type HasQuery,
+  type HasResolver,
   getSelection,
   hasSelection,
-  internal,
-  type HasQuery,
-  type HasResolver
+  internalResolver
 } from './Internal.ts'
 import type {
   AsyncQuery,
@@ -19,7 +19,7 @@ export class Database<Meta extends QueryMeta>
   extends Builder<Meta>
   implements HasResolver<Meta['mode']>
 {
-  readonly [internal.resolver]: QueryResolver<Meta['mode']>
+  readonly [internalResolver]: QueryResolver<Meta['mode']>
   #driver: Driver<Meta>
   #transactionDepth: number
 
@@ -30,7 +30,7 @@ export class Database<Meta extends QueryMeta>
       run: exec.bind(null, 'run')
     }
     super({resolver})
-    this[internal.resolver] = resolver
+    this[internalResolver] = resolver
     this.#driver = driver
     this.#transactionDepth = transactionDepth
 

@@ -34,7 +34,8 @@
         "noBannedTypes": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noConstEnum": "off"
       }
     }
   }

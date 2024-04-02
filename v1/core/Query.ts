@@ -4,7 +4,8 @@ import {
   getData,
   getResolver,
   hasResolver,
-  internal
+  internalData,
+  internalQuery
 } from './Internal.ts'
 import type {Sql} from './Sql.ts'
 
@@ -39,11 +40,20 @@ export class QueryData<Meta extends QueryMeta> {
 export abstract class Query<Result, Meta extends QueryMeta>
   implements HasQuery, PromiseLike<Array<Result>>
 {
-  readonly [internal.data]: QueryData<Meta>;
-  abstract [internal.query]: Sql
+  readonly [internalData]: QueryData<Meta>;
+  abstract [internalQuery]: Sql
 
   constructor(data: QueryData<Meta>) {
-    this[internal.data] = data
+    this[internalData] = data
+  }
+
+  #exec(method: 'all' | 'get' | 'run', db?: HasResolver | QueryResolver) {
+    const resolver = db
+      ? hasResolver(db)
+        ? getResolver(db)
+        : db
+      : getData(this).resolver
+    return resolver![method](this)
   }
 
   all(this: Query<Result, SyncQuery>): Array<Result>
@@ -51,12 +61,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
   all(db: HasResolver<'sync'> | QueryResolver<'sync'>): Array<Result>
   all(db: HasResolver<'async'> | QueryResolver<'async'>): Promise<Array<Result>>
   all(db?: HasResolver | QueryResolver) {
-    const resolver = db
-      ? hasResolver(db)
-        ? getResolver(db)
-        : db
-      : getData(this).resolver
-    return resolver!.all(this)
+    return this.#exec('all', db)
   }
 
   get(this: Query<Result, SyncQuery>): Result
@@ -64,12 +69,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
   get(db: HasResolver<'sync'>): Result
   get(db: HasResolver<'async'>): Promise<Result>
   get(db?: HasResolver) {
-    const resolver = db
-      ? hasResolver(db)
-        ? getResolver(db)
-        : db
-      : getData(this).resolver
-    return resolver!.get(this)
+    return this.#exec('get', db)
   }
 
   run(this: Query<unknown, SyncQuery>): void
@@ -77,12 +77,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
   run(db: HasResolver<'sync'>): void
   run(db: HasResolver<'async'>): Promise<void>
   run(db?: HasResolver) {
-    const resolver = db
-      ? hasResolver(db)
-        ? getResolver(db)
-        : db
-      : getData(this).resolver
-    return resolver!.run(this)
+    return this.#exec('run', db)
   }
 
   // biome-ignore lint/suspicious/noThenProperty:

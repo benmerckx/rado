@@ -6,7 +6,9 @@ import {
   getSql,
   getTable,
   hasSql,
-  internal
+  internalData,
+  internalQuery,
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
@@ -15,7 +17,7 @@ import {
   type SelectionRow
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
-import type {Table, TableDefinition, TableUpdate} from '../Table.ts'
+import type {TableDefinition, TableUpdate} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
@@ -30,16 +32,16 @@ export class Update<Result, Meta extends QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internal.data]: UpdateData<Meta>;
-  readonly [internal.selection]?: Selection
+  readonly [internalData]: UpdateData<Meta>;
+  readonly [internalSelection]?: Selection
 
   constructor(data: UpdateData<Meta>) {
     super(data)
-    this[internal.data] = data
-    if (data.returning) this[internal.selection] = new Selection(data.returning)
+    this[internalData] = data
+    if (data.returning) this[internalSelection] = new Selection(data.returning)
   }
 
-  get [internal.query]() {
+  get [internalQuery]() {
     const {values, where, returning} = getData(this)
     const table = getTable(getData(this).table)
     if (!values) throw new Error('No values to update')
@@ -86,10 +88,4 @@ export class UpdateTable<
       returning: new Selection(selection).toSql()
     })
   }
-}
-
-export function update<Definition extends TableDefinition>(
-  table: Table<Definition>
-): UpdateTable<Definition, QueryMeta> {
-  return new UpdateTable({table})
 }

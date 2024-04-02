@@ -1,6 +1,6 @@
 import {expect, test} from 'bun:test'
 import {integer} from '../sqlite/SqliteColumns.ts'
-import {sql} from './Sql.ts'
+import {emit} from '../test/TestUtils.ts'
 import {table} from './Table.ts'
 
 const Node = table('Node', {
@@ -8,5 +8,5 @@ const Node = table('Node', {
 })
 
 test('format table and column name', () => {
-  expect(sql.test(Node.id)).toBe('"Node"."id"')
+  expect(emit(Node.id)).toBe('"Node"."id"')
 })

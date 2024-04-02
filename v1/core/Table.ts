@@ -1,8 +1,8 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import type {Input} from './Expr.ts'
 import {Field} from './Field.ts'
-import {getColumn, getTable, internal, type HasTable} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type HasTable, getColumn, getTable, internalTable} from './Internal.ts'
+import {type Sql, sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -11,7 +11,6 @@ export type TableDefinition = {
 }
 
 class TableData {
-  source = Symbol()
   name!: string
   alias?: string
   columns!: TableDefinition
@@ -111,7 +110,10 @@ export function table<Definition extends TableDefinition, Name extends string>(
   columns: Definition
 ) {
   const api = assign(new TableApi(), {name, columns})
-  return <Table<Definition, Name>>{[internal.table]: api, ...api.fields()}
+  return <Table<Definition, Name>>{
+    [internalTable]: api,
+    ...api.fields()
+  }
 }
 
 export function alias<Definition extends TableDefinition, Alias extends string>(
@@ -119,5 +121,8 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   alias: Alias
 ) {
   const api = assign(new TableApi(), {...getTable(table), alias})
-  return <Table<Definition, Alias>>{[internal.table]: api, ...api.fields()}
+  return <Table<Definition, Alias>>{
+    [internalTable]: api,
+    ...api.fields()
+  }
 }

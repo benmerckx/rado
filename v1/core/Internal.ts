@@ -5,66 +5,64 @@ import type {Selection} from './Selection.ts'
 import type {Sql} from './Sql.ts'
 import type {TableApi, TableDefinition} from './Table.ts'
 
-export namespace internal {
-  export const data = Symbol.for('rado:data')
-  export const sql = Symbol.for('rado:sql')
-  export const json = Symbol.for('rado:json')
-  export const selection = Symbol.for('rado:select')
-  export const query = Symbol.for('rado:query')
-  export const table = Symbol.for('rado:table')
-  export const column = Symbol.for('rado:column')
-  export const field = Symbol.for('rado:field')
-  export const resolver = Symbol.for('rado:resolver')
-}
+export const internalData = Symbol()
+export const internalSql = Symbol()
+export const internalJson = Symbol()
+export const internalSelection = Symbol()
+export const internalQuery = Symbol()
+export const internalTable = Symbol()
+export const internalColumn = Symbol()
+export const internalField = Symbol()
+export const internalResolver = Symbol()
 
 export declare class HasData<Data> {
-  get [internal.data](): Data
+  get [internalData](): Data
 }
 export declare class HasSql<Value = unknown> {
-  get [internal.sql](): Sql<Value>
+  get [internalSql](): Sql<Value>
 }
 export declare class HasSelection {
-  get [internal.selection](): Selection
+  get [internalSelection](): Selection
 }
 export declare class HasQuery {
-  get [internal.query](): Sql
+  get [internalQuery](): Sql
 }
 export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > {
-  get [internal.table](): TableApi<Definition, Name>
+  get [internalTable](): TableApi<Definition, Name>
 }
 export declare class HasColumn {
-  get [internal.column](): ColumnApi
+  get [internalColumn](): ColumnApi
 }
 export declare class HasField {
-  get [internal.field](): FieldApi
+  get [internalField](): FieldApi
 }
 export declare class HasResolver<Mode extends QueryMode = QueryMode> {
-  get [internal.resolver](): QueryResolver<Mode>
+  get [internalResolver](): QueryResolver<Mode>
 }
 
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
-  internal.data in obj
-export const getData = <Data>(obj: HasData<Data>) => obj[internal.data]
+  internalData in obj
+export const getData = <Data>(obj: HasData<Data>) => obj[internalData]
 export const hasSql = <Value>(obj: object): obj is HasSql<Value> =>
-  internal.sql in obj
-export const getSql = <Value>(obj: HasSql<Value>) => obj[internal.sql]
+  internalSql in obj
+export const getSql = <Value>(obj: HasSql<Value>) => obj[internalSql]
 export const hasSelection = (obj: object): obj is HasSelection =>
-  internal.selection in obj
-export const getSelection = (obj: HasSelection) => obj[internal.selection]
-export const hasQuery = (obj: object): obj is HasQuery => internal.query in obj
-export const getQuery = (obj: HasQuery) => obj[internal.query]
-export const hasTable = (obj: object): obj is HasTable => internal.table in obj
-export const getTable = (obj: HasTable) => obj[internal.table]
+  internalSelection in obj
+export const getSelection = (obj: HasSelection) => obj[internalSelection]
+export const hasQuery = (obj: object): obj is HasQuery => internalQuery in obj
+export const getQuery = (obj: HasQuery) => obj[internalQuery]
+export const hasTable = (obj: object): obj is HasTable => internalTable in obj
+export const getTable = (obj: HasTable) => obj[internalTable]
 export const hasColumn = (obj: object): obj is HasColumn =>
-  internal.column in obj
-export const getColumn = (obj: HasColumn) => obj[internal.column]
-export const hasField = (obj: object): obj is HasField => internal.field in obj
-export const getField = (obj: HasField) => obj[internal.field]
+  internalColumn in obj
+export const getColumn = (obj: HasColumn) => obj[internalColumn]
+export const hasField = (obj: object): obj is HasField => internalField in obj
+export const getField = (obj: HasField) => obj[internalField]
 export const hasResolver = <Mode extends QueryMode>(
   obj: object
-): obj is HasResolver<Mode> => internal.resolver in obj
+): obj is HasResolver<Mode> => internalResolver in obj
 export const getResolver = <Mode extends QueryMode>(obj: HasResolver<Mode>) =>
-  obj[internal.resolver]
+  obj[internalResolver]

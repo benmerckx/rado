@@ -4,7 +4,9 @@ import {
   type HasSql,
   getData,
   getQuery,
-  internal
+  internalData,
+  internalQuery,
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {Selection, type SelectionInput} from '../Selection.ts'
@@ -22,11 +24,11 @@ export class Union<Result, Meta extends QueryMeta>
   extends Query<Result, Meta>
   implements HasSelection
 {
-  readonly [internal.data]: UnionData<Meta>
+  readonly [internalData]: UnionData<Meta>
 
   constructor(data: UnionData<Meta>) {
     super(data)
-    this[internal.data] = data
+    this[internalData] = data
   }
 
   union(
@@ -67,13 +69,13 @@ export class Union<Result, Meta extends QueryMeta>
     })
   }
 
-  get [internal.selection]() {
+  get [internalSelection]() {
     const {selection} = getData(this)
     if (!selection) throw new Error('todo')
     return new Selection(selection)
   }
 
-  get [internal.query]() {
+  get [internalQuery]() {
     const {left, operator, right} = getData(this)
     return sql.join([getQuery(left), operator, getQuery(right)])
   }

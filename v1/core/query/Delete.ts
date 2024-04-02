@@ -4,7 +4,9 @@ import {
   type HasTable,
   getData,
   getTable,
-  internal
+  internalData,
+  internalQuery,
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
@@ -24,16 +26,16 @@ export class Delete<Result, Meta extends QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internal.data]: DeleteData<Meta>;
-  readonly [internal.selection]?: Selection
+  readonly [internalData]: DeleteData<Meta>;
+  readonly [internalSelection]?: Selection
 
   constructor(data: DeleteData<Meta>) {
     super(data)
-    this[internal.data] = data
-    if (data.returning) this[internal.selection] = new Selection(data.returning)
+    this[internalData] = data
+    if (data.returning) this[internalSelection] = new Selection(data.returning)
   }
 
-  get [internal.query]() {
+  get [internalQuery]() {
     const {from, where, returning} = getData(this)
     const table = getTable(from)
     return sql.query({
@@ -58,9 +60,3 @@ export class DeleteFrom<Meta extends QueryMeta> extends Delete<void, Meta> {
     })
   }
 }
-
-function remove(from: HasTable): DeleteFrom<QueryMeta> {
-  return new DeleteFrom({from})
-}
-
-export {remove as delete}

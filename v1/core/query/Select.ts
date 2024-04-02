@@ -10,7 +10,10 @@ import {
   getSelection,
   getTable,
   hasQuery,
-  internal
+  hasTable,
+  internalData,
+  internalQuery,
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
@@ -39,13 +42,55 @@ class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
 
 export class Select<Result, Meta extends QueryMeta>
   extends Query<Result, Meta>
-  implements HasSelection
+  implements HasSelection, Select.Base<Result, Meta>
 {
-  readonly [internal.data]: SelectData<Meta>
+  readonly [internalData]: SelectData<Meta>
 
   constructor(data: SelectData<Meta>) {
     super(data)
-    this[internal.data] = data
+    this[internalData] = data
+  }
+
+  from(target: HasQuery | Table) {
+    const from = hasQuery(target)
+      ? sql`(${getQuery(target).inlineFields(true)})`
+      : sql.identifier(getTable(target).name)
+    const selection =
+      this[internalData].selection ?? (hasTable(target) ? target : sql`*`)
+    return new Select({
+      ...getData(this),
+      selection,
+      from
+    })
+  }
+
+  #join(operator: Sql, right: HasTable, on: Expr<boolean>) {
+    const rightTable = getTable(right)
+    return new Select({
+      ...getData(this),
+      from: sql.join([
+        this[internalData].from,
+        operator,
+        sql.identifier(rightTable.alias ?? rightTable.name),
+        sql`on ${on}`
+      ])
+    })
+  }
+
+  leftJoin(right: HasTable, on: Expr<boolean>) {
+    return this.#join(sql`left join`, right, on)
+  }
+
+  rightJoin(right: HasTable, on: Expr<boolean>) {
+    return this.#join(sql`right join`, right, on)
+  }
+
+  innerJoin(right: HasTable, on: Expr<boolean>) {
+    return this.#join(sql`inner join`, right, on)
+  }
+
+  fullJoin(right: HasTable, on: Expr<boolean>) {
+    return this.#join(sql`full join`, right, on)
   }
 
   where(where: Expr<boolean>): Select<Result, Meta> {
@@ -81,9 +126,7 @@ export class Select<Result, Meta extends QueryMeta>
     })
   }
 
-  union(
-    right: Select<Result, Meta> | Union<Result, Meta>
-  ): Union<Result, Meta> {
+  union(right: Select<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
       left: this,
@@ -119,13 +162,13 @@ export class Select<Result, Meta extends QueryMeta>
     })
   }
 
-  get [internal.selection]() {
+  get [internalSelection]() {
     const {selection} = getData(this)
     if (!selection) throw new Error('todo')
     return new Selection(selection)
   }
 
-  get [internal.query]() {
+  get [internalQuery]() {
     const {distinct, from, where, groupBy, having, orderBy, limit, offset} =
       getData(this)
     const select = getSelection(this).toSql(distinct)
@@ -135,140 +178,94 @@ export class Select<Result, Meta extends QueryMeta>
       where,
       'group by': groupBy,
       'order by': orderBy,
+      having,
       limit,
       offset
     })
   }
 }
 
-class Joinable extends Select<unknown, QueryMeta> {
-  #join(operator: Sql, right: HasTable, on: Expr<boolean>) {
-    const rightTable = getTable(right)
-    return new Joinable({
-      ...getData(this),
-      from: sql.join([
-        this[internal.data].from,
-        operator,
-        sql.identifier(rightTable.alias ?? rightTable.name),
-        sql`on ${on}`
-      ])
-    })
+export namespace Select {
+  export interface Base<Result, Meta extends QueryMeta>
+    extends Query<Result, Meta>,
+      HasSelection {
+    where(where: Expr<boolean>): Select<Result, Meta>
+    groupBy(...exprs: Array<Expr>): Select<Result, Meta>
+    having(having: Expr<boolean>): Select<Result, Meta>
+    orderBy(...exprs: Array<Expr>): Select<Result, Meta>
+    limit(limit: Input<number>): Select<Result, Meta>
+    offset(offset: Input<number>): Select<Result, Meta>
+    union(right: Select<Result, Meta>): Union<Result, Meta>
+    unionAll(right: Select<Result, Meta>): Union<Result, Meta>
+    intersect(right: Select<Result, Meta>): Union<Result, Meta>
+    except(right: Select<Result, Meta>): Union<Result, Meta>
   }
-  leftJoin(right: HasTable, on: Expr<boolean>) {
-    return this.#join(sql`left join`, right, on)
+
+  export interface WithoutSelection<Meta extends QueryMeta> {
+    from<Definition extends TableDefinition, Name extends string>(
+      from: Table<Definition, Name>
+    ): AllFrom<TableRow<Definition>, Meta, Record<Name, TableRow<Definition>>>
   }
-  rightJoin(right: HasTable, on: Expr<boolean>) {
-    return this.#join(sql`right join`, right, on)
+
+  export interface WithSelection<Input, Meta extends QueryMeta> {
+    from<Definition extends TableDefinition, Name extends string>(
+      from: Table<Definition, Name>
+    ): SelectionFrom<Input, Meta>
   }
-  innerJoin(right: HasTable, on: Expr<boolean>) {
-    return this.#join(sql`inner join`, right, on)
+
+  export interface AllFrom<Result, Meta extends QueryMeta, Tables = Result>
+    extends Base<Result, Meta> {
+    leftJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition> | null>>, Meta>
+    rightJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): AllFrom<
+      Expand<Nullable<Tables> & Record<Name, TableRow<Definition>>>,
+      Meta
+    >
+    innerJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition>>>, Meta>
+    fullJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): AllFrom<
+      Expand<Nullable<Tables> & Record<Name, TableRow<Definition> | null>>,
+      Meta
+    >
   }
-  fullJoin(right: HasTable, on: Expr<boolean>) {
-    return this.#join(sql`full join`, right, on)
+
+  type MarkFieldsAsNullable<Input, Table extends string> = Expand<{
+    [K in keyof Input]: Input[K] extends Field<infer T, Table>
+      ? Expr<T | null>
+      : Input[K] extends Record<string, Field<unknown, Table> | Sql<unknown>>
+      ? Input[K] | null
+      : Input[K] extends SelectionRecord
+      ? MarkFieldsAsNullable<Input[K], Table>
+      : Input[K]
+  }>
+
+  export interface SelectionFrom<Input, Meta extends QueryMeta>
+    extends Base<SelectionRow<Input>, Meta> {
+    leftJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+    rightJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): SelectionFrom<Input, Meta>
+    innerJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): SelectionFrom<Input, Meta>
+    fullJoin<Definition extends TableDefinition, Name extends string>(
+      right: Table<Definition, Name>,
+      on: Expr<boolean>
+    ): SelectionFrom<Input, Meta>
   }
-}
-
-interface AllFrom<Result, Meta extends QueryMeta, Tables = Result>
-  extends Select<Result, Meta> {
-  leftJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition> | null>>, Meta>
-  rightJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): AllFrom<
-    Expand<Nullable<Tables> & Record<Name, TableRow<Definition>>>,
-    Meta
-  >
-  innerJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): AllFrom<Expand<Tables & Record<Name, TableRow<Definition>>>, Meta>
-  fullJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): AllFrom<
-    Expand<Nullable<Tables> & Record<Name, TableRow<Definition> | null>>,
-    Meta
-  >
-}
-
-type MarkFieldsAsNullable<Input, Table extends string> = Expand<{
-  [K in keyof Input]: Input[K] extends Field<infer T, Table>
-    ? Expr<T | null>
-    : Input[K] extends Record<string, Field<unknown, Table> | Sql<unknown>>
-    ? Input[K] | null
-    : Input[K] extends SelectionRecord
-    ? MarkFieldsAsNullable<Input[K], Table>
-    : Input[K]
-}>
-
-interface SelectionFrom<Input, Meta extends QueryMeta>
-  extends Select<SelectionRow<Input>, Meta> {
-  leftJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
-  rightJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): SelectionFrom<Input, Meta>
-  innerJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): SelectionFrom<Input, Meta>
-  fullJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: Expr<boolean>
-  ): SelectionFrom<Input, Meta>
-}
-
-export class Selected<Input, Meta extends QueryMeta> extends Select<
-  SelectionRow<Input>,
-  Meta
-> {
-  from(from: HasQuery | Table) {
-    if (hasQuery(from))
-      return new Select({
-        ...getData(this),
-        selection: this[internal.data].selection ?? sql`*`,
-        from: sql`(${getQuery(from).inlineFields(true)})`
-      })
-    return new Joinable({
-      ...getData(this),
-      selection: this[internal.data].selection ?? from,
-      from: sql.identifier(getTable(from).name)
-    })
-  }
-}
-
-export interface WithoutSelection<Meta extends QueryMeta>
-  extends Selected<undefined, Meta> {
-  from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>
-  ): AllFrom<TableRow<Definition>, Meta, Record<Name, TableRow<Definition>>>
-}
-
-export interface WithSelection<Input, Meta extends QueryMeta>
-  extends Selected<undefined, Meta> {
-  from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>
-  ): SelectionFrom<Input, Meta>
-}
-
-export function select(): WithoutSelection<QueryMeta>
-export function select<Input extends SelectionInput>(
-  selection: Input
-): WithSelection<Input, QueryMeta>
-export function select(selection?: SelectionInput) {
-  return new Selected({selection})
-}
-
-export function selectDistinct(): WithoutSelection<QueryMeta>
-export function selectDistinct<Input extends SelectionInput>(
-  selection: Input
-): WithSelection<Input, QueryMeta>
-export function selectDistinct(selection?: SelectionInput) {
-  return new Selected({selection, distinct: true})
 }

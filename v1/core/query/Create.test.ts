@@ -1,21 +1,20 @@
 import {expect, test} from 'bun:test'
 import {integer} from '../../sqlite/SqliteColumns.ts'
-import {sql} from '../Sql.ts'
+import {builder, emit} from '../../test/TestUtils.ts'
 import {table} from '../Table.ts'
-import {create} from './Create.ts'
 
 const Node = table('Node', {
   id: integer().primaryKey()
 })
 
 test('create table', () => {
-  const query = create(Node)
-  expect(sql.test(query)).toBe('create table "Node" ("id" integer primary key)')
+  const query = builder.create(Node)
+  expect(emit(query)).toBe('create table "Node" ("id" integer primary key)')
 })
 
 test('if not exists', () => {
-  const query = create(Node).ifNotExists()
-  expect(sql.test(query)).toBe(
+  const query = builder.create(Node).ifNotExists()
+  expect(emit(query)).toBe(
     'create table if not exists "Node" ("id" integer primary key)'
   )
 })

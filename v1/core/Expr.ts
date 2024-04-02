@@ -1,5 +1,5 @@
-import {getSql, getTable, hasSql, hasTable, type HasSql} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type HasSql, getSql, getTable, hasSql, hasTable} from './Internal.ts'
+import {type Sql, sql} from './Sql.ts'
 
 export type Input<T = unknown> = Expr<T> | Sql<T> | T
 
@@ -174,16 +174,14 @@ export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
   ? JsonRecordExpr<null extends Value ? Nullable<Value> : Value>
   : Expr<Value>
 
-export namespace expr {
-  const INDEX_PROPERTY = /^\d+$/
+const INDEX_PROPERTY = /^\d+$/
 
-  export function json<Value>(e: Expr<Value>): JsonExpr<Value> {
-    return new Proxy(<any>e, {
-      get(target, prop) {
-        if (typeof prop !== 'string') return Reflect.get(target, prop)
-        const isNumber = INDEX_PROPERTY.test(prop)
-        return json(sql`${target}`.jsonPath([isNumber ? Number(prop) : prop]))
-      }
-    })
-  }
+export function dynamic<Value>(e: Expr<Value>): JsonExpr<Value> {
+  return new Proxy(<any>e, {
+    get(target, prop) {
+      if (typeof prop !== 'string') return Reflect.get(target, prop)
+      const isNumber = INDEX_PROPERTY.test(prop)
+      return dynamic(sql`${target}`.jsonPath([isNumber ? Number(prop) : prop]))
+    }
+  })
 }

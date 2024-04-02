@@ -1,17 +1,7 @@
 import type {FieldApi} from './Field.ts'
-import {
-  type HasField,
-  type HasQuery,
-  type HasSql,
-  getField,
-  getQuery,
-  getSql,
-  hasField,
-  hasSql,
-  internal
-} from './Internal.ts'
+import {type HasSql, getSql, internalSql} from './Internal.ts'
 
-enum ChunkType {
+const enum ChunkType {
   Unsafe,
   Identifier,
   Value,
@@ -45,15 +35,6 @@ export interface SqlEmmiter {
   emitDefaultValue(): string
 }
 
-export const testEmitter: SqlEmmiter = {
-  emitValue: v => [JSON.stringify(v), []],
-  emitInline: JSON.stringify,
-  emitJsonPath: path => `->${JSON.stringify(`$.${path.join('.')}`)}`,
-  emitIdentifier: JSON.stringify,
-  emitPlaceholder: (name: string) => `?${name}`,
-  emitDefaultValue: () => 'default'
-}
-
 export type Decoder<T> =
   | ((value: unknown) => T)
   | {mapFromDriverValue?(value: unknown): T}
@@ -63,7 +44,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
 
   alias?: string
   mapFromDriverValue?: (input: unknown) => Value;
-  readonly [internal.sql] = this
+  readonly [internalSql] = this
 
   #chunks: Array<SqlChunk>
   constructor(chunks: Array<SqlChunk> = []) {
@@ -94,7 +75,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
 
   add(sql: HasSql) {
     const inner = getSql(sql)
-    if (!isSql(inner)) throw new Error('Invalid SQL')
+    if (!(inner instanceof Sql)) throw new Error('Invalid SQL')
     this.#chunks.push(...inner.#chunks)
     return this
   }
@@ -184,11 +165,9 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 }
 
-export type SqlInsert = Sql | HasSql | HasField
-
 export function sql<T>(
   strings: TemplateStringsArray,
-  ...inner: Array<SqlInsert>
+  ...inner: Array<HasSql>
 ): Sql<T> {
   const sql = new Sql<T>()
 
@@ -196,8 +175,7 @@ export function sql<T>(
     sql.unsafe(strings[i]!)
     if (i < inner.length) {
       const insert = inner[i]!
-      if (hasField(insert)) sql.field(getField(insert))
-      else sql.add(insert)
+      sql.add(insert)
     }
   }
 
@@ -239,11 +217,9 @@ export namespace sql {
 
   export function query(ast: Record<string, HasSql | undefined>) {
     return join(
-      Object.entries(ast)
-        .filter(entry => entry[1] !== undefined)
-        .map(([key, value]) => {
-          return sql`${sql.unsafe(key)} ${value!}`
-        })
+      Object.entries(ast).map(([key, value]) => {
+        return value && sql`${sql.unsafe(key)} ${value}`
+      })
     )
   }
 
@@ -261,13 +237,4 @@ export namespace sql {
 
     return sql
   }
-
-  export function test(input: HasSql | HasQuery): string {
-    const sql: Sql = hasSql(input) ? getSql(input) : getQuery(input)
-    return sql.emit(testEmitter)[0]
-  }
-}
-
-export function isSql(input: unknown): input is Sql {
-  return input instanceof Sql
 }

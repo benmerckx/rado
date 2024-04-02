@@ -7,12 +7,14 @@ import {
   getSql,
   getTable,
   hasSql,
-  internal
+  internalData,
+  internalQuery,
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {Selection} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
-import type {Table, TableDefinition, TableInsert} from '../Table.ts'
+import type {TableDefinition, TableInsert} from '../Table.ts'
 
 const {fromEntries, entries} = Object
 
@@ -27,20 +29,20 @@ class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
 }
 
 class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
-  readonly [internal.data]: InsertData<Meta>;
-  readonly [internal.selection]?: Selection
+  readonly [internalData]: InsertData<Meta>;
+  readonly [internalSelection]?: Selection
 
   constructor(data: InsertData<Meta>) {
     super(data)
-    this[internal.data] = data
-    if (data.returning) this[internal.selection] = new Selection(data.returning)
+    this[internalData] = data
+    if (data.returning) this[internalSelection] = new Selection(data.returning)
   }
 
   returning<T>(returning: Expr<T>): Insert<T, Meta> {
     return new Insert({...getData(this), returning})
   }
 
-  get [internal.query]() {
+  get [internalQuery]() {
     const {into, values, select, returning} = getData(this)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
@@ -81,9 +83,9 @@ export class InsertInto<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > {
-  [internal.data]: InsertData<Meta>
+  [internalData]: InsertData<Meta>
   constructor(data: InsertData<Meta>) {
-    this[internal.data] = data
+    this[internalData] = data
   }
 
   values(value: TableInsert<Definition>): Insert<Definition, Meta>
@@ -104,10 +106,4 @@ export class InsertInto<
   /*select<T>(query: Expr<T>) {
     return new Insert({...getData(this), select: getExpr(query)})
   }*/
-}
-
-export function insert<Definition extends TableDefinition>(
-  into: Table<Definition>
-): InsertInto<Definition, QueryMeta> {
-  return new InsertInto({into})
 }
