@@ -14,7 +14,7 @@ import {sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
 class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
-  select?: Selection
+  selection!: Selection
   left!: HasQuery
   operator!: HasSql
   right!: HasQuery
@@ -30,7 +30,7 @@ export class Union<Result, Meta extends QueryMeta>
   constructor(data: UnionData<Meta>) {
     super(data)
     this[internalData] = data
-    this[internalSelection] = data.select!
+    this[internalSelection] = data.selection
   }
 
   union(right: Select.Base<Result, Meta>): Union<Result, Meta> {

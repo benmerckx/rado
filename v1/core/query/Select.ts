@@ -7,6 +7,7 @@ import {
   type HasTable,
   getData,
   getQuery,
+  getSelection,
   getTable,
   hasQuery,
   hasTable,
@@ -16,7 +17,7 @@ import {
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
-  type Selection,
+  type SelectionInput,
   type SelectionRecord,
   type SelectionRow,
   selection
@@ -26,10 +27,14 @@ import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
 
+export enum SelectionType {
+  Selection,
+  AllFrom,
+  JoinTables
+}
+
 class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
-  selectAll!: boolean
-  // tables?: Record<string, HasTable>
-  select?: Selection
+  select!: {type: SelectionType; input?: SelectionInput}
   distinct?: boolean
   from?: HasSql
   subject?: HasSql
@@ -53,14 +58,14 @@ export class Select<Result, Meta extends QueryMeta>
   }
 
   from(target: HasQuery | Table) {
+    const {select: current} = getData(this)
     const from = hasQuery(target)
       ? sql`(${getQuery(target).inlineFields(true)})`
       : getTable(target).from()
-    const select =
-      this[internalData].select ?? selection(hasTable(target) ? target : sql`*`)
+    const selectionInput = current.input ?? (hasTable(target) ? target : sql`*`)
     return new Select({
       ...getData(this),
-      select,
+      select: {...current, input: selectionInput},
       from
     })
   }
@@ -70,10 +75,26 @@ export class Select<Result, Meta extends QueryMeta>
     right: HasTable,
     on: Expr<boolean>
   ): Select<Result, Meta> {
-    const {from, selectAll, select} = getData(this)
+    const {from, select: current} = getData(this)
     const rightTable = getTable(right)
+    const select =
+      current.type === SelectionType.Selection
+        ? current
+        : {
+            type: SelectionType.JoinTables,
+            input: <SelectionInput>(
+              (current.type === SelectionType.AllFrom
+                ? {
+                    [getTable(current.input as HasTable).aliased]:
+                      current.input,
+                    [rightTable.aliased]: right
+                  }
+                : {...current.input, [rightTable.aliased]: right})
+            )
+          }
     return new Select({
       ...getData(this),
+      select,
       from: sql.join([from, operator, rightTable.from(), sql`on ${on}`])
     })
   }
@@ -130,6 +151,7 @@ export class Select<Result, Meta extends QueryMeta>
   union(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
+      selection: getSelection(this),
       left: this,
       operator: sql`union`,
       right
@@ -139,6 +161,7 @@ export class Select<Result, Meta extends QueryMeta>
   unionAll(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
+      selection: getSelection(this),
       left: this,
       operator: sql`union all`,
       right
@@ -148,6 +171,7 @@ export class Select<Result, Meta extends QueryMeta>
   intersect(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
+      selection: getSelection(this),
       left: this,
       operator: sql`intersect`,
       right
@@ -157,6 +181,7 @@ export class Select<Result, Meta extends QueryMeta>
   except(right: Select.Base<Result, Meta>): Union<Result, Meta> {
     return new Union({
       ...getData(this),
+      selection: getSelection(this),
       left: this,
       operator: sql`except`,
       right
@@ -164,22 +189,15 @@ export class Select<Result, Meta extends QueryMeta>
   }
 
   get [internalSelection]() {
-    return getData(this).select!
+    const {select} = getData(this)
+    if (!select.input) throw new Error('No selection defined')
+    return selection(select.input)
   }
 
   get [internalQuery]() {
-    const {
-      select,
-      distinct,
-      from,
-      where,
-      groupBy,
-      having,
-      orderBy,
-      limit,
-      offset
-    } = getData(this)
-    if (!select) throw new Error('No selection defined')
+    const select = getSelection(this)
+    const {distinct, from, where, groupBy, having, orderBy, limit, offset} =
+      getData(this)
     return sql.query({
       select: distinct ? sql`distinct ${select}` : select,
       from,

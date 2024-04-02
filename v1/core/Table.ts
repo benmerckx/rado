@@ -23,6 +23,10 @@ export class TableApi<
   #definition?: Definition
   #name?: Name
 
+  get aliased() {
+    return this.alias ?? this.name
+  }
+
   from(): Sql {
     return sql.join([
       sql.identifier(this.name),
@@ -57,11 +61,7 @@ export class TableApi<
       entries(this.columns).map(([name, column]) => {
         const columnApi = getColumn(column)
         const {name: givenName} = columnApi
-        const field = new Field(
-          columnApi,
-          this.alias ?? this.name,
-          givenName ?? name
-        )
+        const field = new Field(columnApi, this.aliased, givenName ?? name)
         return [name, field]
       })
     )
