@@ -1,5 +1,5 @@
 import type {Emitter} from '../core/Emitter.ts'
-import {getQuery, type HasQuery} from '../core/Internal.ts'
+import {type HasQuery, getQuery} from '../core/Internal.ts'
 import type {SqlEmmiter} from '../core/Sql.ts'
 
 const DOUBLE_QUOTE = '"'

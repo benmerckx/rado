@@ -1,11 +1,10 @@
 import type {Expr} from '../Expr.ts'
 import {
-  getData,
-  getSql,
-  getTable,
-  internal,
   type HasSql,
-  type HasTable
+  type HasTable,
+  getData,
+  getTable,
+  internal
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
@@ -13,34 +12,35 @@ import {
   type SelectionInput,
   type SelectionRow
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {sql} from '../Sql.ts'
 
 class DeleteData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
   from!: HasTable
   where?: HasSql
-  returning?: Sql
+  returning?: HasSql
 }
 
 export class Delete<Result, Meta extends QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internal.data]: DeleteData<Meta>
+  readonly [internal.data]: DeleteData<Meta>;
+  readonly [internal.selection]?: Selection
 
   constructor(data: DeleteData<Meta>) {
     super(data)
     this[internal.data] = data
+    if (data.returning) this[internal.selection] = new Selection(data.returning)
   }
 
   get [internal.query]() {
     const {from, where, returning} = getData(this)
     const table = getTable(from)
-    return sql.join([
-      sql`delete from`,
-      sql.identifier(table.name),
-      where && sql`where ${getSql(where)}`,
-      returning && sql`returning ${returning}`
-    ])
+    return sql.query({
+      'delete from': sql.identifier(table.name),
+      where,
+      returning
+    })
   }
 }
 

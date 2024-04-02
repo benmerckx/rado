@@ -1,4 +1,4 @@
-import {getData, getTable, internal, type HasTable} from '../Internal.ts'
+import {type HasTable, getData, getTable, internal} from '../Internal.ts'
 import {Query, type QueryData, type QueryMeta} from '../Query.ts'
 import {sql} from '../Sql.ts'
 import type {Table, TableDefinition} from '../Table.ts'

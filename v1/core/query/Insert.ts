@@ -1,16 +1,17 @@
-import {input, type Expr} from '../Expr.ts'
+import {type Expr, input} from '../Expr.ts'
 import {
+  type HasSql,
+  type HasTable,
   getColumn,
   getData,
   getSql,
   getTable,
   hasSql,
-  internal,
-  type HasSql,
-  type HasTable
+  internal
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {Selection} from '../Selection.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableInsert} from '../Table.ts'
 
 const {fromEntries, entries} = Object
@@ -18,7 +19,7 @@ const {fromEntries, entries} = Object
 class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into!: HasTable
   values?: Array<Record<string, Sql | HasSql>>
-  select?: Sql
+  select?: HasSql
 }
 
 class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
@@ -26,11 +27,13 @@ class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
 }
 
 class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
-  readonly [internal.data]: InsertData<Meta>
+  readonly [internal.data]: InsertData<Meta>;
+  readonly [internal.selection]?: Selection
 
   constructor(data: InsertData<Meta>) {
     super(data)
     this[internal.data] = data
+    if (data.returning) this[internal.selection] = new Selection(data.returning)
   }
 
   returning<T>(returning: Expr<T>): Insert<T, Meta> {

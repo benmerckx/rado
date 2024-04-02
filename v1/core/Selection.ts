@@ -1,13 +1,13 @@
 import type {Expr} from './Expr.ts'
 import {
+  type HasSql,
+  type HasTable,
   getField,
   getSql,
   hasField,
-  hasSql,
-  type HasSql,
-  type HasTable
+  hasSql
 } from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 
 export type SelectionBase = HasSql | HasTable | Sql
@@ -64,7 +64,8 @@ export class Selection {
     return mapResult(this.input, values)
   }
 
-  toSql(): Sql {
-    return selectionToSql(this.input)
+  toSql(distinct = false): Sql {
+    const selection = selectionToSql(this.input)
+    return distinct ? sql`distinct ${selection}` : selection
   }
 }

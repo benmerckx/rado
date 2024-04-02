@@ -1,16 +1,16 @@
-import {input, type Expr, type Input} from '../Expr.ts'
+import {type Expr, type Input, input} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
+  type HasQuery,
+  type HasSelection,
+  type HasSql,
+  type HasTable,
   getData,
   getQuery,
   getSelection,
   getTable,
   hasQuery,
-  internal,
-  type HasQuery,
-  type HasSelection,
-  type HasSql,
-  type HasTable
+  internal
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
@@ -19,7 +19,7 @@ import {
   type SelectionRecord,
   type SelectionRow
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
@@ -128,18 +128,16 @@ export class Select<Result, Meta extends QueryMeta>
   get [internal.query]() {
     const {distinct, from, where, groupBy, having, orderBy, limit, offset} =
       getData(this)
-    const select = getSelection(this).toSql()
-    return sql.join([
-      distinct ? sql`select distinct` : sql`select`,
+    const select = getSelection(this).toSql(distinct)
+    return sql.query({
       select,
-      from && sql`from ${from}`,
-      where && sql`where ${where}`,
-      groupBy && sql`group by ${groupBy}`,
-      having && sql`having ${having}`,
-      orderBy && sql`order by ${orderBy}`,
-      limit && sql`limit ${limit}`,
-      offset && sql`offset ${offset}`
-    ])
+      from,
+      where,
+      'group by': groupBy,
+      'order by': orderBy,
+      limit,
+      offset
+    })
   }
 }
 

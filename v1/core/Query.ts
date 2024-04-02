@@ -1,10 +1,10 @@
 import {
+  type HasQuery,
+  type HasResolver,
   getData,
   getResolver,
   hasResolver,
-  internal,
-  type HasQuery,
-  type HasResolver
+  internal
 } from './Internal.ts'
 import type {Sql} from './Sql.ts'
 
@@ -98,7 +98,6 @@ export abstract class Query<Result, Meta extends QueryMeta>
       | null
   ): Promise<TResult1 | TResult2> {
     const resolver = getData(this).resolver
-    // biome-ignore lint/suspicious/noExplicitAny:
     const result = this.all(resolver as QueryResolver<any>)
     return Promise.resolve(result).then(onfulfilled, onrejected)
   }

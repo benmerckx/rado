@@ -1,19 +1,20 @@
 import {
   type HasQuery,
   type HasSelection,
+  type HasSql,
   getData,
   getQuery,
   internal
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {Selection, type SelectionInput} from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
 class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
   selection?: SelectionInput
   left!: HasQuery
-  operator!: Sql
+  operator!: HasSql
   right!: HasQuery
 }
 

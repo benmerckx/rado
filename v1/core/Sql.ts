@@ -1,14 +1,14 @@
 import type {FieldApi} from './Field.ts'
 import {
+  type HasField,
+  type HasQuery,
+  type HasSql,
   getField,
   getQuery,
   getSql,
   hasField,
   hasSql,
-  internal,
-  type HasField,
-  type HasQuery,
-  type HasSql
+  internal
 } from './Internal.ts'
 
 enum ChunkType {
@@ -235,6 +235,16 @@ export namespace sql {
 
   export function field<T>(field: FieldApi): Sql<T> {
     return empty<T>().field(field)
+  }
+
+  export function query(ast: Record<string, HasSql | undefined>) {
+    return join(
+      Object.entries(ast)
+        .filter(entry => entry[1] !== undefined)
+        .map(([key, value]) => {
+          return sql`${sql.unsafe(key)} ${value!}`
+        })
+    )
   }
 
   export function join<T>(
