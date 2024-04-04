@@ -1,14 +1,14 @@
 import type {Expr} from './Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getField,
   getSql,
   hasField,
   hasSql,
-  internalSql
+  internalSql,
+  type HasSql,
+  type HasTable
 } from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 
 export type SelectionBase = HasSql | HasTable | Sql
@@ -25,57 +25,84 @@ export type SelectionRow<Input> = Input extends Expr<infer Value>
   ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
   : never
 
-const exprOf = (input: SelectionInput) =>
-  hasSql(input) ? getSql(input) : undefined
-
-function selectionToSql(input: SelectionInput, name?: string): Sql {
-  const expr = exprOf(input)
-  if (expr) {
-    const named = expr.alias ?? name
-    if (named) return sql`${expr} as ${sql.identifier(named)}`
-    return expr
-  }
-  const entries = Object.entries(input)
-  return sql.join(
-    entries.map(([name, value]): Sql => {
-      if (hasField(value)) return sql.field(getField(value))
-      return selectionToSql(value, name)
-    }),
-    sql`, `
-  )
-}
-
-function mapResult(input: SelectionInput, values: Array<unknown>): unknown {
-  const expr = exprOf(input)
-  if (expr) {
-    const value = values.shift()
-    if (expr.mapFromDriverValue) return expr.mapFromDriverValue(value)
-    return value
-  }
-  return Object.fromEntries(
-    Object.entries(input).map(([name, value]) => [
-      name,
-      mapResult(value, values)
-    ])
-  )
-}
-
 export class Selection implements HasSql {
   #input: SelectionInput
+  #nullable: Set<string>
 
-  constructor(input: SelectionInput) {
+  constructor(input: SelectionInput, nullable: Set<string>) {
     this.#input = input
+    this.#nullable = nullable
   }
 
   mapRow = (values: Array<unknown>) => {
-    return mapResult(this.#input, values)
+    return this.#mapResult(this.#input, values)
   }
 
   get [internalSql]() {
-    return selectionToSql(this.#input)
+    return this.#selectionToSql(this.#input, new Set())
+  }
+
+  #mapResult(input: SelectionInput, values: Array<unknown>): unknown {
+    const expr = this.#exprOf(input)
+    if (expr) {
+      const value = values.shift()
+      if (expr.mapFromDriverValue) return expr.mapFromDriverValue(value)
+      return value
+    }
+    const result: Record<string, unknown> = {}
+    let isNullable = this.#nullable.size > 0
+    for (const [name, expr] of Object.entries(input)) {
+      const value = this.#mapResult(expr, values)
+      result[name] = value
+      if (isNullable) {
+        if (value === null) {
+          const field = getField(expr)
+          if (field && !this.#nullable.has(field.tableName)) isNullable = false
+        } else {
+          isNullable = false
+        }
+      }
+    }
+    if (isNullable) return null
+    return result
+  }
+
+  #selectionToSql(
+    input: SelectionInput,
+    names: Set<string>,
+    name?: string
+  ): Sql {
+    const expr = this.#exprOf(input)
+    if (expr) {
+      let exprName = expr.alias ?? name
+      if (exprName) {
+        // Some drivers have problems with multiple columns with the same name
+        while (names.has(exprName)) exprName = `${exprName}_`
+        names.add(exprName)
+        if (hasField(input)) {
+          const field = getField(input)
+          if (field.fieldName === exprName) return expr
+        }
+        return sql`${expr} as ${sql.identifier(exprName)}`
+      }
+      return expr
+    }
+    return sql.join(
+      Object.entries(input).map(([name, value]) =>
+        this.#selectionToSql(value, names, name)
+      ),
+      sql`, `
+    )
+  }
+
+  #exprOf(input: SelectionInput) {
+    return hasSql(input) ? getSql(input) : undefined
   }
 }
 
-export function selection(input: SelectionInput): Selection {
-  return new Selection(input)
+export function selection(
+  input: SelectionInput,
+  nullable: Set<string> = new Set()
+): Selection {
+  return new Selection(input, nullable)
 }

@@ -30,7 +30,7 @@ test('left join', () => {
   const right = alias(Node, 'right')
   const query = builder.select().from(Node).leftJoin(right, eq(right.id, 1))
   expect(emit(query)).toBe(
-    'select "Node"."id", "Node"."field1", "right"."id", "right"."field1" from "Node" left join "Node" as "right" on "right"."id" = 1'
+    'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" left join "Node" as "right" on "right"."id" = 1'
   )
 })
 

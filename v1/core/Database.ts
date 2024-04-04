@@ -1,11 +1,11 @@
 import {Builder} from './Builder.ts'
 import type {Driver} from './Driver.ts'
 import {
-  type HasQuery,
-  type HasResolver,
   getSelection,
   hasSelection,
-  internalResolver
+  internalResolver,
+  type HasQuery,
+  type HasResolver
 } from './Internal.ts'
 import type {
   AsyncQuery,
@@ -36,6 +36,7 @@ export class Database<Meta extends QueryMeta>
 
     function exec(method: 'all' | 'get' | 'run', query: HasQuery) {
       const [sql, params] = driver.emitter.emit(query)
+      console.log(sql)
       const stmt = driver.prepare(sql)
       const isSelection = hasSelection(query) && method !== 'run'
       const mapRow = isSelection ? getSelection(query).mapRow : undefined

@@ -1,11 +1,11 @@
 import {
-  type HasQuery,
-  type HasResolver,
   getData,
   getResolver,
   hasResolver,
   internalData,
-  internalQuery
+  internalQuery,
+  type HasQuery,
+  type HasResolver
 } from './Internal.ts'
 import type {Sql} from './Sql.ts'
 

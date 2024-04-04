@@ -1,4 +1,4 @@
-import {type HasTable, getData, internalData} from './Internal.ts'
+import {getData, internalData, type HasTable} from './Internal.ts'
 import type {QueryData, QueryMeta} from './Query.ts'
 import type {SelectionInput} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
@@ -30,7 +30,9 @@ export class Builder<Meta extends QueryMeta> {
       ...getData(this),
       select: {
         type: input ? SelectionType.Selection : SelectionType.AllFrom,
-        input
+        input,
+        tables: [],
+        nullable: []
       }
     })
   }
@@ -44,7 +46,9 @@ export class Builder<Meta extends QueryMeta> {
       ...getData(this),
       select: {
         type: input ? SelectionType.Selection : SelectionType.AllFrom,
-        input
+        input,
+        tables: [],
+        nullable: []
       },
       distinct: true
     })

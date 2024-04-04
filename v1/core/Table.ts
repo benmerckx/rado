@@ -1,8 +1,8 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import type {Input} from './Expr.ts'
 import {Field} from './Field.ts'
-import {type HasTable, getColumn, getTable, internalTable} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {getColumn, getTable, internalTable, type HasTable} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -84,7 +84,7 @@ export type TableFields<
 
 export type TableRow<Definition extends TableDefinition> = {
   [K in keyof Definition]: Definition[K] extends Column<infer T> ? T : never
-}
+} & {}
 
 type IsReq<Col> = Col extends RequiredColumn ? true : false
 type Required<D> = {

@@ -1,16 +1,16 @@
-import {type Expr, type Input, input} from '../Expr.ts'
+import {input, type Expr, type Input} from '../Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getColumn,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
-import {type Selection, selection} from '../Selection.ts'
+import {selection, type Selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {TableDefinition, TableInsert} from '../Table.ts'
 
@@ -25,7 +25,7 @@ class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
 
 class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
   readonly [internalData]: InsertData<Meta>;
-  readonly [internalSelection]?: Selection
+  declare readonly [internalSelection]?: Selection
 
   constructor(data: InsertData<Meta>) {
     super(data)

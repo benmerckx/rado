@@ -1,19 +1,19 @@
 import type {Expr} from '../Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
+  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow,
-  selection
+  type SelectionRow
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 
@@ -28,7 +28,7 @@ export class Delete<Result, Meta extends QueryMeta> extends Query<
   Meta
 > {
   readonly [internalData]: DeleteData<Meta>;
-  readonly [internalSelection]?: Selection
+  declare readonly [internalSelection]?: Selection
 
   constructor(data: DeleteData<Meta>) {
     super(data)

@@ -1,19 +1,19 @@
-import {type Expr, input} from '../Expr.ts'
+import {input, type Expr} from '../Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
+  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow,
-  selection
+  type SelectionRow
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
@@ -30,7 +30,7 @@ export class Update<Result, Meta extends QueryMeta> extends Query<
   Meta
 > {
   readonly [internalData]: UpdateData<Meta>;
-  readonly [internalSelection]?: Selection
+  declare readonly [internalSelection]?: Selection
 
   constructor(data: UpdateData<Meta>) {
     super(data)

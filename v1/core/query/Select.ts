@@ -1,10 +1,6 @@
-import {type Expr, type Input, input} from '../Expr.ts'
+import {input, type Expr, type Input} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
-  type HasQuery,
-  type HasSelection,
-  type HasSql,
-  type HasTable,
   getData,
   getQuery,
   getSelection,
@@ -13,16 +9,20 @@ import {
   hasTable,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasQuery,
+  type HasSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
+  selection,
   type SelectionInput,
   type SelectionRecord,
-  type SelectionRow,
-  selection
+  type SelectionRow
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
@@ -34,7 +34,12 @@ export enum SelectionType {
 }
 
 class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
-  select!: {type: SelectionType; input?: SelectionInput}
+  select!: {
+    type: SelectionType
+    tables: Array<string>
+    nullable: Array<string>
+    input?: SelectionInput
+  }
   distinct?: boolean
   from?: HasSql
   subject?: HasSql
@@ -62,57 +67,71 @@ export class Select<Result, Meta extends QueryMeta>
     const from = hasQuery(target)
       ? sql`(${getQuery(target).inlineFields(true)})`
       : getTable(target).from()
-    const selectionInput = current.input ?? (hasTable(target) ? target : sql`*`)
+    const isTable = hasTable(target)
+    const selectionInput = current.input ?? (isTable ? target : sql`*`)
     return new Select({
       ...getData(this),
-      select: {...current, input: selectionInput},
+      select: {
+        ...current,
+        input: selectionInput,
+        tables: isTable ? [getTable(target).aliased] : []
+      },
       from
     })
   }
 
   #join(
-    operator: Sql,
+    operator: 'left' | 'right' | 'inner' | 'full',
     right: HasTable,
     on: Expr<boolean>
   ): Select<Result, Meta> {
     const {from, select: current} = getData(this)
     const rightTable = getTable(right)
+    const addNullable: Array<string> = []
+    if (operator === 'right' || operator === 'full')
+      addNullable.push(...current.tables)
+    if (operator === 'left' || operator === 'full')
+      addNullable.push(rightTable.aliased)
     const select =
       current.type === SelectionType.Selection
         ? current
         : {
             type: SelectionType.JoinTables,
-            input: <SelectionInput>(
-              (current.type === SelectionType.AllFrom
-                ? {
-                    [getTable(current.input as HasTable).aliased]:
-                      current.input,
-                    [rightTable.aliased]: right
-                  }
-                : {...current.input, [rightTable.aliased]: right})
-            )
+            input: <SelectionInput>(current.type === SelectionType.AllFrom
+              ? {
+                  [getTable(current.input as HasTable).aliased]: current.input,
+                  [rightTable.aliased]: right
+                }
+              : {...current.input, [rightTable.aliased]: right}),
+            tables: [...current.tables, rightTable.aliased],
+            nullable: current.nullable.concat(addNullable)
           }
     return new Select({
       ...getData(this),
       select,
-      from: sql.join([from, operator, rightTable.from(), sql`on ${on}`])
+      from: sql.join([
+        from,
+        sql.unsafe(`${operator} join`),
+        rightTable.from(),
+        sql`on ${on}`
+      ])
     })
   }
 
   leftJoin(right: HasTable, on: Expr<boolean>): Select<Result, Meta> {
-    return this.#join(sql`left join`, right, on)
+    return this.#join('left', right, on)
   }
 
   rightJoin(right: HasTable, on: Expr<boolean>): Select<Result, Meta> {
-    return this.#join(sql`right join`, right, on)
+    return this.#join('right', right, on)
   }
 
   innerJoin(right: HasTable, on: Expr<boolean>): Select<Result, Meta> {
-    return this.#join(sql`inner join`, right, on)
+    return this.#join('inner', right, on)
   }
 
   fullJoin(right: HasTable, on: Expr<boolean>): Select<Result, Meta> {
-    return this.#join(sql`full join`, right, on)
+    return this.#join('full', right, on)
   }
 
   where(where: Expr<boolean>): Select<Result, Meta> {
@@ -191,7 +210,7 @@ export class Select<Result, Meta extends QueryMeta>
   get [internalSelection]() {
     const {select} = getData(this)
     if (!select.input) throw new Error('No selection defined')
-    return selection(select.input)
+    return selection(select.input, new Set(select.nullable))
   }
 
   get [internalQuery]() {

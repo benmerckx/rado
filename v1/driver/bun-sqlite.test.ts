@@ -1,8 +1,8 @@
 import {Database} from 'bun:sqlite'
 import {test} from 'bun:test'
-import {testCreate} from './DriverTests.ts'
+import {testDriver} from '../test/TestDriver.ts'
 import {connect} from './bun-sqlite.ts'
 
-const db = connect(new Database(':memory:'))
-
-test('create table', testCreate(db))
+testDriver(async () => {
+  return connect(new Database(':memory:'))
+}, test)
