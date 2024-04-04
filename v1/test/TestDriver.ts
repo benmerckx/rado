@@ -1,17 +1,18 @@
-import { expect } from 'bun:test'
-import type { Database } from '../core/Database.ts'
-import { table } from '../core/Table.ts'
-import { eq, type SyncQuery } from '../index.ts'
-import { boolean, integer, text } from '../sqlite.ts'
+import {expect} from 'bun:test'
+import type {Database} from '../core/Database.ts'
+import {table} from '../core/Table.ts'
+import {eq, type AsyncQuery, type SyncQuery} from '../index.ts'
+import {boolean, serial} from '../postgres/PostgresColumns.ts'
+import {integer, text} from '../sqlite.ts'
 
 export function testDriver(
-  createDb: () => Promise<Database<SyncQuery>>,
+  createDb: () => Promise<Database<SyncQuery> | Database<AsyncQuery>>,
   test: (name: string, fn: () => void) => void
 ) {
   const Node = table('Node', {
-    id: integer().primaryKey(),
+    id: serial().primaryKey(),
     textField: text().notNull(),
-    bool: boolean('y')
+    bool: boolean()
   })
 
   test('create table', async () => {
@@ -26,15 +27,16 @@ export function testDriver(
     await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
     const [node] = await db.select(Node.textField).from(Node)
     expect(node).toEqual('world')
+    await db.close()
   })
 
   const User = table('User', {
-    id: integer().primaryKey(),
+    id: serial().primaryKey(),
     name: text().notNull()
   })
 
   const Post = table('Post', {
-    id: integer().primaryKey(),
+    id: serial().primaryKey(),
     userId: integer().notNull(),
     title: text().notNull()
   })
@@ -99,5 +101,7 @@ export function testDriver(
         User: {id: 2, name: 'Mario'}
       }
     ])
+
+    await db.close()
   })
 }

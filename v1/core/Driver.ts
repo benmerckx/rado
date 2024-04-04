@@ -1,4 +1,3 @@
-import type {Emitter} from './Emitter.ts'
 import type {QueryMeta} from './Query.ts'
 
 export type Driver<Meta extends QueryMeta> = Meta['mode'] extends 'sync'
@@ -6,30 +5,36 @@ export type Driver<Meta extends QueryMeta> = Meta['mode'] extends 'sync'
   : AsyncDriver
 
 export interface SyncDriver {
-  emitter: Emitter
   close(): void
   exec(query: string): void
   prepare(query: string): SyncStatement
-  transaction<T>(run: () => T, options: unknown, depth: number): T
+  transaction<T>(
+    run: (inner: SyncDriver) => T,
+    options: unknown,
+    depth: number
+  ): T
 }
 export interface SyncStatement {
-  all(params: Array<unknown>): Array<unknown>
+  all(params: Array<unknown>): Array<object>
   run(params: Array<unknown>): void
-  get(params: Array<unknown>): unknown
+  get(params: Array<unknown>): object | null
   values(params: Array<unknown>): Array<Array<unknown>>
   free(): void
 }
 export interface AsyncDriver {
-  emitter: Emitter
   close(): Promise<void>
   exec(query: string): Promise<void>
   prepare(query: string): AsyncStatement
-  transaction<T>(run: () => T, options: unknown, depth: number): Promise<T>
+  transaction<T>(
+    run: (inner: AsyncDriver) => Promise<T>,
+    options: unknown,
+    depth: number
+  ): Promise<T>
 }
 export interface AsyncStatement {
-  all(params: Array<unknown>): Promise<Array<unknown>>
+  all(params: Array<unknown>): Promise<Array<object>>
   run(params: Array<unknown>): Promise<void>
-  get(params: Array<unknown>): Promise<unknown>
+  get(params: Array<unknown>): Promise<object | null>
   values(params: Array<unknown>): Promise<Array<Array<unknown>>>
   free(): void
 }

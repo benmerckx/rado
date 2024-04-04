@@ -4,7 +4,7 @@ import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {SqliteEmitter} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement) {
+  constructor(private stmt: Statement<object>) {
     console.log(stmt.columnNames)
   }
 
@@ -30,8 +30,6 @@ class PreparedStatement implements SyncStatement {
 }
 
 class BunSqliteDriver implements SyncDriver {
-  emitter = new SqliteEmitter()
-
   constructor(public client: Client) {}
 
   exec(query: string): void {
@@ -46,11 +44,14 @@ class BunSqliteDriver implements SyncDriver {
     return new PreparedStatement(this.client.prepare(sql))
   }
 
-  transaction<T>(run: () => T, options: TransactionOptions['sqlite']): T {
+  transaction<T>(
+    run: (inner: SyncDriver) => T,
+    options: TransactionOptions['sqlite']
+  ): T {
     let result: T | undefined
     this.client
       .transaction(() => {
-        result = run()
+        result = run(this)
       })
       [options.behavior ?? 'deferred']()
     return result!
@@ -58,5 +59,8 @@ class BunSqliteDriver implements SyncDriver {
 }
 
 export function connect(db: Client) {
-  return new SyncDatabase<'sqlite'>(new BunSqliteDriver(db))
+  return new SyncDatabase<'sqlite'>(
+    new BunSqliteDriver(db),
+    new SqliteEmitter()
+  )
 }

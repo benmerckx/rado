@@ -1,5 +1,6 @@
 import {Builder} from './Builder.ts'
 import type {Driver} from './Driver.ts'
+import type {Emitter} from './Emitter.ts'
 import {
   getSelection,
   hasSelection,
@@ -21,9 +22,10 @@ export class Database<Meta extends QueryMeta>
 {
   readonly [internalResolver]: QueryResolver<Meta['mode']>
   #driver: Driver<Meta>
+  #emitter: Emitter
   #transactionDepth: number
 
-  constructor(driver: Driver<Meta>, transactionDepth = 0) {
+  constructor(driver: Driver<Meta>, emitter: Emitter, transactionDepth = 0) {
     const resolver = {
       all: exec.bind(null, 'all'),
       get: exec.bind(null, 'get'),
@@ -32,10 +34,11 @@ export class Database<Meta extends QueryMeta>
     super({resolver})
     this[internalResolver] = resolver
     this.#driver = driver
+    this.#emitter = emitter
     this.#transactionDepth = transactionDepth
 
     function exec(method: 'all' | 'get' | 'run', query: HasQuery) {
-      const [sql, params] = driver.emitter.emit(query)
+      const [sql, params] = emitter.emit(query)
       console.log(sql)
       const stmt = driver.prepare(sql)
       const isSelection = hasSelection(query) && method !== 'run'
@@ -58,6 +61,10 @@ export class Database<Meta extends QueryMeta>
     }
   }
 
+  close() {
+    return this.#driver.close()
+  }
+
   transaction<T>(
     this: Database<SyncQuery>,
     run: (tx: Transaction<Meta>) => T,
@@ -69,9 +76,15 @@ export class Database<Meta extends QueryMeta>
     options?: TransactionOptions[Meta['dialect']]
   ): Promise<T>
   transaction(run: Function, options = {}) {
-    const tx = new Transaction(this.#driver, this.#transactionDepth++)
     return this.#driver.transaction(
-      () => run(tx),
+      inner => {
+        const tx = new Transaction<Meta>(
+          <Driver<Meta>>inner,
+          this.#emitter,
+          this.#transactionDepth++
+        )
+        return run(tx)
+      },
       options,
       this.#transactionDepth
     )

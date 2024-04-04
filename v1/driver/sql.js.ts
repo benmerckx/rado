@@ -21,7 +21,7 @@ class PreparedStatement implements SyncStatement {
     this.stmt.reset()
   }
 
-  all(params: Array<unknown>) {
+  all(params: Array<unknown>): Array<object> {
     return Array.from(this.iterate(params))
   }
 
@@ -32,7 +32,7 @@ class PreparedStatement implements SyncStatement {
   }
 
   get(params: Array<unknown>) {
-    return this.all(params)[0]
+    return this.all(params)[0] ?? null
   }
 
   values(params: Array<unknown>) {
@@ -45,8 +45,6 @@ class PreparedStatement implements SyncStatement {
 }
 
 class SqlJsDriver implements SyncDriver {
-  emitter = new SqliteEmitter()
-
   constructor(public client: Client) {}
 
   exec(query: string): void {
@@ -62,14 +60,14 @@ class SqlJsDriver implements SyncDriver {
   }
 
   transaction<T>(
-    run: () => T,
+    run: (inner: SyncDriver) => T,
     options: TransactionOptions['sqlite'],
     depth: number
   ): T {
     const behavior = options.behavior ?? 'deferred'
     this.exec(depth > 0 ? `savepoint d${depth}` : `begin ${behavior}`)
     try {
-      const result = run()
+      const result = run(this)
       this.exec(depth > 0 ? `release d${depth}` : 'commit')
       return result
     } catch (err) {
@@ -80,5 +78,5 @@ class SqlJsDriver implements SyncDriver {
 }
 
 export function connect(db: Client) {
-  return new SyncDatabase(new SqlJsDriver(db))
+  return new SyncDatabase(new SqlJsDriver(db), new SqliteEmitter())
 }
