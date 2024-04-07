@@ -1,6 +1,10 @@
-import {input, type Expr, type Input} from '../Expr.ts'
+import {type Expr, type Input, input} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
+  type HasQuery,
+  type HasSelection,
+  type HasSql,
+  type HasTable,
   getData,
   getQuery,
   getSelection,
@@ -9,20 +13,16 @@ import {
   hasTable,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasQuery,
-  type HasSelection,
-  type HasSql,
-  type HasTable
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
-  selection,
   type SelectionInput,
   type SelectionRecord,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'

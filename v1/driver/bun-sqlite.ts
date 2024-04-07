@@ -1,12 +1,10 @@
 import type {Database as Client, Statement} from 'bun:sqlite'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
-import {SqliteEmitter} from '../sqlite.ts'
+import {sqliteDialect} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement<object>) {
-    console.log(stmt.columnNames)
-  }
+  constructor(private stmt: Statement<object>) {}
 
   all(params: Array<unknown>) {
     return this.stmt.all(...params)
@@ -59,8 +57,5 @@ class BunSqliteDriver implements SyncDriver {
 }
 
 export function connect(db: Client) {
-  return new SyncDatabase<'sqlite'>(
-    new BunSqliteDriver(db),
-    new SqliteEmitter()
-  )
+  return new SyncDatabase<'sqlite'>(new BunSqliteDriver(db), sqliteDialect)
 }

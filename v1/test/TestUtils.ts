@@ -1,25 +1,41 @@
 import {Builder} from '../core/Builder.ts'
+import {dialect} from '../core/Dialect.ts'
 import {
-  type HasQuery,
-  type HasSql,
-  getQuery,
-  getSql,
-  hasSql
-} from '../core/Internal.ts'
-import type {Sql, SqlEmmiter} from '../core/Sql.ts'
+  Emitter,
+  emitDefaultValue,
+  emitIdentifier,
+  emitInline,
+  emitJsonPath,
+  emitPlaceholder,
+  emitValue
+} from '../core/Emitter.ts'
+import type {HasQuery, HasSql} from '../core/Internal.ts'
 
-const testEmitter: SqlEmmiter = {
-  emitValue: v => [JSON.stringify(v), []],
-  emitInline: JSON.stringify,
-  emitJsonPath: path => `->${JSON.stringify(`$.${path.join('.')}`)}`,
-  emitIdentifier: JSON.stringify,
-  emitPlaceholder: (name: string) => `?${name}`,
-  emitDefaultValue: () => 'default'
+class TestEmitter extends Emitter {
+  [emitValue](v: unknown) {
+    this.sql += JSON.stringify(v)
+  }
+  [emitInline](v: unknown) {
+    this.sql += JSON.stringify(v)
+  }
+  [emitJsonPath](path: Array<number | string>) {
+    this.sql += `->${JSON.stringify(`$.${path.join('.')}`)}`
+  }
+  [emitIdentifier](identifier: string) {
+    this.sql += JSON.stringify(identifier)
+  }
+  [emitPlaceholder](name: string) {
+    this.sql += `?${name}`
+  }
+  [emitDefaultValue]() {
+    this.sql += 'default'
+  }
 }
 
+const testDialect = dialect(TestEmitter)
+
 export function emit(input: HasSql | HasQuery): string {
-  const sql: Sql = hasSql(input) ? getSql(input) : getQuery(input)
-  return sql.emit(testEmitter)[0]
+  return testDialect(input).sql
 }
 
 export const builder = new Builder({})

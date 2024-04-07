@@ -1,38 +1,26 @@
+import {
+  type Emitter,
+  emitDefaultValue,
+  emitField,
+  emitIdentifier,
+  emitInline,
+  emitJsonPath,
+  emitPlaceholder,
+  emitUnsafe,
+  emitValue
+} from './Emitter.ts'
 import type {FieldApi} from './Field.ts'
 import {type HasSql, getSql, internalSql} from './Internal.ts'
 
-const enum ChunkType {
-  Unsafe,
-  Identifier,
-  Value,
-  Inline,
-  JsonPath,
-  Placeholder,
-  DefaultValue,
-  Field
+type EmitMethods = {
+  [K in keyof Emitter as K extends symbol ? K : never]: Emitter[K]
 }
+type SqlChunk = {
+  [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
+}[keyof EmitMethods]
 
-class Chunk<Type extends ChunkType, Inner> {
+class Chunk<Type extends keyof Emitter, Inner> {
   constructor(public type: Type, public inner: Inner) {}
-}
-
-type SqlChunk =
-  | Chunk<ChunkType.Unsafe, string>
-  | Chunk<ChunkType.Value, unknown>
-  | Chunk<ChunkType.Inline, unknown>
-  | Chunk<ChunkType.JsonPath, Array<number | string>>
-  | Chunk<ChunkType.Placeholder, string>
-  | Chunk<ChunkType.Identifier, string>
-  | Chunk<ChunkType.DefaultValue, null>
-  | Chunk<ChunkType.Field, FieldApi>
-
-export interface SqlEmmiter {
-  emitValue(value: unknown): [sql: string, param: unknown]
-  emitInline(value: unknown): string
-  emitJsonPath(path: Array<number | string>): string
-  emitPlaceholder(name: string): string
-  emitIdentifier(identifier: string): string
-  emitDefaultValue(): string
 }
 
 export type Decoder<T> =
@@ -64,12 +52,12 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   unsafe(sql: string) {
-    if (sql.length > 0) this.#chunks.push(new Chunk(ChunkType.Unsafe, sql))
+    if (sql.length > 0) this.#chunks.push(new Chunk(emitUnsafe, sql))
     return this
   }
 
   field(field: FieldApi) {
-    this.#chunks.push(new Chunk(ChunkType.Field, field))
+    this.#chunks.push(new Chunk(emitField, field))
     return this
   }
 
@@ -81,87 +69,54 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   value(value: unknown) {
-    this.#chunks.push(new Chunk(ChunkType.Value, value))
+    this.#chunks.push(new Chunk(emitValue, value))
     return this
   }
 
   inline(value: unknown) {
-    this.#chunks.push(new Chunk(ChunkType.Inline, value))
+    this.#chunks.push(new Chunk(emitInline, value))
     return this
   }
 
   jsonPath(path: Array<string | number>) {
     const last = this.#chunks.at(-1)
-    if (last?.type === ChunkType.JsonPath) last.inner.push(...path)
-    else this.#chunks.push(new Chunk(ChunkType.JsonPath, path))
+    if (last?.type === emitJsonPath) last.inner.push(...path)
+    else this.#chunks.push(new Chunk(emitJsonPath, path))
     return this
   }
 
   placeholder(name: string) {
-    this.#chunks.push(new Chunk(ChunkType.Placeholder, name))
+    this.#chunks.push(new Chunk(emitPlaceholder, name))
     return this
   }
 
   identifier(identifier: string) {
-    this.#chunks.push(new Chunk(ChunkType.Identifier, identifier))
+    this.#chunks.push(new Chunk(emitIdentifier, identifier))
     return this
   }
 
   defaultValue() {
-    this.#chunks.push(new Chunk(ChunkType.DefaultValue, null))
+    this.#chunks.push(new Chunk(emitDefaultValue, undefined))
     return this
   }
 
   inlineFields(withTableName: boolean) {
     return new Sql(
       this.#chunks.flatMap(chunk => {
-        if (chunk.type !== ChunkType.Field) return [chunk]
+        if (chunk.type !== emitField) return [chunk]
         if (withTableName)
           return [
-            new Chunk(ChunkType.Identifier, chunk.inner.tableName),
-            new Chunk(ChunkType.Unsafe, '.'),
-            new Chunk(ChunkType.Identifier, chunk.inner.fieldName)
+            new Chunk(emitIdentifier, chunk.inner.tableName),
+            new Chunk(emitUnsafe, '.'),
+            new Chunk(emitIdentifier, chunk.inner.fieldName)
           ]
-        return [new Chunk(ChunkType.Identifier, chunk.inner.fieldName)]
+        return [new Chunk(emitIdentifier, chunk.inner.fieldName)]
       })
     )
   }
 
-  emit(emitter: SqlEmmiter): [string, Array<unknown>] {
-    let sql = ''
-    const params = []
-    for (const chunk of this.#chunks) {
-      switch (chunk.type) {
-        case ChunkType.Unsafe:
-          sql += chunk.inner
-          break
-        case ChunkType.Value: {
-          const [s, p] = emitter.emitValue(chunk.inner)
-          sql += s
-          params.push(p)
-          break
-        }
-        case ChunkType.Inline:
-          sql += emitter.emitInline(chunk.inner)
-          break
-        case ChunkType.JsonPath:
-          sql += emitter.emitJsonPath(chunk.inner)
-          break
-        case ChunkType.Placeholder:
-          sql += emitter.emitPlaceholder(chunk.inner)
-          break
-        case ChunkType.Identifier:
-          sql += emitter.emitIdentifier(chunk.inner)
-          break
-        case ChunkType.DefaultValue:
-          sql += emitter.emitDefaultValue()
-          break
-        case ChunkType.Field:
-          sql += chunk.inner.toSql().emit(emitter)[0]
-          break
-      }
-    }
-    return [sql, params]
+  emit(emitter: Emitter) {
+    for (const chunk of this.#chunks) emitter[chunk.type](chunk.inner as any)
   }
 }
 

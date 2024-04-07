@@ -1,7 +1,7 @@
 import {PGlite, type Transaction} from '@electric-sql/pglite'
 import type {AsyncDriver, AsyncStatement} from '../core/Driver.ts'
 import {AsyncDatabase, type TransactionOptions} from '../index.ts'
-import {PostgresEmitter} from '../postgres/PostgresEmitter.ts'
+import {postgresDialect} from '../postgres/PostgresDialect.ts'
 
 type Queryable = PGlite | Transaction
 
@@ -70,8 +70,5 @@ export class PGliteDriver implements AsyncDriver {
 }
 
 export function connect(db: PGlite) {
-  return new AsyncDatabase<'postgres'>(
-    new PGliteDriver(db),
-    new PostgresEmitter()
-  )
+  return new AsyncDatabase<'postgres'>(new PGliteDriver(db), postgresDialect)
 }

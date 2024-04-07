@@ -1,16 +1,15 @@
 import {expect} from 'bun:test'
 import type {Database} from '../core/Database.ts'
 import {table} from '../core/Table.ts'
-import {eq, type AsyncQuery, type SyncQuery} from '../index.ts'
-import {boolean, serial} from '../postgres/PostgresColumns.ts'
-import {integer, text} from '../sqlite.ts'
+import {type AsyncQuery, type SyncQuery, eq} from '../index.ts'
+import {boolean, integer, text} from '../sqlite.ts'
 
 export function testDriver(
   createDb: () => Promise<Database<SyncQuery> | Database<AsyncQuery>>,
   test: (name: string, fn: () => void) => void
 ) {
   const Node = table('Node', {
-    id: serial().primaryKey(),
+    id: integer().primaryKey(),
     textField: text().notNull(),
     bool: boolean()
   })
@@ -31,12 +30,12 @@ export function testDriver(
   })
 
   const User = table('User', {
-    id: serial().primaryKey(),
+    id: integer().primaryKey(),
     name: text().notNull()
   })
 
   const Post = table('Post', {
-    id: serial().primaryKey(),
+    id: integer().primaryKey(),
     userId: integer().notNull(),
     title: text().notNull()
   })

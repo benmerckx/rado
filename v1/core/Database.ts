@@ -1,12 +1,12 @@
 import {Builder} from './Builder.ts'
+import type {Dialect} from './Dialect.ts'
 import type {Driver} from './Driver.ts'
-import type {Emitter} from './Emitter.ts'
 import {
+  type HasQuery,
+  type HasResolver,
   getSelection,
   hasSelection,
-  internalResolver,
-  type HasQuery,
-  type HasResolver
+  internalResolver
 } from './Internal.ts'
 import type {
   AsyncQuery,
@@ -22,10 +22,10 @@ export class Database<Meta extends QueryMeta>
 {
   readonly [internalResolver]: QueryResolver<Meta['mode']>
   #driver: Driver<Meta>
-  #emitter: Emitter
+  #dialect: Dialect
   #transactionDepth: number
 
-  constructor(driver: Driver<Meta>, emitter: Emitter, transactionDepth = 0) {
+  constructor(driver: Driver<Meta>, dialect: Dialect, transactionDepth = 0) {
     const resolver = {
       all: exec.bind(null, 'all'),
       get: exec.bind(null, 'get'),
@@ -34,12 +34,11 @@ export class Database<Meta extends QueryMeta>
     super({resolver})
     this[internalResolver] = resolver
     this.#driver = driver
-    this.#emitter = emitter
+    this.#dialect = dialect
     this.#transactionDepth = transactionDepth
 
     function exec(method: 'all' | 'get' | 'run', query: HasQuery) {
-      const [sql, params] = emitter.emit(query)
-      console.log(sql)
+      const {sql, params} = dialect(query)
       const stmt = driver.prepare(sql)
       const isSelection = hasSelection(query) && method !== 'run'
       const mapRow = isSelection ? getSelection(query).mapRow : undefined
@@ -80,7 +79,7 @@ export class Database<Meta extends QueryMeta>
       inner => {
         const tx = new Transaction<Meta>(
           <Driver<Meta>>inner,
-          this.#emitter,
+          this.#dialect,
           this.#transactionDepth++
         )
         return run(tx)

@@ -41,6 +41,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsx build.ts",
+    "size": "esbuild v1/index.ts --bundle --minify --outdir=dist",
     "test": "tsx test",
     "test:bun": "bun test/index.ts --driver=bun:sqlite",
     "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",

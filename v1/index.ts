@@ -1,7 +1,6 @@
 export * from './core/Column.ts'
 export * from './core/Database.ts'
 export * from './core/Driver.ts'
-export * from './core/Emitter.ts'
 export * from './core/Expr.ts'
 export * from './core/Query.ts'
 export * from './core/query/Create.ts'

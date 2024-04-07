@@ -8,7 +8,7 @@ import {
 import {Query, type QueryData, type QueryMeta} from '../Query.ts'
 import {sql} from '../Sql.ts'
 
-interface CreateData<Meta extends QueryMeta> extends QueryData<Meta> {
+export interface CreateData<Meta extends QueryMeta> extends QueryData<Meta> {
   table: HasTable
   ifNotExists?: boolean
 }

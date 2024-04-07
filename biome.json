@@ -35,7 +35,8 @@
       },
       "suspicious": {
         "noExplicitAny": "off",
-        "noConstEnum": "off"
+        "noConstEnum": "off",
+        "noAssignInExpressions": "off"
       }
     }
   }
