@@ -1,9 +1,9 @@
+import {emitUnion} from '../Emitter.ts'
 import {
   type HasQuery,
   type HasSelection,
   type HasSql,
   getData,
-  getQuery,
   internalData,
   internalQuery,
   internalSelection
@@ -13,7 +13,7 @@ import type {Selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {Select} from './Select.ts'
 
-class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
+export class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
   selection!: Selection
   left!: HasQuery
   operator!: HasSql
@@ -70,7 +70,6 @@ export class Union<Result, Meta extends QueryMeta>
   }
 
   get [internalQuery]() {
-    const {left, operator, right} = getData(this)
-    return sql.join([getQuery(left), operator, getQuery(right)])
+    return sql.chunk(emitUnion, getData(this))
   }
 }

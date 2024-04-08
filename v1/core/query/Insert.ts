@@ -1,16 +1,17 @@
-import {input, type Expr, type Input} from '../Expr.ts'
+import {emitInsert} from '../Emitter.ts'
+import {type Expr, type Input, input} from '../Expr.ts'
 import {
+  type HasSql,
+  type HasTable,
   getColumn,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasSql,
-  type HasTable
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
-import {selection, type Selection} from '../Selection.ts'
+import {type Selection, selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {TableDefinition, TableInsert} from '../Table.ts'
 
@@ -19,7 +20,7 @@ class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   values?: HasSql
 }
 
-class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
+export class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
   returning?: Selection
 }
 
@@ -38,16 +39,7 @@ class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
   }
 
   get [internalQuery]() {
-    const {into, values, returning} = getData(this)
-    const table = getTable(into)
-    const tableName = sql.identifier(table.name)
-    return sql
-      .query({
-        'insert into': sql`${tableName}(${table.listColumns()})`,
-        values,
-        returning
-      })
-      .inlineFields(false)
+    return sql.chunk(emitInsert, getData(this))
   }
 }
 

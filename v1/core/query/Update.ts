@@ -1,24 +1,26 @@
-import {input, type Expr} from '../Expr.ts'
+import {type Expr, input} from '../Expr.ts'
 import {
+  type HasSql,
+  type HasTable,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasSql,
-  type HasTable
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
-  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
 
-class UpdateData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
+export class UpdateData<
+  Meta extends QueryMeta = QueryMeta
+> extends QueryData<Meta> {
   table!: HasTable
   set?: HasSql
   where?: HasSql

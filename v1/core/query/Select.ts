@@ -1,3 +1,4 @@
+import {emitSelect} from '../Emitter.ts'
 import {type Expr, type Input, input} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
@@ -33,7 +34,7 @@ export enum SelectionType {
   JoinTables
 }
 
-class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
+export class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
   select!: {
     type: SelectionType
     tables: Array<string>
@@ -214,19 +215,7 @@ export class Select<Result, Meta extends QueryMeta>
   }
 
   get [internalQuery]() {
-    const select = getSelection(this)
-    const {distinct, from, where, groupBy, having, orderBy, limit, offset} =
-      getData(this)
-    return sql.query({
-      select: distinct ? sql`distinct ${select}` : select,
-      from,
-      where,
-      'group by': groupBy,
-      'order by': orderBy,
-      having,
-      limit,
-      offset
-    })
+    return sql.chunk(emitSelect, getData(this))
   }
 }
 

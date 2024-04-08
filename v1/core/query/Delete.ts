@@ -1,23 +1,25 @@
+import {emitDelete} from '../Emitter.ts'
 import type {Expr} from '../Expr.ts'
 import {
+  type HasSql,
+  type HasTable,
   getData,
-  getTable,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasSql,
-  type HasTable
+  internalSelection
 } from '../Internal.ts'
 import {Query, QueryData, type QueryMeta} from '../Query.ts'
 import {
-  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 
-class DeleteData<Meta extends QueryMeta = QueryMeta> extends QueryData<Meta> {
+export class DeleteData<
+  Meta extends QueryMeta = QueryMeta
+> extends QueryData<Meta> {
   from!: HasTable
   where?: HasSql
   returning?: Selection
@@ -35,15 +37,8 @@ export class Delete<Result, Meta extends QueryMeta> extends Query<
     this[internalData] = data
     if (data.returning) this[internalSelection] = data.returning
   }
-
   get [internalQuery]() {
-    const {from, where, returning} = getData(this)
-    const table = getTable(from)
-    return sql.query({
-      'delete from': sql.identifier(table.name),
-      where,
-      returning
-    })
+    return sql.chunk(emitDelete, getData(this))
   }
 }
 

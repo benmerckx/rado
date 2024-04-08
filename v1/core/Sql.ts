@@ -19,7 +19,7 @@ type SqlChunk = {
   [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
 }[keyof EmitMethods]
 
-class Chunk<Type extends keyof Emitter, Inner> {
+class Chunk<Type, Inner> {
   constructor(public type: Type, public inner: Inner) {}
 }
 
@@ -41,6 +41,14 @@ export class Sql<Value = unknown> implements HasSql<Value> {
 
   as(name: string): Sql<Value> {
     this.alias = name
+    return this
+  }
+
+  chunk<Type extends keyof EmitMethods>(
+    type: Type,
+    inner: Parameters<EmitMethods[Type]>[0]
+  ) {
+    this.#chunks.push(new Chunk(type, inner) as SqlChunk)
     return this
   }
 
@@ -168,6 +176,13 @@ export namespace sql {
 
   export function field<T>(field: FieldApi): Sql<T> {
     return empty<T>().field(field)
+  }
+
+  export function chunk<Type extends keyof EmitMethods>(
+    type: Type,
+    inner: Parameters<EmitMethods[Type]>[0]
+  ): Sql {
+    return empty().chunk(type, inner)
   }
 
   export function query(ast: Record<string, HasSql | undefined>) {

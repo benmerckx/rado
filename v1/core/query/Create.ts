@@ -1,7 +1,7 @@
+import {emitCreate} from '../Emitter.ts'
 import {
   type HasTable,
   getData,
-  getTable,
   internalData,
   internalQuery
 } from '../Internal.ts'
@@ -26,13 +26,6 @@ export class Create<Meta extends QueryMeta> extends Query<void, Meta> {
   }
 
   get [internalQuery]() {
-    const {ifNotExists} = getData(this)
-    const table = getTable(getData(this).table)
-    return sql.join([
-      sql`create table`,
-      ifNotExists ? sql`if not exists` : undefined,
-      sql.identifier(table.name),
-      sql`(${table.createColumns()})`
-    ])
+    return sql.chunk(emitCreate, getData(this))
   }
 }
