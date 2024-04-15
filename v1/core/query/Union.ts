@@ -1,4 +1,3 @@
-import {emitUnion} from '../Emitter.ts'
 import {
   type HasQuery,
   type HasSelection,
@@ -71,6 +70,6 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitUnion, this)
+    return sql.chunk('emitUnion', this)
   }
 }

@@ -1,4 +1,3 @@
-import {emitCreate} from '../Emitter.ts'
 import {
   type HasTable,
   getData,
@@ -27,6 +26,6 @@ export class Create<Meta extends QueryMeta> extends Query<void, Meta> {
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitCreate, getData(this))
+    return sql.chunk('emitCreate', getData(this))
   }
 }

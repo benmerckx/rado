@@ -1,5 +1,4 @@
 import type {Column, RequiredColumn} from './Column.ts'
-import {emitColumn} from './Emitter.ts'
 import type {Input} from './Expr.ts'
 import {Field} from './Field.ts'
 import {type HasTable, getColumn, getTable, internalTable} from './Internal.ts'
@@ -40,7 +39,7 @@ export class TableApi<
       entries(this.columns).map(([name, isColumn]) => {
         const column = getColumn(isColumn)
         const columnName = sql.identifier(column.name ?? name)
-        return sql`${columnName} ${sql.chunk(emitColumn, column)}`
+        return sql`${columnName} ${sql.chunk('emitColumn', column)}`
       }),
       sql`, `
     )

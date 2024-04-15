@@ -1,4 +1,3 @@
-import {emitSelect} from '../Emitter.ts'
 import {type Expr, type Input, input} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
@@ -212,7 +211,7 @@ export class Select<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitSelect, this)
+    return sql.chunk('emitSelect', this)
   }
 }
 

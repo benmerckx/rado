@@ -11,24 +11,6 @@ import type {Select} from './query/Select.ts'
 import type {Union} from './query/Union.ts'
 import type {Update} from './query/Update.ts'
 
-export const emitUnsafe = Symbol()
-export const emitIdentifier = Symbol()
-export const emitValue = Symbol()
-export const emitInline = Symbol()
-export const emitJsonPath = Symbol()
-export const emitPlaceholder = Symbol()
-export const emitDefaultValue = Symbol()
-export const emitField = Symbol()
-
-export const emitColumn = Symbol()
-
-export const emitCreate = Symbol()
-export const emitDelete = Symbol()
-export const emitInsert = Symbol()
-export const emitSelect = Symbol()
-export const emitUnion = Symbol()
-export const emitUpdate = Symbol()
-
 export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
   sql = ''
   protected params: Array<Param> = []
@@ -41,22 +23,22 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
     })
   }
 
-  abstract [emitIdentifier](value: string): void
-  abstract [emitValue](value: unknown): void
-  abstract [emitInline](value: unknown): void
-  abstract [emitJsonPath](value: Array<number | string>): void
-  abstract [emitPlaceholder](value: string): void
-  abstract [emitDefaultValue](): void
+  abstract emitIdentifier(value: string): void
+  abstract emitValue(value: unknown): void
+  abstract emitInline(value: unknown): void
+  abstract emitJsonPath(value: Array<number | string>): void
+  abstract emitPlaceholder(value: string): void
+  abstract emitDefaultValue(): void
 
-  [emitUnsafe](value: string) {
+  emitUnsafe(value: string) {
     this.sql += value
   }
 
-  [emitField](fieldApi: FieldApi) {
+  emitField(fieldApi: FieldApi) {
     fieldApi.toSql().emit(this)
   }
 
-  [emitCreate]({table, ifNotExists}: CreateData<Meta>) {
+  emitCreate({table, ifNotExists}: CreateData<Meta>) {
     const tableApi = getTable(table)
     sql
       .join([
@@ -68,7 +50,7 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitColumn](column: ColumnData) {
+  emitColumn(column: ColumnData) {
     sql
       .join([
         column.type,
@@ -83,7 +65,7 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitDelete](deleteOp: Delete<unknown>) {
+  emitDelete(deleteOp: Delete<unknown>) {
     const {from, where, returning} = getData(deleteOp)
     const table = getTable(from)
     sql
@@ -95,7 +77,7 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitInsert](insert: Insert<unknown>) {
+  emitInsert(insert: Insert<unknown>) {
     const {into, values, returning} = getData(insert)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
@@ -109,7 +91,7 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitSelect](select: Select<unknown>) {
+  emitSelect(select: Select<unknown>) {
     const {from, distinct, where, groupBy, orderBy, having, limit, offset} =
       getData(select)
     const selected = getSelection(select)
@@ -127,12 +109,12 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitUnion](union: Union<unknown>) {
+  emitUnion(union: Union<unknown>) {
     const {left, operator, right} = getData(union)
     sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
   }
 
-  [emitUpdate](update: Update<unknown>) {
+  emitUpdate(update: Update<unknown>) {
     const {table, set, where, returning} = getData(update)
     const tableApi = getTable(table)
     sql

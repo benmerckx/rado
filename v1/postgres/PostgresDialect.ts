@@ -1,13 +1,5 @@
 import {dialect} from '../core/Dialect.ts'
-import {
-  Emitter,
-  emitDefaultValue,
-  emitIdentifier,
-  emitInline,
-  emitJsonPath,
-  emitPlaceholder,
-  emitValue
-} from '../core/Emitter.ts'
+import {Emitter} from '../core/Emitter.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
 
 const DOUBLE_QUOTE = '"'
@@ -18,30 +10,30 @@ const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
 class PostgresEmitter extends Emitter {
-  paramIndex = 0;
-  [emitValue](value: unknown) {
-    this.#sql += `$${++this.paramIndex}`
-    this.#params.push(new ValueParam(value))
+  paramIndex = 0
+  emitValue(value: unknown) {
+    this.sql += `$${++this.paramIndex}`
+    this.params.push(new ValueParam(value))
   }
-  [emitJsonPath](path: Array<number | string>) {
+  emitJsonPath(path: Array<number | string>) {
     for (let i = 0; i < path.length; i++) {
       const access = path[i]
-      if (typeof access === 'number') this.#sql += access
-      else this.#sql += this.quoteString(access)
-      if (i < path.length - 2) this.#sql += '->'
-      else if (i < path.length - 1) this.#sql += '->>'
+      if (typeof access === 'number') this.sql += access
+      else this.sql += this.quoteString(access)
+      if (i < path.length - 2) this.sql += '->'
+      else if (i < path.length - 1) this.sql += '->>'
     }
   }
-  [emitInline](value: unknown) {
-    if (value === null || value === undefined) return (this.#sql += 'null')
+  emitInline(value: unknown) {
+    if (value === null || value === undefined) return (this.sql += 'null')
     if (typeof value === 'number' || typeof value === 'boolean')
-      return (this.#sql += value)
-    if (typeof value === 'string') return (this.#sql += this.quoteString(value))
-    this.#sql += `json(${this.quoteString(JSON.stringify(value))})`
+      return (this.sql += value)
+    if (typeof value === 'string') return (this.sql += this.quoteString(value))
+    this.sql += `json(${this.quoteString(JSON.stringify(value))})`
   }
-  [emitPlaceholder](name: string) {
-    this.#sql += `$${++this.paramIndex}`
-    this.#params.push(new NamedParam(name))
+  emitPlaceholder(name: string) {
+    this.sql += `$${++this.paramIndex}`
+    this.params.push(new NamedParam(name))
   }
   quoteString(input: string): string {
     return (
@@ -50,14 +42,14 @@ class PostgresEmitter extends Emitter {
       SINGLE_QUOTE
     )
   }
-  [emitIdentifier](identifier: string) {
-    this.#sql +=
+  emitIdentifier(identifier: string) {
+    this.sql +=
       DOUBLE_QUOTE +
       identifier.replace(MATCH_DOUBLE_QUOTE, ESCAPE_DOUBLE_QUOTE) +
       DOUBLE_QUOTE
   }
-  [emitDefaultValue]() {
-    this.#sql += 'default'
+  emitDefaultValue() {
+    this.sql += 'default'
   }
 }
 

@@ -1,4 +1,3 @@
-import {emitDelete} from '../Emitter.ts'
 import type {Expr} from '../Expr.ts'
 import {
   type HasSql,
@@ -39,7 +38,7 @@ export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
   get [internalQuery]() {
-    return sql.chunk(emitDelete, this)
+    return sql.chunk('emitDelete', this)
   }
 }
 

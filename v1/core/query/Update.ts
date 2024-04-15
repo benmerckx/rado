@@ -1,4 +1,3 @@
-import {emitUpdate} from '../Emitter.ts'
 import {type Expr, input} from '../Expr.ts'
 import {
   type HasSql,
@@ -42,7 +41,7 @@ export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitUpdate, this)
+    return sql.chunk('emitUpdate', this)
   }
 }
 

@@ -1,26 +1,19 @@
-import {
-  type Emitter,
-  emitDefaultValue,
-  emitField,
-  emitIdentifier,
-  emitInline,
-  emitJsonPath,
-  emitPlaceholder,
-  emitUnsafe,
-  emitValue
-} from './Emitter.ts'
+import type {Emitter} from './Emitter.ts'
 import type {FieldApi} from './Field.ts'
 import {type HasSql, getSql, internalSql} from './Internal.ts'
 
 type EmitMethods = {
-  [K in keyof Emitter as K extends symbol ? K : never]: Emitter[K]
+  [K in keyof Emitter as Emitter[K] extends Function ? K : never]: Emitter[K]
 }
 type SqlChunk = {
   [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
 }[keyof EmitMethods]
 
 class Chunk<Type, Inner> {
-  constructor(public type: Type, public inner: Inner) {}
+  constructor(
+    public type: Type,
+    public inner: Inner
+  ) {}
 }
 
 export type Decoder<T> =
@@ -60,12 +53,12 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   unsafe(sql: string) {
-    if (sql.length > 0) this.#chunks.push(new Chunk(emitUnsafe, sql))
+    if (sql.length > 0) this.#chunks.push(new Chunk('emitUnsafe', sql))
     return this
   }
 
   field(field: FieldApi) {
-    this.#chunks.push(new Chunk(emitField, field))
+    this.#chunks.push(new Chunk('emitField', field))
     return this
   }
 
@@ -77,48 +70,48 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   value(value: unknown) {
-    this.#chunks.push(new Chunk(emitValue, value))
+    this.#chunks.push(new Chunk('emitValue', value))
     return this
   }
 
   inline(value: unknown) {
-    this.#chunks.push(new Chunk(emitInline, value))
+    this.#chunks.push(new Chunk('emitInline', value))
     return this
   }
 
   jsonPath(path: Array<string | number>) {
     const last = this.#chunks.at(-1)
-    if (last?.type === emitJsonPath) last.inner.push(...path)
-    else this.#chunks.push(new Chunk(emitJsonPath, path))
+    if (last?.type === 'emitJsonPath') last.inner.push(...path)
+    else this.#chunks.push(new Chunk('emitJsonPath', path))
     return this
   }
 
   placeholder(name: string) {
-    this.#chunks.push(new Chunk(emitPlaceholder, name))
+    this.#chunks.push(new Chunk('emitPlaceholder', name))
     return this
   }
 
   identifier(identifier: string) {
-    this.#chunks.push(new Chunk(emitIdentifier, identifier))
+    this.#chunks.push(new Chunk('emitIdentifier', identifier))
     return this
   }
 
   defaultValue() {
-    this.#chunks.push(new Chunk(emitDefaultValue, undefined))
+    this.#chunks.push(new Chunk('emitDefaultValue', undefined))
     return this
   }
 
   inlineFields(withTableName: boolean) {
     return new Sql(
       this.#chunks.flatMap(chunk => {
-        if (chunk.type !== emitField) return [chunk]
+        if (chunk.type !== 'emitField') return [chunk]
         if (withTableName)
           return [
-            new Chunk(emitIdentifier, chunk.inner.tableName),
-            new Chunk(emitUnsafe, '.'),
-            new Chunk(emitIdentifier, chunk.inner.fieldName)
+            new Chunk('emitIdentifier', chunk.inner.tableName),
+            new Chunk('emitUnsafe', '.'),
+            new Chunk('emitIdentifier', chunk.inner.fieldName)
           ]
-        return [new Chunk(emitIdentifier, chunk.inner.fieldName)]
+        return [new Chunk('emitIdentifier', chunk.inner.fieldName)]
       })
     )
   }
