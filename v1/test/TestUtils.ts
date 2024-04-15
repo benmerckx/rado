@@ -22,6 +22,9 @@ class TestEmitter extends Emitter {
   emitDefaultValue() {
     this.sql += 'default'
   }
+  emitIdColumn(): void {
+    this.sql += 'id'
+  }
 }
 
 const testDialect = dialect(TestEmitter)

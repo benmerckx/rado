@@ -11,21 +11,21 @@ export function id(name?: string): Column<number> {
 export function text(name?: string): Column<string | null> {
   return new Column({
     name,
-    type: sql.chunk('emitTextColumn', undefined)
+    type: sql`text`
   })
 }
 
 export function int(name?: string): Column<number | null> {
   return new Column({
     name,
-    type: sql.chunk('emitIntColumn', undefined)
+    type: sql`int`
   })
 }
 
 export function boolean(name?: string): Column<boolean | null> {
   return new Column({
     name,
-    type: sql.chunk('emitBooleanColumn', undefined),
+    type: sql`boolean`,
     mapFromDriverValue(value: unknown): boolean {
       if (typeof value === 'number') return value === 1
       return Boolean(value)
