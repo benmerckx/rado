@@ -4,7 +4,7 @@ import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement<object>) {}
+  constructor(private stmt: Statement<unknown, object>) {}
 
   all(params: Array<unknown>) {
     return this.stmt.all(...params)

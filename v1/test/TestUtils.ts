@@ -1,33 +1,25 @@
 import {Builder} from '../core/Builder.ts'
 import {dialect} from '../core/Dialect.ts'
-import {
-  Emitter,
-  emitDefaultValue,
-  emitIdentifier,
-  emitInline,
-  emitJsonPath,
-  emitPlaceholder,
-  emitValue
-} from '../core/Emitter.ts'
+import {Emitter} from '../core/Emitter.ts'
 import type {HasQuery, HasSql} from '../core/Internal.ts'
 
 class TestEmitter extends Emitter {
-  [emitValue](v: unknown) {
+  emitValue(v: unknown) {
     this.sql += JSON.stringify(v)
   }
-  [emitInline](v: unknown) {
+  emitInline(v: unknown) {
     this.sql += JSON.stringify(v)
   }
-  [emitJsonPath](path: Array<number | string>) {
+  emitJsonPath(path: Array<number | string>) {
     this.sql += `->${JSON.stringify(`$.${path.join('.')}`)}`
   }
-  [emitIdentifier](identifier: string) {
+  emitIdentifier(identifier: string) {
     this.sql += JSON.stringify(identifier)
   }
-  [emitPlaceholder](name: string) {
+  emitPlaceholder(name: string) {
     this.sql += `?${name}`
   }
-  [emitDefaultValue]() {
+  emitDefaultValue() {
     this.sql += 'default'
   }
 }

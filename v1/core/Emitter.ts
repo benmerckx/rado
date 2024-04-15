@@ -13,7 +13,7 @@ import type {Update} from './query/Update.ts'
 
 export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
   sql = ''
-  protected params: Array<Param> = []
+  params: Array<Param> = []
 
   bind(inputs?: Record<string, unknown>) {
     return this.params.map(param => {

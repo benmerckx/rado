@@ -3087,7 +3087,7 @@ __metadata:
     sql.js: "npm:^1.8.0"
     sqlite3: "npm:^5.1.6"
     tsx: "npm:^3.12.3"
-    typescript: "npm:beta"
+    typescript: "npm:^5.4.5"
     uvu: "npm:^0.5.6"
   languageName: unknown
   linkType: soft
@@ -3705,13 +3705,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:beta":
-  version: 5.0.0-beta
-  resolution: "typescript@npm:5.0.0-beta"
+"typescript@npm:^5.4.5":
+  version: 5.4.5
+  resolution: "typescript@npm:5.4.5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/32653318b988a47a6eabf16a7520bbd913578edde5e9eafe481e9c0bdf2a09af7a5ed849928eb65350ce61a10f2697a463d82c586e1bac98ad68a2ed94664af3
+  checksum: 10/d04a9e27e6d83861f2126665aa8d84847e8ebabcea9125b9ebc30370b98cb38b5dff2508d74e2326a744938191a83a69aa9fddab41f193ffa43eabfdf3f190a5
   languageName: node
   linkType: hard
 
@@ -3735,13 +3735,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3Abeta#optional!builtin<compat/typescript>":
-  version: 5.0.0-beta
-  resolution: "typescript@patch:typescript@npm%3A5.0.0-beta#optional!builtin<compat/typescript>::version=5.0.0-beta&hash=8b0de9"
+"typescript@patch:typescript@npm%3A^5.4.5#optional!builtin<compat/typescript>":
+  version: 5.4.5
+  resolution: "typescript@patch:typescript@npm%3A5.4.5#optional!builtin<compat/typescript>::version=5.4.5&hash=5adc0c"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/2bfcab990e5ec09a6c61bb84941f617e045ae9e7ca497dd0eb10582f8a22391613f212ea259e0590541e141cbb7494249c649b0552e245879d14bc191e837f8c
+  checksum: 10/760f7d92fb383dbf7dee2443bf902f4365db2117f96f875cf809167f6103d55064de973db9f78fe8f31ec08fff52b2c969aee0d310939c0a3798ec75d0bca2e1
   languageName: node
   linkType: hard
 

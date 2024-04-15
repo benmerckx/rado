@@ -15,7 +15,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
 
 export class UpdateData<
@@ -40,7 +40,7 @@ export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
 
-  get [internalQuery]() {
+  get [internalQuery](): Sql {
     return sql.chunk('emitUpdate', this)
   }
 }
