@@ -13,7 +13,10 @@ export interface CreateData<Meta extends QueryMeta> extends QueryData<Meta> {
   ifNotExists?: boolean
 }
 
-export class Create<Meta extends QueryMeta> extends Query<void, Meta> {
+export class Create<Meta extends QueryMeta = QueryMeta> extends Query<
+  void,
+  Meta
+> {
   readonly [internalData]: CreateData<Meta>
 
   constructor(data: CreateData<Meta>) {
@@ -26,6 +29,6 @@ export class Create<Meta extends QueryMeta> extends Query<void, Meta> {
   }
 
   get [internalQuery]() {
-    return sql.chunk('emitCreate', getData(this))
+    return sql.chunk('emitCreate', this)
   }
 }

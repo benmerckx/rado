@@ -5,6 +5,7 @@ import type {SelectionInput} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {Create} from './query/Create.ts'
 import {DeleteFrom} from './query/Delete.ts'
+import {Drop} from './query/Drop.ts'
 import {InsertInto} from './query/Insert.ts'
 import {Select} from './query/Select.ts'
 import {UpdateTable} from './query/Update.ts'
@@ -20,6 +21,10 @@ export class Builder<Meta extends QueryMeta> {
     table: Table<Definition>
   ): Create<Meta> {
     return new Create<Meta>({...getData(this), table})
+  }
+
+  drop(table: HasTable): Drop<Meta> {
+    return new Drop({...getData(this), table})
   }
 
   select(): Select.WithoutSelection<Meta>

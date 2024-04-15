@@ -4,8 +4,9 @@ import {getData, getQuery, getSelection, getTable} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {sql} from './Sql.ts'
-import type {CreateData} from './query/Create.ts'
+import type {Create} from './query/Create.ts'
 import type {Delete} from './query/Delete.ts'
+import type {Drop} from './query/Drop.ts'
 import type {Insert} from './query/Insert.ts'
 import type {Select} from './query/Select.ts'
 import type {Union} from './query/Union.ts'
@@ -38,7 +39,8 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
     fieldApi.toSql().emit(this)
   }
 
-  emitCreate({table, ifNotExists}: CreateData<Meta>) {
+  emitCreate(create: Create) {
+    const {table, ifNotExists} = getData(create)
     const tableApi = getTable(table)
     sql
       .join([
@@ -46,6 +48,18 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
         ifNotExists ? sql`if not exists` : undefined,
         sql.identifier(tableApi.name),
         sql`(${tableApi.createColumns()})`
+      ])
+      .emit(this)
+  }
+
+  emitDrop(drop: Drop) {
+    const {table, ifExists} = getData(drop)
+    const tableApi = getTable(table)
+    sql
+      .join([
+        sql`drop table`,
+        ifExists ? sql`if exists` : undefined,
+        sql.identifier(tableApi.name)
       ])
       .emit(this)
   }
