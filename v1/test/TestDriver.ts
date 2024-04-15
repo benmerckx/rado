@@ -15,7 +15,7 @@ export function testDriver(
   })
 
   test('create table', async () => {
-    const db = await createDb()
+    await using db = await createDb()
     await db.create(Node)
     await db.insert(Node).values({
       textField: 'hello',
@@ -26,7 +26,6 @@ export function testDriver(
     await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
     const [node] = await db.select(Node.textField).from(Node)
     expect(node).toEqual('world')
-    await db.close()
   })
 
   const User = table('User', {
@@ -41,7 +40,7 @@ export function testDriver(
   })
 
   test('joins', async () => {
-    const db = await createDb()
+    await using db = await createDb()
     await db.create(User)
     await db.create(Post)
     const [user1, user2] = await db
@@ -100,7 +99,5 @@ export function testDriver(
         User: {id: 2, name: 'Mario'}
       }
     ])
-
-    await db.close()
   })
 }

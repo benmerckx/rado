@@ -44,23 +44,23 @@ export class PreparedStatement<Meta extends QueryMeta> {
   all(
     inputs?: Record<string, unknown>
   ): Array<unknown> | Promise<Array<unknown>> {
-    const rows = this.#stmt.values(this.#emitter.params)
+    const rows = this.#stmt.values(this.#emitter.bind(inputs))
     if (rows instanceof Promise) return rows.then(this.#transform)
     return this.#transform(rows)
   }
 
   get(inputs?: Record<string, unknown>): unknown | Promise<unknown> {
-    const rows = this.all()
+    const rows = this.all(inputs)
     if (rows instanceof Promise) return rows.then(rows => rows[0])
     return rows[0]
   }
 
   run(inputs?: Record<string, unknown>): unknown {
-    return this.#stmt.run(this.#emitter.params)
+    return this.#stmt.run(this.#emitter.bind(inputs))
   }
 
   execute(inputs?: Record<string, unknown>): unknown {
-    return this.#stmt.all(this.#emitter.params)
+    return this.all(inputs)
   }
 
   free(): void {

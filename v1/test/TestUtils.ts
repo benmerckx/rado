@@ -13,29 +13,29 @@ import type {HasQuery, HasSql} from '../core/Internal.ts'
 
 class TestEmitter extends Emitter {
   [emitValue](v: unknown) {
-    this.sql += JSON.stringify(v)
+    this.#sql += JSON.stringify(v)
   }
   [emitInline](v: unknown) {
-    this.sql += JSON.stringify(v)
+    this.#sql += JSON.stringify(v)
   }
   [emitJsonPath](path: Array<number | string>) {
-    this.sql += `->${JSON.stringify(`$.${path.join('.')}`)}`
+    this.#sql += `->${JSON.stringify(`$.${path.join('.')}`)}`
   }
   [emitIdentifier](identifier: string) {
-    this.sql += JSON.stringify(identifier)
+    this.#sql += JSON.stringify(identifier)
   }
   [emitPlaceholder](name: string) {
-    this.sql += `?${name}`
+    this.#sql += `?${name}`
   }
   [emitDefaultValue]() {
-    this.sql += 'default'
+    this.#sql += 'default'
   }
 }
 
 const testDialect = dialect(TestEmitter)
 
 export function emit(input: HasSql | HasQuery): string {
-  return testDialect(input).sql
+  return testDialect(input).#sql
 }
 
 export const builder = new Builder({})

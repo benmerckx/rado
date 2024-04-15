@@ -1,6 +1,7 @@
 import type {FieldApi} from './Field.ts'
 import {getQuery, getTable} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
+import {type Param, ValueParam} from './Param.ts'
 import {selection} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {CreateData} from './query/Create.ts'
@@ -28,7 +29,15 @@ export const emitUpdate = Symbol()
 
 export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
   sql = ''
-  params: Array<unknown> = [];
+  protected params: Array<Param> = []
+
+  bind(inputs?: Record<string, unknown>) {
+    return this.params.map(param => {
+      if (param instanceof ValueParam) return param.value
+      if (inputs && param.name in inputs) return inputs[param.name]
+      throw new Error(`Missing input for named parameter: ${param.name}`)
+    })
+  }
 
   abstract [emitIdentifier](value: string): void
   abstract [emitValue](value: unknown): void

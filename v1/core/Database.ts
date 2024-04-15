@@ -23,8 +23,18 @@ export class Database<Meta extends QueryMeta = Either>
     this.#transactionDepth = transactionDepth
   }
 
+  close(this: Database<Async>): Promise<void>
+  close(this: Database<Sync>): void
   close() {
     return this.#driver.close()
+  }
+
+  [Symbol.dispose](this: Database<Sync>) {
+    return this.close()
+  }
+
+  async [Symbol.asyncDispose]() {
+    return this.close()
   }
 
   transaction<T>(
