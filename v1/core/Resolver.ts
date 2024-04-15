@@ -59,7 +59,7 @@ export class PreparedStatement<Meta extends QueryMeta> {
     return this.#stmt.run(this.#emitter.bind(inputs))
   }
 
-  execute(inputs?: Record<string, unknown>): unknown {
+  async execute(inputs?: Record<string, unknown>): Promise<unknown> {
     return this.all(inputs)
   }
 

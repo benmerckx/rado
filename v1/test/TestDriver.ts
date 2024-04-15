@@ -1,16 +1,15 @@
 import {expect} from 'bun:test'
 import type {Database} from '../core/Database.ts'
-import type {Async} from '../core/MetaData.ts'
 import {table} from '../core/Table.ts'
 import {eq, sql} from '../index.ts'
-import {boolean, integer, text} from '../sqlite.ts'
+import {boolean, id, int, text} from '../universal.ts'
 
 export function testDriver(
-  createDb: () => Promise<Database<Async>>,
+  createDb: () => Promise<Database>,
   test: (name: string, fn: () => void) => void
 ) {
   const Node = table('Node', {
-    id: integer().primaryKey(),
+    id: id(),
     textField: text().notNull(),
     bool: boolean()
   })
@@ -40,19 +39,19 @@ export function testDriver(
       .select()
       .from(Node)
       .where(eq(Node.textField, sql.placeholder('text')))
-      .prepare('prepared')
+      .prepare<{text: string}>('prepared')
     const rows = await query.execute({text: 'hello'})
     expect(rows).toEqual([{id: 1, textField: 'hello', bool: true}])
   })
 
   const User = table('User', {
-    id: integer().primaryKey(),
+    id: id(),
     name: text().notNull()
   })
 
   const Post = table('Post', {
-    id: integer().primaryKey(),
-    userId: integer().notNull(),
+    id: id(),
+    userId: int().notNull(),
     title: text().notNull()
   })
 

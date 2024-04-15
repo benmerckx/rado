@@ -131,12 +131,5 @@ export interface PreparedQuery<
     inputs?: Inputs
   ): Promise<void>
 
-  execute(
-    this: PreparedQuery<Result, Inputs, Sync>,
-    inputs?: Inputs
-  ): Array<Result>
-  execute(
-    this: PreparedQuery<Result, Inputs, Async>,
-    inputs?: Inputs
-  ): Promise<Array<Result>>
+  execute(inputs?: Inputs): Promise<Array<Result>>
 }

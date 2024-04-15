@@ -1,48 +1,34 @@
 import {Column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
-export function boolean(name?: string): Column<boolean | null> {
+export function id(name?: string): Column<number> {
   return new Column({
     name,
-    type: sql`integer`,
-    mapFromDriverValue(value: number): boolean {
-      return value === 1
-    },
-    mapToDriverValue(value: boolean): number {
-      return value ? 1 : 0
-    }
+    type: sql.chunk('emitIdColumn', undefined)
   })
 }
 
-export function integer(name?: string): Column<number | null> {
-  return new Column({name, type: sql`integer`})
-}
-
-export function blob(name?: string): Column<Uint8Array | null> {
-  return new Column({name, type: sql`blob`})
-}
-
 export function text(name?: string): Column<string | null> {
-  return new Column({name, type: sql`text`})
-}
-
-export function real(name?: string): Column<number | null> {
-  return new Column({name, type: sql`real`})
-}
-
-export function numeric(name?: string): Column<number | null> {
-  return new Column({name, type: sql`numeric`})
-}
-
-export function json<T>(name?: string): Column<T | null> {
   return new Column({
     name,
-    type: sql`json`,
-    mapFromDriverValue(value: string): T {
-      return JSON.parse(value)
-    },
-    mapToDriverValue(value: T): string {
-      return JSON.stringify(value)
+    type: sql.chunk('emitTextColumn', undefined)
+  })
+}
+
+export function int(name?: string): Column<number | null> {
+  return new Column({
+    name,
+    type: sql.chunk('emitIntColumn', undefined)
+  })
+}
+
+export function boolean(name?: string): Column<boolean | null> {
+  return new Column({
+    name,
+    type: sql.chunk('emitBooleanColumn', undefined),
+    mapFromDriverValue(value: unknown): boolean {
+      if (typeof value === 'number') return value === 1
+      return Boolean(value)
     }
   })
 }

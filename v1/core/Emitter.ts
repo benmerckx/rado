@@ -127,4 +127,18 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .inlineFields(false)
       .emit(this)
   }
+
+  abstract emitIdColumn(): void
+
+  emitTextColumn() {
+    this.sql += 'text'
+  }
+
+  emitIntColumn() {
+    this.sql += 'int'
+  }
+
+  emitBooleanColumn() {
+    this.sql += 'boolean'
+  }
 }

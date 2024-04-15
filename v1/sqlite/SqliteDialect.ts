@@ -44,6 +44,9 @@ class SqliteEmitter extends Emitter {
       SINGLE_QUOTE
     )
   }
+  emitIdColumn() {
+    this.sql += 'integer primary key autoincrement'
+  }
 }
 
 export const sqliteDialect = dialect(SqliteEmitter)
