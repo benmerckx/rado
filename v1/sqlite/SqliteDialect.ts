@@ -19,31 +19,31 @@ const MATCH_SINGLE_QUOTE = /'/g
 
 class SqliteEmitter extends Emitter {
   [emitValue](value: unknown) {
-    this.#sql += '?'
-    this.#params.push(new ValueParam(value))
+    this.sql += '?'
+    this.params.push(new ValueParam(value))
   }
   [emitJsonPath](path: Array<number | string>) {
-    this.#sql += `->${this.quoteString(`$.${path.join('.')}`)}`
+    this.sql += `->${this.quoteString(`$.${path.join('.')}`)}`
   }
   [emitInline](value: unknown) {
-    if (value === null || value === undefined) return (this.#sql += 'null')
-    if (typeof value === 'number') return (this.#sql += value)
-    if (typeof value === 'string') return (this.#sql += this.quoteString(value))
-    if (typeof value === 'boolean') return (this.#sql += value ? '1' : '0')
-    this.#sql += `json(${this.quoteString(JSON.stringify(value))})`
+    if (value === null || value === undefined) return (this.sql += 'null')
+    if (typeof value === 'number') return (this.sql += value)
+    if (typeof value === 'string') return (this.sql += this.quoteString(value))
+    if (typeof value === 'boolean') return (this.sql += value ? '1' : '0')
+    this.sql += `json(${this.quoteString(JSON.stringify(value))})`
   }
   [emitPlaceholder](name: string) {
-    this.#sql += '?'
-    this.#params.push(new NamedParam(name))
+    this.sql += '?'
+    this.params.push(new NamedParam(name))
   }
   [emitIdentifier](identifier: string) {
-    this.#sql +=
+    this.sql +=
       DOUBLE_QUOTE +
       identifier.replace(MATCH_DOUBLE_QUOTE, ESCAPE_DOUBLE_QUOTE) +
       DOUBLE_QUOTE
   }
   [emitDefaultValue]() {
-    this.#sql += 'null'
+    this.sql += 'null'
   }
   quoteString(input: string): string {
     return (

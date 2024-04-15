@@ -1,5 +1,4 @@
 import {
-  type HasQuery,
   type HasResolver,
   getData,
   getResolver,
@@ -44,12 +43,9 @@ export abstract class Query<Result, Meta extends QueryMeta>
     }
   }
 
-  prepare<Inputs extends Record<string, unknown>>(
-    this: HasResolver<Meta> & HasQuery,
-    name: string
-  ) {
+  prepare<Inputs extends Record<string, unknown>>(name: string) {
     return <PreparedQuery<Result, Inputs, Meta>>(
-      getResolver(this).prepare(this, name)
+      getData(this).resolver!.prepare(this, name)
     )
   }
 
@@ -135,6 +131,10 @@ export interface PreparedQuery<
     inputs?: Inputs
   ): Promise<void>
 
+  execute(
+    this: PreparedQuery<Result, Inputs, Sync>,
+    inputs?: Inputs
+  ): Array<Result>
   execute(
     this: PreparedQuery<Result, Inputs, Async>,
     inputs?: Inputs
