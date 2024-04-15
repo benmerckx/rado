@@ -25,7 +25,10 @@ export class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
   returning?: Selection
 }
 
-class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
+export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
+  Result,
+  Meta
+> {
   readonly [internalData]: InsertData<Meta>;
   declare readonly [internalSelection]?: Selection
 
@@ -40,7 +43,7 @@ class Insert<Result, Meta extends QueryMeta> extends Query<Result, Meta> {
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitInsert, getData(this))
+    return sql.chunk(emitInsert, this)
   }
 }
 

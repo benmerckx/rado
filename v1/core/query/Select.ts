@@ -49,7 +49,7 @@ export class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
   offset?: HasSql
 }
 
-export class Select<Result, Meta extends QueryMeta>
+export class Select<Result, Meta extends QueryMeta = QueryMeta>
   extends Query<Result, Meta>
   implements HasSelection, Select.Base<Result, Meta>
 {
@@ -212,7 +212,7 @@ export class Select<Result, Meta extends QueryMeta>
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitSelect, getData(this))
+    return sql.chunk(emitSelect, this)
   }
 }
 
@@ -274,10 +274,10 @@ export namespace Select {
     [K in keyof Input]: Input[K] extends Field<infer T, Table>
       ? Expr<T | null>
       : Input[K] extends Record<string, Field<unknown, Table> | Sql<unknown>>
-      ? Input[K] | null
-      : Input[K] extends SelectionRecord
-      ? MarkFieldsAsNullable<Input[K], Table>
-      : Input[K]
+        ? Input[K] | null
+        : Input[K] extends SelectionRecord
+          ? MarkFieldsAsNullable<Input[K], Table>
+          : Input[K]
   }>
 
   export interface SelectionFrom<Input, Meta extends QueryMeta>

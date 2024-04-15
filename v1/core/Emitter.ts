@@ -1,15 +1,15 @@
+import type {ColumnData} from './Column.ts'
 import type {FieldApi} from './Field.ts'
-import {getQuery, getTable} from './Internal.ts'
+import {getData, getQuery, getSelection, getTable} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
-import {selection} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {CreateData} from './query/Create.ts'
-import type {DeleteData} from './query/Delete.ts'
-import type {InsertData} from './query/Insert.ts'
-import type {SelectData} from './query/Select.ts'
-import type {UnionData} from './query/Union.ts'
-import type {UpdateData} from './query/Update.ts'
+import type {Delete} from './query/Delete.ts'
+import type {Insert} from './query/Insert.ts'
+import type {Select} from './query/Select.ts'
+import type {Union} from './query/Union.ts'
+import type {Update} from './query/Update.ts'
 
 export const emitUnsafe = Symbol()
 export const emitIdentifier = Symbol()
@@ -19,6 +19,8 @@ export const emitJsonPath = Symbol()
 export const emitPlaceholder = Symbol()
 export const emitDefaultValue = Symbol()
 export const emitField = Symbol()
+
+export const emitColumn = Symbol()
 
 export const emitCreate = Symbol()
 export const emitDelete = Symbol()
@@ -66,7 +68,23 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitDelete]({from, where, returning}: DeleteData<Meta>) {
+  [emitColumn](column: ColumnData) {
+    sql
+      .join([
+        column.type,
+        column.primary && sql`primary key`,
+        column.notNull && sql`not null`,
+        column.isUnique && sql`unique`,
+        column.autoIncrement && sql`autoincrement`,
+        column.defaultValue && sql`default ${column.defaultValue()}`,
+        column.references && sql`references ${column.references()}`,
+        column.onUpdate && sql`on update ${column.onUpdate}`
+      ])
+      .emit(this)
+  }
+
+  [emitDelete](deleteOp: Delete<unknown>) {
+    const {from, where, returning} = getData(deleteOp)
     const table = getTable(from)
     sql
       .query({
@@ -77,7 +95,8 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitInsert]({into, values, returning}: InsertData<Meta>) {
+  [emitInsert](insert: Insert<unknown>) {
+    const {into, values, returning} = getData(insert)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
     sql
@@ -90,18 +109,10 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitSelect]({
-    select,
-    distinct,
-    from,
-    where,
-    groupBy,
-    having,
-    orderBy,
-    limit,
-    offset
-  }: SelectData<Meta>) {
-    const selected = selection(select.input!, new Set(select.nullable))
+  [emitSelect](select: Select<unknown>) {
+    const {from, distinct, where, groupBy, orderBy, having, limit, offset} =
+      getData(select)
+    const selected = getSelection(select)
     sql
       .query({
         select: distinct ? sql`distinct ${selected}` : selected,
@@ -116,11 +127,13 @@ export abstract class Emitter<Meta extends QueryMeta = QueryMeta> {
       .emit(this)
   }
 
-  [emitUnion]({left, operator, right}: UnionData<Meta>) {
+  [emitUnion](union: Union<unknown>) {
+    const {left, operator, right} = getData(union)
     sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
   }
 
-  [emitUpdate]({table, set, where, returning}: UpdateData<Meta>) {
+  [emitUpdate](update: Update<unknown>) {
+    const {table, set, where, returning} = getData(update)
     const tableApi = getTable(table)
     sql
       .query({

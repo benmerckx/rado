@@ -21,7 +21,7 @@ export class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
   right!: HasQuery
 }
 
-export class Union<Result, Meta extends QueryMeta>
+export class Union<Result, Meta extends QueryMeta = QueryMeta>
   extends Query<Result, Meta>
   implements HasSelection
 {
@@ -71,6 +71,6 @@ export class Union<Result, Meta extends QueryMeta>
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitUnion, getData(this))
+    return sql.chunk(emitUnion, this)
   }
 }

@@ -1,4 +1,4 @@
-import type {ColumnApi} from './Column.ts'
+import type {ColumnData} from './Column.ts'
 import type {FieldApi} from './Field.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {Resolver} from './Resolver.ts'
@@ -35,7 +35,7 @@ export declare class HasTable<
   get [internalTable](): TableApi<Definition, Name>
 }
 export declare class HasColumn {
-  get [internalColumn](): ColumnApi
+  get [internalColumn](): ColumnData
 }
 export declare class HasField {
   get [internalField](): FieldApi

@@ -28,7 +28,7 @@ export class UpdateData<
   returning?: Selection
 }
 
-export class Update<Result, Meta extends QueryMeta> extends Query<
+export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
   Meta
 > {
@@ -42,7 +42,7 @@ export class Update<Result, Meta extends QueryMeta> extends Query<
   }
 
   get [internalQuery]() {
-    return sql.chunk(emitUpdate, getData(this))
+    return sql.chunk(emitUpdate, this)
   }
 }
 

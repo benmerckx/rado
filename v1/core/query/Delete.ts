@@ -26,7 +26,7 @@ export class DeleteData<
   returning?: Selection
 }
 
-export class Delete<Result, Meta extends QueryMeta> extends Query<
+export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
   Meta
 > {
@@ -39,7 +39,7 @@ export class Delete<Result, Meta extends QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
   get [internalQuery]() {
-    return sql.chunk(emitDelete, getData(this))
+    return sql.chunk(emitDelete, this)
   }
 }
 
