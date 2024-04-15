@@ -10,7 +10,8 @@ import {
   internalQuery,
   internalSelection
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMeta} from '../Query.ts'
+import type {QueryMeta} from '../MetaData.ts'
+import {Query, QueryData} from '../Query.ts'
 import {type Selection, selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {TableDefinition, TableInsert} from '../Table.ts'

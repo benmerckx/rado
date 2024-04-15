@@ -1,8 +1,5 @@
-import type {QueryMeta} from './Query.ts'
-
-export type Driver<Meta extends QueryMeta> = Meta['mode'] extends 'sync'
-  ? SyncDriver
-  : AsyncDriver
+export type Driver = SyncDriver | AsyncDriver
+export type Statement = SyncStatement | AsyncStatement
 
 export interface SyncDriver {
   close(): void

@@ -1,6 +1,6 @@
 import type {FieldApi} from './Field.ts'
 import {getQuery, getTable} from './Internal.ts'
-import type {QueryMeta} from './Query.ts'
+import type {QueryMeta} from './MetaData.ts'
 import {selection} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {CreateData} from './query/Create.ts'

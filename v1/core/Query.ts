@@ -1,44 +1,22 @@
 import {
+  type HasQuery,
+  type HasResolver,
   getData,
   getResolver,
   hasResolver,
   internalData,
-  internalQuery,
-  type HasQuery,
-  type HasResolver
+  internalQuery
 } from './Internal.ts'
+import type {Async, QueryMeta, Sync} from './MetaData.ts'
+import type {PreparedStatement, Resolver} from './Resolver.ts'
 import type {Sql} from './Sql.ts'
 
-export type QueryMode = 'sync' | 'async' | undefined
-export type QueryDialect = 'universal' | 'sqlite' | 'mysql' | 'postgres'
-export interface QueryMeta {
-  mode: QueryMode
-  dialect: QueryDialect
-}
-export interface SyncQuery<Dialect extends QueryDialect = QueryDialect>
-  extends QueryMeta {
-  mode: 'sync'
-  dialect: Dialect
-}
-export interface AsyncQuery<Dialect extends QueryDialect = QueryDialect>
-  extends QueryMeta {
-  mode: 'async'
-  dialect: Dialect
-}
-
-export declare class QueryResolver<Mode extends QueryMode = QueryMode> {
-  #mode?: Mode
-  all(query: HasQuery): unknown
-  get(query: HasQuery): unknown
-  run(query: HasQuery): unknown
-}
-
 export class QueryData<Meta extends QueryMeta> {
-  resolver?: QueryResolver<Meta['mode']>
+  resolver?: Resolver<Meta>
 }
 
 export abstract class Query<Result, Meta extends QueryMeta>
-  implements HasQuery, PromiseLike<Array<Result>>
+  implements PromiseLike<Array<Result>>
 {
   readonly [internalData]: QueryData<Meta>;
   abstract [internalQuery]: Sql
@@ -47,42 +25,61 @@ export abstract class Query<Result, Meta extends QueryMeta>
     this[internalData] = data
   }
 
-  #exec(method: 'all' | 'get' | 'run', db?: HasResolver | QueryResolver) {
+  #exec(method: 'all' | 'get' | 'run', db?: HasResolver | Resolver) {
     const resolver = db
       ? hasResolver(db)
         ? getResolver(db)
         : db
       : getData(this).resolver
-    return resolver![method](this)
+    const prepared = resolver!.prepare(this, '')
+    try {
+      const result = prepared[method]()
+      if (result instanceof Promise)
+        return result.finally(prepared.free.bind(prepared))
+      prepared.free()
+      return result
+    } catch (error) {
+      prepared.free()
+      throw error
+    }
   }
 
-  all(this: Query<Result, SyncQuery>): Array<Result>
-  all(this: Query<Result, AsyncQuery>): Promise<Array<Result>>
-  all(db: HasResolver<'sync'> | QueryResolver<'sync'>): Array<Result>
-  all(db: HasResolver<'async'> | QueryResolver<'async'>): Promise<Array<Result>>
-  all(db?: HasResolver | QueryResolver) {
+  prepare<Inputs extends Record<string, unknown>>(
+    this: HasResolver<Meta> & HasQuery,
+    name: string
+  ) {
+    return <PreparedQuery<Result, Inputs, Meta>>(
+      getResolver(this).prepare(this, name)
+    )
+  }
+
+  all(this: Query<Result, Sync>): Array<Result>
+  all(this: Query<Result, Async>): Promise<Array<Result>>
+  all(db: HasResolver<Sync> | Resolver<Sync>): Array<Result>
+  all(db: HasResolver<Async> | Resolver<Async>): Promise<Array<Result>>
+  all(db?: HasResolver | Resolver) {
     return this.#exec('all', db)
   }
 
-  get(this: Query<Result, SyncQuery>): Result
-  get(this: Query<Result, AsyncQuery>): Promise<Result>
-  get(db: HasResolver<'sync'>): Result
-  get(db: HasResolver<'async'>): Promise<Result>
-  get(db?: HasResolver) {
+  get(this: Query<Result, Sync>): Result
+  get(this: Query<Result, Async>): Promise<Result>
+  get(db: HasResolver<Sync> | Resolver<Sync>): Result
+  get(db: HasResolver<Async> | Resolver<Async>): Promise<Result>
+  get(db?: HasResolver | Resolver) {
     return this.#exec('get', db)
   }
 
-  run(this: Query<unknown, SyncQuery>): void
-  run(this: Query<unknown, AsyncQuery>): Promise<void>
-  run(db: HasResolver<'sync'>): void
-  run(db: HasResolver<'async'>): Promise<void>
-  run(db?: HasResolver) {
+  run(this: Query<Result, Sync>): void
+  run(this: Query<Result, Async>): Promise<void>
+  run(db: HasResolver<Sync> | Resolver<Sync>): void
+  run(db: HasResolver<Async> | Resolver<Async>): Promise<void>
+  run(db?: HasResolver | Resolver) {
     return this.#exec('run', db)
   }
 
   // biome-ignore lint/suspicious/noThenProperty:
   then<TResult1 = Array<Result>, TResult2 = never>(
-    this: Query<Result, SyncQuery | AsyncQuery>,
+    this: Query<Result, Sync | Async>,
     onfulfilled?:
       | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
       | undefined
@@ -93,12 +90,12 @@ export abstract class Query<Result, Meta extends QueryMeta>
       | null
   ): Promise<TResult1 | TResult2> {
     const resolver = getData(this).resolver
-    const result = this.all(resolver as QueryResolver<any>)
+    const result = this.all(resolver as Resolver<any>)
     return Promise.resolve(result).then(onfulfilled, onrejected)
   }
 
   catch<TResult = never>(
-    this: Query<Result, AsyncQuery>,
+    this: Query<Result, Async>,
     onrejected?:
       | ((reason: unknown) => TResult | PromiseLike<TResult>)
       | undefined
@@ -108,9 +105,38 @@ export abstract class Query<Result, Meta extends QueryMeta>
   }
 
   finally(
-    this: Query<Result, AsyncQuery>,
+    this: Query<Result, Async>,
     onfinally?: (() => void) | undefined | null
   ): Promise<Array<Result>> {
     return this.all().finally(onfinally)
   }
+}
+
+export interface PreparedQuery<
+  Result,
+  Inputs extends Record<string, unknown>,
+  Meta extends QueryMeta
+> extends PreparedStatement<Meta> {
+  all(this: PreparedQuery<Result, Inputs, Sync>, inputs?: Inputs): Array<Result>
+  all(
+    this: PreparedQuery<Result, Inputs, Async>,
+    inputs?: Inputs
+  ): Promise<Array<Result>>
+
+  get(this: PreparedQuery<Result, Inputs, Sync>, inputs?: Inputs): Result
+  get(
+    this: PreparedQuery<Result, Inputs, Async>,
+    inputs?: Inputs
+  ): Promise<Result>
+
+  run(this: PreparedQuery<Result, Inputs, Sync>, inputs?: Inputs): void
+  run(
+    this: PreparedQuery<Result, Inputs, Async>,
+    inputs?: Inputs
+  ): Promise<void>
+
+  execute(
+    this: PreparedQuery<Result, Inputs, Async>,
+    inputs?: Inputs
+  ): Promise<Array<Result>>
 }

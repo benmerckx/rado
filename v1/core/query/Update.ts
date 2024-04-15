@@ -1,14 +1,15 @@
+import {emitUpdate} from '../Emitter.ts'
 import {type Expr, input} from '../Expr.ts'
 import {
   type HasSql,
   type HasTable,
   getData,
-  getTable,
   internalData,
   internalQuery,
   internalSelection
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMeta} from '../Query.ts'
+import type {QueryMeta} from '../MetaData.ts'
+import {Query, QueryData} from '../Query.ts'
 import {
   type Selection,
   type SelectionInput,
@@ -41,15 +42,7 @@ export class Update<Result, Meta extends QueryMeta> extends Query<
   }
 
   get [internalQuery]() {
-    const {table, set, where, returning} = getData(this)
-    return sql
-      .query({
-        update: sql.identifier(getTable(table).name),
-        set,
-        where,
-        returning
-      })
-      .inlineFields(false)
+    return sql.chunk(emitUpdate, getData(this))
   }
 }
 

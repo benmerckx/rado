@@ -1,6 +1,7 @@
 import type {ColumnApi} from './Column.ts'
 import type {FieldApi} from './Field.ts'
-import type {QueryMode, QueryResolver} from './Query.ts'
+import type {QueryMeta} from './MetaData.ts'
+import type {Resolver} from './Resolver.ts'
 import type {Selection} from './Selection.ts'
 import type {Sql} from './Sql.ts'
 import type {TableApi, TableDefinition} from './Table.ts'
@@ -39,8 +40,8 @@ export declare class HasColumn {
 export declare class HasField {
   get [internalField](): FieldApi
 }
-export declare class HasResolver<Mode extends QueryMode = QueryMode> {
-  get [internalResolver](): QueryResolver<Mode>
+export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
+  get [internalResolver](): Resolver<Meta>
 }
 
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
@@ -61,8 +62,8 @@ export const hasColumn = (obj: object): obj is HasColumn =>
 export const getColumn = (obj: HasColumn) => obj[internalColumn]
 export const hasField = (obj: object): obj is HasField => internalField in obj
 export const getField = (obj: HasField) => obj[internalField]
-export const hasResolver = <Mode extends QueryMode>(
+export const hasResolver = <Meta extends QueryMeta>(
   obj: object
-): obj is HasResolver<Mode> => internalResolver in obj
-export const getResolver = <Mode extends QueryMode>(obj: HasResolver<Mode>) =>
+): obj is HasResolver<Meta> => internalResolver in obj
+export const getResolver = <Meta extends QueryMeta>(obj: HasResolver<Meta>) =>
   obj[internalResolver]

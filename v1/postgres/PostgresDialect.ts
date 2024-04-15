@@ -27,8 +27,8 @@ class PostgresEmitter extends Emitter {
       const access = path[i]
       if (typeof access === 'number') this.sql += access
       else this.sql += this.quoteString(access)
-      if (i < path.length - 2) this.sql += '->>'
-      else if (i < path.length - 1) this.sql += '->'
+      if (i < path.length - 2) this.sql += '->'
+      else if (i < path.length - 1) this.sql += '->>'
     }
   }
   [emitInline](value: unknown) {

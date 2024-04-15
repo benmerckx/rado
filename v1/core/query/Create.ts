@@ -5,7 +5,8 @@ import {
   internalData,
   internalQuery
 } from '../Internal.ts'
-import {Query, type QueryData, type QueryMeta} from '../Query.ts'
+import type {QueryMeta} from '../MetaData.ts'
+import {Query, type QueryData} from '../Query.ts'
 import {sql} from '../Sql.ts'
 
 export interface CreateData<Meta extends QueryMeta> extends QueryData<Meta> {

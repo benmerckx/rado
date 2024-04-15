@@ -16,7 +16,8 @@ import {
   internalQuery,
   internalSelection
 } from '../Internal.ts'
-import {Query, QueryData, type QueryMeta} from '../Query.ts'
+import type {QueryMeta} from '../MetaData.ts'
+import {Query, QueryData} from '../Query.ts'
 import {
   type SelectionInput,
   type SelectionRecord,
@@ -28,11 +29,7 @@ import type {Table, TableDefinition, TableRow} from '../Table.ts'
 import type {Expand, Nullable} from '../Types.ts'
 import {Union} from './Union.ts'
 
-export enum SelectionType {
-  Selection,
-  AllFrom,
-  JoinTables
-}
+export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
 
 export class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
   select!: {
@@ -94,11 +91,11 @@ export class Select<Result, Meta extends QueryMeta>
     if (operator === 'left' || operator === 'full')
       addNullable.push(rightTable.aliased)
     const select =
-      current.type === SelectionType.Selection
+      current.type === 'selection'
         ? current
         : {
-            type: SelectionType.JoinTables,
-            input: <SelectionInput>(current.type === SelectionType.AllFrom
+            type: 'joinTables' as const,
+            input: <SelectionInput>(current.type === 'allFrom'
               ? {
                   [getTable(current.input as HasTable).aliased]: current.input,
                   [rightTable.aliased]: right

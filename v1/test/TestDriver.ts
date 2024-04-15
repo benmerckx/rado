@@ -1,11 +1,11 @@
 import {expect} from 'bun:test'
 import type {Database} from '../core/Database.ts'
 import {table} from '../core/Table.ts'
-import {type AsyncQuery, type SyncQuery, eq} from '../index.ts'
+import {eq} from '../index.ts'
 import {boolean, integer, text} from '../sqlite.ts'
 
 export function testDriver(
-  createDb: () => Promise<Database<SyncQuery> | Database<AsyncQuery>>,
+  createDb: () => Promise<Database>,
   test: (name: string, fn: () => void) => void
 ) {
   const Node = table('Node', {
