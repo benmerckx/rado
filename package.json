@@ -41,7 +41,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsx build.ts",
-    "size": "esbuild v1/index.ts --bundle --minify --outdir=dist",
+    "size": "esbuild v1/index.ts --bundle --minify --format=esm --outdir=dist",
     "test": "tsx test",
     "test:bun": "bun test/index.ts --driver=bun:sqlite",
     "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
@@ -51,7 +51,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.6.1",
     "@cloudflare/workers-types": "^4.20230628.0",
-    "@electric-sql/pglite": "^0.1.1",
+    "@electric-sql/pglite": "^0.1.3",
     "@sqlite.org/sqlite-wasm": "^3.42.0-build4",
     "@types/better-sqlite3": "^5.4.1",
     "@types/glob": "^8.0.0",

@@ -1,7 +1,7 @@
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Driver} from './Driver.ts'
-import {type HasResolver, internalResolver} from './Internal.ts'
+import {internalResolver, type HasResolver} from './Internal.ts'
 import type {Async, Either, QueryDialect, QueryMeta, Sync} from './MetaData.ts'
 import {Resolver} from './Resolver.ts'
 
@@ -33,7 +33,7 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  async [Symbol.asyncDispose]() {
+  async [Symbol.asyncDispose](this: Database<Async>) {
     return this.close()
   }
 

@@ -4,10 +4,10 @@ import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement<unknown, object>) {}
+  constructor(private stmt: Statement<unknown>) {}
 
   all(params: Array<unknown>) {
-    return this.stmt.all(...params)
+    return <Array<object>>this.stmt.all(...params)
   }
 
   run(params: Array<unknown>) {
@@ -15,7 +15,7 @@ class PreparedStatement implements SyncStatement {
   }
 
   get(params: Array<unknown>) {
-    return this.stmt.get(...params)
+    return <object>this.stmt.get(...params)
   }
 
   values(params: Array<unknown>) {
