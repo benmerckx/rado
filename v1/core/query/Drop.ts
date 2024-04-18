@@ -1,8 +1,8 @@
 import {
-  type HasTable,
   getData,
   internalData,
-  internalQuery
+  internalQuery,
+  type HasTable
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
@@ -25,7 +25,7 @@ export class Drop<Meta extends QueryMeta = QueryMeta> extends Query<
   }
 
   ifExists() {
-    return new Drop({...getData(this), ifExists: true})
+    return new Drop<Meta>({...getData(this), ifExists: true})
   }
 
   get [internalQuery]() {

@@ -1,21 +1,21 @@
-import {type Expr, input} from '../Expr.ts'
+import {input, type Expr} from '../Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getData,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {
+  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow,
-  selection
+  type SelectionRow
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
 
 export class UpdateData<
@@ -49,24 +49,22 @@ export class UpdateTable<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > extends Update<void, Meta> {
-  set(values: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
+  set(values: TableUpdate<Definition>) {
     const set = sql.join(
       Object.entries(values).map(
         ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
       ),
       sql`, `
     )
-    return new UpdateTable({...getData(this), set})
+    return new UpdateTable<Definition, Meta>({...getData(this), set})
   }
 
-  where(where: Expr<boolean>): UpdateTable<Definition, Meta> {
-    return new UpdateTable({...getData(this), where})
+  where(where: Expr<boolean>) {
+    return new UpdateTable<Definition, Meta>({...getData(this), where})
   }
 
-  returning<Input extends SelectionInput>(
-    returning: Input
-  ): Update<SelectionRow<Input>, Meta> {
-    return new Update({
+  returning<Input extends SelectionInput>(returning: Input) {
+    return new Update<SelectionRow<Input>, Meta>({
       ...getData(this),
       returning: selection(returning)
     })

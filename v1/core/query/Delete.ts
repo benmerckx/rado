@@ -1,19 +1,19 @@
 import type {Expr} from '../Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getData,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {
+  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow,
-  selection
+  type SelectionRow
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 
@@ -43,13 +43,14 @@ export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
 }
 
 export class DeleteFrom<Meta extends QueryMeta> extends Delete<void, Meta> {
-  where(condition: Expr<boolean>): DeleteFrom<Meta> {
-    return new DeleteFrom({...getData(this), where: condition})
+  where(condition: Expr<boolean>) {
+    return new DeleteFrom<Meta>({...getData(this), where: condition})
   }
 
-  returning<Input extends SelectionInput>(
-    returning: Input
-  ): Delete<SelectionRow<Input>, Meta> {
-    return new Delete({...getData(this), returning: selection(returning)})
+  returning<Input extends SelectionInput>(returning: Input) {
+    return new Delete<SelectionRow<Input>, Meta>({
+      ...getData(this),
+      returning: selection(returning)
+    })
   }
 }

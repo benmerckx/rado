@@ -18,14 +18,12 @@ export class Builder<Meta extends QueryMeta> {
     this[internalData] = data
   }
 
-  create<Definition extends TableDefinition>(
-    table: Table<Definition>
-  ): Create<Meta> {
+  create<Definition extends TableDefinition>(table: Table<Definition>) {
     return new Create<Meta>({...getData(this), table})
   }
 
-  drop(table: HasTable): Drop<Meta> {
-    return new Drop({...getData(this), table})
+  drop(table: HasTable) {
+    return new Drop<Meta>({...getData(this), table})
   }
 
   select(): WithoutSelection<Meta>
@@ -61,19 +59,15 @@ export class Builder<Meta extends QueryMeta> {
     })
   }
 
-  update<Definition extends TableDefinition>(
-    table: Table<Definition>
-  ): UpdateTable<Definition, Meta> {
+  update<Definition extends TableDefinition>(table: Table<Definition>) {
     return new UpdateTable<Definition, Meta>({...getData(this), table})
   }
 
-  insert<Definition extends TableDefinition>(
-    into: Table<Definition>
-  ): InsertInto<Definition, Meta> {
+  insert<Definition extends TableDefinition>(into: Table<Definition>) {
     return new InsertInto<Definition, Meta>({...getData(this), into})
   }
 
-  delete(from: HasTable): DeleteFrom<Meta> {
-    return new DeleteFrom({...getData(this), from})
+  delete(from: HasTable) {
+    return new DeleteFrom<Meta>({...getData(this), from})
   }
 }

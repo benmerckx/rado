@@ -1,17 +1,17 @@
-import {type Expr, type Input, input} from '../Expr.ts'
+import {input, type Expr, type Input} from '../Expr.ts'
 import {
-  type HasSql,
-  type HasTable,
   getColumn,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasSql,
+  type HasTable
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
-import {type Selection, selection} from '../Selection.ts'
+import {selection, type Selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {TableDefinition, TableInsert} from '../Table.ts'
 
@@ -37,8 +37,11 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
 
-  returning<T>(returning: Expr<T>): Insert<T, Meta> {
-    return new Insert({...getData(this), returning: selection(returning)})
+  returning<T>(returning: Expr<T>) {
+    return new Insert<T, Meta>({
+      ...getData(this),
+      returning: selection(returning)
+    })
   }
 
   get [internalQuery]() {

@@ -29,11 +29,11 @@ export class Database<Meta extends QueryMeta = Either>
     return this.#driver.close()
   }
 
-  [Symbol.dispose](this: Database<Sync>) {
-    return this.close()
+  [Symbol.dispose](this: Database<Sync>): void {
+    this.close()
   }
 
-  async [Symbol.asyncDispose](this: Database<Async>) {
+  async [Symbol.asyncDispose](this: Database<Async>): Promise<void> {
     return this.close()
   }
 

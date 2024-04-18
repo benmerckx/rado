@@ -8,21 +8,29 @@ import {
   type HasTable
 } from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
+import type {Table, TableRow} from './Table.ts'
+import type {Expand} from './Types.ts'
 
 declare const nullable: unique symbol
 export interface SelectionRecord extends Record<string, SelectionInput> {}
-export type NullableRecord<T> = T & {[nullable]: true}
-export type MakeNullable<T> = {[K in keyof T]: NullableRecord<T[K]>} & {}
+export type IsNullable = {[nullable]: true}
+export type MakeNullable<T> = Expand<{[K in keyof T]: T[K] & IsNullable}>
 export type SelectionInput = HasSql | HasTable | SelectionRecord
-
+export type RowOfRecord<Input> = Expand<{
+  [Key in keyof Input as Key extends string ? Key : never]: SelectionRow<
+    Input[Key]
+  >
+}>
 export type SelectionRow<Input> =
   Input extends HasSql<infer Value>
     ? Value
-    : Input extends NullableRecord<infer Row>
-      ? SelectionRow<Row> | null
+    : Input extends IsNullable
+      ? RowOfRecord<Input> | null
       : Input extends SelectionRecord
-        ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
-        : never
+        ? RowOfRecord<Input>
+        : Input extends Table<infer Definition>
+          ? TableRow<Definition>
+          : never
 
 export class Selection implements HasSql {
   #input: SelectionInput

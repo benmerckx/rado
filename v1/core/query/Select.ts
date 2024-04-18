@@ -19,12 +19,13 @@ import type {QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {
   selection,
+  type IsNullable,
   type MakeNullable,
   type SelectionInput,
   type SelectionRecord,
   type SelectionRow
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {virtual} from '../Virtual.ts'
@@ -294,14 +295,19 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
   >
 }
 
-type MarkFieldsAsNullable<Input, Table extends string> = Expand<{
-  [K in keyof Input]: Input[K] extends Field<infer T, Table>
+type MarkFieldsAsNullable<Input, TableName extends string> = Expand<{
+  [K in keyof Input]: Input[K] extends Field<infer T, TableName>
     ? Expr<T | null>
-    : Input[K] extends Record<string, Field<unknown, Table> | Sql<unknown>>
-      ? Input[K] | null
-      : Input[K] extends SelectionRecord
-        ? MarkFieldsAsNullable<Input[K], Table>
-        : Input[K]
+    : Input[K] extends Table<infer Definition, TableName>
+      ? TableFields<Definition> & IsNullable
+      : Input[K] extends Record<
+            string,
+            Field<unknown, TableName> | HasSql<unknown>
+          >
+        ? Input[K] & IsNullable
+        : Input[K] extends SelectionRecord
+          ? MarkFieldsAsNullable<Input[K], TableName>
+          : Input[K]
 }>
 
 export interface SelectionFrom<Input, Meta extends QueryMeta>
