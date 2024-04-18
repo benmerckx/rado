@@ -1,10 +1,10 @@
 import {
-  type HasResolver,
   getData,
   getResolver,
   hasResolver,
   internalData,
-  internalQuery
+  internalQuery,
+  type HasResolver
 } from './Internal.ts'
 import type {Async, QueryMeta, Sync} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'

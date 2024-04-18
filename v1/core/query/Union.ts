@@ -1,11 +1,11 @@
 import {
-  type HasQuery,
-  type HasSelection,
-  type HasSql,
   getData,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  type HasQuery,
+  type HasSelection,
+  type HasSql
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
@@ -33,7 +33,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     this[internalSelection] = data.selection
   }
 
-  union(right: Select.Base<Result, Meta>): Union<Result, Meta> {
+  union(right: Select.SelectBase<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
@@ -42,7 +42,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  unionAll(right: Select.Base<Result, Meta>): Union<Result, Meta> {
+  unionAll(right: Select.SelectBase<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
@@ -51,7 +51,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  intersect(right: Select.Base<Result, Meta>): Union<Result, Meta> {
+  intersect(right: Select.SelectBase<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,
@@ -60,7 +60,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  except(right: Select.Base<Result, Meta>): Union<Result, Meta> {
+  except(right: Select.SelectBase<Result, Meta>): Union<Result, Meta> {
     return new Union<Result, Meta>({
       ...getData(this),
       left: this,

@@ -54,3 +54,11 @@ test('gather fields in an object', () => {
     .from(Node)
   expect(emit(query)).toBe('select "Node"."id", "Node"."field1" from "Node"')
 })
+
+test('subquery', () => {
+  const sub = builder.select(Node.id).from(Node).as('sub')
+  const query = builder.select(sub).from(sub)
+  expect(emit(query)).toBe(
+    'select "sub"."id" from (select "Node"."id" from "Node") as "sub"'
+  )
+})

@@ -1,15 +1,14 @@
-import type {ColumnData} from './Column.ts'
-import {type HasSql, internalField, internalSql} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {internalField, internalSql, type HasSql} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 export class FieldApi {
   constructor(
-    public tableName: string,
+    public targetName: string,
     public fieldName: string
   ) {}
 
   toSql(): Sql {
-    return sql`${sql.identifier(this.tableName)}.${sql.identifier(
+    return sql`${sql.identifier(this.targetName)}.${sql.identifier(
       this.fieldName
     )}`
   }
@@ -19,9 +18,16 @@ export class Field<Value, Table extends string> implements HasSql<Value> {
   #table?: Table;
   readonly [internalField]: FieldApi;
   readonly [internalSql]: Sql<Value>
-  constructor(column: ColumnData, tableName: string, fieldName: string) {
-    const api = new FieldApi(tableName, fieldName)
+  constructor(
+    targetName: string,
+    fieldName: string,
+    options: {mapFromDriverValue?(value: unknown): unknown} = {}
+  ) {
+    const api = new FieldApi(targetName, fieldName)
     this[internalField] = api
-    this[internalSql] = sql.field(api).mapWith(column) as Sql<Value>
+    this[internalSql] = sql
+      .field(api)
+      .as(fieldName)
+      .mapWith(options) as Sql<Value>
   }
 }

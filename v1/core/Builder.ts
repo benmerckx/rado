@@ -1,4 +1,4 @@
-import {type HasTable, getData, internalData} from './Internal.ts'
+import {getData, internalData, type HasTable} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
 import type {SelectionInput} from './Selection.ts'
@@ -7,6 +7,7 @@ import {Create} from './query/Create.ts'
 import {DeleteFrom} from './query/Delete.ts'
 import {Drop} from './query/Drop.ts'
 import {InsertInto} from './query/Insert.ts'
+import type {WithSelection, WithoutSelection} from './query/Select.ts'
 import {Select} from './query/Select.ts'
 import {UpdateTable} from './query/Update.ts'
 
@@ -27,10 +28,10 @@ export class Builder<Meta extends QueryMeta> {
     return new Drop({...getData(this), table})
   }
 
-  select(): Select.WithoutSelection<Meta>
+  select(): WithoutSelection<Meta>
   select<Input extends SelectionInput>(
     selection: Input
-  ): Select.WithSelection<Input, Meta>
+  ): WithSelection<Input, Meta>
   select(input?: SelectionInput): any {
     return new Select<unknown, Meta>({
       ...getData(this),
@@ -43,10 +44,10 @@ export class Builder<Meta extends QueryMeta> {
     })
   }
 
-  selectDistinct(): Select.WithoutSelection<Meta>
+  selectDistinct(): WithoutSelection<Meta>
   selectDistinct<Input extends SelectionInput>(
     selection: Input
-  ): Select.WithSelection<Input, Meta>
+  ): WithSelection<Input, Meta>
   selectDistinct(input?: SelectionInput): any {
     return new Select({
       ...getData(this),

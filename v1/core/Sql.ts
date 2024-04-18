@@ -1,6 +1,6 @@
 import type {Emitter} from './Emitter.ts'
 import type {FieldApi} from './Field.ts'
-import {type HasSql, getSql, internalSql} from './Internal.ts'
+import {getSql, internalSql, type HasSql} from './Internal.ts'
 
 type EmitMethods = {
   [K in keyof Emitter as Emitter[K] extends Function ? K : never]: Emitter[K]
@@ -107,7 +107,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
         if (chunk.type !== 'emitField') return [chunk]
         if (withTableName)
           return [
-            new Chunk('emitIdentifier', chunk.inner.tableName),
+            new Chunk('emitIdentifier', chunk.inner.targetName),
             new Chunk('emitUnsafe', '.'),
             new Chunk('emitIdentifier', chunk.inner.fieldName)
           ]

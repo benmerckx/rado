@@ -1,4 +1,3 @@
-import type {Expr} from './Expr.ts'
 import {
   getField,
   getSql,
@@ -9,21 +8,29 @@ import {
   type HasTable
 } from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
-import type {Table, TableRow} from './Table.ts'
 
-export type SelectionBase = HasSql | HasTable | Sql
 export interface SelectionRecord extends Record<string, SelectionInput> {}
-export type SelectionInput = SelectionBase | SelectionRecord
+declare const nullable: unique symbol
+export interface IsNullable {
+  [nullable]: true
+}
+export type MakeNullable<T> = {[K in keyof T]: T[K] & IsNullable} & {}
+export type SelectionInput = HasSql | HasTable | SelectionRecord
 
-export type SelectionRow<Input> = Input extends Expr<infer Value>
-  ? Value
-  : Input extends Sql<infer Value>
-  ? Value
-  : Input extends Table<infer Definition>
-  ? TableRow<Definition>
-  : Input extends SelectionRecord
-  ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
-  : never
+export type SelectionRow<Input> =
+  Input extends HasSql<infer Value>
+    ? Value
+    : Input extends IsNullable
+      ?
+          | {
+              [Key in keyof Input as Key extends string
+                ? Key
+                : never]: SelectionRow<Input[Key]>
+            }
+          | null
+      : Input extends SelectionRecord
+        ? {[Key in keyof Input]: SelectionRow<Input[Key]>}
+        : never
 
 export class Selection implements HasSql {
   #input: SelectionInput
@@ -57,7 +64,7 @@ export class Selection implements HasSql {
       if (isNullable) {
         if (value === null) {
           const field = getField(expr)
-          if (field && !this.#nullable.has(field.tableName)) isNullable = false
+          if (field && !this.#nullable.has(field.targetName)) isNullable = false
         } else {
           isNullable = false
         }
@@ -76,7 +83,7 @@ export class Selection implements HasSql {
     if (expr) {
       let exprName = expr.alias ?? name
       if (exprName) {
-        // Some drivers have problems with multiple columns with the same name
+        // The bun:sqlite driver cannot handle multiple columns by the same name
         while (names.has(exprName)) exprName = `${exprName}_`
         names.add(exprName)
         if (hasField(input)) {

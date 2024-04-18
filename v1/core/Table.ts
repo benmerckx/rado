@@ -1,8 +1,8 @@
 import type {Column, RequiredColumn} from './Column.ts'
 import type {Input} from './Expr.ts'
 import {Field} from './Field.ts'
-import {type HasTable, getColumn, getTable, internalTable} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {getColumn, getTable, internalTable, type HasTable} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
 
@@ -61,7 +61,7 @@ export class TableApi<
       entries(this.columns).map(([name, column]) => {
         const columnApi = getColumn(column)
         const {name: givenName} = columnApi
-        const field = new Field(columnApi, this.aliased, givenName ?? name)
+        const field = new Field(this.aliased, givenName ?? name, columnApi)
         return [name, field]
       })
     )
@@ -71,13 +71,13 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> = HasTable<Definition, Name> & TableFields<Definition, Name>
+> = TableFields<Definition, Name> & HasTable<Definition, Name>
 
 export type TableFields<
   Definition extends TableDefinition,
   TableName extends string = string
 > = {
-  readonly [K in keyof Definition]: Definition[K] extends Column<infer T>
+  [K in keyof Definition]: Definition[K] extends Column<infer T>
     ? Field<T, TableName>
     : never
 }
