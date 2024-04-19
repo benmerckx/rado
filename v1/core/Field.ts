@@ -13,13 +13,11 @@ export class Field<Value, Table extends string> implements HasSql<Value> {
   constructor(
     targetName: string,
     fieldName: string,
-    options: {mapFromDriverValue?(value: unknown): unknown} = {}
+    options: {mapFromDriverValue?(value: unknown): Value} = {}
   ) {
     const field = {targetName, fieldName}
     this[internalField] = field
-    this[internalSql] = sql
-      .field(field)
-      .as(fieldName)
-      .mapWith(options) as Sql<Value>
+    const expr = sql.field(field).as(fieldName).mapWith(options)
+    this[internalSql] = expr
   }
 }

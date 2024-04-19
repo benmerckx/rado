@@ -1,15 +1,15 @@
 import type {Emitter} from './Emitter.ts'
-import type {FieldApi} from './Field.ts'
+import type {FieldData} from './Field.ts'
 import {getSql, internalSql, type HasSql} from './Internal.ts'
 
 type EmitMethods = {
   [K in keyof Emitter as K extends `emit${string}` ? K : never]: Emitter[K]
 }
-type SqlChunk = {
+/*type SqlChunk = {
   [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
-}[keyof EmitMethods]
+}[keyof EmitMethods]*/
 
-class Chunk<Type, Inner> {
+class Chunk<Type = keyof EmitMethods, Inner = unknown> {
   constructor(
     public type: Type,
     public inner: Inner
@@ -26,8 +26,8 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   mapFromDriverValue?: (input: unknown) => Value;
   readonly [internalSql] = this
 
-  #chunks: Array<SqlChunk>
-  constructor(chunks: Array<SqlChunk> = []) {
+  #chunks: Array<Chunk>
+  constructor(chunks: Array<Chunk> = []) {
     this.#chunks = chunks
   }
 
@@ -47,7 +47,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     type: Type,
     inner: Parameters<EmitMethods[Type]>[0]
   ): Sql<Value> {
-    this.#chunks.push(new Chunk(type, inner) as SqlChunk)
+    this.#chunks.push(new Chunk(type, inner))
     return this
   }
 
@@ -56,7 +56,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return this
   }
 
-  field(field: FieldApi): Sql<Value> {
+  field(field: FieldData): Sql<Value> {
     return this.chunk('emitField', field)
   }
 
@@ -77,7 +77,8 @@ export class Sql<Value = unknown> implements HasSql<Value> {
 
   jsonPath(path: Array<string | number>): Sql<Value> {
     const last = this.#chunks.at(-1)
-    if (last?.type === 'emitJsonPath') last.inner.push(...path)
+    if (last?.type === 'emitJsonPath')
+      (<Array<string | number>>last.inner).push(...path)
     else this.chunk('emitJsonPath', path)
     return this
   }
@@ -94,13 +95,14 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return new Sql(
       this.#chunks.flatMap(chunk => {
         if (chunk.type !== 'emitField') return [chunk]
+        const data = <FieldData>chunk.inner
         if (withTableName)
           return [
-            new Chunk('emitIdentifier', chunk.inner.targetName),
+            new Chunk('emitIdentifier', data.targetName),
             new Chunk('emitUnsafe', '.'),
-            new Chunk('emitIdentifier', chunk.inner.fieldName)
+            new Chunk('emitIdentifier', data.fieldName)
           ]
-        return [new Chunk('emitIdentifier', chunk.inner.fieldName)]
+        return [new Chunk('emitIdentifier', data.fieldName)]
       })
     )
   }
@@ -152,7 +154,7 @@ export namespace sql {
     return empty<T>().identifier(identifier)
   }
 
-  export function field<T>(field: FieldApi): Sql<T> {
+  export function field<T>(field: FieldData): Sql<T> {
     return empty<T>().field(field)
   }
 

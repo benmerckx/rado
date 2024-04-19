@@ -7,7 +7,9 @@
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
+    "outDir": "dist",
+    "emitDeclarationOnly": true,
+    "declaration": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "types": ["bun-types", "@cloudflare/workers-types"]

@@ -157,16 +157,16 @@ export function desc<T>(column: HasSql<T>): Sql {
 }
 
 export interface JsonArrayHasSql<Value> extends HasSql<Value> {
-  [index: number]: JsonHasSql<Value>
+  [index: number]: JsonExpr<Value>
 }
 
 export type JsonRecordHasSql<Row> = HasSql<Row> & {
-  [K in keyof Row]: JsonHasSql<Row[K]>
+  [K in keyof Row]: JsonExpr<Row[K]>
 }
 
 type Nullable<T> = {[P in keyof T]: T[P] | null}
 
-export type JsonHasSql<Value> = [NonNullable<Value>] extends [Array<infer V>]
+export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
   ? JsonArrayHasSql<null extends Value ? V | null : V>
   : [NonNullable<Value>] extends [object]
     ? JsonRecordHasSql<null extends Value ? Nullable<Value> : Value>
@@ -174,7 +174,7 @@ export type JsonHasSql<Value> = [NonNullable<Value>] extends [Array<infer V>]
 
 const INDEX_PROPERTY = /^\d+$/
 
-export function jsonExpr<Value>(e: HasSql<Value>): JsonHasSql<Value> {
+export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
   return new Proxy(<any>e, {
     get(target, prop) {
       if (typeof prop !== 'string') return Reflect.get(target, prop)

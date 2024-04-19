@@ -1,4 +1,4 @@
-import {Column} from '../core/Column.ts'
+import {Column, JsonColumn} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 export function boolean(name?: string): Column<boolean | null> {
@@ -34,8 +34,8 @@ export function numeric(name?: string): Column<number | null> {
   return new Column({name, type: sql`numeric`})
 }
 
-export function json<T>(name?: string): Column<T | null> {
-  return new Column({
+export function json<T>(name?: string): JsonColumn<T | null> {
+  return new JsonColumn({
     name,
     type: sql`json`,
     mapFromDriverValue(value: string): T {
@@ -47,8 +47,8 @@ export function json<T>(name?: string): Column<T | null> {
   })
 }
 
-export function jsonb<T>(name?: string): Column<T | null> {
-  return new Column({
+export function jsonb<T>(name?: string): JsonColumn<T | null> {
+  return new JsonColumn({
     name,
     type: sql`jsonb`,
     mapFromDriverValue(value: string): T {

@@ -100,12 +100,12 @@ test('order by', () => {
 test('json array', () => {
   const arr = e.jsonExpr(sql<Array<number> | null>`test`)
   const row = arr[0]
-  expect(emit(row)).toBe('test->"$.0"')
+  expect(emit(row)).toBe('test->>"$.0"')
 })
 
 test('json object', () => {
   const obj = e.jsonExpr(sql<{a: {x: number}} | null>`test`)
   const a = obj.a
   const x = obj.a.x
-  expect(emit(x)).toBe('test->"$.a.x"')
+  expect(emit(x)).toBe('test->>"$.a.x"')
 })

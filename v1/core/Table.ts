@@ -1,7 +1,13 @@
-import type {Column, RequiredColumn} from './Column.ts'
-import type {Input} from './Expr.ts'
+import type {Column, JsonColumn, RequiredColumn} from './Column.ts'
+import {jsonExpr, type Input, type JsonExpr} from './Expr.ts'
 import {Field} from './Field.ts'
-import {getColumn, getTable, internalTable, type HasTable} from './Internal.ts'
+import {
+  getColumn,
+  getTable,
+  internalTable,
+  type HasSql,
+  type HasTable
+} from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
 
 const {assign, fromEntries, entries} = Object
@@ -55,12 +61,13 @@ export class TableApi<
     )
   }
 
-  fields() {
+  fields(): Record<string, HasSql> {
     return fromEntries(
       entries(this.columns).map(([name, column]) => {
         const columnApi = getColumn(column)
         const {name: givenName} = columnApi
         const field = new Field(this.aliased, givenName ?? name, columnApi)
+        if (columnApi.json) return [name, jsonExpr(field)]
         return [name, field]
       })
     )
@@ -76,9 +83,11 @@ export type TableFields<
   Definition extends TableDefinition,
   TableName extends string = string
 > = {
-  [K in keyof Definition]: Definition[K] extends Column<infer T>
-    ? Field<T, TableName>
-    : never
+  [K in keyof Definition]: Definition[K] extends JsonColumn<infer T>
+    ? JsonExpr<T>
+    : Definition[K] extends Column<infer T>
+      ? Field<T, TableName>
+      : never
 }
 
 export type TableRow<Definition extends TableDefinition> = {

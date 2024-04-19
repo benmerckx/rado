@@ -11,7 +11,7 @@ class TestEmitter extends Emitter {
     this.sql += JSON.stringify(v)
   }
   emitJsonPath(path: Array<number | string>) {
-    this.sql += `->${JSON.stringify(`$.${path.join('.')}`)}`
+    this.sql += `->>${JSON.stringify(`$.${path.join('.')}`)}`
   }
   emitIdentifier(identifier: string) {
     this.sql += JSON.stringify(identifier)

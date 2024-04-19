@@ -1,4 +1,4 @@
-import {type Input, input} from './Expr.ts'
+import {input, type Input} from './Expr.ts'
 import type {HasColumn, HasSql} from './Internal.ts'
 import {internalColumn} from './Internal.ts'
 import type {Sql} from './Sql.ts'
@@ -6,6 +6,7 @@ import type {Sql} from './Sql.ts'
 export class ColumnData {
   type!: Sql
   name?: string
+  json?: boolean
   primary?: boolean
   notNull?: boolean
   isUnique?: boolean
@@ -44,6 +45,12 @@ export class Column<Value = unknown> implements HasColumn {
   }
   unique(name?: string): Column<Value> {
     return new Column({...this[internalColumn], isUnique: true})
+  }
+}
+
+export class JsonColumn<Value = unknown> extends Column<Value> {
+  constructor(data: ColumnData) {
+    super({...data, json: true})
   }
 }
 

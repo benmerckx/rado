@@ -2,7 +2,7 @@ import {expect} from 'bun:test'
 import type {Database} from '../core/Database.ts'
 import {table} from '../core/Table.ts'
 import {eq, sql} from '../index.ts'
-import {boolean, id, int, text} from '../universal.ts'
+import {boolean, id, int, json, text} from '../universal.ts'
 
 export async function testDriver(
   createDb: () => Promise<Database>,
@@ -126,6 +126,26 @@ export async function testDriver(
     } finally {
       await db.drop(User)
       await db.drop(Post)
+    }
+  })
+
+  const WithJson = table('WithJson', {
+    id: id(),
+    data: json<{sub: {field: string}}>()
+  })
+
+  test('json fields', async () => {
+    try {
+      await db.create(WithJson)
+      const data = {sub: {field: 'value'}}
+      await db.insert(WithJson).values({data})
+      const [row] = await db
+        .select()
+        .from(WithJson)
+        .where(eq(WithJson.data.sub.field, 'value'))
+      expect(row).toEqual({id: 1, data})
+    } finally {
+      await db.drop(WithJson)
     }
   })
 }

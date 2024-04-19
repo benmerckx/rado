@@ -69,8 +69,9 @@ export class InsertInto<
         return sql`(${sql.join(
           Object.entries(table.columns).map(([key, column]) => {
             const value = row[key]
-            if (value !== undefined) return input(value)
-            const {defaultValue, notNull} = getColumn(column)
+            const {defaultValue, notNull, mapToDriverValue} = getColumn(column)
+            if (value !== undefined)
+              return input(mapToDriverValue ? mapToDriverValue(value) : value)
             if (defaultValue) return defaultValue()
             if (notNull) throw new Error(`Column "${key}" is not nullable`)
             return sql.chunk('emitDefaultValue', undefined)
