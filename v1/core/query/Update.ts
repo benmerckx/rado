@@ -1,4 +1,4 @@
-import {input, type Expr} from '../Expr.ts'
+import {input} from '../Expr.ts'
 import {
   getData,
   internalData,
@@ -59,7 +59,7 @@ export class UpdateTable<
     return new UpdateTable<Definition, Meta>({...getData(this), set})
   }
 
-  where(where: Expr<boolean>) {
+  where(where: HasSql<boolean>) {
     return new UpdateTable<Definition, Meta>({...getData(this), where})
   }
 

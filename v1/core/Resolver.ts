@@ -1,11 +1,11 @@
 import type {Dialect} from './Dialect.ts'
 import type {Driver, Statement} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
-import {type HasQuery, getSelection, hasSelection} from './Internal.ts'
+import {getSelection, hasSelection, type HasQuery} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 
 export class Resolver<Meta extends QueryMeta = QueryMeta> {
-  #meta?: Meta
+  private declare keep?: [Meta]
   #driver: Driver
   #dialect: Dialect
 
@@ -26,12 +26,12 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
 type RowMapper = ((values: Array<unknown>) => unknown) | undefined
 
 export class PreparedStatement<Meta extends QueryMeta> {
-  #meta?: Meta
-  #emitter: Emitter<Meta>
+  private declare keep?: [Meta]
+  #emitter: Emitter
   #stmt: Statement
   #mapRow: RowMapper
 
-  constructor(emitter: Emitter<Meta>, stmt: Statement, mapRow: RowMapper) {
+  constructor(emitter: Emitter, stmt: Statement, mapRow: RowMapper) {
     this.#emitter = emitter
     this.#stmt = stmt
     this.#mapRow = mapRow

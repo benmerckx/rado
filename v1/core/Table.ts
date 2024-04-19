@@ -20,8 +20,7 @@ export class TableApi<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends TableData {
-  #definition?: Definition
-  #name?: Name
+  private declare keep?: [Definition, Name]
 
   get aliased() {
     return this.alias ?? this.name

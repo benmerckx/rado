@@ -46,3 +46,16 @@ export function json<T>(name?: string): Column<T | null> {
     }
   })
 }
+
+export function jsonb<T>(name?: string): Column<T | null> {
+  return new Column({
+    name,
+    type: sql`jsonb`,
+    mapFromDriverValue(value: string): T {
+      return JSON.parse(value)
+    },
+    mapToDriverValue(value: T): string {
+      return JSON.stringify(value)
+    }
+  })
+}

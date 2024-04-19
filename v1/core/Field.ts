@@ -1,32 +1,24 @@
 import {internalField, internalSql, type HasSql} from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
 
-export class FieldApi {
-  constructor(
-    public targetName: string,
-    public fieldName: string
-  ) {}
-
-  toSql(): Sql {
-    return sql`${sql.identifier(this.targetName)}.${sql.identifier(
-      this.fieldName
-    )}`
-  }
+export interface FieldData {
+  targetName: string
+  fieldName: string
 }
 
 export class Field<Value, Table extends string> implements HasSql<Value> {
-  #table?: Table;
-  readonly [internalField]: FieldApi;
+  private declare keep?: [Table];
+  readonly [internalField]: FieldData;
   readonly [internalSql]: Sql<Value>
   constructor(
     targetName: string,
     fieldName: string,
     options: {mapFromDriverValue?(value: unknown): unknown} = {}
   ) {
-    const api = new FieldApi(targetName, fieldName)
-    this[internalField] = api
+    const field = {targetName, fieldName}
+    this[internalField] = field
     this[internalSql] = sql
-      .field(api)
+      .field(field)
       .as(fieldName)
       .mapWith(options) as Sql<Value>
   }

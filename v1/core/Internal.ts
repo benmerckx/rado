@@ -1,5 +1,5 @@
 import type {ColumnData} from './Column.ts'
-import type {FieldApi} from './Field.ts'
+import type {FieldData} from './Field.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {Resolver} from './Resolver.ts'
 import type {Selection} from './Selection.ts'
@@ -8,7 +8,6 @@ import type {TableApi, TableDefinition} from './Table.ts'
 
 export const internalData = Symbol()
 export const internalSql = Symbol()
-export const internalJson = Symbol()
 export const internalSelection = Symbol()
 export const internalQuery = Symbol()
 export const internalTable = Symbol()
@@ -38,7 +37,7 @@ export declare class HasColumn {
   get [internalColumn](): ColumnData
 }
 export declare class HasField {
-  get [internalField](): FieldApi
+  get [internalField](): FieldData
 }
 export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
   get [internalResolver](): Resolver<Meta>

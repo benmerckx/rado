@@ -1,4 +1,3 @@
-import type {Expr} from '../Expr.ts'
 import {
   getData,
   internalData,
@@ -43,7 +42,7 @@ export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
 }
 
 export class DeleteFrom<Meta extends QueryMeta> extends Delete<void, Meta> {
-  where(condition: Expr<boolean>) {
+  where(condition: HasSql<boolean>) {
     return new DeleteFrom<Meta>({...getData(this), where: condition})
   }
 

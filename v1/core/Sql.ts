@@ -3,7 +3,7 @@ import type {FieldApi} from './Field.ts'
 import {getSql, internalSql, type HasSql} from './Internal.ts'
 
 type EmitMethods = {
-  [K in keyof Emitter as Emitter[K] extends Function ? K : never]: Emitter[K]
+  [K in keyof Emitter as K extends `emit${string}` ? K : never]: Emitter[K]
 }
 type SqlChunk = {
   [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
@@ -21,8 +21,7 @@ export type Decoder<T> =
   | {mapFromDriverValue?(value: unknown): T}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
-  #value?: Value
-
+  private declare keep?: [Value]
   alias?: string
   mapFromDriverValue?: (input: unknown) => Value;
   readonly [internalSql] = this
@@ -37,14 +36,6 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return this
   }
 
-  chunk<Type extends keyof EmitMethods>(
-    type: Type,
-    inner: Parameters<EmitMethods[Type]>[0]
-  ) {
-    this.#chunks.push(new Chunk(type, inner) as SqlChunk)
-    return this
-  }
-
   mapWith<T = Value>(decoder: Decoder<T>): Sql<T> {
     const res: Sql<T> = <any>this
     res.mapFromDriverValue =
@@ -52,56 +43,54 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return res
   }
 
-  unsafe(sql: string) {
-    if (sql.length > 0) this.#chunks.push(new Chunk('emitUnsafe', sql))
+  chunk<Type extends keyof EmitMethods>(
+    type: Type,
+    inner: Parameters<EmitMethods[Type]>[0]
+  ): Sql<Value> {
+    this.#chunks.push(new Chunk(type, inner) as SqlChunk)
     return this
   }
 
-  field(field: FieldApi) {
-    this.#chunks.push(new Chunk('emitField', field))
+  unsafe(sql: string): Sql<Value> {
+    if (sql.length > 0) this.chunk('emitUnsafe', sql)
     return this
   }
 
-  add(sql: HasSql) {
+  field(field: FieldApi): Sql<Value> {
+    return this.chunk('emitField', field)
+  }
+
+  add(sql: HasSql): Sql<Value> {
     const inner = getSql(sql)
     if (!(inner instanceof Sql)) throw new Error('Invalid SQL')
     this.#chunks.push(...inner.#chunks)
     return this
   }
 
-  value(value: unknown) {
-    this.#chunks.push(new Chunk('emitValue', value))
-    return this
+  value(value: unknown): Sql<Value> {
+    return this.chunk('emitValue', value)
   }
 
-  inline(value: unknown) {
-    this.#chunks.push(new Chunk('emitInline', value))
-    return this
+  inline(value: unknown): Sql<Value> {
+    return this.chunk('emitInline', value)
   }
 
-  jsonPath(path: Array<string | number>) {
+  jsonPath(path: Array<string | number>): Sql<Value> {
     const last = this.#chunks.at(-1)
     if (last?.type === 'emitJsonPath') last.inner.push(...path)
-    else this.#chunks.push(new Chunk('emitJsonPath', path))
+    else this.chunk('emitJsonPath', path)
     return this
   }
 
-  placeholder(name: string) {
-    this.#chunks.push(new Chunk('emitPlaceholder', name))
-    return this
+  placeholder(name: string): Sql<Value> {
+    return this.chunk('emitPlaceholder', name)
   }
 
-  identifier(identifier: string) {
-    this.#chunks.push(new Chunk('emitIdentifier', identifier))
-    return this
+  identifier(identifier: string): Sql<Value> {
+    return this.chunk('emitIdentifier', identifier)
   }
 
-  defaultValue() {
-    this.#chunks.push(new Chunk('emitDefaultValue', undefined))
-    return this
-  }
-
-  inlineFields(withTableName: boolean) {
+  inlineFields(withTableName: boolean): Sql<Value> {
     return new Sql(
       this.#chunks.flatMap(chunk => {
         if (chunk.type !== 'emitField') return [chunk]
@@ -116,8 +105,8 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     )
   }
 
-  emit(emitter: Emitter) {
-    for (const chunk of this.#chunks) emitter[chunk.type](chunk.inner as any)
+  emit(emitter: Emitter): void {
+    for (const chunk of this.#chunks) emitter[chunk.type](<any>chunk.inner)
   }
 }
 
@@ -139,7 +128,7 @@ export function sql<T>(
 }
 
 export namespace sql {
-  export function empty<T>() {
+  export function empty<T>(): Sql<T> {
     return new Sql<T>()
   }
 
@@ -163,10 +152,6 @@ export namespace sql {
     return empty<T>().identifier(identifier)
   }
 
-  export function defaultValue(): Sql {
-    return empty().defaultValue()
-  }
-
   export function field<T>(field: FieldApi): Sql<T> {
     return empty<T>().field(field)
   }
@@ -178,7 +163,7 @@ export namespace sql {
     return empty().chunk(type, inner)
   }
 
-  export function query(ast: Record<string, HasSql | undefined>) {
+  export function query(ast: Record<string, HasSql | undefined>): Sql {
     return join(
       Object.entries(ast).map(([key, value]) => {
         return value && sql`${sql.unsafe(key)} ${value}`

@@ -1,4 +1,4 @@
-import {input, type Expr, type Input} from '../Expr.ts'
+import {input, type Input} from '../Expr.ts'
 import {
   getColumn,
   getData,
@@ -37,7 +37,7 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
 
-  returning<T>(returning: Expr<T>) {
+  returning<T>(returning: HasSql<T>) {
     return new Insert<T, Meta>({
       ...getData(this),
       returning: selection(returning)
@@ -73,7 +73,7 @@ export class InsertInto<
             const {defaultValue, notNull} = getColumn(column)
             if (defaultValue) return defaultValue()
             if (notNull) throw new Error(`Column "${key}" is not nullable`)
-            return sql.defaultValue()
+            return sql.chunk('emitDefaultValue', undefined)
           }),
           sql`, `
         )})`

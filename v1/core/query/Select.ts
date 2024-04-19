@@ -1,4 +1,4 @@
-import {input, type Expr, type Input as UserInput} from '../Expr.ts'
+import {input, type Input as UserInput} from '../Expr.ts'
 import type {Field} from '../Field.ts'
 import {
   getData,
@@ -62,19 +62,16 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     this[internalData] = data
   }
 
-  as(name: string) {
+  as(name: string): SubQuery<Input> {
     const {select} = getData(this)
     if (!select.input) throw new Error('No selection defined')
-    return <SubQuery<Input>>Object.assign(
-      virtual(name, <SelectionInput>select.input),
-      {
-        [internalQuery]:
-          sql`(${getQuery(this)}) as ${sql.identifier(name)}`.inlineFields(true)
-      }
-    )
+    return Object.assign(virtual(name, <SelectionInput>select.input) as any, {
+      [internalQuery]:
+        sql`(${getQuery(this)}) as ${sql.identifier(name)}`.inlineFields(true)
+    })
   }
 
-  from(target: HasQuery | Table) {
+  from(target: HasQuery | Table): Select<Input, Meta> {
     const {select: current} = getData(this)
     const from = hasQuery(target) ? getQuery(target) : getTable(target).from()
     const isTable = hasTable(target)
@@ -93,7 +90,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   #join(
     operator: 'left' | 'right' | 'inner' | 'full',
     right: HasTable,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): Select<Input, Meta> {
     const {from, select: current} = getData(this)
     const rightTable = getTable(right)
@@ -128,38 +125,38 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  leftJoin(right: HasTable, on: Expr<boolean>): Select<Input, Meta> {
+  leftJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
     return this.#join('left', right, on)
   }
 
-  rightJoin(right: HasTable, on: Expr<boolean>): Select<Input, Meta> {
+  rightJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
     return this.#join('right', right, on)
   }
 
-  innerJoin(right: HasTable, on: Expr<boolean>): Select<Input, Meta> {
+  innerJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
     return this.#join('inner', right, on)
   }
 
-  fullJoin(right: HasTable, on: Expr<boolean>): Select<Input, Meta> {
+  fullJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
     return this.#join('full', right, on)
   }
 
-  where(where: Expr<boolean>): Select<Input, Meta> {
+  where(where: HasSql<boolean>): Select<Input, Meta> {
     return new Select({...getData(this), where})
   }
 
-  groupBy(...exprs: Array<Expr>): Select<Input, Meta> {
+  groupBy(...exprs: Array<HasSql>): Select<Input, Meta> {
     return new Select({
       ...getData(this),
       groupBy: sql.join(exprs, sql.unsafe(', '))
     })
   }
 
-  having(having: Expr<boolean>): Select<Input, Meta> {
+  having(having: HasSql<boolean>): Select<Input, Meta> {
     return new Select({...getData(this), having})
   }
 
-  orderBy(...exprs: Array<Expr>): Select<Input, Meta> {
+  orderBy(...exprs: Array<HasSql>): Select<Input, Meta> {
     return new Select({
       ...getData(this),
       orderBy: sql.join(exprs, sql.unsafe(', '))
@@ -233,10 +230,10 @@ export type SubQuery<Input> = Input & HasQuery
 export interface SelectBase<Input, Meta extends QueryMeta>
   extends Query<SelectionRow<Input>, Meta>,
     HasSelection {
-  where(where: Expr<boolean>): Select<Input, Meta>
-  groupBy(...exprs: Array<Expr>): Select<Input, Meta>
-  having(having: Expr<boolean>): Select<Input, Meta>
-  orderBy(...exprs: Array<Expr>): Select<Input, Meta>
+  where(where: HasSql<boolean>): Select<Input, Meta>
+  groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
+  having(having: HasSql<boolean>): Select<Input, Meta>
+  orderBy(...exprs: Array<HasSql>): Select<Input, Meta>
   limit(limit: UserInput<number>): Select<Input, Meta>
   offset(offset: UserInput<number>): Select<Input, Meta>
   union(right: SelectBase<Input, Meta>): Union<Input, Meta>
@@ -268,25 +265,25 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
   extends SelectBase<Input, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): AllFrom<
     Expand<Tables & MakeNullable<Record<Name, TableFields<Definition>>>>,
     Meta
   >
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): AllFrom<
     Expand<MakeNullable<Tables> & Record<Name, TableFields<Definition>>>,
     Meta
   >
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): AllFrom<
     Expand<
       MakeNullable<Tables> & MakeNullable<Record<Name, TableFields<Definition>>>
@@ -297,7 +294,7 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
 
 type MarkFieldsAsNullable<Input, TableName extends string> = Expand<{
   [K in keyof Input]: Input[K] extends Field<infer T, TableName>
-    ? Expr<T | null>
+    ? HasSql<T | null>
     : Input[K] extends Table<infer Definition, TableName>
       ? TableFields<Definition> & IsNullable
       : Input[K] extends Record<
@@ -314,18 +311,18 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
   extends SelectBase<Input, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: Expr<boolean>
+    on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
 }
