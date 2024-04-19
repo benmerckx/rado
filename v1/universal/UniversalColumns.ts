@@ -37,11 +37,17 @@ export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
     type: sql`jsonb`,
-    mapFromDriverValue(value: string): T {
-      return JSON.parse(value)
-    },
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
+    },
+    mapFromDriverValue(value: unknown) {
+      // We need information here whether the driver will pass values
+      // pre-parsed because this can result in incorrect data
+      if (typeof value === 'string')
+        try {
+          return JSON.parse(value)
+        } catch {}
+      return value
     }
   })
 }

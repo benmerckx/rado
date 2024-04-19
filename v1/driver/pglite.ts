@@ -6,7 +6,10 @@ import {postgresDialect} from '../postgres/PostgresDialect.ts'
 type Queryable = PGlite | Transaction
 
 class PreparedStatement implements AsyncStatement {
-  constructor(private client: Queryable, private sql: string) {}
+  constructor(
+    private client: Queryable,
+    private sql: string
+  ) {}
 
   all(params: Array<unknown>): Promise<Array<object>> {
     return this.client

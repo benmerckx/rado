@@ -18,10 +18,10 @@ class PostgresEmitter extends Emitter {
   emitJsonPath(path: Array<number | string>) {
     for (let i = 0; i < path.length; i++) {
       const access = path[i]
+      if (i <= path.length - 2) this.sql += '->'
+      else if (i === path.length - 1) this.sql += '->>'
       if (typeof access === 'number') this.sql += access
       else this.sql += this.quoteString(access)
-      if (i < path.length - 2) this.sql += '->'
-      else if (i < path.length - 1) this.sql += '->>'
     }
   }
   emitInline(value: unknown) {

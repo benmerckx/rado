@@ -39,9 +39,6 @@ export function json<T>(name?: string): JsonColumn<T | null> {
   return new JsonColumn({
     name,
     type: sql`json`,
-    mapFromDriverValue(value: string): T {
-      return JSON.parse(value)
-    },
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     }
@@ -52,9 +49,6 @@ export function jsonb<T>(name?: string): JsonColumn<T | null> {
   return new JsonColumn({
     name,
     type: sql`jsonb`,
-    mapFromDriverValue(value: string): T {
-      return JSON.parse(value)
-    },
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     }
