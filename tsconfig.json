@@ -14,5 +14,5 @@
     "esModuleInterop": true,
     "types": ["bun-types", "@cloudflare/workers-types"]
   },
-  "include": ["v1"]
+  "include": ["src", "test"]
 }

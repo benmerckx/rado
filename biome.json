@@ -36,7 +36,8 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noConstEnum": "off",
-        "noAssignInExpressions": "off"
+        "noAssignInExpressions": "off",
+        "noConfusingLabels": "off"
       }
     }
   }
