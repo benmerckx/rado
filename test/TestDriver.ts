@@ -1,8 +1,12 @@
-import {Assert, Test} from '@sinclair/carbon'
-import type {Database} from '../src/core/Database.ts'
-import {table} from '../src/core/Table.ts'
-import {eq, sql} from '../src/index.ts'
-import {boolean, id, int, json, text} from '../src/universal.ts'
+import { Assert, Test } from '@sinclair/carbon'
+import {
+  AsyncDatabase,
+  type Database,
+  type SyncDatabase
+} from '../src/core/Database.ts'
+import { table } from '../src/core/Table.ts'
+import { eq, sql } from '../src/index.ts'
+import { boolean, id, int, json, text } from '../src/universal.ts'
 
 const Node = table('Node', {
   id: id(),
@@ -26,8 +30,9 @@ export async function testDriver(
   createDb: () => Promise<Database>
 ) {
   const db = await createDb()
+  const isAsync = db instanceof AsyncDatabase
 
-  Test.describe(name, async () => {
+  Test.describe(`Driver: ${name}`, async () => {
     Test.it('create table', async () => {
       try {
         await db.create(Node)
@@ -147,6 +152,50 @@ export async function testDriver(
         Assert.isEqual(row, {id: 1, data})
       } finally {
         await db.drop(WithJson)
+      }
+    })
+
+    Test.it('transactions', async () => {
+      if (isAsync) {
+        const asyncDb = db as AsyncDatabase<'universal'>
+        try {
+          await asyncDb.create(Node)
+          await asyncDb.transaction(async tx => {
+            await tx.insert(Node).values({
+              textField: 'hello',
+              bool: true
+            })
+            const nodes = await tx.select().from(Node)
+            Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+            tx.rollback()
+          })
+        } catch {
+          const nodes = await asyncDb.select().from(Node)
+          Assert.isEqual(nodes, [])
+        } finally {
+          await asyncDb.drop(Node)
+        }
+      } else {
+        const syncDb = db as SyncDatabase<'universal'>
+        try {
+          syncDb.create(Node).run()
+          syncDb.transaction((tx): void => {
+            tx.insert(Node).values({
+              textField: 'hello',
+              bool: true
+            })
+            const nodes = tx.select().from(Node).all()
+            Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+            tx.rollback()
+          })
+          const nodes = syncDb.select().from(Node).all()
+          Assert.isEqual(nodes, [])
+        } catch {
+          const nodes = syncDb.select().from(Node).all()
+          Assert.isEqual(nodes, [])
+        }  finally {
+          syncDb.drop(Node).run()
+        }
       }
     })
   })
