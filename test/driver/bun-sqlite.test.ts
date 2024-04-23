@@ -1,6 +1,7 @@
+import {Runtime} from '@sinclair/carbon'
 import {testDriver} from '../TestDriver.ts'
 
-if (process?.isBun)
+if (Runtime.isBun())
   await testDriver('bun-sqlite', async () => {
     const {Database} = await import('bun:sqlite')
     const {connect} = await import('../../src/driver/bun-sqlite.ts')

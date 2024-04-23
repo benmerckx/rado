@@ -1,4 +1,4 @@
-import {PGlite, type Transaction} from '@electric-sql/pglite'
+import type {PGlite, Transaction} from '@electric-sql/pglite'
 import type {AsyncDriver, AsyncStatement} from '../core/Driver.ts'
 import {AsyncDatabase, type TransactionOptions} from '../index.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
@@ -48,7 +48,7 @@ export class PGliteDriver implements AsyncDriver {
   }
 
   close() {
-    if (this.client instanceof PGlite) {
+    if ('close' in this.client) {
       return Promise.resolve()
       // This fails currently
       // return this.client.close()
@@ -64,7 +64,7 @@ export class PGliteDriver implements AsyncDriver {
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionOptions['postgres']
   ): Promise<T> {
-    if (this.client instanceof PGlite)
+    if ('transaction' in this.client)
       return this.client.transaction((tx: Transaction) => {
         return run(new PGliteDriver(tx))
       }) as Promise<T>
