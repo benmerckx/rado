@@ -4,7 +4,7 @@ export type Statement = SyncStatement | AsyncStatement
 export interface SyncDriver {
   close(): void
   exec(query: string): void
-  prepare(query: string): SyncStatement
+  prepare(query: string, name?: string): SyncStatement
   transaction<T>(
     run: (inner: SyncDriver) => T,
     options: unknown,
@@ -21,7 +21,7 @@ export interface SyncStatement {
 export interface AsyncDriver {
   close(): Promise<void>
   exec(query: string): Promise<void>
-  prepare(query: string): AsyncStatement
+  prepare(query: string, name?: string): AsyncStatement
   transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
     options: unknown,

@@ -70,9 +70,9 @@ class SqlJsDriver implements SyncDriver {
       const result = run(this)
       this.exec(depth > 0 ? `release d${depth}` : 'commit')
       return result
-    } catch (err) {
+    } catch (error) {
       this.exec(depth > 0 ? `rollback to d${depth}` : 'rollback')
-      throw err
+      throw error
     }
   }
 }
