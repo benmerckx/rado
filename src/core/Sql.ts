@@ -23,7 +23,7 @@ export type Decoder<T> =
 export class Sql<Value = unknown> implements HasSql<Value> {
   private declare keep?: [Value]
   alias?: string
-  mapFromDriverValue?: (input: unknown) => Value;
+  mapFromDriverValue?: (input: unknown) => Value
   readonly [internalSql] = this
 
   #chunks: Array<Chunk>
@@ -168,7 +168,8 @@ export namespace sql {
   export function query(ast: Record<string, HasSql | undefined>): Sql {
     return join(
       Object.entries(ast).map(([key, value]) => {
-        return value && sql`${sql.unsafe(key)} ${value}`
+        const statement = key.replace(/([A-Z])/g, ' $1').toLocaleLowerCase()
+        return value && sql`${sql.unsafe(statement)} ${value}`
       })
     )
   }

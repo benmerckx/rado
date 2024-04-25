@@ -1,7 +1,7 @@
 import {Assert, Test} from '@sinclair/carbon'
-import type {QueryMode} from '../../src/core/MetaData.ts'
+import type {Builder} from '../../src/core/Builder.ts'
 import {table} from '../../src/core/Table.ts'
-import type {Insert} from '../../src/core/query/Insert.ts'
+import {eq} from '../../src/index.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
 import {builder, emit} from '../TestUtils.ts'
 
@@ -15,7 +15,9 @@ Test.describe('Insert', () => {
 
   const Node = table('Node', definition)
 
-  const query = builder.insert(Node).values({id: 1, required: 3})
+  const query = (builder as Builder<{dialect: 'postgres'; mode: 'async'}>)
+    .insert(Node)
+    .values({id: 1, required: 3})
 
   Test.it('insert into', () => {
     Assert.isEqual(
@@ -32,13 +34,26 @@ Test.describe('Insert', () => {
   })
 
   Test.it('on conflict do nothing', () => {
-    const postgresQuery = query as Insert<
-      typeof definition,
-      {dialect: 'postgres'; mode: QueryMode}
-    >
     Assert.isEqual(
-      emit(postgresQuery.onConflictDoNothing()),
-      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) on conflict do nothing'
+      emit(
+        query.onConflictDoNothing({
+          target: Node.id,
+          targetWhere: eq(Node.id, 1)
+        })
+      ),
+      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) on conflict ("id") where "id" = 1 do nothing'
+    )
+  })
+
+  Test.it('on conflict do update', () => {
+    Assert.isEqual(
+      emit(
+        query.onConflictDoUpdate({
+          target: Node.id,
+          set: {required: 4}
+        })
+      ),
+      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) on conflict ("id") do update set "required" = 4'
     )
   })
 })

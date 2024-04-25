@@ -17,6 +17,6 @@ import './query/Select.test.ts'
 import './query/Union.test.ts'
 import './query/Update.test.ts'
 
-Test.run({}).then(result => {
+Test.run({filter: Process.args[0]}).then(result => {
   return Process.exit(result.success ? 0 : 1)
 })

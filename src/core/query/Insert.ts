@@ -9,11 +9,16 @@ import {
   type HasSql,
   type HasTable
 } from '../Internal.ts'
-import type {QueryMeta} from '../MetaData.ts'
+import type {IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {selection, type Selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
-import type {TableDefinition, TableInsert} from '../Table.ts'
+import type {
+  TableDefinition,
+  TableInsert,
+  TableRow,
+  TableUpdate
+} from '../Table.ts'
 
 class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into!: HasTable
@@ -22,6 +27,7 @@ class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
 
 export class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
   returning?: Selection
+  onConflict?: HasSql
 }
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
@@ -37,15 +43,85 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
 
-  returning<T>(returning: HasSql<T>) {
-    return new Insert<T, Meta>({
-      ...getData(this),
-      returning: selection(returning)
-    })
-  }
-
   get [internalQuery]() {
     return sql.chunk('emitInsert', this)
+  }
+}
+
+class InsertCanReturn<
+  Definition extends TableDefinition,
+  Meta extends QueryMeta
+> extends Insert<void, Meta> {
+  returning(): Insert<TableRow<Definition>, Meta>
+  returning<T>(returning: HasSql<T>): Insert<T, Meta>
+  returning(returning?: HasSql) {
+    const data = getData(this)
+    return new Insert({
+      ...data,
+      returning: selection(returning ?? data.into)
+    })
+  }
+}
+
+export interface OnConflict {
+  target: HasSql | Array<HasSql>
+  targetWhere?: HasSql<boolean>
+}
+
+export interface OnConflictUpdate<Definition extends TableDefinition>
+  extends OnConflict {
+  set: TableUpdate<Definition>
+  setWhere?: HasSql<boolean>
+}
+
+class InsertCanConflict<
+  Definition extends TableDefinition,
+  Meta extends QueryMeta
+> extends InsertCanReturn<Definition, Meta> {
+  onConflictDoNothing(
+    this: InsertCanConflict<Definition, IsPostgres>,
+    onConflict?: OnConflict
+  ): InsertCanReturn<Definition, Meta> {
+    return <InsertCanConflict<Definition, Meta>>(
+      this.#onConflict(onConflict ?? {})
+    )
+  }
+
+  onConflictDoUpdate(
+    this: InsertCanConflict<Definition, IsPostgres>,
+    onConflict: OnConflictUpdate<Definition>
+  ): InsertCanReturn<Definition, Meta> {
+    return <InsertCanConflict<Definition, Meta>>this.#onConflict(onConflict)
+  }
+
+  #onConflict({
+    target,
+    targetWhere,
+    set,
+    setWhere
+  }: Partial<OnConflictUpdate<Definition>>): InsertCanReturn<Definition, Meta> {
+    const update =
+      set &&
+      sql.join(
+        Object.entries(set).map(
+          ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
+        ),
+        sql`, `
+      )
+    return new InsertCanReturn({
+      ...getData(this),
+      onConflict: sql.join([
+        target &&
+          sql`(${Array.isArray(target) ? sql.join(target, sql`, `) : target})`,
+        targetWhere && sql`where ${targetWhere}`,
+        update
+          ? sql.join([
+              sql`do update set ${update}`,
+              setWhere && sql`where ${setWhere}`
+            ])
+          : sql`do nothing`
+      ])
+    })
   }
 }
 
@@ -58,8 +134,10 @@ export class InsertInto<
     this[internalData] = data
   }
 
-  values(value: TableInsert<Definition>): Insert<Definition, Meta>
-  values(values: Array<TableInsert<Definition>>): Insert<Definition, Meta>
+  values(value: TableInsert<Definition>): InsertCanConflict<Definition, Meta>
+  values(
+    values: Array<TableInsert<Definition>>
+  ): InsertCanConflict<Definition, Meta>
   values(insert: TableInsert<Definition> | Array<TableInsert<Definition>>) {
     const {into} = getData(this)
     const rows = Array.isArray(insert) ? insert : [insert]
@@ -81,6 +159,6 @@ export class InsertInto<
       }),
       sql`, `
     )
-    return new Insert<Definition, Meta>({...getData(this), values})
+    return new InsertCanConflict<Definition, Meta>({...getData(this), values})
   }
 }

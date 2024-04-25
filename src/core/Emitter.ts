@@ -85,7 +85,7 @@ export abstract class Emitter {
     const table = getTable(from)
     sql
       .query({
-        'delete from': sql.identifier(table.name),
+        deleteFrom: sql.identifier(table.name),
         where,
         returning
       })
@@ -93,13 +93,14 @@ export abstract class Emitter {
   }
 
   emitInsert(insert: Insert<unknown>): void {
-    const {into, values, returning} = getData(insert)
+    const {into, values, onConflict, returning} = getData(insert)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
     sql
       .query({
-        'insert into': sql`${tableName}(${table.listColumns()})`,
+        insertInto: sql`${tableName}(${table.listColumns()})`,
         values,
+        onConflict,
         returning
       })
       .inlineFields(false)
@@ -115,8 +116,8 @@ export abstract class Emitter {
         select: distinct ? sql`distinct ${selected}` : selected,
         from,
         where,
-        'group by': groupBy,
-        'order by': orderBy,
+        groupBy,
+        orderBy,
         having,
         limit,
         offset

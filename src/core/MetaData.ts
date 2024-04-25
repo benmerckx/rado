@@ -18,6 +18,10 @@ export interface Async<Dialect extends QueryDialect = QueryDialect>
   dialect: Dialect
 }
 
+export interface IsPostgres extends QueryMeta {
+  dialect: 'postgres'
+}
+
 export interface Either extends QueryMeta {
   mode: 'sync' | 'async'
   dialect: QueryDialect
