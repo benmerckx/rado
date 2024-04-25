@@ -1,12 +1,12 @@
-import { Assert, Test } from '@sinclair/carbon'
+import {Assert, Test} from '@sinclair/carbon'
 import {
   AsyncDatabase,
   type Database,
   type SyncDatabase
 } from '../src/core/Database.ts'
-import { table } from '../src/core/Table.ts'
-import { eq, sql } from '../src/index.ts'
-import { boolean, id, int, json, text } from '../src/universal.ts'
+import {table} from '../src/core/Table.ts'
+import {eq, sql} from '../src/index.ts'
+import {boolean, id, int, json, text} from '../src/universal.ts'
 
 const Node = table('Node', {
   id: id(),
@@ -193,7 +193,7 @@ export async function testDriver(
         } catch {
           const nodes = syncDb.select().from(Node).all()
           Assert.isEqual(nodes, [])
-        }  finally {
+        } finally {
           syncDb.drop(Node).run()
         }
       }

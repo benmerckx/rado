@@ -31,7 +31,7 @@ export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internalData]: UpdateData<Meta>;
+  readonly [internalData]: UpdateData<Meta>
   declare readonly [internalSelection]?: Selection
 
   constructor(data: UpdateData<Meta>) {

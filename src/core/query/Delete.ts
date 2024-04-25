@@ -28,7 +28,7 @@ export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internalData]: DeleteData<Meta>;
+  readonly [internalData]: DeleteData<Meta>
   declare readonly [internalSelection]?: Selection
 
   constructor(data: DeleteData<Meta>) {

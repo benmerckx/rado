@@ -24,7 +24,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   extends Query<Result, Meta>
   implements HasSelection
 {
-  readonly [internalData]: UnionData<Meta>;
+  readonly [internalData]: UnionData<Meta>
   readonly [internalSelection]: Selection
 
   constructor(data: UnionData<Meta>) {

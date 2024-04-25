@@ -17,7 +17,7 @@ export class QueryData<Meta extends QueryMeta> {
 export abstract class Query<Result, Meta extends QueryMeta>
   implements PromiseLike<Array<Result>>
 {
-  readonly [internalData]: QueryData<Meta>;
+  readonly [internalData]: QueryData<Meta>
   abstract [internalQuery]: Sql
 
   constructor(data: QueryData<Meta>) {

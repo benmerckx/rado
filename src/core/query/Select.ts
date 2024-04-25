@@ -66,8 +66,9 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     const {select} = getData(this)
     if (!select.input) throw new Error('No selection defined')
     return Object.assign(virtual(name, <SelectionInput>select.input) as any, {
-      [internalQuery]:
-        sql`(${getQuery(this)}) as ${sql.identifier(name)}`.inlineFields(true)
+      [internalQuery]: sql`(${getQuery(this)}) as ${sql.identifier(
+        name
+      )}`.inlineFields(true)
     })
   }
 

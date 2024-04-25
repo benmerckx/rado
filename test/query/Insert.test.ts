@@ -1,5 +1,7 @@
 import {Assert, Test} from '@sinclair/carbon'
+import type {QueryMode} from '../../src/core/MetaData.ts'
 import {table} from '../../src/core/Table.ts'
+import type {Insert} from '../../src/core/query/Insert.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
 import {builder, emit} from '../TestUtils.ts'
 
@@ -26,6 +28,17 @@ Test.describe('Insert', () => {
     Assert.isEqual(
       emit(query.returning(Node.id)),
       'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) returning "id"'
+    )
+  })
+
+  Test.it('on conflict do nothing', () => {
+    const postgresQuery = query as Insert<
+      typeof definition,
+      {dialect: 'postgres'; mode: QueryMode}
+    >
+    Assert.isEqual(
+      emit(postgresQuery.onConflictDoNothing()),
+      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) on conflict do nothing'
     )
   })
 })

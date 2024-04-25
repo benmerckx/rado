@@ -28,7 +28,7 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internalData]: InsertData<Meta>;
+  readonly [internalData]: InsertData<Meta>
   declare readonly [internalSelection]?: Selection
 
   constructor(data: InsertData<Meta>) {
