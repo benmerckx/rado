@@ -11,7 +11,12 @@ import {
 } from '../Internal.ts'
 import type {IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
-import {selection, type Selection} from '../Selection.ts'
+import {
+  selection,
+  type Selection,
+  type SelectionInput,
+  type SelectionRow
+} from '../Selection.ts'
 import {sql} from '../Sql.ts'
 import type {
   TableDefinition,
@@ -53,8 +58,10 @@ class InsertCanReturn<
   Meta extends QueryMeta
 > extends Insert<void, Meta> {
   returning(): Insert<TableRow<Definition>, Meta>
-  returning<T>(returning: HasSql<T>): Insert<T, Meta>
-  returning(returning?: HasSql) {
+  returning<Input extends SelectionInput>(
+    returning: Input
+  ): Insert<SelectionRow<Input>, Meta>
+  returning(returning?: SelectionInput) {
     const data = getData(this)
     return new Insert({
       ...data,

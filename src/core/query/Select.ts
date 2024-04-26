@@ -15,7 +15,7 @@ import {
   type HasSql,
   type HasTable
 } from '../Internal.ts'
-import type {QueryMeta} from '../MetaData.ts'
+import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {
   selection,
@@ -41,6 +41,7 @@ export class SelectData<Meta extends QueryMeta> extends QueryData<Meta> {
     input?: SelectionInput
   }
   distinct?: boolean
+  distinctOn?: Array<HasSql>
   from?: HasSql
   subject?: HasSql
   where?: HasSql
@@ -205,12 +206,37 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
+  intersectAll(
+    this: SelectBase<Input, IsPostgres | IsMysql>,
+    right: SelectBase<Input, Meta>
+  ): Union<Input, Meta> {
+    return new Union({
+      ...getData(<SelectBase<Input, Meta>>this),
+      selection: getSelection(this),
+      left: this,
+      operator: sql`intersect all`,
+      right
+    })
+  }
+
   except(right: SelectBase<Input, Meta>): Union<Input, Meta> {
     return new Union({
       ...getData(this),
       selection: getSelection(this),
       left: this,
       operator: sql`except`,
+      right
+    })
+  }
+
+  exceptAll(
+    right: SelectBase<Input, IsPostgres | IsMysql>
+  ): Union<Input, Meta> {
+    return new Union({
+      ...getData(<SelectBase<Input, Meta>>this),
+      selection: getSelection(this),
+      left: this,
+      operator: sql`except all`,
       right
     })
   }
@@ -240,7 +266,12 @@ export interface SelectBase<Input, Meta extends QueryMeta>
   union(right: SelectBase<Input, Meta>): Union<Input, Meta>
   unionAll(right: SelectBase<Input, Meta>): Union<Input, Meta>
   intersect(right: SelectBase<Input, Meta>): Union<Input, Meta>
+  intersectAll(
+    this: SelectBase<Input, IsPostgres | IsMysql>,
+    right: SelectBase<Input, Meta>
+  ): Union<Input, Meta>
   except(right: SelectBase<Input, Meta>): Union<Input, Meta>
+  exceptAll(right: SelectBase<Input, IsPostgres | IsMysql>): Union<Input, Meta>
   as(name: string): SubQuery<Input>
 }
 

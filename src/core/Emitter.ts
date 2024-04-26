@@ -108,12 +108,24 @@ export abstract class Emitter {
   }
 
   emitSelect(select: Select<unknown>): void {
-    const {from, distinct, where, groupBy, orderBy, having, limit, offset} =
-      getData(select)
+    const {
+      from,
+      distinct,
+      distinctOn,
+      where,
+      groupBy,
+      orderBy,
+      having,
+      limit,
+      offset
+    } = getData(select)
     const selected = getSelection(select)
+    const prefix = distinctOn
+      ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
+      : distinct && sql`distinct`
     sql
       .query({
-        select: distinct ? sql`distinct ${selected}` : selected,
+        select: sql.join([prefix, selected]),
         from,
         where,
         groupBy,

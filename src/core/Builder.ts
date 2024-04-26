@@ -1,5 +1,5 @@
-import {getData, internalData, type HasTable} from './Internal.ts'
-import type {QueryMeta} from './MetaData.ts'
+import {getData, internalData, type HasSql, type HasTable} from './Internal.ts'
+import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
 import type {SelectionInput} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
@@ -56,6 +56,28 @@ export class Builder<Meta extends QueryMeta> {
         nullable: []
       },
       distinct: true
+    })
+  }
+
+  selectDistinctOn(
+    this: Builder<IsPostgres>,
+    columns: Array<HasSql>
+  ): WithoutSelection<Meta>
+  selectDistinctOn<Input extends SelectionInput>(
+    this: Builder<IsPostgres>,
+    columns: Array<HasSql>,
+    selection: Input
+  ): WithSelection<Input, Meta>
+  selectDistinctOn(columns: any, selection?: any): any {
+    return new Select({
+      ...getData(this),
+      select: {
+        type: selection ? 'selection' : 'allFrom',
+        input: selection,
+        tables: [],
+        nullable: []
+      },
+      distinctOn: columns
     })
   }
 

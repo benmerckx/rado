@@ -22,6 +22,14 @@ export interface IsPostgres extends QueryMeta {
   dialect: 'postgres'
 }
 
+export interface IsMysql extends QueryMeta {
+  dialect: 'mysql'
+}
+
+export interface IsSqlite extends QueryMeta {
+  dialect: 'sqlite'
+}
+
 export interface Either extends QueryMeta {
   mode: 'sync' | 'async'
   dialect: QueryDialect

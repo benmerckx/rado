@@ -7,7 +7,7 @@ import {
   type HasSelection,
   type HasSql
 } from '../Internal.ts'
-import type {QueryMeta} from '../MetaData.ts'
+import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import type {Selection} from '../Selection.ts'
 import {sql} from '../Sql.ts'
@@ -72,4 +72,46 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   get [internalQuery]() {
     return sql.chunk('emitUnion', this)
   }
+}
+
+export function union<Result, Meta extends QueryMeta>(
+  left: SelectBase<Result, Meta>,
+  right: SelectBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.union(right)
+}
+
+export function unionAll<Result, Meta extends QueryMeta>(
+  left: SelectBase<Result, Meta>,
+  right: SelectBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.unionAll(right)
+}
+
+export function intersect<Result, Meta extends QueryMeta>(
+  left: SelectBase<Result, Meta>,
+  right: SelectBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.intersect(right)
+}
+
+export function intersectAll<Result, Meta extends IsPostgres | IsMysql>(
+  left: SelectBase<Result, Meta>,
+  right: SelectBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.intersectAll(right)
+}
+
+export function except<Result, Meta extends QueryMeta>(
+  left: SelectBase<Result, Meta>,
+  right: SelectBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.except(right)
+}
+
+export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
+  left: SelectBase<Result, Meta>,
+  right: SelectBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.exceptAll(right)
 }

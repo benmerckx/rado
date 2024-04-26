@@ -49,7 +49,7 @@ export class UpdateTable<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > extends Update<void, Meta> {
-  set(values: TableUpdate<Definition>) {
+  set(values: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
     const set = sql.join(
       Object.entries(values).map(
         ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
@@ -59,11 +59,13 @@ export class UpdateTable<
     return new UpdateTable<Definition, Meta>({...getData(this), set})
   }
 
-  where(where: HasSql<boolean>) {
+  where(where: HasSql<boolean>): UpdateTable<Definition, Meta> {
     return new UpdateTable<Definition, Meta>({...getData(this), where})
   }
 
-  returning<Input extends SelectionInput>(returning: Input) {
+  returning<Input extends SelectionInput>(
+    returning: Input
+  ): Update<SelectionRow<Input>, Meta> {
     return new Update<SelectionRow<Input>, Meta>({
       ...getData(this),
       returning: selection(returning)
