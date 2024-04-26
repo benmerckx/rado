@@ -1,9 +1,11 @@
 import {
+  type HasTarget,
   getData,
   getResolver,
   hasResolver,
   internalData,
   internalQuery,
+  type HasQuery,
   type HasResolver
 } from './Internal.ts'
 import type {Async, QueryMeta, Sync} from './MetaData.ts'
@@ -12,6 +14,7 @@ import type {Sql} from './Sql.ts'
 
 export class QueryData<Meta extends QueryMeta> {
   resolver?: Resolver<Meta>
+  cte?: Array<HasQuery & HasTarget>
 }
 
 export abstract class Query<Result, Meta extends QueryMeta>

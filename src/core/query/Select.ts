@@ -5,15 +5,16 @@ import {
   getQuery,
   getSelection,
   getTable,
-  hasQuery,
+  getTarget,
   hasTable,
   internalData,
   internalQuery,
   internalSelection,
-  type HasQuery,
+  internalTarget,
   type HasSelection,
   type HasSql,
-  type HasTable
+  type HasTable,
+  type HasTarget
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
@@ -28,7 +29,6 @@ import {
 import {sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
-import {virtual} from '../Virtual.ts'
 import {Union} from './Union.ts'
 
 export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
@@ -63,19 +63,18 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     this[internalData] = data
   }
 
-  as(name: string): SubQuery<Input> {
-    const {select} = getData(this)
-    if (!select.input) throw new Error('No selection defined')
-    return Object.assign(virtual(name, <SelectionInput>select.input) as any, {
-      [internalQuery]: sql`(${getQuery(this)}) as ${sql.identifier(
-        name
+  as(alias: string): SubQuery<Input> {
+    const fields = getSelection(this).makeVirtual(alias)
+    return Object.assign(<any>fields, {
+      [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
+        alias
       )}`.inlineFields(true)
     })
   }
 
-  from(target: HasQuery | Table): Select<Input, Meta> {
+  from(target: HasTarget): Select<Input, Meta> {
     const {select: current} = getData(this)
-    const from = hasQuery(target) ? getQuery(target) : getTable(target).from()
+    const from = getTarget(target)
     const isTable = hasTable(target)
     const selectionInput = current.input ?? (isTable ? target : sql`*`)
     return new Select({
@@ -252,9 +251,9 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 }
 
-export type SubQuery<Input> = Input & HasQuery
+export type SubQuery<Input> = Input & HasTarget
 
-export interface SelectBase<Input, Meta extends QueryMeta>
+export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends Query<SelectionRow<Input>, Meta>,
     HasSelection {
   where(where: HasSql<boolean>): Select<Input, Meta>

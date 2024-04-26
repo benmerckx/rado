@@ -74,4 +74,21 @@ Test.describe('Select', () => {
       'select "sub"."id" from (select "Node"."id" from "Node") as "sub"'
     )
   })
+
+  Test.it('with cte', () => {
+    const cte = builder.$with('myCte').as(builder.select().from(Node))
+    const cte2 = builder.$with('cte2').as(builder.select(Node.id).from(Node))
+    const query = builder
+      .with(cte, cte2)
+      .select({
+        nodeId: cte.id,
+        cte2Id: cte2
+      })
+      .from(cte)
+      .limit(10)
+    Assert.isEqual(
+      emit(query),
+      'with "myCte" as (select "Node"."id", "Node"."field1" from "Node"), "cte2" as (select "Node"."id" from "Node") select "myCte"."id" as "nodeId", "cte2"."id" as "cte2Id" from "myCte" limit 10'
+    )
+  })
 })

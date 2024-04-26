@@ -1,17 +1,33 @@
-import {getData, internalData, type HasSql, type HasTable} from './Internal.ts'
+import {
+  getData,
+  getQuery,
+  getSelection,
+  internalData,
+  internalQuery,
+  internalTarget,
+  type HasQuery,
+  type HasSql,
+  type HasTable,
+  type HasTarget
+} from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
 import type {SelectionInput} from './Selection.ts'
+import {sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {Create} from './query/Create.ts'
 import {DeleteFrom} from './query/Delete.ts'
 import {Drop} from './query/Drop.ts'
 import {InsertInto} from './query/Insert.ts'
-import type {WithSelection, WithoutSelection} from './query/Select.ts'
+import type {
+  SelectBase,
+  WithSelection,
+  WithoutSelection
+} from './query/Select.ts'
 import {Select} from './query/Select.ts'
 import {UpdateTable} from './query/Update.ts'
 
-export class Builder<Meta extends QueryMeta> {
+class BuilderBase<Meta extends QueryMeta> {
   readonly [internalData]: QueryData<Meta>
 
   constructor(data: QueryData<Meta>) {
@@ -91,5 +107,38 @@ export class Builder<Meta extends QueryMeta> {
 
   delete(from: HasTable) {
     return new DeleteFrom<Meta>({...getData(this), from})
+  }
+}
+
+export type CTE<Input = unknown> = Input & HasTarget & HasQuery
+
+export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
+  $with(cteName: string) {
+    return {
+      as<Input extends SelectionInput>(
+        query: SelectBase<Input, Meta>
+      ): CTE<Input> {
+        const fields = getSelection(query).makeVirtual(cteName)
+        return Object.assign(<any>fields, {
+          [internalTarget]: sql.identifier(cteName),
+          [internalQuery]: getQuery(query)
+        })
+      }
+    }
+  }
+
+  with(...cte: Array<CTE>) {
+    return new BuilderBase<Meta>({
+      ...getData(this),
+      cte
+    })
+  }
+
+  create<Definition extends TableDefinition>(table: Table<Definition>) {
+    return new Create<Meta>({...getData(this), table})
+  }
+
+  drop(table: HasTable) {
+    return new Drop<Meta>({...getData(this), table})
   }
 }

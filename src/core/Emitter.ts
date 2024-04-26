@@ -1,6 +1,14 @@
 import type {ColumnData} from './Column.ts'
 import type {FieldData} from './Field.ts'
-import {getData, getQuery, getSelection, getTable} from './Internal.ts'
+import {
+  getData,
+  getQuery,
+  getSelection,
+  getTable,
+  getTarget,
+  type HasQuery,
+  type HasTarget
+} from './Internal.ts'
 import {ValueParam, type Param} from './Param.ts'
 import {sql} from './Sql.ts'
 import type {Create} from './query/Create.ts'
@@ -81,7 +89,8 @@ export abstract class Emitter {
   }
 
   emitDelete(deleteOp: Delete<unknown>): void {
-    const {from, where, returning} = getData(deleteOp)
+    const {cte, from, where, returning} = getData(deleteOp)
+    if (cte) this.emitWith(cte)
     const table = getTable(from)
     sql
       .query({
@@ -93,7 +102,8 @@ export abstract class Emitter {
   }
 
   emitInsert(insert: Insert<unknown>): void {
-    const {into, values, onConflict, returning} = getData(insert)
+    const {cte, into, values, onConflict, returning} = getData(insert)
+    if (cte) this.emitWith(cte)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
     sql
@@ -109,6 +119,7 @@ export abstract class Emitter {
 
   emitSelect(select: Select<unknown>): void {
     const {
+      cte,
       from,
       distinct,
       distinctOn,
@@ -119,6 +130,7 @@ export abstract class Emitter {
       limit,
       offset
     } = getData(select)
+    if (cte) this.emitWith(cte)
     const selected = getSelection(select)
     const prefix = distinctOn
       ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
@@ -143,8 +155,9 @@ export abstract class Emitter {
   }
 
   emitUpdate(update: Update<unknown>): void {
-    const {table, set, where, returning} = getData(update)
+    const {cte, table, set, where, returning} = getData(update)
     const tableApi = getTable(table)
+    if (cte) this.emitWith(cte)
     sql
       .query({
         update: sql.identifier(tableApi.name),
@@ -157,4 +170,20 @@ export abstract class Emitter {
   }
 
   abstract emitIdColumn(): void
+
+  emitWith(cte: Array<HasQuery & HasTarget>): void {
+    sql
+      .query({
+        with: sql.join(
+          cte.map(cte => {
+            const query = getQuery(cte)
+            const target = getTarget(cte)
+            return sql`${target} as (${query})`
+          }),
+          sql`, `
+        )
+      })
+      .add(sql` `)
+      .emit(this)
+  }
 }

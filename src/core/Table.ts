@@ -2,9 +2,11 @@ import type {Column, JsonColumn, RequiredColumn} from './Column.ts'
 import {jsonExpr, type Input, type JsonExpr} from './Expr.ts'
 import {Field} from './Field.ts'
 import {
+  type HasTarget,
   getColumn,
   getTable,
   internalTable,
+  internalTarget,
   type HasSql,
   type HasTable
 } from './Internal.ts'
@@ -77,7 +79,7 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> = TableFields<Definition, Name> & HasTable<Definition, Name>
+> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasTarget
 
 export type TableFields<
   Definition extends TableDefinition,
@@ -127,6 +129,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
   const api = assign(new TableApi(), {name, columns})
   return <Table<Definition, Name>>{
     [internalTable]: api,
+    [internalTarget]: api.from(),
     ...api.fields()
   }
 }
@@ -138,6 +141,7 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   const api = assign(new TableApi(), {...getTable(table), alias})
   return <Table<Definition, Alias>>{
     [internalTable]: api,
+    [internalTarget]: api.from(),
     ...api.fields()
   }
 }

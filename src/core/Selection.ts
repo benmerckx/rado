@@ -10,6 +10,7 @@ import {
 import {sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
+import {virtual} from './Virtual.ts'
 
 declare const nullable: unique symbol
 export interface SelectionRecord extends Record<string, SelectionInput> {}
@@ -21,16 +22,15 @@ export type RowOfRecord<Input> = Expand<{
     Input[Key]
   >
 }>
-export type SelectionRow<Input> =
-  Input extends HasSql<infer Value>
-    ? Value
-    : Input extends IsNullable
-      ? RowOfRecord<Input> | null
-      : Input extends SelectionRecord
-        ? RowOfRecord<Input>
-        : Input extends Table<infer Definition>
-          ? TableRow<Definition>
-          : never
+export type SelectionRow<Input> = Input extends HasSql<infer Value>
+  ? Value
+  : Input extends IsNullable
+    ? RowOfRecord<Input> | null
+    : Input extends SelectionRecord
+      ? RowOfRecord<Input>
+      : Input extends Table<infer Definition>
+        ? TableRow<Definition>
+        : never
 
 export class Selection implements HasSql {
   #input: SelectionInput
@@ -39,6 +39,10 @@ export class Selection implements HasSql {
   constructor(input: SelectionInput, nullable: Set<string>) {
     this.#input = input
     this.#nullable = nullable
+  }
+
+  makeVirtual(name: string) {
+    return virtual(name, this.#input)
   }
 
   mapRow = (values: Array<unknown>) => {
@@ -81,7 +85,7 @@ export class Selection implements HasSql {
   ): Sql {
     const expr = this.#exprOf(input)
     if (expr) {
-      let exprName = expr.alias ?? name
+      let exprName = name ?? expr.alias
       if (exprName) {
         // The bun:sqlite driver cannot handle multiple columns by the same name
         while (names.has(exprName)) exprName = `${exprName}_`

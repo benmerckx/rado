@@ -9,6 +9,7 @@ import type {TableApi, TableDefinition} from './Table.ts'
 export const internalData = Symbol()
 export const internalSql = Symbol()
 export const internalSelection = Symbol()
+export const internalTarget = Symbol()
 export const internalQuery = Symbol()
 export const internalTable = Symbol()
 export const internalColumn = Symbol()
@@ -23,6 +24,9 @@ export declare class HasSql<Value = unknown> {
 }
 export declare class HasSelection {
   get [internalSelection](): Selection
+}
+export declare class HasTarget {
+  get [internalTarget](): Sql
 }
 export declare class HasQuery {
   get [internalQuery](): Sql
@@ -52,6 +56,9 @@ export const getSql = <Value>(obj: HasSql<Value>) => obj[internalSql]
 export const hasSelection = (obj: object): obj is HasSelection =>
   internalSelection in obj
 export const getSelection = (obj: HasSelection) => obj[internalSelection]
+export const hasTarget = (obj: object): obj is HasTarget =>
+  internalTarget in obj
+export const getTarget = (obj: HasTarget) => obj[internalTarget]
 export const hasQuery = (obj: object): obj is HasQuery => internalQuery in obj
 export const getQuery = (obj: HasQuery) => obj[internalQuery]
 export const hasTable = (obj: object): obj is HasTable => internalTable in obj
