@@ -120,7 +120,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
       from: sql.join([
         from,
         sql.unsafe(`${operator} join`),
-        rightTable.from(),
+        rightTable.target(),
         sql`on ${on}`
       ])
     })

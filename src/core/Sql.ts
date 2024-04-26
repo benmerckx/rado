@@ -21,7 +21,7 @@ export type Decoder<T> =
   | {mapFromDriverValue?(value: unknown): T}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
-  private declare keep?: [Value]
+  private declare brand?: [Value]
   alias?: string
   mapFromDriverValue?: (input: unknown) => Value
   readonly [internalSql] = this

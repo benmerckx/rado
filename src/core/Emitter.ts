@@ -55,7 +55,7 @@ export abstract class Emitter {
       .join([
         sql`create table`,
         ifNotExists ? sql`if not exists` : undefined,
-        sql.identifier(tableApi.name),
+        tableApi.target(),
         sql`(${tableApi.createColumns()})`
       ])
       .emit(this)

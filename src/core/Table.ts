@@ -2,13 +2,13 @@ import type {Column, JsonColumn, RequiredColumn} from './Column.ts'
 import {jsonExpr, type Input, type JsonExpr} from './Expr.ts'
 import {Field} from './Field.ts'
 import {
-  type HasTarget,
   getColumn,
   getTable,
   internalTable,
   internalTarget,
   type HasSql,
-  type HasTable
+  type HasTable,
+  type HasTarget
 } from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
 
@@ -21,6 +21,7 @@ export type TableDefinition = {
 class TableData {
   name!: string
   alias?: string
+  schemaName?: string
   columns!: TableDefinition
 }
 
@@ -28,15 +29,22 @@ export class TableApi<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends TableData {
-  private declare keep?: [Definition, Name]
+  private declare brand?: [Definition, Name]
 
   get aliased() {
     return this.alias ?? this.name
   }
 
-  from(): Sql {
+  target(): Sql {
+    const name = sql.join(
+      [
+        this.schemaName ? sql.identifier(this.schemaName) : undefined,
+        sql.identifier(this.name)
+      ],
+      sql`.`
+    )
     return sql.join([
-      sql.identifier(this.name),
+      name,
       this.alias ? sql`as ${sql.identifier(this.alias)}` : undefined
     ])
   }
@@ -124,12 +132,13 @@ export type TableUpdate<Definition extends TableDefinition> = {
 
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
-  columns: Definition
+  columns: Definition,
+  schemaName?: string
 ) {
-  const api = assign(new TableApi(), {name, columns})
+  const api = assign(new TableApi(), {name, schemaName, columns})
   return <Table<Definition, Name>>{
     [internalTable]: api,
-    [internalTarget]: api.from(),
+    [internalTarget]: api.target(),
     ...api.fields()
   }
 }
@@ -141,7 +150,7 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   const api = assign(new TableApi(), {...getTable(table), alias})
   return <Table<Definition, Alias>>{
     [internalTable]: api,
-    [internalTarget]: api.from(),
+    [internalTarget]: api.target(),
     ...api.fields()
   }
 }

@@ -51,7 +51,6 @@ class PostgresEmitter extends Emitter {
   emitDefaultValue() {
     this.sql += 'default'
   }
-
   emitIdColumn() {
     this.sql += 'int generated always as identity'
   }
