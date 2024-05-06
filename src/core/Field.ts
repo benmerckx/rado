@@ -6,8 +6,10 @@ export interface FieldData {
   fieldName: string
 }
 
-export class Field<Value, Table extends string> implements HasSql<Value> {
-  private declare brand?: [Table]
+export class Field<Value = unknown, Table extends string = string>
+  implements HasSql<Value>
+{
+  private declare brand: [Table]
   readonly [internalField]: FieldData
   readonly [internalSql]: Sql<Value>
   constructor(

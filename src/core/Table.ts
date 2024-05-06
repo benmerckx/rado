@@ -1,6 +1,8 @@
 import type {Column, JsonColumn, RequiredColumn} from './Column.ts'
+import type {PrimaryKeyConstraint, UniqueConstraint} from './Constraint.ts'
 import {jsonExpr, type Input, type JsonExpr} from './Expr.ts'
 import {Field} from './Field.ts'
+import type {Index} from './Index.ts'
 import {
   getColumn,
   getTable,
@@ -29,7 +31,7 @@ export class TableApi<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends TableData {
-  private declare brand?: [Definition, Name]
+  private declare brand: [Definition, Name]
 
   get aliased() {
     return this.alias ?? this.name
@@ -130,12 +132,25 @@ export type TableUpdate<Definition extends TableDefinition> = {
     : never
 }
 
+type TableConfigSetting<Name extends string> =
+  | UniqueConstraint<Name>
+  | PrimaryKeyConstraint<Name>
+  | Index<Name>
+
+export interface TableConfig<Name extends string>
+  extends Record<string, TableConfigSetting<Name>> {}
+
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition,
+  config?: (self: Table<Definition, Name>) => TableConfig<Name>,
   schemaName?: string
 ) {
-  const api = assign(new TableApi(), {name, schemaName, columns})
+  const api = assign(new TableApi<Definition, Name>(), {
+    name,
+    schemaName,
+    columns
+  })
   return <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
@@ -147,7 +162,10 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   table: Table<Definition>,
   alias: Alias
 ) {
-  const api = assign(new TableApi(), {...getTable(table), alias})
+  const api = assign(new TableApi<Definition, Alias>(), {
+    ...getTable(table),
+    alias
+  })
   return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.target(),

@@ -1,4 +1,5 @@
 import {input, type Input} from './Expr.ts'
+import type {Field} from './Field.ts'
 import type {HasColumn, HasSql} from './Internal.ts'
 import {internalColumn} from './Internal.ts'
 import type {Sql} from './Sql.ts'
@@ -46,9 +47,17 @@ export class Column<Value = unknown> implements HasColumn {
   unique(name?: string): Column<Value> {
     return new Column({...this[internalColumn], isUnique: true})
   }
+  references(foreignField: Field | (() => Field)): Column<Value> {
+    return new Column<Value>({
+      ...this[internalColumn],
+      references:
+        typeof foreignField === 'function' ? foreignField : () => foreignField
+    })
+  }
 }
 
 export class JsonColumn<Value = unknown> extends Column<Value> {
+  private declare brand: [Value]
   constructor(data: ColumnData) {
     super({...data, json: true})
   }

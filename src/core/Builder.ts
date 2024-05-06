@@ -15,9 +15,9 @@ import type {QueryData} from './Query.ts'
 import type {SelectionInput} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
-import {Create} from './query/Create.ts'
+import {Create} from './query/CreateTable.ts'
 import {DeleteFrom} from './query/Delete.ts'
-import {Drop} from './query/Drop.ts'
+import {Drop} from './query/DropTable.ts'
 import {InsertInto} from './query/Insert.ts'
 import type {
   SelectBase,
@@ -34,11 +34,11 @@ class BuilderBase<Meta extends QueryMeta> {
     this[internalData] = data
   }
 
-  create<Definition extends TableDefinition>(table: Table<Definition>) {
+  createTable<Definition extends TableDefinition>(table: Table<Definition>) {
     return new Create<Meta>({...getData(this), table})
   }
 
-  drop(table: HasTable) {
+  dropTable(table: HasTable) {
     return new Drop<Meta>({...getData(this), table})
   }
 
@@ -134,11 +134,11 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
     })
   }
 
-  create<Definition extends TableDefinition>(table: Table<Definition>) {
+  createTable<Definition extends TableDefinition>(table: Table<Definition>) {
     return new Create<Meta>({...getData(this), table})
   }
 
-  drop(table: HasTable) {
+  dropTable(table: HasTable) {
     return new Drop<Meta>({...getData(this), table})
   }
 }

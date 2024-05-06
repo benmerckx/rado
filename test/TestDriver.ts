@@ -35,7 +35,7 @@ export async function testDriver(
   Test.describe(`Driver: ${name}`, async () => {
     Test.it('create table', async () => {
       try {
-        await db.create(Node)
+        await db.createTable(Node)
         await db.insert(Node).values({
           textField: 'hello',
           bool: true
@@ -46,13 +46,13 @@ export async function testDriver(
         const [node] = await db.select(Node.textField).from(Node)
         Assert.isEqual(node, 'world')
       } finally {
-        await db.drop(Node)
+        await db.dropTable(Node)
       }
     })
 
     Test.it('prepared queries', async () => {
       try {
-        await db.create(Node)
+        await db.createTable(Node)
         await db.insert(Node).values({
           textField: 'hello',
           bool: true
@@ -65,14 +65,14 @@ export async function testDriver(
         const rows = await query.execute({text: 'hello'})
         Assert.isEqual(rows, [{id: 1, textField: 'hello', bool: true}])
       } finally {
-        await db.drop(Node)
+        await db.dropTable(Node)
       }
     })
 
     Test.it('joins', async () => {
       try {
-        await db.create(User)
-        await db.create(Post)
+        await db.createTable(User)
+        await db.createTable(Post)
         const [user1, user2] = await db
           .insert(User)
           .values([{name: 'Bob'}, {name: 'Mario'}])
@@ -130,8 +130,8 @@ export async function testDriver(
           }
         ])
       } finally {
-        await db.drop(User)
-        await db.drop(Post)
+        await db.dropTable(User)
+        await db.dropTable(Post)
       }
     })
 
@@ -142,7 +142,7 @@ export async function testDriver(
 
     Test.it('json fields', async () => {
       try {
-        await db.create(WithJson)
+        await db.createTable(WithJson)
         const data = {sub: {field: 'value'}}
         await db.insert(WithJson).values({data})
         const [row] = await db
@@ -151,7 +151,7 @@ export async function testDriver(
           .where(eq(WithJson.data.sub.field, 'value'))
         Assert.isEqual(row, {id: 1, data})
       } finally {
-        await db.drop(WithJson)
+        await db.dropTable(WithJson)
       }
     })
 
@@ -159,7 +159,7 @@ export async function testDriver(
       if (isAsync) {
         const asyncDb = db as AsyncDatabase<'universal'>
         try {
-          await asyncDb.create(Node)
+          await asyncDb.createTable(Node)
           await asyncDb.transaction(async tx => {
             await tx.insert(Node).values({
               textField: 'hello',
@@ -173,12 +173,12 @@ export async function testDriver(
           const nodes = await asyncDb.select().from(Node)
           Assert.isEqual(nodes, [])
         } finally {
-          await asyncDb.drop(Node)
+          await asyncDb.dropTable(Node)
         }
       } else {
         const syncDb = db as SyncDatabase<'universal'>
         try {
-          syncDb.create(Node).run()
+          syncDb.createTable(Node).run()
           syncDb.transaction((tx): void => {
             tx.insert(Node).values({
               textField: 'hello',
@@ -194,7 +194,7 @@ export async function testDriver(
           const nodes = syncDb.select().from(Node).all()
           Assert.isEqual(nodes, [])
         } finally {
-          syncDb.drop(Node).run()
+          syncDb.dropTable(Node).run()
         }
       }
     })

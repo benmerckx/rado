@@ -5,7 +5,7 @@ import {getSelection, hasSelection, type HasQuery} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 
 export class Resolver<Meta extends QueryMeta = QueryMeta> {
-  private declare brand?: [Meta]
+  private declare brand: [Meta]
   #driver: Driver
   #dialect: Dialect
 
@@ -26,7 +26,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
 type RowMapper = ((values: Array<unknown>) => unknown) | undefined
 
 export class PreparedStatement<Meta extends QueryMeta> {
-  private declare brand?: [Meta]
+  private declare brand: [Meta]
   #emitter: Emitter
   #stmt: Statement
   #mapRow: RowMapper
