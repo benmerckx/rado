@@ -221,27 +221,27 @@ export async function testDriver(
     })
 
     Test.it('constraints and indexes', async () => {
-      //try {
-      await db.createTable(TableA)
-      await db.createTable(TableB)
-      await db.insert(TableA).values({})
-      await db.insert(TableB).values({
-        isUnique: 1,
-        hasRef: 1,
-        colA: 1,
-        colB: 1
-      })
-      const [row] = await db.select().from(TableB)
-      Assert.isEqual(row, {
-        isUnique: 1,
-        hasRef: 1,
-        colA: 1,
-        colB: 1
-      })
-      /*} finally {
+      try {
+        await db.createTable(TableA)
+        await db.createTable(TableB)
+        await db.insert(TableA).values({})
+        await db.insert(TableB).values({
+          isUnique: 1,
+          hasRef: 1,
+          colA: 1,
+          colB: 1
+        })
+        const [row] = await db.select().from(TableB)
+        Assert.isEqual(row, {
+          isUnique: 1,
+          hasRef: 1,
+          colA: 1,
+          colB: 1
+        })
+      } finally {
         await db.dropTable(TableB)
         await db.dropTable(TableA)
-      }*/
+      }
     })
   })
 }
