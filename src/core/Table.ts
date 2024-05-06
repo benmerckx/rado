@@ -1,13 +1,20 @@
 import type {Column, JsonColumn, RequiredColumn} from './Column.ts'
-import type {PrimaryKeyConstraint, UniqueConstraint} from './Constraint.ts'
+import type {
+  ForeignKeyConstraint,
+  PrimaryKeyConstraint,
+  UniqueConstraint
+} from './Constraint.ts'
 import {jsonExpr, type Input, type JsonExpr} from './Expr.ts'
 import {Field} from './Field.ts'
 import type {Index} from './Index.ts'
 import {
   getColumn,
+  getConstraint,
   getTable,
+  hasConstraint,
   internalTable,
   internalTarget,
+  type HasConstraint,
   type HasSql,
   type HasTable,
   type HasTarget
@@ -25,6 +32,7 @@ class TableData {
   alias?: string
   schemaName?: string
   columns!: TableDefinition
+  config?: TableConfig
 }
 
 export class TableApi<
@@ -51,15 +59,21 @@ export class TableApi<
     ])
   }
 
-  createColumns(): Sql {
-    return sql.join(
-      entries(this.columns).map(([name, isColumn]) => {
-        const column = getColumn(isColumn)
-        const columnName = sql.identifier(column.name ?? name)
-        return sql`${columnName} ${sql.chunk('emitColumn', column)}`
-      }),
-      sql`, `
-    )
+  createDefinition(): Sql {
+    const createColumns = entries(this.columns).map(([name, isColumn]) => {
+      const column = getColumn(isColumn)
+      const columnName = sql.identifier(column.name ?? name)
+      return sql`${columnName} ${sql.chunk('emitColumn', column)}`
+    })
+    const createConstraints = entries(this.config ?? {})
+      .filter(([, constraint]) => hasConstraint(constraint))
+      .map(
+        ([name, constraint]) =>
+          sql`constraint ${sql.identifier(name)} ${getConstraint(
+            constraint as HasConstraint
+          )}`
+      )
+    return sql.join(createColumns.concat(createConstraints), sql`, `)
   }
 
   listColumns(): Sql {
@@ -132,12 +146,13 @@ export type TableUpdate<Definition extends TableDefinition> = {
     : never
 }
 
-type TableConfigSetting<Name extends string> =
+export type TableConfigSetting<Name extends string> =
   | UniqueConstraint<Name>
   | PrimaryKeyConstraint<Name>
+  | ForeignKeyConstraint<Name>
   | Index<Name>
 
-export interface TableConfig<Name extends string>
+export interface TableConfig<Name extends string = string>
   extends Record<string, TableConfigSetting<Name>> {}
 
 export function table<Definition extends TableDefinition, Name extends string>(
@@ -151,11 +166,13 @@ export function table<Definition extends TableDefinition, Name extends string>(
     schemaName,
     columns
   })
-  return <Table<Definition, Name>>{
+  const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
     ...api.fields()
   }
+  if (config) api.config = config(table)
+  return table
 }
 
 export function alias<Definition extends TableDefinition, Alias extends string>(

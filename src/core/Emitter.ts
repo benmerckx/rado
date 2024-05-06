@@ -48,7 +48,7 @@ export abstract class Emitter {
     this.emitIdentifier(field.fieldName)
   }
 
-  emitCreate(create: Create): void {
+  emitCreateTable(create: Create): void {
     const {table, ifNotExists} = getData(create)
     const tableApi = getTable(table)
     sql
@@ -56,7 +56,7 @@ export abstract class Emitter {
         sql`create table`,
         ifNotExists ? sql`if not exists` : undefined,
         tableApi.target(),
-        sql`(${tableApi.createColumns()})`
+        sql`(${tableApi.createDefinition()})`
       ])
       .emit(this)
   }
@@ -82,8 +82,21 @@ export abstract class Emitter {
         column.isUnique && sql`unique`,
         column.autoIncrement && sql`autoincrement`,
         column.defaultValue && sql`default ${column.defaultValue()}`,
-        column.references && sql`references ${column.references()}`,
+        column.references &&
+          sql`references ${sql.chunk('emitReferences', [column.references()])}`,
         column.onUpdate && sql`on update ${column.onUpdate}`
+      ])
+      .emit(this)
+  }
+
+  emitReferences(fields: Array<FieldData>): void {
+    sql
+      .join([
+        sql.identifier(fields[0].targetName),
+        sql`(${sql.join(
+          fields.map(field => sql.identifier(field.fieldName)),
+          sql`, `
+        )})`
       ])
       .emit(this)
   }

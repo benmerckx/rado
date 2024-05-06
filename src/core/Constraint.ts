@@ -1,5 +1,13 @@
 import type {Field, FieldData} from './Field.ts'
-import {getData, getField, internalData, type HasData} from './Internal.ts'
+import {
+  getData,
+  getField,
+  internalConstraint,
+  internalData,
+  type HasConstraint,
+  type HasData
+} from './Internal.ts'
+import {sql} from './Sql.ts'
 
 export interface UniqueConstraintData {
   fields: Array<FieldData>
@@ -7,7 +15,7 @@ export interface UniqueConstraintData {
 }
 
 export class UniqueConstraint<TableName extends string = string>
-  implements HasData<UniqueConstraintData>
+  implements HasData<UniqueConstraintData>, HasConstraint
 {
   private declare brand: [TableName];
   [internalData]: UniqueConstraintData
@@ -26,6 +34,18 @@ export class UniqueConstraint<TableName extends string = string>
   nullsNotDistinct() {
     return new UniqueConstraint({...getData(this), nullsNotDistinct: true})
   }
+
+  get [internalConstraint]() {
+    const {fields, nullsNotDistinct} = getData(this)
+    return sql.join([
+      sql`unique`,
+      nullsNotDistinct ? sql`nulls not distinct` : undefined,
+      sql`(${sql.join(
+        fields.map(field => sql.identifier(field.fieldName)),
+        sql`, `
+      )})`
+    ])
+  }
 }
 
 export function unique() {
@@ -37,13 +57,21 @@ export interface PrimaryKeyConstraintData {
 }
 
 export class PrimaryKeyConstraint<TableName extends string = string>
-  implements HasData<PrimaryKeyConstraintData>
+  implements HasData<PrimaryKeyConstraintData>, HasConstraint
 {
   private declare brand: [TableName];
   [internalData]: PrimaryKeyConstraintData
 
   constructor(public data: PrimaryKeyConstraintData) {
     this[internalData] = data
+  }
+
+  get [internalConstraint]() {
+    const {fields} = getData(this)
+    return sql`primary key (${sql.join(
+      fields.map(field => sql.identifier(field.fieldName)),
+      sql`, `
+    )})`
   }
 }
 
@@ -59,7 +87,7 @@ export interface ForeignKeyConstraintData {
 }
 
 export class ForeignKeyConstraint<TableName extends string = string>
-  implements HasData<ForeignKeyConstraintData>
+  implements HasData<ForeignKeyConstraintData>, HasConstraint
 {
   private declare brand: [TableName];
   [internalData]: ForeignKeyConstraintData
@@ -70,11 +98,22 @@ export class ForeignKeyConstraint<TableName extends string = string>
 
   references<ForeignTable extends string>(
     ...fields: Array<Field<unknown, ForeignTable>>
-  ) {
+  ): ForeignKeyConstraint<TableName> {
     return new ForeignKeyConstraint({
       ...getData(this),
       references: fields.map(getField)
     })
+  }
+
+  get [internalConstraint]() {
+    const {fields, references} = getData(this)
+    return sql`foreign key (${sql.join(
+      fields.map(field => sql.identifier(field.fieldName)),
+      sql`, `
+    )}) references ${sql.identifier(references[0].targetName)} (${sql.join(
+      references.map(field => sql.identifier(field.fieldName)),
+      sql`, `
+    )})`
   }
 }
 
@@ -86,3 +125,8 @@ export function foreignKey<TableName extends string = string>(
     references: []
   })
 }
+
+export type Constraint =
+  | UniqueConstraint
+  | PrimaryKeyConstraint
+  | ForeignKeyConstraint

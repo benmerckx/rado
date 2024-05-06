@@ -1,7 +1,7 @@
 import {input, type Input} from './Expr.ts'
-import type {Field} from './Field.ts'
+import type {Field, FieldData} from './Field.ts'
 import type {HasColumn, HasSql} from './Internal.ts'
-import {internalColumn} from './Internal.ts'
+import {getField, internalColumn} from './Internal.ts'
 import type {Sql} from './Sql.ts'
 
 export class ColumnData {
@@ -13,7 +13,7 @@ export class ColumnData {
   isUnique?: boolean
   autoIncrement?: boolean
   defaultValue?(): HasSql
-  references?(): HasSql
+  references?(): FieldData
   onUpdate?: HasSql
   onDelete?: HasSql
   mapFromDriverValue?(value: unknown): unknown
@@ -50,8 +50,11 @@ export class Column<Value = unknown> implements HasColumn {
   references(foreignField: Field | (() => Field)): Column<Value> {
     return new Column<Value>({
       ...this[internalColumn],
-      references:
-        typeof foreignField === 'function' ? foreignField : () => foreignField
+      references() {
+        return getField(
+          typeof foreignField === 'function' ? foreignField() : foreignField
+        )
+      }
     })
   }
 }

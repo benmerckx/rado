@@ -62,7 +62,8 @@ export class Selection implements HasSql {
     }
     const result: Record<string, unknown> = {}
     let isNullable = this.#nullable.size > 0
-    for (const [name, expr] of Object.entries(input)) {
+    for (const name in input) {
+      const expr = input[name as keyof typeof input]
       const value = this.#mapResult(expr, values)
       result[name] = value
       if (isNullable) {

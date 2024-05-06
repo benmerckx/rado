@@ -29,6 +29,6 @@ export class Create<Meta extends QueryMeta = QueryMeta> extends Query<
   }
 
   get [internalQuery]() {
-    return sql.chunk('emitCreate', this)
+    return sql.chunk('emitCreateTable', this)
   }
 }

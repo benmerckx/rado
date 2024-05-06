@@ -1,6 +1,5 @@
 import {Assert, Test} from '@sinclair/carbon'
-import {unique} from '../../src/core/Constraint.ts'
-import {index} from '../../src/core/Index.ts'
+import {foreignKey, primaryKey, unique} from '../../src/core/Constraint.ts'
 import {schema} from '../../src/core/Schema.ts'
 import {table} from '../../src/core/Table.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
@@ -45,12 +44,18 @@ Test.describe('Create', () => {
     {
       id: integer().primaryKey(),
       name: integer().notNull(),
-      ref: integer()
+      isUnique: integer().unique(),
+      hasRef: integer().references(Node.id),
+      colA: integer(),
+      colB: integer()
     },
     WithConstraints => {
       return {
         uniqueMe: unique().on(WithConstraints.name),
-        indexRef: index().on(WithConstraints.ref)
+        multiPk: primaryKey(WithConstraints.colA, WithConstraints.colB),
+        multiRef: foreignKey(WithConstraints.colA).references(
+          WithConstraints.colB
+        )
       }
     }
   )
@@ -59,7 +64,17 @@ Test.describe('Create', () => {
     const query = builder.createTable(withConstraints)
     Assert.isEqual(
       emit(query),
-      'create table "WithConstraints" ("id" integer primary key, "name" integer not null, "ref" integer, unique ("name"))'
+      'create table "WithConstraints"' +
+        ' ("id" integer primary key,' +
+        ' "name" integer not null,' +
+        ' "isUnique" integer unique,' +
+        ' "hasRef" integer references "Node" ("id"),' +
+        ' "colA" integer,' +
+        ' "colB" integer,' +
+        ' constraint "uniqueMe" unique ("name"),' +
+        ' constraint "multiPk" primary key ("colA", "colB"),' +
+        ' constraint "multiRef" foreign key ("colA") references "WithConstraints" ("colB")' +
+        ')'
     )
   })
 })
