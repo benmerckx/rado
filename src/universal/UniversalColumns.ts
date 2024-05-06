@@ -4,7 +4,8 @@ import {sql} from '../core/Sql.ts'
 export function id(name?: string): Column<number> {
   return new Column({
     name,
-    type: sql.chunk('emitIdColumn', undefined)
+    type: sql.chunk('emitIdColumn', undefined),
+    primary: true
   })
 }
 

@@ -45,7 +45,7 @@ class SqliteEmitter extends Emitter {
     )
   }
   emitIdColumn() {
-    this.sql += 'integer primary key autoincrement'
+    this.sql += 'integer'
   }
 }
 

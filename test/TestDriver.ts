@@ -5,7 +5,7 @@ import {
   type SyncDatabase
 } from '../src/core/Database.ts'
 import {table} from '../src/core/Table.ts'
-import {eq, sql} from '../src/index.ts'
+import {eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
 import {boolean, id, int, json, text} from '../src/universal.ts'
 
 const Node = table('Node', {
@@ -24,6 +24,27 @@ const Post = table('Post', {
   userId: int().notNull(),
   title: text().notNull()
 })
+
+const TableA = table('TableA', {
+  id: id()
+})
+
+const TableB = table(
+  'TableB',
+  {
+    isUnique: int().unique(),
+    hasRef: int().references(TableA.id),
+    colA: int(),
+    colB: int().unique()
+  },
+  TableB => {
+    return {
+      uniqueA: unique().on(TableB.colA),
+      multiPk: primaryKey(TableB.colA, TableB.colB),
+      multiRef: foreignKey(TableB.colA).references(TableA.id)
+    }
+  }
+)
 
 export async function testDriver(
   name: string,
@@ -197,6 +218,30 @@ export async function testDriver(
           syncDb.dropTable(Node).run()
         }
       }
+    })
+
+    Test.it('constraints and indexes', async () => {
+      //try {
+      await db.createTable(TableA)
+      await db.createTable(TableB)
+      await db.insert(TableA).values({})
+      await db.insert(TableB).values({
+        isUnique: 1,
+        hasRef: 1,
+        colA: 1,
+        colB: 1
+      })
+      const [row] = await db.select().from(TableB)
+      Assert.isEqual(row, {
+        isUnique: 1,
+        hasRef: 1,
+        colA: 1,
+        colB: 1
+      })
+      /*} finally {
+        await db.dropTable(TableB)
+        await db.dropTable(TableA)
+      }*/
     })
   })
 }
