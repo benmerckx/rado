@@ -1,4 +1,3 @@
-import {input} from '../Expr.ts'
 import {
   getData,
   internalData,
@@ -17,6 +16,7 @@ import {
 } from '../Selection.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
+import {input} from '../expr/Input.ts'
 
 export class UpdateData<
   Meta extends QueryMeta = QueryMeta

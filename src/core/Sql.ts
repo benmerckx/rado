@@ -1,6 +1,6 @@
 import type {Emitter} from './Emitter.ts'
-import type {FieldData} from './Field.ts'
 import {getSql, internalSql, type HasSql} from './Internal.ts'
+import type {FieldData} from './expr/Field.ts'
 
 type EmitMethods = {
   [K in keyof Emitter as K extends `emit${string}` ? K : never]: Emitter[K]

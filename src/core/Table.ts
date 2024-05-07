@@ -4,8 +4,6 @@ import type {
   PrimaryKeyConstraint,
   UniqueConstraint
 } from './Constraint.ts'
-import {jsonExpr, type Input, type JsonExpr} from './Expr.ts'
-import {Field} from './Field.ts'
 import type {Index} from './Index.ts'
 import {
   getColumn,
@@ -20,6 +18,9 @@ import {
   type HasTarget
 } from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
+import {jsonExpr, type JsonExpr} from './expr/Conditions.ts'
+import {Field} from './expr/Field.ts'
+import type {Input} from './expr/Input.ts'
 
 const {assign, fromEntries, entries} = Object
 

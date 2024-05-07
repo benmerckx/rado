@@ -1,14 +1,6 @@
-import {getSql, getTable, hasSql, hasTable, type HasSql} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
-
-export type Input<T = unknown> = HasSql<T> | T
-
-export function input<T>(value: Input<T>): HasSql<T> {
-  if (typeof value !== 'object' || value === null) return sql.value(value)
-  if (hasTable(value)) return sql.identifier(getTable(value).name)
-  if (hasSql(value)) return getSql(value) as Sql<T>
-  return sql.value(value)
-}
+import type {HasSql} from '../Internal.ts'
+import {sql, type Sql} from '../Sql.ts'
+import {type Input, input} from './Input.ts'
 
 export function eq<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
   return sql`${input(left)} = ${input(right)}`
@@ -148,12 +140,16 @@ export function arrayOverlaps<T>(
   return sql`${input(left)} && ${input(right)}`
 }
 
-export function asc<T>(column: HasSql<T>): Sql {
-  return sql`${column} asc`
+export function asc<T>(input: HasSql<T>): Sql {
+  return sql`${input} asc`
 }
 
-export function desc<T>(column: HasSql<T>): Sql {
-  return sql`${column} desc`
+export function desc<T>(input: HasSql<T>): Sql {
+  return sql`${input} desc`
+}
+
+export function distinct<T>(input: HasSql<T>): Sql {
+  return sql`distinct ${input}`
 }
 
 export interface JsonArrayHasSql<Value> extends HasSql<Value> {

@@ -1,5 +1,4 @@
 import type {ColumnData} from './Column.ts'
-import type {FieldData} from './Field.ts'
 import {
   getData,
   getQuery,
@@ -11,6 +10,7 @@ import {
 } from './Internal.ts'
 import {ValueParam, type Param} from './Param.ts'
 import {sql} from './Sql.ts'
+import type {FieldData} from './expr/Field.ts'
 import type {Create} from './query/CreateTable.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Drop} from './query/DropTable.ts'

@@ -57,7 +57,8 @@ export class Selection implements HasSql {
     const expr = this.#exprOf(input)
     if (expr) {
       const value = values.shift()
-      if (expr.mapFromDriverValue) return expr.mapFromDriverValue(value)
+      if (value !== null && expr.mapFromDriverValue)
+        return expr.mapFromDriverValue(value)
       return value
     }
     const result: Record<string, unknown> = {}

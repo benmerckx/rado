@@ -1,4 +1,3 @@
-import type {Field, FieldData} from './Field.ts'
 import {
   getData,
   getField,
@@ -8,6 +7,7 @@ import {
   type HasData
 } from './Internal.ts'
 import {sql} from './Sql.ts'
+import type {Field, FieldData} from './expr/Field.ts'
 
 export interface UniqueConstraintData {
   fields: Array<FieldData>

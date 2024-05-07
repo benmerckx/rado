@@ -1,4 +1,3 @@
-import type {Field, FieldData} from './Field.ts'
 import {
   getData,
   getField,
@@ -6,6 +5,7 @@ import {
   type HasData,
   type HasSql
 } from './Internal.ts'
+import type {Field, FieldData} from './expr/Field.ts'
 
 export interface IndexData {
   fields: Array<FieldData>

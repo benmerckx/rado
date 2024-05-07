@@ -1,8 +1,8 @@
-import {input, type Input} from './Expr.ts'
-import type {Field, FieldData} from './Field.ts'
 import type {HasColumn, HasSql} from './Internal.ts'
 import {getField, internalColumn} from './Internal.ts'
 import type {Sql} from './Sql.ts'
+import type {Field, FieldData} from './expr/Field.ts'
+import {input, type Input} from './expr/Input.ts'
 
 export class ColumnData {
   type!: Sql

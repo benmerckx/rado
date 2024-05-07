@@ -1,6 +1,6 @@
-import {Field} from './Field.ts'
 import {getSql, hasSql} from './Internal.ts'
 import type {SelectionInput} from './Selection.ts'
+import {Field} from './expr/Field.ts'
 
 export function virtual<Input extends SelectionInput>(
   alias: string,

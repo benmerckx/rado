@@ -1,6 +1,6 @@
 import {Assert, Test} from '@sinclair/carbon'
-import {eq} from '../../src/core/Expr.ts'
 import {alias, table} from '../../src/core/Table.ts'
+import {eq} from '../../src/core/expr/Conditions.ts'
 import {integer, text} from '../../src/sqlite/SqliteColumns.ts'
 import {builder, emit} from '../TestUtils.ts'
 

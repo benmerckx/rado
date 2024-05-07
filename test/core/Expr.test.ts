@@ -1,6 +1,6 @@
 import {Assert, Test} from '@sinclair/carbon'
-import * as e from '../../src/core/Expr.ts'
 import {sql} from '../../src/core/Sql.ts'
+import * as e from '../../src/core/expr/Conditions.ts'
 import {emit} from '../TestUtils.ts'
 
 Test.describe('Expr', () => {

@@ -1,5 +1,5 @@
-import {internalField, internalSql, type HasSql} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {internalField, internalSql, type HasSql} from '../Internal.ts'
+import {sql, type Sql} from '../Sql.ts'
 
 export interface FieldData {
   targetName: string

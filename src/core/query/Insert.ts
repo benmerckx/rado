@@ -1,4 +1,3 @@
-import {input, type Input} from '../Expr.ts'
 import {
   getColumn,
   getData,
@@ -24,6 +23,7 @@ import type {
   TableRow,
   TableUpdate
 } from '../Table.ts'
+import {input, type Input} from '../expr/Input.ts'
 
 class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into!: HasTable

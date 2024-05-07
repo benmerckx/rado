@@ -1,5 +1,3 @@
-import {input, type Input as UserInput} from '../Expr.ts'
-import type {Field} from '../Field.ts'
 import {
   getData,
   getQuery,
@@ -29,6 +27,8 @@ import {
 import {sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
+import type {Field} from '../expr/Field.ts'
+import {input, type Input as UserInput} from '../expr/Input.ts'
 import {Union} from './Union.ts'
 
 export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
