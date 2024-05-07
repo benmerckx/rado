@@ -1,12 +1,12 @@
 import {
-  type HasTarget,
   getData,
   getResolver,
   hasResolver,
   internalData,
   internalQuery,
   type HasQuery,
-  type HasResolver
+  type HasResolver,
+  type HasTarget
 } from './Internal.ts'
 import type {Async, QueryMeta, Sync} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
@@ -44,6 +44,15 @@ export abstract class Query<Result, Meta extends QueryMeta>
       prepared.free()
       throw error
     }
+  }
+
+  *[Symbol.iterator](): Generator<Promise<unknown>, Array<Result>, unknown> {
+    const interim = this.#exec('all')
+    const isAsync = interim instanceof Promise
+    if (!isAsync) return interim as Array<Result>
+    let result: unknown
+    yield interim.then(v => (result = v))
+    return result as Array<Result>
   }
 
   prepare<Inputs extends Record<string, unknown>>(name: string) {

@@ -220,6 +220,21 @@ export async function testDriver(
       }
     })
 
+    Test.it('universal transactions', async () => {
+      const result = await db.transact(function* (tx) {
+        yield* tx.createTable(Node)
+        yield* tx.insert(Node).values({
+          textField: 'hello',
+          bool: true
+        })
+        const nodes = yield* tx.select().from(Node)
+        Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+        yield* tx.dropTable(Node)
+        return 1
+      })
+      Assert.isEqual(result, 1)
+    })
+
     Test.it('constraints and indexes', async () => {
       try {
         await db.createTable(TableA)

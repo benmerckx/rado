@@ -37,6 +37,20 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
+  transact<T>(
+    gen: (tx: Transaction<Meta>) => Generator<Promise<unknown>, T>,
+    options?: TransactionOptions[Meta['dialect']]
+  ): Promise<T> {
+    return (<Database<any>>this).transaction(async (tx: Transaction<Meta>) => {
+      const iter = gen(tx)
+      let current: IteratorResult<Promise<unknown>>
+      while ((current = iter.next(tx))) {
+        if (current.done) return current.value
+        await current.value
+      }
+    }, options)
+  }
+
   transaction<T>(
     this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
