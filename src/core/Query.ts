@@ -2,6 +2,7 @@ import {
   getData,
   getResolver,
   hasResolver,
+  hasSelection,
   internalData,
   internalQuery,
   type HasQuery,
@@ -27,15 +28,20 @@ export abstract class Query<Result, Meta extends QueryMeta>
     this[internalData] = data
   }
 
-  #exec(method: 'all' | 'get' | 'run', db?: HasResolver | Resolver) {
+  #exec(
+    method: 'all' | 'get' | 'run' | undefined,
+    db?: HasResolver | Resolver
+  ): any {
     const resolver = db
       ? hasResolver(db)
         ? getResolver(db)
         : db
       : getData(this).resolver
+    const isSelection = hasSelection(this)
     const prepared = resolver!.prepare(this, '')
+    const resultType = method ?? (isSelection ? 'all' : 'run')
     try {
-      const result = prepared[method]()
+      const result = prepared[resultType]()
       if (result instanceof Promise)
         return result.finally(prepared.free.bind(prepared))
       prepared.free()
@@ -47,7 +53,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
   }
 
   *[Symbol.iterator](): Generator<Promise<unknown>, Array<Result>, unknown> {
-    const interim = this.#exec('all')
+    const interim = this.#exec(undefined)
     const isAsync = interim instanceof Promise
     if (!isAsync) return interim as Array<Result>
     let result: unknown
@@ -98,7 +104,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
       | null
   ): Promise<TResult1 | TResult2> {
     const resolver = getData(this).resolver
-    const result = this.all(resolver as Resolver<any>)
+    const result = this.#exec(undefined, resolver as Resolver<any>)
     return Promise.resolve(result).then(onfulfilled, onrejected)
   }
 
@@ -109,14 +115,14 @@ export abstract class Query<Result, Meta extends QueryMeta>
       | undefined
       | null
   ): Promise<Array<Result> | TResult> {
-    return this.all().catch(onrejected)
+    return this.#exec(undefined).catch(onrejected)
   }
 
   finally(
     this: Query<Result, Async>,
     onfinally?: (() => void) | undefined | null
   ): Promise<Array<Result>> {
-    return this.all().finally(onfinally)
+    return this.#exec(undefined).finally(onfinally)
   }
 }
 
