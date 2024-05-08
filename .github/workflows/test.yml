@@ -31,15 +31,15 @@ jobs:
       - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun test:bun
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - run: bun test:node
+          node-version: "20.12.1"
       - uses: denoland/setup-deno@v1
         with:
           deno-version: v1.x
+      - run: bun install --frozen-lockfile
+      - run: bun test:bun
+      - run: bun test:node
       - run: bun test:deno
       - if: startsWith(github.ref, 'refs/tags/v')
         run: |
