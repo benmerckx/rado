@@ -1,9 +1,9 @@
-import {Pool, type Client, type PoolClient} from 'pg'
+import pg, {type Client, type PoolClient} from 'pg'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {AsyncDriver, AsyncStatement} from '../core/Driver.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
 
-type Queryable = Client | Pool | PoolClient
+type Queryable = Client | pg.Pool | PoolClient
 
 class PreparedStatement implements AsyncStatement {
   constructor(
@@ -73,7 +73,7 @@ export class PgDriver implements AsyncDriver {
     depth: number
   ): Promise<T> {
     const client =
-      this.client instanceof Pool ? await this.client.connect() : this.client
+      this.client instanceof pg.Pool ? await this.client.connect() : this.client
     try {
       await client.query(depth > 0 ? `savepoint d${depth}` : 'begin')
       const result = await run(new PgDriver(client))
