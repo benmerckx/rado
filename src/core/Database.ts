@@ -57,7 +57,7 @@ export class Database<Meta extends QueryMeta = Either>
         const tx = new Transaction<Meta>(
           inner,
           this.#dialect,
-          this.#transactionDepth++
+          this.#transactionDepth + 1
         )
         return run(tx)
       },
