@@ -6,7 +6,14 @@ import {
 } from '../src/core/Database.ts'
 import {table} from '../src/core/Table.ts'
 import {eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
-import {boolean, id, int, json, text} from '../src/universal.ts'
+import {
+  boolean,
+  generateTransaction,
+  id,
+  int,
+  json,
+  text
+} from '../src/universal.ts'
 
 const Node = table('Node', {
   id: id(),
@@ -220,18 +227,20 @@ export async function testDriver(
       }
     })
 
-    Test.it('universal transactions', async () => {
-      const result = await db.transact(function* (tx) {
-        yield* tx.createTable(Node)
-        yield* tx.insert(Node).values({
-          textField: 'hello',
-          bool: true
+    Test.it('generator transactions', async () => {
+      const result = await db.transaction(
+        generateTransaction(function* (tx) {
+          yield* tx.createTable(Node)
+          yield* tx.insert(Node).values({
+            textField: 'hello',
+            bool: true
+          })
+          const nodes = yield* tx.select().from(Node)
+          Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+          yield* tx.dropTable(Node)
+          return 1
         })
-        const nodes = yield* tx.select().from(Node)
-        Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
-        yield* tx.dropTable(Node)
-        return 1
-      })
+      )
       Assert.isEqual(result, 1)
     })
 

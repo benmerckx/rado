@@ -37,20 +37,6 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  transact<T>(
-    gen: (tx: Transaction<Meta>) => Generator<Promise<unknown>, T>,
-    options?: TransactionOptions[Meta['dialect']]
-  ): Promise<T> {
-    return (<Database<any>>this).transaction(async (tx: Transaction<Meta>) => {
-      const iter = gen(tx)
-      let current: IteratorResult<Promise<unknown>>
-      while ((current = iter.next(tx))) {
-        if (current.done) return current.value
-        await current.value
-      }
-    }, options)
-  }
-
   transaction<T>(
     this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
@@ -61,6 +47,10 @@ export class Database<Meta extends QueryMeta = Either>
     run: (tx: Transaction<Meta>) => Promise<T>,
     options?: TransactionOptions[Meta['dialect']]
   ): Promise<T>
+  transaction<T>(
+    run: (tx: Transaction<Meta>) => T | Promise<T>,
+    options?: TransactionOptions[Meta['dialect']]
+  ): T | Promise<T>
   transaction(run: Function, options = {}) {
     return this.#driver.transaction(
       inner => {
