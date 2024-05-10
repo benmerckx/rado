@@ -9,7 +9,7 @@
     "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
     "prepublishOnly": "tsc -p tsconfig.build.json && bun build.ts",
     "cycles": "madge --warning --circular src/index.ts",
-    "test:bun": "bun run test/index.ts",
+    "test:bun": "bun test",
     "test:node": "node --import tsx --test \"**/*.test.ts\"",
     "test:deno": "deno test --no-check --allow-read"
   },
