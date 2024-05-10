@@ -10,7 +10,7 @@
     "prepublishOnly": "tsc -p tsconfig.build.json && bun build.ts",
     "cycles": "madge --warning --circular src/index.ts",
     "test:bun": "bun test",
-    "test:node": "node --import tsx --test \"**/*.test.ts\"",
+    "test:node": "node --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
     "test:deno": "deno test --no-check --allow-read"
   },
   "sideEffects": false,
