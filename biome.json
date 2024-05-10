@@ -39,7 +39,8 @@
         "noExplicitAny": "off",
         "noConstEnum": "off",
         "noAssignInExpressions": "off",
-        "noConfusingLabels": "off"
+        "noConfusingLabels": "off",
+        "noExportsInTest": "off"
       }
     }
   }

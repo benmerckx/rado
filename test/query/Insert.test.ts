@@ -1,11 +1,11 @@
-import {Assert, Test} from '@sinclair/carbon'
 import type {Builder} from '../../src/core/Builder.ts'
 import {table} from '../../src/core/Table.ts'
 import {eq} from '../../src/index.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
 import {builder, emit} from '../TestUtils.ts'
+import {suite} from '../suite.ts'
 
-Test.describe('Insert', () => {
+suite(import.meta, ({test, isEqual}) => {
   const definition = {
     id: integer().primaryKey(),
     withDefault: integer().default(2),
@@ -19,22 +19,22 @@ Test.describe('Insert', () => {
     .insert(Node)
     .values({id: 1, required: 3})
 
-  Test.it('insert into', () => {
-    Assert.isEqual(
+  test('insert into', () => {
+    isEqual(
       emit(query),
       'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default)'
     )
   })
 
-  Test.it('returning', () => {
-    Assert.isEqual(
+  test('returning', () => {
+    isEqual(
       emit(query.returning(Node.id)),
       'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) returning "id"'
     )
   })
 
-  Test.it('on conflict do nothing', () => {
-    Assert.isEqual(
+  test('on conflict do nothing', () => {
+    isEqual(
       emit(
         query.onConflictDoNothing({
           target: Node.id,
@@ -45,8 +45,8 @@ Test.describe('Insert', () => {
     )
   })
 
-  Test.it('on conflict do update', () => {
-    Assert.isEqual(
+  test('on conflict do update', () => {
+    isEqual(
       emit(
         query.onConflictDoUpdate({
           target: Node.id,

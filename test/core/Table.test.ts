@@ -1,14 +1,14 @@
-import {Assert, Test} from '@sinclair/carbon'
 import {table} from '../../src/core/Table.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
 import {emit} from '../TestUtils.ts'
+import {suite} from '../suite.ts'
 
-const Node = table('Node', {
-  id: integer().primaryKey()
-})
+suite(import.meta, ({test, isEqual}) => {
+  const Node = table('Node', {
+    id: integer().primaryKey()
+  })
 
-Test.describe('Table', () => {
-  Test.it('format table and column name', () => {
-    Assert.isEqual(emit(Node.id), '"Node"."id"')
+  test('format table and column name', () => {
+    isEqual(emit(Node.id), '"Node"."id"')
   })
 })

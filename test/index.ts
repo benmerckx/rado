@@ -1,4 +1,4 @@
-import {Process, Test} from '@sinclair/carbon'
+import {Process, Test} from '../runner.ts'
 
 import './core/Expr.test.ts'
 import './core/Selection.test.ts'

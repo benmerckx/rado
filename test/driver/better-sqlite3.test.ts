@@ -1,8 +1,8 @@
-import {Runtime} from '@sinclair/carbon'
 import {testDriver} from '../TestDriver.ts'
+import {isNode} from '../suite.ts'
 
-if (Runtime.isNode())
-  await testDriver('better-sqlite3', async () => {
+if (isNode)
+  await testDriver(import.meta, async () => {
     const {default: Database} = await import('better-sqlite3')
     const {connect} = await import('../../src/driver/better-sqlite3.ts')
     return connect(new Database(':memory:'))

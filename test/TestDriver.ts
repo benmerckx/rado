@@ -1,4 +1,3 @@
-import {Assert, Test} from '@sinclair/carbon'
 import {
   AsyncDatabase,
   type Database,
@@ -14,6 +13,7 @@ import {
   json,
   text
 } from '../src/universal.ts'
+import {suite} from './suite.ts'
 
 const Node = table('Node', {
   id: id(),
@@ -54,14 +54,14 @@ const TableB = table(
 )
 
 export async function testDriver(
-  name: string,
+  meta: ImportMeta,
   createDb: () => Promise<Database>
 ) {
   const db = await createDb()
   const isAsync = db instanceof AsyncDatabase
 
-  Test.describe(`Driver: ${name}`, async () => {
-    Test.it('create table', async () => {
+  suite(meta, ({test, isEqual}) => {
+    test('create table', async () => {
       try {
         await db.createTable(Node)
         await db.insert(Node).values({
@@ -69,16 +69,16 @@ export async function testDriver(
           bool: true
         })
         const nodes = await db.select().from(Node)
-        Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+        isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
         await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
         const [node] = await db.select(Node.textField).from(Node)
-        Assert.isEqual(node, 'world')
+        isEqual(node, 'world')
       } finally {
         await db.dropTable(Node)
       }
     })
 
-    Test.it('prepared queries', async () => {
+    test('prepared queries', async () => {
       try {
         await db.createTable(Node)
         await db.insert(Node).values({
@@ -91,13 +91,13 @@ export async function testDriver(
           .where(eq(Node.textField, sql.placeholder('text')))
           .prepare<{text: string}>('prepared')
         const rows = await query.execute({text: 'hello'})
-        Assert.isEqual(rows, [{id: 1, textField: 'hello', bool: true}])
+        isEqual(rows, [{id: 1, textField: 'hello', bool: true}])
       } finally {
         await db.dropTable(Node)
       }
     })
 
-    Test.it('joins', async () => {
+    test('joins', async () => {
       try {
         await db.createTable(User)
         await db.createTable(Post)
@@ -113,7 +113,7 @@ export async function testDriver(
           ])
           .returning(Post.id)
         const posts = await db.select().from(Post)
-        Assert.isEqual(posts, [
+        isEqual(posts, [
           {id: post1, userId: user1, title: 'Post 1'},
           {id: post2, userId: user1, title: 'Post 2'}
         ])
@@ -122,7 +122,7 @@ export async function testDriver(
           .from(User)
           .innerJoin(Post, eq(Post.userId, User.id))
           .where(eq(User.id, user1))
-        Assert.isEqual(userAndPosts, [
+        isEqual(userAndPosts, [
           {
             User: {id: user1, name: 'Bob'},
             Post: {id: post1, userId: user1, title: 'Post 1'}
@@ -138,7 +138,7 @@ export async function testDriver(
           .from(User)
           .leftJoin(Post, eq(Post.userId, 42))
           .where(eq(User.id, user1))
-        Assert.isEqual(noPosts, [
+        isEqual(noPosts, [
           {
             User: {id: user1, name: 'Bob'},
             Post: null
@@ -151,7 +151,7 @@ export async function testDriver(
           .rightJoin(User, eq(User.id, Post.userId))
           .where(eq(User.id, user2))
 
-        Assert.isEqual(rightJoin, [
+        isEqual(rightJoin, [
           {
             Post: null,
             User: {id: 2, name: 'Mario'}
@@ -168,7 +168,7 @@ export async function testDriver(
       data: json<{sub: {field: string}}>()
     })
 
-    Test.it('json fields', async () => {
+    test('json fields', async () => {
       try {
         await db.createTable(WithJson)
         const data = {sub: {field: 'value'}}
@@ -177,13 +177,13 @@ export async function testDriver(
           .select()
           .from(WithJson)
           .where(eq(WithJson.data.sub.field, 'value'))
-        Assert.isEqual(row, {id: 1, data})
+        isEqual(row, {id: 1, data})
       } finally {
         await db.dropTable(WithJson)
       }
     })
 
-    Test.it('transactions', async () => {
+    test('transactions', async () => {
       if (isAsync) {
         const asyncDb = db as AsyncDatabase<'universal'>
         try {
@@ -194,12 +194,12 @@ export async function testDriver(
               bool: true
             })
             const nodes = await tx.select().from(Node)
-            Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+            isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
             tx.rollback()
           })
         } catch {
           const nodes = await asyncDb.select().from(Node)
-          Assert.isEqual(nodes, [])
+          isEqual(nodes, [])
         } finally {
           await asyncDb.dropTable(Node)
         }
@@ -213,21 +213,21 @@ export async function testDriver(
               bool: true
             })
             const nodes = tx.select().from(Node).all()
-            Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+            isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
             tx.rollback()
           })
           const nodes = syncDb.select().from(Node).all()
-          Assert.isEqual(nodes, [])
+          isEqual(nodes, [])
         } catch {
           const nodes = syncDb.select().from(Node).all()
-          Assert.isEqual(nodes, [])
+          isEqual(nodes, [])
         } finally {
           syncDb.dropTable(Node).run()
         }
       }
     })
 
-    Test.it('generator transactions', async () => {
+    test('generator transactions', async () => {
       const result = await db.transaction(
         generateTransaction(function* (tx) {
           yield* tx.createTable(Node)
@@ -236,15 +236,15 @@ export async function testDriver(
             bool: true
           })
           const nodes = yield* tx.select().from(Node)
-          Assert.isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+          isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
           yield* tx.dropTable(Node)
           return 1
         })
       )
-      Assert.isEqual(result, 1)
+      isEqual(result, 1)
     })
 
-    Test.it('constraints and indexes', async () => {
+    test('constraints and indexes', async () => {
       try {
         await db.createTable(TableA)
         await db.createTable(TableB)
@@ -256,7 +256,7 @@ export async function testDriver(
           colB: 1
         })
         const [row] = await db.select().from(TableB)
-        Assert.isEqual(row, {
+        isEqual(row, {
           isUnique: 1,
           hasRef: 1,
           colA: 1,

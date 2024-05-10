@@ -1,26 +1,23 @@
-import {Assert, Test} from '@sinclair/carbon'
 import {foreignKey, primaryKey, unique} from '../../src/core/Constraint.ts'
 import {schema} from '../../src/core/Schema.ts'
 import {table} from '../../src/core/Table.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
 import {builder, emit} from '../TestUtils.ts'
+import {suite} from '../suite.ts'
 
-Test.describe('Create', () => {
+suite(import.meta, ({test, isEqual}) => {
   const Node = table('Node', {
     id: integer().primaryKey()
   })
 
-  Test.it('create table', () => {
+  test('create table', () => {
     const query = builder.createTable(Node)
-    Assert.isEqual(
-      emit(query),
-      'create table "Node" ("id" integer primary key)'
-    )
+    isEqual(emit(query), 'create table "Node" ("id" integer primary key)')
   })
 
-  Test.it('if not exists', () => {
+  test('if not exists', () => {
     const query = builder.createTable(Node).ifNotExists()
-    Assert.isEqual(
+    isEqual(
       emit(query),
       'create table if not exists "Node" ("id" integer primary key)'
     )
@@ -31,9 +28,9 @@ Test.describe('Create', () => {
     id: integer().primaryKey()
   })
 
-  Test.it('create table with schema', () => {
+  test('create table with schema', () => {
     const query = builder.createTable(testNode)
-    Assert.isEqual(
+    isEqual(
       emit(query),
       'create table "test"."Node" ("id" integer primary key)'
     )
@@ -60,9 +57,9 @@ Test.describe('Create', () => {
     }
   )
 
-  Test.it('create table with constraints', () => {
+  test('create table with constraints', () => {
     const query = builder.createTable(withConstraints)
-    Assert.isEqual(
+    isEqual(
       emit(query),
       'create table "WithConstraints"' +
         ' ("id" integer primary key,' +
