@@ -1,7 +1,7 @@
 import {selection} from '../../src/core/Selection.ts'
 import {sql} from '../../src/core/Sql.ts'
+import {suite} from '../Suite.ts'
 import {emit} from '../TestUtils.ts'
-import {suite} from '../suite.ts'
 
 suite(import.meta, ({test, isEqual}) => {
   test('alias', () => {

@@ -13,7 +13,7 @@ import {
   json,
   text
 } from '../src/universal.ts'
-import {suite} from './suite.ts'
+import {suite} from './Suite.ts'
 
 const Node = table('Node', {
   id: id(),

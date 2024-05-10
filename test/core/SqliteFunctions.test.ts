@@ -1,8 +1,8 @@
 import {table} from '../../src/core/Table.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
 import {bm25, cast} from '../../src/sqlite/SqliteFunctions.ts'
+import {suite} from '../Suite.ts'
 import {emit} from '../TestUtils.ts'
-import {suite} from '../suite.ts'
 
 suite(import.meta, ({test, isEqual}) => {
   const Node = table('Node', {

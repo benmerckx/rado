@@ -1,8 +1,8 @@
 import {connect} from '../../src/driver/pg.ts'
+import {isDeno} from '../Suite.ts'
 import {testDriver} from '../TestDriver.ts'
-import {isDeno} from '../suite.ts'
 
-if (!isDeno)
+if (!isDeno && process.env.CI)
   await testDriver(import.meta, async () => {
     const {default: pg} = await import('pg')
     const client = new pg.Client({

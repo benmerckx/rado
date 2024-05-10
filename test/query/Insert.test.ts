@@ -2,8 +2,8 @@ import type {Builder} from '../../src/core/Builder.ts'
 import {table} from '../../src/core/Table.ts'
 import {eq} from '../../src/index.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
+import {suite} from '../Suite.ts'
 import {builder, emit} from '../TestUtils.ts'
-import {suite} from '../suite.ts'
 
 suite(import.meta, ({test, isEqual}) => {
   const definition = {
