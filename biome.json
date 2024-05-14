@@ -30,7 +30,8 @@
       },
       "style": {
         "noNonNullAssertion": "off",
-        "useEnumInitializers": "off"
+        "useEnumInitializers": "off",
+        "noParameterAssign": "off"
       },
       "complexity": {
         "noBannedTypes": "off"

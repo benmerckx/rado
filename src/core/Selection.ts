@@ -2,7 +2,6 @@ import {
   getField,
   getSql,
   hasField,
-  hasSql,
   internalSql,
   type HasSql,
   type HasTable
@@ -32,45 +31,45 @@ export type SelectionRow<Input> = Input extends HasSql<infer Value>
         ? TableRow<Definition>
         : never
 
-export class Selection implements HasSql {
-  #input: SelectionInput
-  #nullable: Set<string>
+interface ResultContext {
+  values: Array<unknown>
+  index: number
+}
+interface Column {
+  targetName?: string
+  result(ctx: ResultContext): unknown
+}
+class SqlColumn implements Column {
+  constructor(
+    public sql: Sql,
+    public targetName?: string
+  ) {}
 
-  constructor(input: SelectionInput, nullable: Set<string>) {
-    this.#input = input
-    this.#nullable = nullable
+  result(ctx: ResultContext) {
+    const value = ctx.values[ctx.index++]
+    if (value === null) return value
+    return this.sql.mapFromDriverValue?.(value) ?? value
   }
+}
 
-  makeVirtual(name: string) {
-    return virtual(name, this.#input)
-  }
+class ObjectColumn implements Column {
+  constructor(
+    public nullable: Set<string>,
+    public entries: Array<[string, Column]>
+  ) {}
 
-  mapRow = (values: Array<unknown>) => {
-    return this.#mapResult(this.#input, values)
-  }
-
-  get [internalSql]() {
-    return this.#selectionToSql(this.#input, new Set())
-  }
-
-  #mapResult(input: SelectionInput, values: Array<unknown>): unknown {
-    const expr = this.#exprOf(input)
-    if (expr) {
-      const value = values.shift()
-      if (value !== null && expr.mapFromDriverValue)
-        return expr.mapFromDriverValue(value)
-      return value
-    }
+  result(ctx: ResultContext) {
     const result: Record<string, unknown> = {}
-    let isNullable = this.#nullable.size > 0
-    for (const name in input) {
-      const expr = input[name as keyof typeof input]
-      const value = this.#mapResult(expr, values)
+    let isNullable = this.nullable.size > 0
+    for (const entry of this.entries) {
+      const name = entry[0]
+      const col = entry[1]
+      const value = col.result(ctx)
       result[name] = value
       if (isNullable) {
         if (value === null) {
-          const field = getField(expr)
-          if (field && !this.#nullable.has(field.targetName)) isNullable = false
+          if (col.targetName && !this.nullable.has(col.targetName))
+            isNullable = false
         } else {
           isNullable = false
         }
@@ -79,13 +78,47 @@ export class Selection implements HasSql {
     if (isNullable) return null
     return result
   }
+}
+
+export class Selection implements HasSql {
+  #input: SelectionInput
+  #root: Column
+
+  constructor(input: SelectionInput, nullable: Set<string>) {
+    this.#input = input
+    this.#root = this.#defineColumn(nullable, input)
+  }
+
+  makeVirtual(name: string) {
+    return virtual(name, this.#input)
+  }
+
+  #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
+    const expr = getSql(input as HasSql)
+    if (expr) return new SqlColumn(expr, getField(input as any)?.targetName)
+    return new ObjectColumn(
+      nullable,
+      Object.entries(input).map(([name, value]) => [
+        name,
+        this.#defineColumn(nullable, value)
+      ])
+    )
+  }
+
+  mapRow = (values: Array<unknown>) => {
+    return this.#root.result({values, index: 0})
+  }
+
+  get [internalSql]() {
+    return this.#selectionToSql(this.#input, new Set())
+  }
 
   #selectionToSql(
     input: SelectionInput,
     names: Set<string>,
     name?: string
   ): Sql {
-    const expr = this.#exprOf(input)
+    const expr = getSql(input as HasSql)
     if (expr) {
       let exprName = name ?? expr.alias
       if (exprName) {
@@ -106,10 +139,6 @@ export class Selection implements HasSql {
       ),
       sql`, `
     )
-  }
-
-  #exprOf(input: SelectionInput) {
-    return hasSql(input) ? getSql(input) : undefined
   }
 }
 
