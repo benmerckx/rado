@@ -1,21 +1,19 @@
 {
   "name": "rado",
-  "version": "1.0.0-preview.0",
+  "version": "1.0.0-preview.1",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json && bun build.ts",
     "size": "esbuild src/index.ts --bundle --minify --format=esm --outdir=dist",
     "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
-    "prepublishOnly": "tsc -p tsconfig.build.json && bun build.ts",
+    "prepublishOnly": "rm -rf dist && bun run build",
     "cycles": "madge --warning --circular src/index.ts",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
     "test:deno": "deno test --no-check --allow-read"
   },
   "sideEffects": false,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": "./dist/index.js",
@@ -23,7 +21,7 @@
   },
   "typesVersions": {
     "*": {
-      "*": ["dist/*.d.ts"]
+      "*": ["./dist/*"]
     }
   },
   "files": ["dist"],

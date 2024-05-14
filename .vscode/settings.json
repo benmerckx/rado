@@ -6,6 +6,7 @@
     "quickfix.biome": "explicit"
   },
   "typescript.tsdk": "./node_modules/typescript/lib",
+  "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.suggest.completeJSDocs": false,
   "[typescript]": {
     "editor.defaultFormatter": "biomejs.biome"
