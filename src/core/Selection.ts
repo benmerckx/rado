@@ -30,7 +30,7 @@ export type SelectionRow<Input> = Input extends HasSql<infer Value>
       : Input extends Table<infer Definition>
         ? TableRow<Definition>
         : never
-
+/*
 interface ResultContext {
   values: Array<unknown>
   index: number
@@ -78,35 +78,76 @@ class ObjectColumn implements Column {
     if (isNullable) return null
     return result
   }
-}
+}*/
+
+type Row = Array<{path: Array<string>; sql: Sql; targetName?: string}>
 
 export class Selection implements HasSql {
   #input: SelectionInput
-  #root: Column
+  #row: Row
+  #nullable: Set<string>
 
   constructor(input: SelectionInput, nullable: Set<string>) {
     this.#input = input
-    this.#root = this.#defineColumn(nullable, input)
+    this.#row = this.#defineRow(input)
+    this.#nullable = nullable
   }
 
   makeVirtual(name: string) {
     return virtual(name, this.#input)
   }
 
-  #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
+  #defineRow(input: SelectionInput, path: Array<string> = []): Row {
     const expr = getSql(input as HasSql)
-    if (expr) return new SqlColumn(expr, getField(input as any)?.targetName)
-    return new ObjectColumn(
-      nullable,
-      Object.entries(input).map(([name, value]) => [
-        name,
-        this.#defineColumn(nullable, value)
-      ])
+    if (expr)
+      return [
+        {
+          path,
+          sql: expr,
+          targetName: hasField(input) ? getField(input).targetName : undefined
+        }
+      ]
+    return Object.entries(input).flatMap(([name, value]) =>
+      this.#defineRow(value, path.concat(name))
     )
   }
 
   mapRow = (values: Array<unknown>) => {
-    return this.#root.result({values, index: 0})
+    const result: any = {}
+    let current = result
+    let currentKey: string | undefined
+    let isNullable = false
+    for (let i = 0; i < this.#row.length; i++) {
+      const {path, sql, targetName} = this.#row[i]
+      let value = values[i]
+      if (value !== null && sql.mapFromDriverValue)
+        value = sql.mapFromDriverValue(value)
+      if (path.length === 0) return value
+      let obj = result
+      let prev: any
+      let key: string
+      for (let j = 0; j < path.length - 1; j++) {
+        key = path[j]
+        prev = obj
+        obj = obj[key] ?? (obj[key] = {})
+      }
+      if (current !== obj) {
+        if (isNullable) prev[currentKey!] = null
+        isNullable = this.#nullable.size > 0
+        current = obj
+        currentKey = key!
+      }
+      obj[path[path.length - 1]] = value
+      if (isNullable) {
+        if (value === null) {
+          if (targetName && !this.#nullable.has(targetName)) isNullable = false
+          else if (i === this.#row.length - 1) prev[currentKey!] = null
+        } else {
+          isNullable = false
+        }
+      }
+    }
+    return result
   }
 
   get [internalSql]() {
