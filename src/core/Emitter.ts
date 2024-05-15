@@ -26,9 +26,14 @@ export abstract class Emitter {
   bind(inputs?: Record<string, unknown>): Array<unknown> {
     return this.params.map(param => {
       if (param instanceof ValueParam) return param.value
-      if (inputs && param.name in inputs) return inputs[param.name]
+      if (inputs && param.name in inputs)
+        return this.processValue(inputs[param.name])
       throw new Error(`Missing input for named parameter: ${param.name}`)
     })
+  }
+
+  processValue(value: unknown): unknown {
+    return value
   }
 
   abstract emitIdentifier(value: string): void

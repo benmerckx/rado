@@ -61,7 +61,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
     return result as Array<Result>
   }
 
-  prepare<Inputs extends Record<string, unknown>>(name: string) {
+  prepare<Inputs extends Record<string, unknown>>(name?: string) {
     return <PreparedQuery<Result, Inputs, Meta>>(
       getData(this).resolver!.prepare(this, name)
     )

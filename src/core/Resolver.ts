@@ -14,7 +14,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     this.#dialect = dialect
   }
 
-  prepare(query: HasQuery, name: string): PreparedStatement<Meta> {
+  prepare(query: HasQuery, name?: string): PreparedStatement<Meta> {
     const isSelection = hasSelection(query)
     const mapRow = isSelection ? getSelection(query).mapRow : undefined
     const emitter = this.#dialect(query)

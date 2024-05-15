@@ -82,11 +82,14 @@ class ObjectColumn implements Column {
 
 export class Selection implements HasSql {
   #input: SelectionInput
-  #root: Column
+  mapRow: (values: Array<unknown>) => unknown
 
   constructor(input: SelectionInput, nullable: Set<string>) {
     this.#input = input
-    this.#root = this.#defineColumn(nullable, input)
+    const root = this.#defineColumn(nullable, input)
+    this.mapRow = (values: Array<unknown>) => {
+      return root.result({values, index: 0})
+    }
   }
 
   makeVirtual(name: string) {
@@ -103,10 +106,6 @@ export class Selection implements HasSql {
         this.#defineColumn(nullable, value)
       ])
     )
-  }
-
-  mapRow = (values: Array<unknown>) => {
-    return this.#root.result({values, index: 0})
   }
 
   get [internalSql]() {

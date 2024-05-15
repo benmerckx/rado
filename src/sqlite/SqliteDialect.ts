@@ -10,11 +10,12 @@ const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
 class SqliteEmitter extends Emitter {
+  processValue(value: unknown): unknown {
+    return typeof value === 'boolean' ? (value ? 1 : 0) : value
+  }
   emitValue(value: unknown) {
     this.sql += '?'
-    this.params.push(
-      new ValueParam(typeof value === 'boolean' ? (value ? 1 : 0) : value)
-    )
+    this.params.push(new ValueParam(this.processValue(value)))
   }
   emitJsonPath(path: Array<number | string>) {
     this.sql += `->>${this.quoteString(`$.${path.join('.')}`)}`
