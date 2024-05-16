@@ -3,6 +3,7 @@ import type {Dialect} from './Dialect.ts'
 import type {Driver} from './Driver.ts'
 import {internalResolver, type HasResolver} from './Internal.ts'
 import type {Async, Either, QueryDialect, QueryMeta, Sync} from './MetaData.ts'
+import type {Query} from './Query.ts'
 import {Resolver} from './Resolver.ts'
 
 export class Database<Meta extends QueryMeta = Either>
@@ -35,6 +36,24 @@ export class Database<Meta extends QueryMeta = Either>
 
   async [Symbol.asyncDispose](this: Database<Async>): Promise<void> {
     return this.close()
+  }
+
+  batch<Queries extends Array<Query<unknown, Meta>>>(
+    this: Database<Sync>,
+    queries: Queries
+  ): Array<unknown>
+  batch<Queries extends Array<Query<unknown, Meta>>>(
+    this: Database<Async>,
+    queries: Queries
+  ): Promise<Array<unknown>>
+  batch<Queries extends Array<Query<unknown, Meta>>>(queries: Queries) {
+    return this.#driver.batch(
+      queries.map(query => {
+        const compiled = this.#dialect(query)
+        return {sql: compiled.sql, params: compiled.bind()}
+      }),
+      this.#transactionDepth
+    )
   }
 
   transaction<T>(

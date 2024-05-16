@@ -21,9 +21,9 @@ import type {Update} from './query/Update.ts'
 
 export abstract class Emitter {
   sql = ''
-  params: Array<Param> = []
+  protected params: Array<Param> = []
 
-  bind(inputs?: Record<string, unknown>): Array<unknown> {
+  bind(inputs?: Record<string, unknown>) {
     return this.params.map(param => {
       if (param instanceof ValueParam) return param.value
       if (inputs && param.name in inputs)

@@ -1,5 +1,5 @@
 import type {PGlite, Transaction} from '@electric-sql/pglite'
-import type {AsyncDriver, AsyncStatement} from '../core/Driver.ts'
+import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
 import {AsyncDatabase, type TransactionOptions} from '../index.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
 
@@ -58,6 +58,15 @@ export class PGliteDriver implements AsyncDriver {
 
   prepare(sql: string) {
     return new PreparedStatement(this.client, sql)
+  }
+
+  async batch(queries: Array<BatchQuery>): Promise<Array<unknown>> {
+    return this.transaction(async tx => {
+      const results = []
+      for (const {sql, params} of queries)
+        results.push(await tx.prepare(sql).values(params))
+      return results
+    }, {})
   }
 
   async transaction<T>(

@@ -1,6 +1,6 @@
 import pg, {type Client, type PoolClient} from 'pg'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {AsyncDriver, AsyncStatement} from '../core/Driver.ts'
+import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
 
 type Queryable = Client | pg.Pool | PoolClient
@@ -65,6 +65,19 @@ export class PgDriver implements AsyncDriver {
   async close(): Promise<void> {
     if ('end' in this.client) return this.client.end()
     if ('release' in this.client) return this.client.release()
+  }
+
+  async batch(queries: Array<BatchQuery>): Promise<Array<unknown>> {
+    return this.transaction(
+      async tx => {
+        const results = []
+        for (const {sql, params} of queries)
+          results.push(await tx.prepare(sql).values(params))
+        return results
+      },
+      {},
+      0
+    )
   }
 
   async transaction<T>(

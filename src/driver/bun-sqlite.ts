@@ -1,6 +1,6 @@
 import type {Database as Client, Statement} from 'bun:sqlite'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
@@ -40,6 +40,12 @@ class BunSqliteDriver implements SyncDriver {
 
   prepare(sql: string) {
     return new PreparedStatement(this.client.prepare(sql))
+  }
+
+  batch(queries: Array<BatchQuery>): Array<unknown> {
+    return this.transaction(tx => {
+      return queries.map(({sql, params}) => tx.prepare(sql).values(params))
+    }, {})
   }
 
   transaction<T>(

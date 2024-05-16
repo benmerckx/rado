@@ -1,12 +1,12 @@
 import {alias, table} from '../../src/core/Table.ts'
 import {eq} from '../../src/core/expr/Conditions.ts'
-import {integer, text} from '../../src/sqlite/SqliteColumns.ts'
+import {int, text} from '../../src/universal.ts'
 import {suite} from '../Suite.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, ({test, isEqual}) => {
   const Node = table('Node', {
-    id: integer().primaryKey(),
+    id: int().primaryKey(),
     field1: text()
   })
 

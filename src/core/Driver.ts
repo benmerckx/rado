@@ -1,5 +1,9 @@
 export type Driver = SyncDriver | AsyncDriver
 export type Statement = SyncStatement | AsyncStatement
+export interface BatchQuery {
+  sql: string
+  params: Array<unknown>
+}
 
 export interface SyncDriver {
   close(): void
@@ -10,6 +14,7 @@ export interface SyncDriver {
     options: unknown,
     depth: number
   ): T
+  batch(queries: Array<BatchQuery>, depth: number): Array<unknown>
 }
 export interface SyncStatement {
   all(params: Array<unknown>): Array<object>
@@ -27,6 +32,7 @@ export interface AsyncDriver {
     options: unknown,
     depth: number
   ): Promise<T>
+  batch(queries: Array<BatchQuery>, depth: number): Promise<Array<unknown>>
 }
 export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<object>>
