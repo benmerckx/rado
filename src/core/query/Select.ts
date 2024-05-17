@@ -285,7 +285,8 @@ export interface WithoutSelection<Meta extends QueryMeta> {
   from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
 }
 
-export interface WithSelection<Input, Meta extends QueryMeta> {
+export interface WithSelection<Input, Meta extends QueryMeta>
+  extends Query<SelectionRow<Input>, Meta> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>

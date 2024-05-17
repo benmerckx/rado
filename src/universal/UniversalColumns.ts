@@ -37,7 +37,7 @@ export function boolean(name?: string): Column<boolean | null> {
 export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
-    type: sql`jsonb`,
+    type: sql`json`,
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     },

@@ -11,6 +11,7 @@ import {
   id,
   int,
   json,
+  lastInsertId,
   text
 } from '../src/universal.ts'
 import {suite} from './Suite.ts'
@@ -101,17 +102,14 @@ export async function testDriver(
       try {
         await db.createTable(User)
         await db.createTable(Post)
-        const [user1, user2] = await db
-          .insert(User)
-          .values([{name: 'Bob'}, {name: 'Mario'}])
-          .returning(User.id)
-        const [post1, post2] = await db
-          .insert(Post)
-          .values([
-            {userId: user1, title: 'Post 1'},
-            {userId: user1, title: 'Post 2'}
-          ])
-          .returning(Post.id)
+        await db.insert(User).values({name: 'Bob'})
+        const user1 = await db.select(lastInsertId()).get()
+        await db.insert(User).values({name: 'Mario'})
+        const user2 = await db.select(lastInsertId()).get()
+        await db.insert(Post).values({userId: user1, title: 'Post 1'})
+        const post1 = await db.select(lastInsertId()).get()
+        await db.insert(Post).values({userId: user1, title: 'Post 2'})
+        const post2 = await db.select(lastInsertId()).get()
         const posts = await db.select().from(Post)
         isEqual(posts, [
           {id: post1, userId: user1, title: 'Post 1'},
@@ -246,8 +244,10 @@ export async function testDriver(
 
     test('constraints and indexes', async () => {
       try {
-        await db.createTable(TableA)
+        await db.createTable(TableA).then(res => console.log(res))
+        console.log('created TableA')
         await db.createTable(TableB)
+        console.log('created TableB')
         await db.insert(TableA).values({})
         await db.insert(TableB).values({
           isUnique: 1,

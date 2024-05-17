@@ -2,17 +2,15 @@ import {dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
 
-const DOUBLE_QUOTE = '"'
-const ESCAPE_DOUBLE_QUOTE = '""'
-const MATCH_DOUBLE_QUOTE = /"/g
+const BACKTICK = '`'
+const ESCAPE_BACKTICK = '``'
+const MATCH_BACKTICK = /`/g
 const SINGLE_QUOTE = "'"
 const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
-class SqliteEmitter extends Emitter {
-  processValue(value: unknown): unknown {
-    return typeof value === 'boolean' ? (value ? 1 : 0) : value
-  }
+class MysqlEmitter extends Emitter {
+  paramIndex = 0
   emitValue(value: unknown) {
     this.sql += '?'
     this.params.push(new ValueParam(value))
@@ -22,23 +20,14 @@ class SqliteEmitter extends Emitter {
   }
   emitInline(value: unknown) {
     if (value === null || value === undefined) return (this.sql += 'null')
-    if (typeof value === 'number') return (this.sql += value)
+    if (typeof value === 'number' || typeof value === 'boolean')
+      return (this.sql += value)
     if (typeof value === 'string') return (this.sql += this.quoteString(value))
-    if (typeof value === 'boolean') return (this.sql += value ? '1' : '0')
-    this.sql += `json(${this.quoteString(JSON.stringify(value))})`
+    this.sql += this.quoteString(JSON.stringify(value))
   }
   emitPlaceholder(name: string) {
     this.sql += '?'
     this.params.push(new NamedParam(name))
-  }
-  emitIdentifier(identifier: string) {
-    this.sql +=
-      DOUBLE_QUOTE +
-      identifier.replace(MATCH_DOUBLE_QUOTE, ESCAPE_DOUBLE_QUOTE) +
-      DOUBLE_QUOTE
-  }
-  emitDefaultValue() {
-    this.sql += 'null'
   }
   quoteString(input: string): string {
     return (
@@ -47,12 +36,19 @@ class SqliteEmitter extends Emitter {
       SINGLE_QUOTE
     )
   }
+  emitIdentifier(identifier: string) {
+    this.sql +=
+      BACKTICK + identifier.replace(MATCH_BACKTICK, ESCAPE_BACKTICK) + BACKTICK
+  }
+  emitDefaultValue() {
+    this.sql += 'default'
+  }
   emitIdColumn() {
-    this.sql += 'integer'
+    this.sql += 'int not null auto_increment'
   }
   emitLastInsertId() {
-    this.sql += 'last_insert_rowid()'
+    this.sql += 'last_insert_id()'
   }
 }
 
-export const sqliteDialect = dialect(SqliteEmitter)
+export const mysqlDialect = dialect(MysqlEmitter)

@@ -54,6 +54,9 @@ class PostgresEmitter extends Emitter {
   emitIdColumn() {
     this.sql += 'int generated always as identity'
   }
+  emitLastInsertId() {
+    this.sql += 'lastval()'
+  }
 }
 
 export const postgresDialect = dialect(PostgresEmitter)

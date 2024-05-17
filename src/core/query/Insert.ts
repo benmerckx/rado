@@ -8,7 +8,7 @@ import {
   type HasSql,
   type HasTable
 } from '../Internal.ts'
-import type {IsPostgres, QueryMeta} from '../MetaData.ts'
+import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {
   selection,
@@ -57,8 +57,11 @@ class InsertCanReturn<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > extends Insert<void, Meta> {
-  returning(): Insert<TableRow<Definition>, Meta>
+  returning(
+    this: InsertCanReturn<Definition, IsPostgres | IsSqlite>
+  ): Insert<TableRow<Definition>, Meta>
   returning<Input extends SelectionInput>(
+    this: InsertCanReturn<Definition, IsPostgres | IsSqlite>,
     returning: Input
   ): Insert<SelectionRow<Input>, Meta>
   returning(returning?: SelectionInput) {

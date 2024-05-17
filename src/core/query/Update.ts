@@ -6,7 +6,7 @@ import {
   type HasSql,
   type HasTable
 } from '../Internal.ts'
-import type {QueryMeta} from '../MetaData.ts'
+import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {Query, QueryData} from '../Query.ts'
 import {
   selection,
@@ -64,10 +64,11 @@ export class UpdateTable<
   }
 
   returning<Input extends SelectionInput>(
+    this: UpdateTable<Definition, IsPostgres | IsSqlite>,
     returning: Input
   ): Update<SelectionRow<Input>, Meta> {
     return new Update<SelectionRow<Input>, Meta>({
-      ...getData(this),
+      ...getData(this as UpdateTable<Definition, Meta>),
       returning: selection(returning)
     })
   }

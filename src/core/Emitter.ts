@@ -25,7 +25,7 @@ export abstract class Emitter {
 
   bind(inputs?: Record<string, unknown>) {
     return this.params.map(param => {
-      if (param instanceof ValueParam) return param.value
+      if (param instanceof ValueParam) return this.processValue(param.value)
       if (inputs && param.name in inputs)
         return this.processValue(inputs[param.name])
       throw new Error(`Missing input for named parameter: ${param.name}`)
@@ -42,6 +42,7 @@ export abstract class Emitter {
   abstract emitJsonPath(value: Array<number | string>): void
   abstract emitPlaceholder(value: string): void
   abstract emitDefaultValue(): void
+  abstract emitLastInsertId(): void
 
   emitUnsafe(value: string): void {
     this.sql += value

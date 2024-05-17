@@ -9,7 +9,7 @@ import {
   type HasResolver,
   type HasTarget
 } from './Internal.ts'
-import type {Async, QueryMeta, Sync} from './MetaData.ts'
+import type {Async, Either, QueryMeta, Sync} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
 import type {Sql} from './Sql.ts'
 
@@ -77,6 +77,7 @@ export abstract class Query<Result, Meta extends QueryMeta>
 
   get(this: Query<Result, Sync>): Result
   get(this: Query<Result, Async>): Promise<Result>
+  get(this: Query<Result, Either>): Result | Promise<Result>
   get(db: HasResolver<Sync> | Resolver<Sync>): Result
   get(db: HasResolver<Async> | Resolver<Async>): Promise<Result>
   get(db?: HasResolver | Resolver) {
