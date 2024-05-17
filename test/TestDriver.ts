@@ -244,10 +244,8 @@ export async function testDriver(
 
     test('constraints and indexes', async () => {
       try {
-        await db.createTable(TableA).then(res => console.log(res))
-        console.log('created TableA')
+        await db.createTable(TableA)
         await db.createTable(TableB)
-        console.log('created TableB')
         await db.insert(TableA).values({})
         await db.insert(TableB).values({
           isUnique: 1,
