@@ -7,7 +7,7 @@ import {
   type HasTable
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {Query, QueryData} from '../Query.ts'
+import {Query, type QueryData} from '../Query.ts'
 import {
   selection,
   type Selection,
@@ -18,10 +18,9 @@ import {sql, type Sql} from '../Sql.ts'
 import type {TableDefinition, TableUpdate} from '../Table.ts'
 import {input} from '../expr/Input.ts'
 
-export class UpdateData<
-  Meta extends QueryMeta = QueryMeta
-> extends QueryData<Meta> {
-  table!: HasTable
+export interface UpdateData<Meta extends QueryMeta = QueryMeta>
+  extends QueryData<Meta> {
+  table: HasTable
   set?: HasSql
   where?: HasSql
   returning?: Selection

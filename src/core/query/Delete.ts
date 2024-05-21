@@ -7,7 +7,7 @@ import {
   type HasTable
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
-import {Query, QueryData} from '../Query.ts'
+import {Query, type QueryData} from '../Query.ts'
 import {
   selection,
   type Selection,
@@ -16,10 +16,9 @@ import {
 } from '../Selection.ts'
 import {sql} from '../Sql.ts'
 
-export class DeleteData<
-  Meta extends QueryMeta = QueryMeta
-> extends QueryData<Meta> {
-  from!: HasTable
+export interface DeleteData<Meta extends QueryMeta = QueryMeta>
+  extends QueryData<Meta> {
+  from: HasTable
   where?: HasSql
   returning?: Selection
 }

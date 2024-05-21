@@ -25,6 +25,9 @@ class TestEmitter extends Emitter {
   emitIdColumn(): void {
     this.sql += 'id'
   }
+  emitLastInsertId(): void {
+    this.sql += 'last_insert_id()'
+  }
 }
 
 const testDialect = dialect(TestEmitter)

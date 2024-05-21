@@ -1,4 +1,3 @@
-import type {ColumnData} from './Column.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {Resolver} from './Resolver.ts'
 import type {Selection} from './Selection.ts'
@@ -12,7 +11,6 @@ export const internalSelection = Symbol()
 export const internalTarget = Symbol()
 export const internalQuery = Symbol()
 export const internalTable = Symbol()
-export const internalColumn = Symbol()
 export const internalField = Symbol()
 export const internalResolver = Symbol()
 export const internalConstraint = Symbol()
@@ -37,9 +35,6 @@ export declare class HasTable<
   Name extends string = string
 > {
   get [internalTable](): TableApi<Definition, Name>
-}
-export declare class HasColumn {
-  get [internalColumn](): ColumnData
 }
 export declare class HasField {
   get [internalField](): FieldData
@@ -67,9 +62,6 @@ export const hasQuery = (obj: object): obj is HasQuery => internalQuery in obj
 export const getQuery = (obj: HasQuery) => obj[internalQuery]
 export const hasTable = (obj: object): obj is HasTable => internalTable in obj
 export const getTable = (obj: HasTable) => obj[internalTable]
-export const hasColumn = (obj: object): obj is HasColumn =>
-  internalColumn in obj
-export const getColumn = (obj: HasColumn) => obj[internalColumn]
 export const hasField = (obj: object): obj is HasField => internalField in obj
 export const getField = (obj: HasField) => obj[internalField]
 export const hasResolver = <Meta extends QueryMeta>(

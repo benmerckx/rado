@@ -37,11 +37,28 @@ suite(import.meta, ({test, isEqual}) => {
     )
   })
 
+  test('full join', () => {
+    const right = alias(Node, 'right')
+    const query = builder.select().from(Node).fullJoin(right, eq(right.id, 1))
+    isEqual(
+      emit(query),
+      'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" full join "Node" as "right" on "right"."id" = 1'
+    )
+  })
+
   test('order by', () => {
     const query = builder.select().from(Node).orderBy(Node.id)
     isEqual(
       emit(query),
       'select "Node"."id", "Node"."field1" from "Node" order by "Node"."id"'
+    )
+  })
+
+  test('group by', () => {
+    const query = builder.select().from(Node).groupBy(Node.id)
+    isEqual(
+      emit(query),
+      'select "Node"."id", "Node"."field1" from "Node" group by "Node"."id"'
     )
   })
 

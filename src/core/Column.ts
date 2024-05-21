@@ -1,11 +1,11 @@
-import type {HasColumn, HasSql} from './Internal.ts'
-import {getField, internalColumn} from './Internal.ts'
+import type {HasSql} from './Internal.ts'
+import {getData, getField, internalData} from './Internal.ts'
 import type {Sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 import {input, type Input} from './expr/Input.ts'
 
-export class ColumnData {
-  type!: Sql
+export interface ColumnData {
+  type: Sql
   name?: string
   json?: boolean
   primary?: boolean
@@ -20,14 +20,14 @@ export class ColumnData {
   mapToDriverValue?(value: unknown): unknown
 }
 
-export class Column<Value = unknown> implements HasColumn {
-  readonly [internalColumn]: ColumnData
+export class Column<Value = unknown> {
+  readonly [internalData]: ColumnData
   constructor(data: ColumnData) {
-    this[internalColumn] = data
+    this[internalData] = data
   }
   notNull(): RequiredColumn<NonNullable<Value>> {
     return new Column({
-      ...this[internalColumn],
+      ...getData(this),
       notNull: true
     }) as RequiredColumn
   }
@@ -35,21 +35,21 @@ export class Column<Value = unknown> implements HasColumn {
     value: Input<NonNullable<Value>> | (() => Input<NonNullable<Value>>)
   ): Column<NonNullable<Value>> {
     return new Column({
-      ...this[internalColumn],
+      ...getData(this),
       defaultValue(): HasSql {
         return input(value instanceof Function ? value() : value)
       }
     })
   }
   primaryKey(): Column<NonNullable<Value>> {
-    return new Column({...this[internalColumn], primary: true})
+    return new Column({...getData(this), primary: true})
   }
   unique(name?: string): Column<Value> {
-    return new Column({...this[internalColumn], isUnique: true})
+    return new Column({...getData(this), isUnique: true})
   }
   references(foreignField: Field | (() => Field)): Column<Value> {
     return new Column<Value>({
-      ...this[internalColumn],
+      ...getData(this),
       references() {
         return getField(
           typeof foreignField === 'function' ? foreignField() : foreignField

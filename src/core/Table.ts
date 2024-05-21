@@ -6,8 +6,8 @@ import type {
 } from './Constraint.ts'
 import type {Index} from './Index.ts'
 import {
-  getColumn,
   getConstraint,
+  getData,
   getTable,
   hasConstraint,
   internalTable,
@@ -62,7 +62,7 @@ export class TableApi<
 
   createDefinition(): Sql {
     const createColumns = entries(this.columns).map(([name, isColumn]) => {
-      const column = getColumn(isColumn)
+      const column = getData(isColumn)
       const columnName = sql.identifier(column.name ?? name)
       return sql`${columnName} ${sql.chunk('emitColumn', column)}`
     })
@@ -80,7 +80,7 @@ export class TableApi<
   listColumns(): Sql {
     return sql.join(
       entries(this.columns).map(([name, column]) => {
-        const columnApi = getColumn(column)
+        const columnApi = getData(column)
         const {name: givenName} = columnApi
         return sql.identifier(givenName ?? name)
       }),
@@ -91,7 +91,7 @@ export class TableApi<
   fields(): Record<string, HasSql> {
     return fromEntries(
       entries(this.columns).map(([name, column]) => {
-        const columnApi = getColumn(column)
+        const columnApi = getData(column)
         const {name: givenName} = columnApi
         const field = new Field(this.aliased, givenName ?? name, columnApi)
         if (columnApi.json) return [name, jsonExpr(field)]

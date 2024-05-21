@@ -1,5 +1,4 @@
 import {
-  getColumn,
   getData,
   getTable,
   internalData,
@@ -9,7 +8,7 @@ import {
   type HasTable
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {Query, QueryData} from '../Query.ts'
+import {Query, type QueryData} from '../Query.ts'
 import {
   selection,
   type Selection,
@@ -25,12 +24,13 @@ import type {
 } from '../Table.ts'
 import {input, type Input} from '../expr/Input.ts'
 
-class InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
-  into!: HasTable
+interface InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
+  into: HasTable
   values?: HasSql
 }
 
-export class InsertData<Meta extends QueryMeta> extends InsertIntoData<Meta> {
+export interface InsertData<Meta extends QueryMeta>
+  extends InsertIntoData<Meta> {
   returning?: Selection
   onConflict?: HasSql
 }
@@ -157,7 +157,7 @@ export class InsertInto<
         return sql`(${sql.join(
           Object.entries(table.columns).map(([key, column]) => {
             const value = row[key]
-            const {defaultValue, notNull, mapToDriverValue} = getColumn(column)
+            const {defaultValue, notNull, mapToDriverValue} = getData(column)
             if (value !== undefined)
               return input(mapToDriverValue ? mapToDriverValue(value) : value)
             if (defaultValue) return defaultValue()

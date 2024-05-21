@@ -8,20 +8,89 @@ import {
   type HasSql
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
-import {Query, QueryData} from '../Query.ts'
-import type {Selection} from '../Selection.ts'
+import {Query, type QueryData} from '../Query.ts'
+import type {Selection, SelectionRow} from '../Selection.ts'
 import {sql} from '../Sql.ts'
-import type {SelectBase} from './Select.ts'
 
-export class UnionData<Meta extends QueryMeta> extends QueryData<Meta> {
-  selection!: Selection
-  left!: HasQuery
-  operator!: HasSql
-  right!: HasQuery
+export interface UnionBaseData<Meta extends QueryMeta> extends QueryData<Meta> {
+  selection?: Selection
+}
+
+export abstract class UnionBase<
+  Input,
+  Meta extends QueryMeta = QueryMeta
+> extends Query<SelectionRow<Input>, Meta> {
+  readonly [internalData]!: UnionBaseData<Meta>
+
+  union(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+    return new Union<Input, Meta>({
+      ...getData(this),
+      left: this,
+      operator: sql`union`,
+      right
+    })
+  }
+
+  unionAll(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+    return new Union<Input, Meta>({
+      ...getData(this),
+      left: this,
+      operator: sql`union all`,
+      right
+    })
+  }
+
+  intersect(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+    return new Union<Input, Meta>({
+      ...getData(this),
+      left: this,
+      operator: sql`intersect`,
+      right
+    })
+  }
+
+  intersectAll(
+    this: UnionBase<Input, IsPostgres | IsMysql>,
+    right: UnionBase<Input, Meta>
+  ): Union<Input, Meta> {
+    return new Union<Input, Meta>({
+      ...getData(this as UnionBase<Input, Meta>),
+      left: this,
+      operator: sql`intersect all`,
+      right
+    })
+  }
+
+  except(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+    return new Union<Input, Meta>({
+      ...getData(this),
+      left: this,
+      operator: sql`except`,
+      right
+    })
+  }
+
+  exceptAll(
+    this: UnionBase<Input, IsPostgres | IsMysql>,
+    right: UnionBase<Input, Meta>
+  ): Union<Input, Meta> {
+    return new Union<Input, Meta>({
+      ...getData(this as UnionBase<Input, Meta>),
+      left: this,
+      operator: sql`except all`,
+      right
+    })
+  }
+}
+
+export interface UnionData<Meta extends QueryMeta> extends UnionBaseData<Meta> {
+  left: HasQuery
+  operator: HasSql
+  right: HasQuery
 }
 
 export class Union<Result, Meta extends QueryMeta = QueryMeta>
-  extends Query<Result, Meta>
+  extends UnionBase<Result, Meta>
   implements HasSelection
 {
   readonly [internalData]: UnionData<Meta>
@@ -30,43 +99,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   constructor(data: UnionData<Meta>) {
     super(data)
     this[internalData] = data
-    this[internalSelection] = data.selection
-  }
-
-  union(right: SelectBase<Result, Meta>): Union<Result, Meta> {
-    return new Union<Result, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`union`,
-      right
-    })
-  }
-
-  unionAll(right: SelectBase<Result, Meta>): Union<Result, Meta> {
-    return new Union<Result, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`union all`,
-      right
-    })
-  }
-
-  intersect(right: SelectBase<Result, Meta>): Union<Result, Meta> {
-    return new Union<Result, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`intersect`,
-      right
-    })
-  }
-
-  except(right: SelectBase<Result, Meta>): Union<Result, Meta> {
-    return new Union<Result, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`except`,
-      right
-    })
+    this[internalSelection] = data.selection!
   }
 
   get [internalQuery]() {
@@ -75,43 +108,47 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
 }
 
 export function union<Result, Meta extends QueryMeta>(
-  left: SelectBase<Result, Meta>,
-  right: SelectBase<Result, Meta>
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return left.union(right)
+  return [right, ...rest].reduce(
+    (acc, query) => acc.union(query),
+    left
+  ) as Union<Result, Meta>
 }
 
 export function unionAll<Result, Meta extends QueryMeta>(
-  left: SelectBase<Result, Meta>,
-  right: SelectBase<Result, Meta>
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
 ): Union<Result, Meta> {
   return left.unionAll(right)
 }
 
 export function intersect<Result, Meta extends QueryMeta>(
-  left: SelectBase<Result, Meta>,
-  right: SelectBase<Result, Meta>
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
 ): Union<Result, Meta> {
   return left.intersect(right)
 }
 
 export function intersectAll<Result, Meta extends IsPostgres | IsMysql>(
-  left: SelectBase<Result, Meta>,
-  right: SelectBase<Result, Meta>
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
 ): Union<Result, Meta> {
   return left.intersectAll(right)
 }
 
 export function except<Result, Meta extends QueryMeta>(
-  left: SelectBase<Result, Meta>,
-  right: SelectBase<Result, Meta>
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
 ): Union<Result, Meta> {
   return left.except(right)
 }
 
 export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
-  left: SelectBase<Result, Meta>,
-  right: SelectBase<Result, Meta>
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
 ): Union<Result, Meta> {
   return left.exceptAll(right)
 }

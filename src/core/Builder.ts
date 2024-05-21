@@ -30,7 +30,7 @@ import {UpdateTable} from './query/Update.ts'
 class BuilderBase<Meta extends QueryMeta> {
   readonly [internalData]: QueryData<Meta>
 
-  constructor(data: QueryData<Meta>) {
+  constructor(data: QueryData<Meta> = {}) {
     this[internalData] = data
   }
 
