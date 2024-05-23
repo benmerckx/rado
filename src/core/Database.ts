@@ -49,7 +49,7 @@ export class Database<Meta extends QueryMeta = Either>
   batch<Queries extends Array<Query<unknown, Meta>>>(queries: Queries) {
     return this.#driver.batch(
       queries.map(query => {
-        const compiled = this.#dialect(query)
+        const compiled = this.#dialect.emit(query)
         return {sql: compiled.sql, params: compiled.bind()}
       }),
       this.#transactionDepth

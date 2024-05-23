@@ -44,10 +44,6 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return res
   }
 
-  isEmpty(): boolean {
-    return this.#chunks.length === 0
-  }
-
   chunk<Type extends keyof EmitMethods>(
     type: Type,
     inner: Parameters<EmitMethods[Type]>[0]

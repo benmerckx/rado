@@ -29,7 +29,7 @@ class PostgresEmitter extends Emitter {
     if (typeof value === 'number' || typeof value === 'boolean')
       return (this.sql += value)
     if (typeof value === 'string') return (this.sql += this.quoteString(value))
-    this.sql += `json(${this.quoteString(JSON.stringify(value))})`
+    this.sql += this.quoteString(JSON.stringify(value))
   }
   emitPlaceholder(name: string) {
     this.sql += `$${++this.paramIndex}`

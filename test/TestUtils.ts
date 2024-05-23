@@ -30,7 +30,7 @@ class TestEmitter extends Emitter {
   }
 }
 
-const testDialect = dialect(TestEmitter)
+const testDialect = dialect(TestEmitter).emit
 
 export function emit(input: HasSql | HasQuery): string {
   return testDialect(input).sql

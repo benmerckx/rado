@@ -18,7 +18,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   prepare(query: HasQuery, name?: string): PreparedStatement<Meta> {
     const isSelection = hasSelection(query)
     const mapRow = isSelection ? getSelection(query).mapRow : undefined
-    const emitter = this.#dialect(query)
+    const emitter = this.#dialect.emit(query)
     const stmt = this.#driver.prepare(emitter.sql, name)
     return new PreparedStatement<Meta>(emitter, stmt, mapRow, this.#driver)
   }
