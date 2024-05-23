@@ -1,8 +1,8 @@
-import {Column, JsonColumn, column} from '../core/Column.ts'
+import {JsonColumn, column, type Column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 export function id(name?: string): Column<number> {
-  return new Column({
+  return column({
     name,
     type: sql.chunk('emitIdColumn', undefined),
     primary: true
@@ -10,21 +10,15 @@ export function id(name?: string): Column<number> {
 }
 
 export function text(name?: string): Column<string | null> {
-  return new Column({
-    name,
-    type: column.text()
-  })
+  return column({name, type: column.text()})
 }
 
 export function integer(name?: string): Column<number | null> {
-  return new Column({
-    name,
-    type: column.integer()
-  })
+  return column({name, type: column.integer()})
 }
 
 export function boolean(name?: string): Column<boolean | null> {
-  return new Column({
+  return column({
     name,
     type: column.boolean(),
     mapFromDriverValue(value: unknown): boolean {

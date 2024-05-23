@@ -72,11 +72,16 @@ export interface RequiredColumn<Value = unknown> extends Column<Value> {
   [required]: true
 }
 
+function createColumn(data: ColumnData): Column {
+  return new Column(data)
+}
+
 export interface Columns {
+  <T>(data: ColumnData): Column<T>
   [key: string]: (...args: Array<Input<any>>) => Sql<any>
 }
 
-export const column: Columns = new Proxy(Object.create(null), {
+export const column: Columns = new Proxy(createColumn as any, {
   get(target: Record<string, Function>, method: string) {
     return (target[method] ??= (...args: Array<Input<unknown>>) => {
       while (args.length > 1) if (args.at(-1) === undefined) args.pop()

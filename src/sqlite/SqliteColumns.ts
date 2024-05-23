@@ -1,7 +1,7 @@
-import {Column, JsonColumn, column} from '../core/Column.ts'
+import {type Column, JsonColumn, column} from '../core/Column.ts'
 
 export function boolean(name?: string): Column<boolean | null> {
-  return new Column({
+  return column({
     name,
     type: column.integer(),
     mapFromDriverValue(value: number): boolean {
@@ -14,25 +14,25 @@ export function boolean(name?: string): Column<boolean | null> {
 }
 
 export function integer(name?: string): Column<number | null> {
-  return new Column({name, type: column.integer()})
+  return column({name, type: column.integer()})
 }
 
 export const int = integer
 
 export function blob(name?: string): Column<Uint8Array | null> {
-  return new Column({name, type: column.blob()})
+  return column({name, type: column.blob()})
 }
 
 export function text(name?: string): Column<string | null> {
-  return new Column({name, type: column.text()})
+  return column({name, type: column.text()})
 }
 
 export function real(name?: string): Column<number | null> {
-  return new Column({name, type: column.real()})
+  return column({name, type: column.real()})
 }
 
 export function numeric(name?: string): Column<number | null> {
-  return new Column({name, type: column.numeric()})
+  return column({name, type: column.numeric()})
 }
 
 export function json<T>(name?: string): JsonColumn<T | null> {

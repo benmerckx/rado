@@ -1,4 +1,4 @@
-import {Column, JsonColumn, column} from '../core/Column.ts'
+import {type Column, JsonColumn, column} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
@@ -14,7 +14,7 @@ export function bigint(
   name?: string,
   options?: {mode?: 'number'; unsigned?: boolean}
 ) {
-  return new Column({
+  return column({
     name,
     type: column[options?.unsigned ? 'bigint unsigned' : 'bigint'](),
     mapFromDriverValue: options?.mode === 'number' ? Number : BigInt
@@ -25,18 +25,18 @@ export function binary(
   name?: string,
   options?: {length?: number}
 ): Column<Uint8Array | null> {
-  return new Column({name, type: column.binary(options?.length)})
+  return column({name, type: column.binary(options?.length)})
 }
 
 export function boolean(name?: string): Column<boolean | null> {
-  return new Column({name, type: column.boolean()})
+  return column({name, type: column.boolean()})
 }
 
 export function char(
   name?: string,
   options?: {length: number}
 ): Column<string | null> {
-  return new Column({name, type: column.char(options?.length)})
+  return column({name, type: column.char(options?.length)})
 }
 
 export function date(
@@ -45,7 +45,7 @@ export function date(
 ): Column<Date | null>
 export function date(name?: string): Column<string | null>
 export function date(name?: string, options?: {mode: 'date'}) {
-  return new Column({
+  return column({
     name,
     type: column.date(),
     mapFromDriverValue(value: string) {
@@ -69,7 +69,7 @@ export function datetime(
   name?: string,
   options?: {mode?: 'string'; fsp?: Precision}
 ) {
-  return new Column({
+  return column({
     name,
     type: column.datetime(options?.fsp),
     mapFromDriverValue(value: string) {
@@ -85,18 +85,18 @@ export function decimal(
   name: string | undefined,
   options: {precision?: number; scale?: number}
 ): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column.decimal(options.precision, options.scale)
   })
 }
 
 export function float(name?: string): Column<number | null> {
-  return new Column({name, type: column.float()})
+  return column({name, type: column.float()})
 }
 
 export function integer(name?: string): Column<number | null> {
-  return new Column({name, type: column.integer()})
+  return column({name, type: column.integer()})
 }
 
 export const int = integer
@@ -115,51 +115,51 @@ export function mediumint(
   name?: string,
   options?: {unsigned?: boolean}
 ): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column[options?.unsigned ? 'mediumint unsigned' : 'mediumint']()
   })
 }
 
 export function real(name?: string): Column<number | null> {
-  return new Column({name, type: column.real()})
+  return column({name, type: column.real()})
 }
 
 export function serial(name?: string): Column<number | null> {
-  return new Column({name, type: column.serial()})
+  return column({name, type: column.serial()})
 }
 
 export function smallint(
   name?: string,
   options?: {unsigned?: boolean}
 ): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column[options?.unsigned ? 'smallint unsigned' : 'smallint']()
   })
 }
 
 export function text(name?: string): Column<string | null> {
-  return new Column({name, type: column.text()})
+  return column({name, type: column.text()})
 }
 
 export function tinytext(name?: string): Column<string | null> {
-  return new Column({name, type: column.tinytext()})
+  return column({name, type: column.tinytext()})
 }
 
 export function mediumtext(name?: string): Column<string | null> {
-  return new Column({name, type: column.mediumtext()})
+  return column({name, type: column.mediumtext()})
 }
 
 export function longtext(name?: string): Column<string | null> {
-  return new Column({name, type: column.longtext()})
+  return column({name, type: column.longtext()})
 }
 
 export function time(
   name?: string,
   options?: {fsp?: Precision}
 ): Column<string | null> {
-  return new Column({name, type: column.time(options?.fsp)})
+  return column({name, type: column.time(options?.fsp)})
 }
 
 export function timestamp(
@@ -174,7 +174,7 @@ export function timestamp(
   name?: string,
   options?: {mode?: 'string'; fsp?: Precision}
 ) {
-  return new Column({
+  return column({
     name,
     type: column.timestamp(options?.fsp),
     mapFromDriverValue(value: string) {
@@ -192,7 +192,7 @@ export function tinyint(
   name?: string,
   options?: {unsigned?: boolean}
 ): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column[options?.unsigned ? 'tinyint unsigned' : 'tinyint']()
   })
@@ -202,16 +202,16 @@ export function varbinary(
   name?: string,
   options?: {length?: number}
 ): Column<Uint8Array | null> {
-  return new Column({name, type: column.varbinary(options?.length)})
+  return column({name, type: column.varbinary(options?.length)})
 }
 
 export function varchar(
   name?: string,
   options?: {length: number}
 ): Column<string | null> {
-  return new Column({name, type: column.varchar(options?.length)})
+  return column({name, type: column.varchar(options?.length)})
 }
 
 export function year(name?: string): Column<number | null> {
-  return new Column({name, type: column.year()})
+  return column({name, type: column.year()})
 }

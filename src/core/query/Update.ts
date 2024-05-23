@@ -1,5 +1,6 @@
 import {
   getData,
+  getTable,
   internalData,
   internalQuery,
   internalSelection,
@@ -49,10 +50,15 @@ export class UpdateTable<
   Meta extends QueryMeta
 > extends Update<void, Meta> {
   set(values: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
+    const {table} = getData(this)
     const set = sql.join(
-      Object.entries(values).map(
-        ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
-      ),
+      Object.entries(values).map(([key, value]) => {
+        const column = getTable(table).columns[key]
+        const {mapToDriverValue} = getData(column)
+        return sql`${sql.identifier(key)} = ${input(
+          mapToDriverValue?.(value) ?? value
+        )}`
+      }),
       sql`, `
     )
     return new UpdateTable<Definition, Meta>({...getData(this), set})

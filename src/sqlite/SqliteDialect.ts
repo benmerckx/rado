@@ -18,7 +18,9 @@ class SqliteEmitter extends Emitter {
     this.params.push(new ValueParam(value))
   }
   emitJsonPath(path: Array<number | string>) {
-    this.sql += `->>${this.quoteString(`$.${path.join('.')}`)}`
+    this.sql += `->>${this.quoteString(
+      `$${path.map(p => (typeof p === 'number' ? `[${p}]` : `.${p}`)).join('')}`
+    )}`
   }
   emitInline(value: unknown) {
     if (value === null || value === undefined) return (this.sql += 'null')

@@ -19,7 +19,7 @@ class Chunk<Type = keyof EmitMethods, Inner = unknown> {
 
 export type Decoder<T> =
   | ((value: unknown) => T)
-  | {mapFromDriverValue?(value: unknown): T}
+  | {mapFromDriverValue?(value: unknown, specs: DriverSpecs): T}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
   private declare brand: [Value]

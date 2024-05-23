@@ -1,4 +1,4 @@
-import {Column, JsonColumn, column} from '../core/Column.ts'
+import {type Column, JsonColumn, column} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntervalFields =
@@ -22,7 +22,7 @@ export function bigint(
 ): Column<number | null>
 export function bigint(name?: string): Column<bigint | null>
 export function bigint(name?: string, options?: {mode: 'number'}) {
-  return new Column({
+  return column({
     name,
     type: column.bigint(),
     mapFromDriverValue: options?.mode === 'number' ? Number : BigInt
@@ -35,7 +35,7 @@ export function bigserial(
 ): Column<number | null>
 export function bigserial(name?: string): Column<bigint | null>
 export function bigserial(name?: string, options?: {mode: 'number'}) {
-  return new Column({
+  return column({
     name,
     type: column.bigserial(),
     mapFromDriverValue: options?.mode === 'number' ? Number : BigInt
@@ -46,14 +46,14 @@ export function char(
   name?: string,
   options?: {length: number}
 ): Column<string | null> {
-  return new Column({
+  return column({
     name,
     type: column.char(options?.length)
   })
 }
 
 export function cidr(name?: string): Column<string | null> {
-  return new Column({name, type: column.cidr()})
+  return column({name, type: column.cidr()})
 }
 
 export function date(
@@ -62,7 +62,7 @@ export function date(
 ): Column<Date | null>
 export function date(name?: string): Column<string | null>
 export function date(name?: string, options?: {mode: 'date'}) {
-  return new Column({
+  return column({
     name,
     type: column.date(),
     mapFromDriverValue(value: string) {
@@ -75,7 +75,7 @@ export function date(name?: string, options?: {mode: 'date'}) {
 }
 
 export function doublePrecision(name?: string): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column['double precision'](),
     mapFromDriverValue(value: string | number): number {
@@ -85,11 +85,11 @@ export function doublePrecision(name?: string): Column<number | null> {
 }
 
 export function inet(name?: string): Column<string | null> {
-  return new Column({name, type: column.inet()})
+  return column({name, type: column.inet()})
 }
 
 export function integer(name?: string): Column<number | null> {
-  return new Column({name, type: column.integer()})
+  return column({name, type: column.integer()})
 }
 
 export const int = integer
@@ -98,7 +98,7 @@ export function interval(
   name?: string,
   options?: {fields?: IntervalFields; precision?: Precision}
 ): Column<string | null> {
-  return new Column({
+  return column({
     name,
     type: column[options?.fields ? `interval ${options.fields}` : 'interval'](
       options?.precision
@@ -107,19 +107,19 @@ export function interval(
 }
 
 export function serial(name?: string): Column<number | null> {
-  return new Column({name, type: column.serial()})
+  return column({name, type: column.serial()})
 }
 
 export function boolean(name?: string): Column<boolean | null> {
-  return new Column({name, type: column.boolean()})
+  return column({name, type: column.boolean()})
 }
 
 export function blob(name?: string): Column<Uint8Array | null> {
-  return new Column({name, type: column.blob()})
+  return column({name, type: column.blob()})
 }
 
 export function text(name?: string): Column<string | null> {
-  return new Column({name, type: column.text()})
+  return column({name, type: column.text()})
 }
 
 export function json<T>(name?: string): JsonColumn<T | null> {
@@ -149,25 +149,25 @@ export function jsonb<T>(name?: string): JsonColumn<T | null> {
 }
 
 export function macaddr(name?: string): Column<string | null> {
-  return new Column({name, type: column.macaddr()})
+  return column({name, type: column.macaddr()})
 }
 
 export function macaddr8(name?: string): Column<string | null> {
-  return new Column({name, type: column.macaddr8()})
+  return column({name, type: column.macaddr8()})
 }
 
 export function numeric(
   name?: string,
   options?: {precision?: number; scale?: number}
 ): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column.numeric(options?.precision, options?.scale)
   })
 }
 
 export function real(name?: string): Column<number | null> {
-  return new Column({
+  return column({
     name,
     type: column.real(),
     mapFromDriverValue(value: string | number): number {
@@ -177,18 +177,18 @@ export function real(name?: string): Column<number | null> {
 }
 
 export function smallint(name?: string): Column<number | null> {
-  return new Column({name, type: column.smallint()})
+  return column({name, type: column.smallint()})
 }
 
 export function smallserial(name?: string): Column<number | null> {
-  return new Column({name, type: column.smallserial()})
+  return column({name, type: column.smallserial()})
 }
 
 export function time(
   name: string | undefined,
   options?: {precision?: Precision; withTimeZone?: boolean}
 ): Column<string | null> {
-  return new Column({
+  return column({
     name,
     type: column[options?.withTimeZone ? 'time with time zone' : 'time'](
       options?.precision
@@ -208,7 +208,7 @@ export function timestamp(
   name?: string,
   options?: {mode?: 'string'; precision?: Precision; withTimeZone?: boolean}
 ): Column<string | null> | Column<Date | null> {
-  return new Column({
+  return column({
     name,
     type: column[
       options?.withTimeZone ? 'timestamp with time zone' : 'timestamp'
@@ -223,14 +223,14 @@ export function timestamp(
 }
 
 export function uuid(name?: string): Column<string | null> {
-  return new Column<string | null>({name, type: column.uuid()})
+  return column<string | null>({name, type: column.uuid()})
 }
 
 export function varchar(
   name?: string,
   options?: {length: number}
 ): Column<string | null> {
-  return new Column({
+  return column({
     name,
     type: column.varchar(options?.length)
   })

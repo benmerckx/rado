@@ -1,3 +1,4 @@
+import type {DriverSpecs} from '../Driver.ts'
 import {internalField, internalSql, type HasSql} from '../Internal.ts'
 import {sql, type Sql} from '../Sql.ts'
 
@@ -15,7 +16,9 @@ export class Field<Value = unknown, Table extends string = string>
   constructor(
     targetName: string,
     fieldName: string,
-    options: {mapFromDriverValue?(value: unknown): Value} = {}
+    options: {
+      mapFromDriverValue?(value: unknown, specs: DriverSpecs): Value
+    } = {}
   ) {
     const field = {targetName, fieldName}
     this[internalField] = field

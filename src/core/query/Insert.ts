@@ -159,7 +159,7 @@ export class InsertInto<
             const value = row[key]
             const {defaultValue, notNull, mapToDriverValue} = getData(column)
             if (value !== undefined)
-              return input(mapToDriverValue ? mapToDriverValue(value) : value)
+              return input(mapToDriverValue?.(value) ?? value)
             if (defaultValue) return defaultValue()
             if (notNull) throw new Error(`Column "${key}" is not nullable`)
             return sql.chunk('emitDefaultValue', undefined)

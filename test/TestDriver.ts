@@ -4,7 +4,7 @@ import {
   type SyncDatabase
 } from '../src/core/Database.ts'
 import {table} from '../src/core/Table.ts'
-import {eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
+import {and, eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
 import {
   boolean,
   generateTransaction,
@@ -163,18 +163,23 @@ export async function testDriver(
 
     const WithJson = table('WithJson', {
       id: id(),
-      data: json<{sub: {field: string}}>()
+      data: json<{sub: {field: string}; arr: Array<number>}>()
     })
 
     test('json fields', async () => {
       try {
         await db.createTable(WithJson)
-        const data = {sub: {field: 'value'}}
+        const data = {sub: {field: 'value'}, arr: [1, 2, 3]}
         await db.insert(WithJson).values({data})
         const [row] = await db
           .select()
           .from(WithJson)
-          .where(eq(WithJson.data.sub.field, 'value'))
+          .where(
+            and(
+              eq(WithJson.data.sub.field, 'value'),
+              eq(WithJson.data.arr[0], 1)
+            )
+          )
         isEqual(row, {id: 1, data})
       } finally {
         await db.dropTable(WithJson)
