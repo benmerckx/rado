@@ -14,4 +14,8 @@ suite(import.meta, ({test, isEqual}) => {
   test('identifier', () => {
     isEqual(emit(sql.empty().identifier('name')), '"name"')
   })
+
+  test('inline value', () => {
+    isEqual(emit(sql.empty().inline(1)), '1')
+  })
 })

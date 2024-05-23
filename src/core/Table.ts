@@ -18,9 +18,9 @@ import {
   type HasTarget
 } from './Internal.ts'
 import {sql, type Sql} from './Sql.ts'
-import {jsonExpr, type JsonExpr} from './expr/Conditions.ts'
 import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
+import {jsonExpr, type JsonExpr} from './expr/Json.ts'
 
 const {assign, fromEntries, entries} = Object
 

@@ -1,3 +1,4 @@
+import type {DriverSpecs} from './Driver.ts'
 import {
   getField,
   getSql,
@@ -31,13 +32,14 @@ export type SelectionRow<Input> = Input extends HasSql<infer Value>
         ? TableRow<Definition>
         : never
 
-interface ResultContext {
+export interface MapRowContext {
   values: Array<unknown>
   index: number
+  specs: DriverSpecs
 }
 interface Column {
   targetName?: string
-  result(ctx: ResultContext): unknown
+  result(ctx: MapRowContext): unknown
 }
 class SqlColumn implements Column {
   constructor(
@@ -45,10 +47,10 @@ class SqlColumn implements Column {
     public targetName?: string
   ) {}
 
-  result(ctx: ResultContext) {
+  result(ctx: MapRowContext) {
     const value = ctx.values[ctx.index++]
     if (value === null) return value
-    return this.sql.mapFromDriverValue?.(value) ?? value
+    return this.sql.mapFromDriverValue?.(value, ctx.specs) ?? value
   }
 }
 
@@ -58,7 +60,7 @@ class ObjectColumn implements Column {
     public entries: Array<[string, Column]>
   ) {}
 
-  result(ctx: ResultContext) {
+  result(ctx: MapRowContext) {
     const result: Record<string, unknown> = {}
     let isNullable = this.nullable.size > 0
     for (const entry of this.entries) {
@@ -82,14 +84,12 @@ class ObjectColumn implements Column {
 
 export class Selection implements HasSql {
   #input: SelectionInput
-  mapRow: (values: Array<unknown>) => unknown
+  mapRow: (ctx: MapRowContext) => unknown
 
   constructor(input: SelectionInput, nullable: Set<string>) {
     this.#input = input
     const root = this.#defineColumn(nullable, input)
-    this.mapRow = (values: Array<unknown>) => {
-      return root.result({values, index: 0})
-    }
+    this.mapRow = root.result.bind(root)
   }
 
   makeVirtual(name: string) {

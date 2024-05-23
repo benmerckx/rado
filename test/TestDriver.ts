@@ -9,7 +9,7 @@ import {
   boolean,
   generateTransaction,
   id,
-  int,
+  integer,
   json,
   lastInsertId,
   text
@@ -29,7 +29,7 @@ const User = table('User', {
 
 const Post = table('Post', {
   id: id(),
-  userId: int().notNull(),
+  userId: integer().notNull(),
   title: text().notNull()
 })
 
@@ -40,10 +40,10 @@ const TableA = table('TableA', {
 const TableB = table(
   'TableB',
   {
-    isUnique: int().unique(),
-    hasRef: int().references(TableA.id),
-    colA: int(),
-    colB: int().unique()
+    isUnique: integer().unique(),
+    hasRef: integer().references(TableA.id),
+    colA: integer(),
+    colB: integer().unique()
   },
   TableB => {
     return {

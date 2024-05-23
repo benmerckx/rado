@@ -1,3 +1,4 @@
+import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {getSql, internalSql, type HasSql} from './Internal.ts'
 import type {FieldData} from './expr/Field.ts'
@@ -23,7 +24,7 @@ export type Decoder<T> =
 export class Sql<Value = unknown> implements HasSql<Value> {
   private declare brand: [Value]
   alias?: string
-  mapFromDriverValue?: (input: unknown) => Value
+  mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
   readonly [internalSql] = this
 
   #chunks: Array<Chunk>
@@ -41,6 +42,10 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     res.mapFromDriverValue =
       typeof decoder === 'function' ? decoder : decoder.mapFromDriverValue
     return res
+  }
+
+  isEmpty(): boolean {
+    return this.#chunks.length === 0
   }
 
   chunk<Type extends keyof EmitMethods>(
@@ -134,8 +139,8 @@ export namespace sql {
     return new Sql<T>()
   }
 
-  export function unsafe<T>(directSql: string): Sql<T> {
-    return empty<T>().unsafe(directSql)
+  export function unsafe<T>(directSql: string | number): Sql<T> {
+    return empty<T>().unsafe(String(directSql))
   }
 
   export function value<T>(value: T): Sql<T> {

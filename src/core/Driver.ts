@@ -4,8 +4,11 @@ export interface BatchQuery {
   sql: string
   params: Array<unknown>
 }
+export interface DriverSpecs {
+  parsesJson: boolean
+}
 
-export interface SyncDriver {
+export interface SyncDriver extends DriverSpecs {
   close(): void
   exec(query: string): void
   prepare(query: string, name?: string): SyncStatement
@@ -23,7 +26,7 @@ export interface SyncStatement {
   values(params: Array<unknown>): Array<Array<unknown>>
   free(): void
 }
-export interface AsyncDriver {
+export interface AsyncDriver extends DriverSpecs {
   close(): Promise<void>
   exec(query: string): Promise<void>
   prepare(query: string, name?: string): AsyncStatement

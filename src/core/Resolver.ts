@@ -1,8 +1,9 @@
 import type {Dialect} from './Dialect.ts'
-import type {Driver, Statement} from './Driver.ts'
+import type {Driver, DriverSpecs, Statement} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {getSelection, hasSelection, type HasQuery} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
+import type {MapRowContext} from './Selection.ts'
 
 export class Resolver<Meta extends QueryMeta = QueryMeta> {
   private declare brand: [Meta]
@@ -19,26 +20,40 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     const mapRow = isSelection ? getSelection(query).mapRow : undefined
     const emitter = this.#dialect(query)
     const stmt = this.#driver.prepare(emitter.sql, name)
-    return new PreparedStatement<Meta>(emitter, stmt, mapRow)
+    return new PreparedStatement<Meta>(emitter, stmt, mapRow, this.#driver)
   }
 }
 
-type RowMapper = ((values: Array<unknown>) => unknown) | undefined
+type RowMapper = ((ctx: MapRowContext) => unknown) | undefined
 
 export class PreparedStatement<Meta extends QueryMeta> {
   private declare brand: [Meta]
   #emitter: Emitter
   #stmt: Statement
   #mapRow: RowMapper
+  #specs: DriverSpecs
 
-  constructor(emitter: Emitter, stmt: Statement, mapRow: RowMapper) {
+  constructor(
+    emitter: Emitter,
+    stmt: Statement,
+    mapRow: RowMapper,
+    specs: DriverSpecs
+  ) {
     this.#emitter = emitter
     this.#stmt = stmt
     this.#mapRow = mapRow
+    this.#specs = specs
   }
 
-  #transform = (rows: Array<unknown>) => {
-    return this.#mapRow ? (<Array<Array<unknown>>>rows).map(this.#mapRow) : rows
+  #transform = (rows: Array<Array<unknown>>) => {
+    if (!this.#mapRow) return rows
+    const ctx: MapRowContext = {values: rows[0], index: 0, specs: this.#specs}
+    for (let i = 0; i < rows.length; i++) {
+      ctx.values = rows[i]
+      ctx.index = 0
+      rows[i] = this.#mapRow(ctx) as Array<unknown>
+    }
+    return rows
   }
 
   all(

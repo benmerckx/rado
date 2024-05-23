@@ -28,6 +28,8 @@ class PreparedStatement implements SyncStatement {
 }
 
 class BunSqliteDriver implements SyncDriver {
+  parsesJson = false
+
   constructor(public client: Client) {}
 
   exec(query: string): void {

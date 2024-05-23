@@ -1,6 +1,7 @@
+import type {DriverSpecs} from './Driver.ts'
 import type {HasSql} from './Internal.ts'
 import {getData, getField, internalData} from './Internal.ts'
-import type {Sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 import {input, type Input} from './expr/Input.ts'
 
@@ -16,7 +17,7 @@ export interface ColumnData {
   references?(): FieldData
   onUpdate?: HasSql
   onDelete?: HasSql
-  mapFromDriverValue?(value: unknown): unknown
+  mapFromDriverValue?(value: unknown, specs: DriverSpecs): unknown
   mapToDriverValue?(value: unknown): unknown
 }
 
@@ -70,3 +71,20 @@ declare const required: unique symbol
 export interface RequiredColumn<Value = unknown> extends Column<Value> {
   [required]: true
 }
+
+export interface Columns {
+  [key: string]: (...args: Array<Input<any>>) => Sql<any>
+}
+
+export const column: Columns = new Proxy(Object.create(null), {
+  get(target: Record<string, Function>, method: string) {
+    return (target[method] ??= (...args: Array<Input<unknown>>) => {
+      while (args.length > 1) if (args.at(-1) === undefined) args.pop()
+      if (args.length === 0) return sql.unsafe(method)
+      return sql`${sql.unsafe(method)}(${sql.join(
+        args.map(sql.inline),
+        sql`, `
+      )})`
+    })
+  }
+})

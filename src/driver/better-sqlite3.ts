@@ -26,6 +26,8 @@ class PreparedStatement implements SyncStatement {
 }
 
 class BetterSqlite3Driver implements SyncDriver {
+  parsesJson = false
+
   constructor(public client: Client) {}
 
   exec(query: string): void {

@@ -1,14 +1,52 @@
 import type {HasSql} from '../Internal.ts'
 import {sql, type Sql} from '../Sql.ts'
-import {type Input, input} from './Input.ts'
+import {input, type Input} from './Input.ts'
 
-export function eq<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
-  return sql`${input(left)} = ${input(right)}`
+function binop(operator: string) {
+  return (left: Input, right: Input): HasSql<boolean> =>
+    sql`${input(left)} ${sql.unsafe(operator)} ${input(right)}`
 }
 
-export function ne<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
-  return sql`${input(left)} <> ${input(right)}`
-}
+export const eq: <T>(left: Input<T>, right: Input<T>) => HasSql<boolean> =
+  binop('=')
+export const ne: <T>(left: Input<T>, right: Input<T>) => HasSql<boolean> =
+  binop('<>')
+export const gt: <T>(left: Input<T>, right: Input<T>) => HasSql<boolean> =
+  binop('>')
+export const gte: <T>(left: Input<T>, right: Input<T>) => HasSql<boolean> =
+  binop('>=')
+export const lt: <T>(left: Input<T>, right: Input<T>) => HasSql<boolean> =
+  binop('<')
+export const lte: <T>(left: Input<T>, right: Input<T>) => HasSql<boolean> =
+  binop('<=')
+export const like: (
+  left: Input<string>,
+  right: Input<string>
+) => HasSql<boolean> = binop('like')
+export const notLike: (
+  left: Input<string>,
+  right: Input<string>
+) => HasSql<boolean> = binop('not like')
+export const ilike: (
+  left: Input<string>,
+  right: Input<string>
+) => HasSql<boolean> = binop('ilike')
+export const notILike: (
+  left: Input<string>,
+  right: Input<string>
+) => HasSql<boolean> = binop('not ilike')
+export const arrayContains: <T>(
+  left: Input<Array<T>>,
+  right: Input<T>
+) => HasSql<boolean> = binop('@>')
+export const arrayContained: <T>(
+  left: Input<Array<T>>,
+  right: Input<Array<T>>
+) => HasSql<boolean> = binop('<@')
+export const arrayOverlaps: <T>(
+  left: Input<Array<T>>,
+  right: Input<Array<T>>
+) => HasSql<boolean> = binop('&&')
 
 export function and(...conditions: Array<Input<boolean>>): HasSql<boolean> {
   if (conditions.length === 0) return sql`true`
@@ -22,24 +60,8 @@ export function or(...conditions: Array<Input<boolean>>): HasSql<boolean> {
   return sql`(${sql.join(conditions.map(input), sql.unsafe(' or '))})`
 }
 
-export function not(condition: Input): HasSql<boolean> {
+export function not(condition: Input<boolean>): HasSql<boolean> {
   return sql`not ${input(condition)}`
-}
-
-export function gt<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
-  return sql`${input(left)} > ${input(right)}`
-}
-
-export function gte<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
-  return sql`${input(left)} >= ${input(right)}`
-}
-
-export function lt<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
-  return sql`${input(left)} < ${input(right)}`
-}
-
-export function lte<T>(left: Input<T>, right: Input<T>): HasSql<boolean> {
-  return sql`${input(left)} <= ${input(right)}`
 }
 
 export function inArray<T>(
@@ -91,55 +113,6 @@ export function notBetween<T>(
   return sql`${input(value)} not between ${input(left)} and ${input(right)}`
 }
 
-export function like(
-  left: Input<string>,
-  pattern: Input<string>
-): HasSql<boolean> {
-  return sql`${input(left)} like ${input(pattern)}`
-}
-
-export function notLike(
-  value: Input<string>,
-  pattern: Input<string>
-): HasSql<boolean> {
-  return sql`${input(value)} not like ${input(pattern)}`
-}
-
-export function ilike(
-  value: Input<string>,
-  pattern: Input<string>
-): HasSql<boolean> {
-  return sql`${input(value)} ilike ${input(pattern)}`
-}
-
-export function notILike(
-  value: Input<string>,
-  pattern: Input<string>
-): HasSql<boolean> {
-  return sql`${input(value)} not ilike ${input(pattern)}`
-}
-
-export function arrayContains<T>(
-  left: Input<Array<T>>,
-  right: Input<T>
-): HasSql<boolean> {
-  return sql`${input(left)} @> ${input(right)}`
-}
-
-export function arrayContained<T>(
-  left: Input<T>,
-  right: Input<Array<T>>
-): HasSql<boolean> {
-  return sql`${input(left)} <@ ${input(right)}`
-}
-
-export function arrayOverlaps<T>(
-  left: Input<Array<T>>,
-  right: Input<Array<T>>
-): HasSql<boolean> {
-  return sql`${input(left)} && ${input(right)}`
-}
-
 export function asc<T>(input: HasSql<T>): Sql {
   return sql`${input} asc`
 }
@@ -150,32 +123,4 @@ export function desc<T>(input: HasSql<T>): Sql {
 
 export function distinct<T>(input: HasSql<T>): Sql {
   return sql`distinct ${input}`
-}
-
-export interface JsonArrayHasSql<Value> extends HasSql<Value> {
-  [index: number]: JsonExpr<Value>
-}
-
-export type JsonRecordHasSql<Row> = HasSql<Row> & {
-  [K in keyof Row]: JsonExpr<Row[K]>
-}
-
-type Nullable<T> = {[P in keyof T]: T[P] | null}
-
-export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
-  ? JsonArrayHasSql<null extends Value ? V | null : V>
-  : [NonNullable<Value>] extends [object]
-    ? JsonRecordHasSql<null extends Value ? Nullable<Value> : Value>
-    : HasSql<Value>
-
-const INDEX_PROPERTY = /^\d+$/
-
-export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
-  return new Proxy(<any>e, {
-    get(target, prop) {
-      if (typeof prop !== 'string') return Reflect.get(target, prop)
-      const isNumber = INDEX_PROPERTY.test(prop)
-      return jsonExpr(sql`${target}`.jsonPath([isNumber ? Number(prop) : prop]))
-    }
-  })
 }

@@ -1,5 +1,6 @@
 import {sql} from '../../src/core/Sql.ts'
 import * as e from '../../src/core/expr/Conditions.ts'
+import {jsonExpr} from '../../src/core/expr/Json.ts'
 import {suite} from '../Suite.ts'
 import {emit} from '../TestUtils.ts'
 
@@ -42,10 +43,16 @@ suite(import.meta, ({test, isEqual}) => {
 
   test('inArray', () => {
     isEqual(emit(e.inArray(1, [1, 2, 3])), '1 in (1, 2, 3)')
+    const a = sql<string>`a`
+    const b = sql<Array<string>>`b`
+    isEqual(emit(e.inArray(a, b)), 'a in b')
   })
 
   test('notInArray', () => {
     isEqual(emit(e.notInArray(1, [1, 2, 3])), '1 not in (1, 2, 3)')
+    const a = sql<string>`a`
+    const b = sql<Array<string>>`b`
+    isEqual(emit(e.notInArray(a, b)), 'a not in b')
   })
 
   test('like', () => {
@@ -85,7 +92,7 @@ suite(import.meta, ({test, isEqual}) => {
   })
 
   test('arrayContained', () => {
-    isEqual(emit(e.arrayContained('a', ['a', 'b'])), '"a" <@ ["a","b"]')
+    isEqual(emit(e.arrayContained(['a'], ['a', 'b'])), '["a"] <@ ["a","b"]')
   })
 
   test('arrayOverlaps', () => {
@@ -99,13 +106,13 @@ suite(import.meta, ({test, isEqual}) => {
   })
 
   test('json array', () => {
-    const arr = e.jsonExpr(sql<Array<number> | null>`test`)
+    const arr = jsonExpr(sql<Array<number> | null>`test`)
     const row = arr[0]
     isEqual(emit(row), 'test->>"$.0"')
   })
 
   test('json object', () => {
-    const obj = e.jsonExpr(sql<{a: {x: number}} | null>`test`)
+    const obj = jsonExpr(sql<{a: {x: number}} | null>`test`)
     const a = obj.a
     const x = obj.a.x
     isEqual(emit(x), 'test->>"$.a.x"')

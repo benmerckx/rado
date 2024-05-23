@@ -41,6 +41,8 @@ class PreparedStatement implements AsyncStatement {
 }
 
 export class Mysql2Driver implements AsyncDriver {
+  parsesJson = true
+
   constructor(private client: Queryable) {}
 
   async exec(query: string) {

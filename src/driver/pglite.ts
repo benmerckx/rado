@@ -41,6 +41,8 @@ class PreparedStatement implements AsyncStatement {
 }
 
 export class PGliteDriver implements AsyncDriver {
+  parsesJson = true
+
   constructor(private client: Queryable) {}
 
   async exec(query: string) {
