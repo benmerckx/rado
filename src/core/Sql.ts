@@ -92,6 +92,15 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return this.chunk('emitIdentifier', identifier)
   }
 
+  inlineValues(): Sql<Value> {
+    return new Sql(
+      this.#chunks.map(chunk => {
+        if (chunk.type !== 'emitValue') return chunk
+        return new Chunk('emitInline', chunk.inner as unknown)
+      })
+    )
+  }
+
   inlineFields(withTableName: boolean): Sql<Value> {
     return new Sql(
       this.#chunks.flatMap(chunk => {
@@ -108,7 +117,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     )
   }
 
-  emit(emitter: Emitter): void {
+  emitTo(emitter: Emitter): void {
     for (const chunk of this.#chunks) emitter[chunk.type](<any>chunk.inner)
   }
 }
@@ -166,10 +175,13 @@ export namespace sql {
     return empty().chunk(type, inner)
   }
 
-  export function query(ast: Record<string, HasSql | undefined>): Sql {
+  export function query(
+    ast: Record<string, HasSql | boolean | undefined>
+  ): Sql {
     return join(
       Object.entries(ast).map(([key, value]) => {
         const statement = key.replace(/([A-Z])/g, ' $1').toLocaleLowerCase()
+        if (value === true) return sql.unsafe(statement)
         return value && sql`${sql.unsafe(statement)} ${value}`
       })
     )

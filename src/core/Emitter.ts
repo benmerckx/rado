@@ -43,6 +43,7 @@ export abstract class Emitter {
   abstract emitPlaceholder(value: string): void
   abstract emitDefaultValue(): void
   abstract emitLastInsertId(): void
+  abstract emitIdColumn(): void
 
   emitUnsafe(value: string): void {
     this.sql += value
@@ -64,7 +65,7 @@ export abstract class Emitter {
         tableApi.target(),
         sql`(${tableApi.createDefinition()})`
       ])
-      .emit(this)
+      .emitTo(this)
   }
 
   emitDrop(drop: Drop): void {
@@ -76,7 +77,7 @@ export abstract class Emitter {
         ifExists ? sql`if exists` : undefined,
         sql.identifier(tableApi.name)
       ])
-      .emit(this)
+      .emitTo(this)
   }
 
   emitColumn(column: ColumnData): void {
@@ -92,7 +93,7 @@ export abstract class Emitter {
           sql`references ${sql.chunk('emitReferences', [column.references()])}`,
         column.onUpdate && sql`on update ${column.onUpdate}`
       ])
-      .emit(this)
+      .emitTo(this)
   }
 
   emitReferences(fields: Array<FieldData>): void {
@@ -104,7 +105,7 @@ export abstract class Emitter {
           sql`, `
         )})`
       ])
-      .emit(this)
+      .emitTo(this)
   }
 
   emitDelete(deleteOp: Delete<unknown>): void {
@@ -117,7 +118,7 @@ export abstract class Emitter {
         where,
         returning
       })
-      .emit(this)
+      .emitTo(this)
   }
 
   emitInsert(insert: Insert<unknown>): void {
@@ -133,7 +134,7 @@ export abstract class Emitter {
         returning
       })
       .inlineFields(false)
-      .emit(this)
+      .emitTo(this)
   }
 
   emitSelect(select: Select<unknown>): void {
@@ -165,12 +166,12 @@ export abstract class Emitter {
         limit,
         offset
       })
-      .emit(this)
+      .emitTo(this)
   }
 
   emitUnion(union: Union<unknown>): void {
     const {left, operator, right} = getData(union)
-    sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
+    sql.join([getQuery(left), operator, getQuery(right)]).emitTo(this)
   }
 
   emitUpdate(update: Update<unknown>): void {
@@ -185,10 +186,8 @@ export abstract class Emitter {
         returning
       })
       .inlineFields(false)
-      .emit(this)
+      .emitTo(this)
   }
-
-  abstract emitIdColumn(): void
 
   emitWith(cte: Array<HasQuery & HasTarget>): void {
     sql
@@ -203,6 +202,6 @@ export abstract class Emitter {
         )
       })
       .add(sql` `)
-      .emit(this)
+      .emitTo(this)
   }
 }

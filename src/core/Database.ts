@@ -10,24 +10,24 @@ export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
   implements HasResolver<Meta>
 {
+  driver: Driver
+  dialect: Dialect
   readonly [internalResolver]: Resolver<Meta>
-  #driver: Driver
-  #dialect: Dialect
   #transactionDepth: number
 
   constructor(driver: Driver, dialect: Dialect, transactionDepth = 0) {
     const resolver = new Resolver<Meta>(driver, dialect)
     super({resolver})
     this[internalResolver] = resolver
-    this.#driver = driver
-    this.#dialect = dialect
+    this.driver = driver
+    this.dialect = dialect
     this.#transactionDepth = transactionDepth
   }
 
   close(this: Database<Async>): Promise<void>
   close(this: Database<Sync>): void
   close() {
-    return this.#driver.close()
+    return this.driver.close()
   }
 
   [Symbol.dispose](this: Database<Sync>): void {
@@ -47,9 +47,9 @@ export class Database<Meta extends QueryMeta = Either>
     queries: Queries
   ): Promise<Array<unknown>>
   batch<Queries extends Array<Query<unknown, Meta>>>(queries: Queries) {
-    return this.#driver.batch(
+    return this.driver.batch(
       queries.map(query => {
-        const compiled = this.#dialect.emit(query)
+        const compiled = this.dialect.emit(query)
         return {sql: compiled.sql, params: compiled.bind()}
       }),
       this.#transactionDepth
@@ -71,11 +71,11 @@ export class Database<Meta extends QueryMeta = Either>
     options?: TransactionOptions[Meta['dialect']]
   ): T | Promise<T>
   transaction(run: Function, options = {}) {
-    return this.#driver.transaction(
+    return this.driver.transaction(
       inner => {
         const tx = new Transaction<Meta>(
           inner,
-          this.#dialect,
+          this.dialect,
           this.#transactionDepth + 1
         )
         return run(tx)

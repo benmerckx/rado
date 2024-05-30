@@ -2,9 +2,11 @@ import {
   getData,
   getQuery,
   getSelection,
+  getSql,
   getTable,
   getTarget,
   hasTable,
+  hasTarget,
   internalData,
   internalQuery,
   internalSelection,
@@ -27,6 +29,7 @@ import {
 import {sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
+import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
 import {input, type Input as UserInput} from '../expr/Input.ts'
 import {UnionBase, type UnionBaseData} from './Union.ts'
@@ -73,9 +76,9 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  from(target: HasTarget): Select<Input, Meta> {
+  from(target: HasTarget | HasSql): Select<Input, Meta> {
     const {select: current} = getData(this)
-    const from = getTarget(target)
+    const from = hasTarget(target) ? getTarget(target) : getSql(target)
     const isTable = hasTable(target)
     const selectionInput = current.input ?? (isTable ? target : sql`*`)
     return new Select({
@@ -143,8 +146,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join('full', right, on)
   }
 
-  where(where: HasSql<boolean>): Select<Input, Meta> {
-    return new Select({...getData(this), where})
+  where(...where: Array<HasSql<boolean>>): Select<Input, Meta> {
+    return new Select({...getData(this), where: and(...where)})
   }
 
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta> {
@@ -230,6 +233,7 @@ export interface WithSelection<Input, Meta extends QueryMeta>
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
   from(from: SubQuery<unknown>): SelectionFrom<Input, Meta>
+  from(target: HasSql): Select<Input, Meta>
 }
 
 export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>

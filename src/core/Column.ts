@@ -21,20 +21,22 @@ export interface ColumnData {
   mapToDriverValue?(value: unknown): unknown
 }
 
+type WithoutNull<Value> = Exclude<Value, null>
+
 export class Column<Value = unknown> {
   readonly [internalData]: ColumnData
   constructor(data: ColumnData) {
     this[internalData] = data
   }
-  notNull(): RequiredColumn<NonNullable<Value>> {
+  notNull(): RequiredColumn<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
       notNull: true
     }) as RequiredColumn
   }
   default(
-    value: Input<NonNullable<Value>> | (() => Input<NonNullable<Value>>)
-  ): Column<NonNullable<Value>> {
+    value: Input<WithoutNull<Value>> | (() => Input<WithoutNull<Value>>)
+  ): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
       defaultValue(): HasSql {
@@ -42,7 +44,7 @@ export class Column<Value = unknown> {
       }
     })
   }
-  primaryKey(): Column<NonNullable<Value>> {
+  primaryKey(): Column<WithoutNull<Value>> {
     return new Column({...getData(this), primary: true})
   }
   unique(name?: string): Column<Value> {

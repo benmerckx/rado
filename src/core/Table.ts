@@ -4,7 +4,7 @@ import type {
   PrimaryKeyConstraint,
   UniqueConstraint
 } from './Constraint.ts'
-import type {Index} from './Index.ts'
+import {Index} from './Index.ts'
 import {
   getConstraint,
   getData,
@@ -22,7 +22,7 @@ import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
 import {jsonExpr, type JsonExpr} from './expr/Json.ts'
 
-const {assign, fromEntries, entries} = Object
+const {assign, fromEntries, entries, keys} = Object
 
 export type TableDefinition = {
   [name: string]: Column
@@ -60,12 +60,17 @@ export class TableApi<
     ])
   }
 
+  columnDefinition(name: string): Sql {
+    const columnData = this.columns[name]
+    const column = getData(columnData)
+    const columnName = sql.identifier(column.name ?? name)
+    return sql`${columnName} ${sql.chunk('emitColumn', column)}`
+  }
+
   createDefinition(): Sql {
-    const createColumns = entries(this.columns).map(([name, isColumn]) => {
-      const column = getData(isColumn)
-      const columnName = sql.identifier(column.name ?? name)
-      return sql`${columnName} ${sql.chunk('emitColumn', column)}`
-    })
+    const createColumns = keys(this.columns).map(name =>
+      this.columnDefinition(name)
+    )
     const createConstraints = entries(this.config ?? {})
       .filter(([, constraint]) => hasConstraint(constraint))
       .map(
@@ -98,6 +103,12 @@ export class TableApi<
         return [name, field]
       })
     )
+  }
+
+  indexes() {
+    return fromEntries(
+      entries(this.config ?? {}).filter(([, config]) => config instanceof Index)
+    ) as Record<string, Index>
   }
 }
 
@@ -138,6 +149,7 @@ type OptionalInput<D> = {
     ? Input<V>
     : never
 }
+
 export type TableInsert<Definition extends TableDefinition> =
   RequiredInput<Definition> & OptionalInput<Definition>
 

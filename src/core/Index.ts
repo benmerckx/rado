@@ -1,16 +1,11 @@
-import {
-  getData,
-  getField,
-  internalData,
-  type HasData,
-  type HasSql
-} from './Internal.ts'
-import type {Field, FieldData} from './expr/Field.ts'
+import {getData, internalData, type HasData, type HasSql} from './Internal.ts'
+import {sql, type Sql} from './Sql.ts'
+import type {Field} from './expr/Field.ts'
 
-export interface IndexData {
-  fields: Array<FieldData>
-  unique?: boolean
+class IndexData {
+  fields!: Array<HasSql>
   concurrently?: boolean
+  unique?: boolean
   only?: boolean
   using?: HasSql
   order?: 'asc' | 'desc'
@@ -18,20 +13,36 @@ export interface IndexData {
   where?: HasSql
 }
 
+export class IndexApi extends IndexData {
+  toSql(tableName: string, indexName: string, ifNotExists: boolean): Sql {
+    return sql
+      .join([
+        sql`create`,
+        this.unique && sql`unique`,
+        sql`index`,
+        ifNotExists && sql`if not exists`,
+        sql.identifier(indexName),
+        sql`on`,
+        sql`${sql.identifier(tableName)}(${sql.join(this.fields, sql`, `)})`,
+        this.where && sql`where ${this.where}`
+      ])
+      .inlineFields(false)
+  }
+}
+
 export class Index<TableName extends string = string>
   implements HasData<IndexData>
 {
   private declare brand: [TableName];
-  [internalData]: IndexData
+  [internalData]: IndexApi
 
   constructor(data: IndexData) {
-    this[internalData] = data
+    this[internalData] = Object.assign(new IndexApi(), data)
   }
 
   on<TableName extends string>(
-    ...columns: Array<Field<unknown, TableName>>
+    ...fields: Array<Field<unknown, TableName> | HasSql>
   ): Index<TableName> {
-    const fields = columns.map(getField)
     return new Index({...getData(this), fields})
   }
 

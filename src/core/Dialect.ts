@@ -7,15 +7,25 @@ import {
   type HasSql
 } from './Internal.ts'
 
-export function dialect(createEmitter: new () => Emitter) {
-  return {
-    emit(input: HasSql | HasQuery) {
-      const sql = hasSql(input) ? getSql(input) : getQuery(input)
-      const emitter = new createEmitter()
-      sql.emit(emitter)
-      return emitter
-    }
+export class Dialect {
+  #createEmitter: new () => Emitter
+  constructor(createEmitter: new () => Emitter) {
+    this.#createEmitter = createEmitter
+  }
+  emit(input: HasSql | HasQuery) {
+    const sql = hasSql(input) ? getSql(input) : getQuery(input)
+    const emitter = new this.#createEmitter()
+    sql.emitTo(emitter)
+    return emitter
+  }
+  inline(input: HasSql | HasQuery) {
+    const sql = hasSql(input) ? getSql(input) : getQuery(input)
+    const emitter = new this.#createEmitter()
+    sql.inlineValues().emitTo(emitter)
+    return emitter.sql
   }
 }
 
-export type Dialect = ReturnType<typeof dialect>
+export function dialect(createEmitter: new () => Emitter) {
+  return new Dialect(createEmitter)
+}
