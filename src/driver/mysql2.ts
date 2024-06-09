@@ -43,7 +43,10 @@ class PreparedStatement implements AsyncStatement {
 export class Mysql2Driver implements AsyncDriver {
   parsesJson = true
 
-  constructor(private client: Queryable) {}
+  constructor(
+    private client: Queryable,
+    private depth = 0
+  ) {}
 
   async exec(query: string) {
     await this.client.query(query)
@@ -57,39 +60,33 @@ export class Mysql2Driver implements AsyncDriver {
     if ('end' in this.client) return this.client.end()
   }
 
-  async batch(
-    queries: Array<BatchQuery>,
-    depth: number
-  ): Promise<Array<unknown>> {
-    return this.transaction(
-      async tx => {
-        const results: Array<unknown> = []
-        for (const {sql, params} of queries)
-          results.push(await tx.prepare(sql).values(params))
-        return results
-      },
-      {},
-      depth
-    )
+  async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
+    return this.transaction(async tx => {
+      const results: Array<Array<unknown>> = []
+      for (const {sql, params} of queries)
+        results.push(await tx.prepare(sql).values(params))
+      return results
+    }, {})
   }
 
   async transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
-    options: TransactionOptions['mysql'],
-    depth: number
+    options: TransactionOptions['mysql']
   ): Promise<T> {
     const client: Queryable = isPool(this.client)
       ? await this.client.getConnection()
       : this.client
     const driver = new Mysql2Driver(client)
     try {
-      await client.query(depth > 0 ? `savepoint d${depth}` : 'begin')
-      const result = await run(driver)
-      await client.query(depth > 0 ? `release savepoint d${depth}` : 'commit')
+      await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
+      const result = await run(new Mysql2Driver(client, this.depth + 1))
+      await client.query(
+        this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'
+      )
       return result
     } catch (error) {
       await client.query(
-        depth > 0 ? `rollback to savepoint d${depth}` : 'rollback'
+        this.depth > 0 ? `rollback to savepoint d${this.depth}` : 'rollback'
       )
       throw error
     } finally {

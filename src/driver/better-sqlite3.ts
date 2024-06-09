@@ -28,7 +28,7 @@ class PreparedStatement implements SyncStatement {
 class BetterSqlite3Driver implements SyncDriver {
   parsesJson = false
 
-  constructor(public client: Client) {}
+  constructor(private client: Client) {}
 
   exec(query: string): void {
     this.client.exec(query)
@@ -42,7 +42,7 @@ class BetterSqlite3Driver implements SyncDriver {
     return new PreparedStatement(this.client.prepare(sql))
   }
 
-  batch(queries: Array<BatchQuery>): Array<unknown> {
+  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
     return this.transaction(
       tx => queries.map(({sql, params}) => tx.prepare(sql).values(params)),
       {}

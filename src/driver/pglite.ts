@@ -43,7 +43,10 @@ class PreparedStatement implements AsyncStatement {
 export class PGliteDriver implements AsyncDriver {
   parsesJson = true
 
-  constructor(private client: Queryable) {}
+  constructor(
+    private client: Queryable,
+    private depth = 0
+  ) {}
 
   async exec(query: string) {
     await this.client.exec(query)
@@ -62,7 +65,7 @@ export class PGliteDriver implements AsyncDriver {
     return new PreparedStatement(this.client, sql)
   }
 
-  async batch(queries: Array<BatchQuery>): Promise<Array<unknown>> {
+  async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
     return this.transaction(async tx => {
       const results = []
       for (const {sql, params} of queries)
@@ -75,11 +78,15 @@ export class PGliteDriver implements AsyncDriver {
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionOptions['postgres']
   ): Promise<T> {
-    if ('transaction' in this.client)
-      return this.client.transaction((tx: Transaction) => {
-        return run(new PGliteDriver(tx))
-      }) as Promise<T>
-    throw new Error('Cannot nest transactions in PGLite')
+    this.exec(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
+    try {
+      const result = run(new PGliteDriver(this.client, this.depth + 1))
+      this.exec(this.depth > 0 ? `release d${this.depth}` : 'commit')
+      return result
+    } catch (error) {
+      this.exec(this.depth > 0 ? `rollback to d${this.depth}` : 'rollback')
+      throw error
+    }
   }
 }
 

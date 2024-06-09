@@ -54,7 +54,10 @@ class PreparedStatement implements AsyncStatement {
 export class PgDriver implements AsyncDriver {
   parsesJson = true
 
-  constructor(private client: Queryable) {}
+  constructor(
+    private client: Queryable,
+    private depth = 0
+  ) {}
 
   async exec(query: string) {
     await this.client.query(query)
@@ -69,34 +72,31 @@ export class PgDriver implements AsyncDriver {
     if ('release' in this.client) return this.client.release()
   }
 
-  async batch(queries: Array<BatchQuery>): Promise<Array<unknown>> {
-    return this.transaction(
-      async tx => {
-        const results = []
-        for (const {sql, params} of queries)
-          results.push(await tx.prepare(sql).values(params))
-        return results
-      },
-      {},
-      0
-    )
+  async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
+    return this.transaction(async tx => {
+      const results = []
+      for (const {sql, params} of queries)
+        results.push(await tx.prepare(sql).values(params))
+      return results
+    }, {})
   }
 
   async transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
-    options: TransactionOptions['postgres'],
-    depth: number
+    options: TransactionOptions['postgres']
   ): Promise<T> {
     const client =
       this.client instanceof pg.Pool ? await this.client.connect() : this.client
     try {
-      await client.query(depth > 0 ? `savepoint d${depth}` : 'begin')
-      const result = await run(new PgDriver(client))
-      await client.query(depth > 0 ? `release savepoint d${depth}` : 'commit')
+      await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
+      const result = await run(new PgDriver(client, this.depth + 1))
+      await client.query(
+        this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'
+      )
       return result
     } catch (error) {
       await client.query(
-        depth > 0 ? `rollback to savepoint d${depth}` : 'rollback'
+        this.depth > 0 ? `rollback to savepoint d${this.depth}` : 'rollback'
       )
       throw error
     } finally {

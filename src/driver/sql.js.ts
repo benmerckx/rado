@@ -47,7 +47,10 @@ class PreparedStatement implements SyncStatement {
 class SqlJsDriver implements SyncDriver {
   parsesJson = false
 
-  constructor(public client: Client) {}
+  constructor(
+    private client: Client,
+    private depth = 0
+  ) {}
 
   exec(query: string): void {
     this.client.exec(query)
@@ -61,27 +64,25 @@ class SqlJsDriver implements SyncDriver {
     return new PreparedStatement(this.client, this.client.prepare(sql))
   }
 
-  batch(queries: Array<BatchQuery>, depth: number): Array<unknown> {
+  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
     return this.transaction(
       tx => queries.map(({sql, params}) => tx.prepare(sql).values(params)),
-      {},
-      depth
+      {}
     )
   }
 
   transaction<T>(
     run: (inner: SyncDriver) => T,
-    options: TransactionOptions['sqlite'],
-    depth: number
+    options: TransactionOptions['sqlite']
   ): T {
     const behavior = options.behavior ?? 'deferred'
-    this.exec(depth > 0 ? `savepoint d${depth}` : `begin ${behavior}`)
+    this.exec(this.depth > 0 ? `savepoint d${this.depth}` : `begin ${behavior}`)
     try {
-      const result = run(this)
-      this.exec(depth > 0 ? `release d${depth}` : 'commit')
+      const result = run(new SqlJsDriver(this.client, this.depth + 1))
+      this.exec(this.depth > 0 ? `release d${this.depth}` : 'commit')
       return result
     } catch (error) {
-      this.exec(depth > 0 ? `rollback to d${depth}` : 'rollback')
+      this.exec(this.depth > 0 ? `rollback to d${this.depth}` : 'rollback')
       throw error
     }
   }

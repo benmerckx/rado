@@ -10,8 +10,8 @@ import {
 } from './Internal.ts'
 import {ValueParam, type Param} from './Param.ts'
 import {sql} from './Sql.ts'
+import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
-import type {Create} from './query/CreateTable.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Drop} from './query/DropTable.ts'
 import type {Insert} from './query/Insert.ts'
@@ -55,13 +55,11 @@ export abstract class Emitter {
     this.emitIdentifier(field.fieldName)
   }
 
-  emitCreateTable(create: Create): void {
-    const {table, ifNotExists} = getData(create)
-    const tableApi = getTable(table)
+  emitCreateTable(tableApi: TableApi): void {
     sql
       .join([
         sql`create table`,
-        ifNotExists ? sql`if not exists` : undefined,
+        //ifNotExists ? sql`if not exists` : undefined,
         tableApi.target(),
         sql`(${tableApi.createDefinition()})`
       ])

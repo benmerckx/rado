@@ -1,10 +1,18 @@
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Driver} from './Driver.ts'
-import {internalResolver, type HasResolver} from './Internal.ts'
+import {
+  getResolver,
+  getTable,
+  internalResolver,
+  type HasQuery,
+  type HasResolver,
+  type HasSql,
+  type HasTable
+} from './Internal.ts'
 import type {Async, Either, QueryDialect, QueryMeta, Sync} from './MetaData.ts'
-import type {Query} from './Query.ts'
-import {Resolver} from './Resolver.ts'
+import {QueryBatch} from './Query.ts'
+import {Resolver, type Batch} from './Resolver.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -38,22 +46,18 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  batch<Queries extends Array<Query<unknown, Meta>>>(
-    this: Database<Sync>,
-    queries: Queries
-  ): Array<unknown>
-  batch<Queries extends Array<Query<unknown, Meta>>>(
-    this: Database<Async>,
-    queries: Queries
-  ): Promise<Array<unknown>>
-  batch<Queries extends Array<Query<unknown, Meta>>>(queries: Queries) {
-    return this.driver.batch(
-      queries.map(query => {
-        const compiled = this.dialect.emit(query)
-        return {sql: compiled.sql, params: compiled.bind()}
-      }),
-      this.#transactionDepth
+  create(...tables: Array<HasTable>): QueryBatch<unknown, Meta> {
+    return new QueryBatch(
+      getResolver(this),
+      tables.flatMap(table => getTable(table).create())
     )
+  }
+
+  batch<Queries extends Array<HasSql | HasQuery>>(
+    queries: Queries
+  ): Batch<Meta> {
+    const resolver = getResolver(this)
+    return resolver.batch(queries)
   }
 
   transaction<T>(
@@ -71,18 +75,10 @@ export class Database<Meta extends QueryMeta = Either>
     options?: TransactionOptions[Meta['dialect']]
   ): T | Promise<T>
   transaction(run: Function, options = {}) {
-    return this.driver.transaction(
-      inner => {
-        const tx = new Transaction<Meta>(
-          inner,
-          this.dialect,
-          this.#transactionDepth + 1
-        )
-        return run(tx)
-      },
-      options,
-      this.#transactionDepth
-    )
+    return this.driver.transaction(inner => {
+      const tx = new Transaction<Meta>(inner, this.dialect)
+      return run(tx)
+    }, options)
   }
 }
 

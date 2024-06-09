@@ -64,7 +64,7 @@ export async function testDriver(
   suite(meta, ({test, isEqual}) => {
     test('create table', async () => {
       try {
-        await db.createTable(Node)
+        await db.create(Node)
         await db.insert(Node).values({
           textField: 'hello',
           bool: true
@@ -81,7 +81,7 @@ export async function testDriver(
 
     test('prepared queries', async () => {
       try {
-        await db.createTable(Node)
+        await db.create(Node)
         await db.insert(Node).values({
           textField: 'hello',
           bool: true
@@ -100,8 +100,7 @@ export async function testDriver(
 
     test('joins', async () => {
       try {
-        await db.createTable(User)
-        await db.createTable(Post)
+        await db.create(User, Post)
         await db.insert(User).values({name: 'Bob'})
         const user1 = await db.select(lastInsertId()).get()
         await db.insert(User).values({name: 'Mario'})
@@ -168,7 +167,7 @@ export async function testDriver(
 
     test('json fields', async () => {
       try {
-        await db.createTable(WithJson)
+        await db.create(WithJson)
         const data = {sub: {field: 'value'}, arr: [1, 2, 3]}
         await db.insert(WithJson).values({data})
         const [row] = await db
@@ -190,7 +189,7 @@ export async function testDriver(
       if (isAsync) {
         const asyncDb = db as AsyncDatabase<'universal'>
         try {
-          await asyncDb.createTable(Node)
+          await asyncDb.create(Node)
           await asyncDb.transaction(async tx => {
             await tx.insert(Node).values({
               textField: 'hello',
@@ -200,7 +199,8 @@ export async function testDriver(
             isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
             tx.rollback()
           })
-        } catch {
+        } catch (err) {
+          isEqual((<Error>err).message, 'Rollback')
           const nodes = await asyncDb.select().from(Node)
           isEqual(nodes, [])
         } finally {
@@ -233,7 +233,7 @@ export async function testDriver(
     test('generator transactions', async () => {
       const result = await db.transaction(
         generateTransaction(function* (tx) {
-          yield* tx.createTable(Node)
+          yield* tx.create(Node)
           yield* tx.insert(Node).values({
             textField: 'hello',
             bool: true
@@ -249,8 +249,7 @@ export async function testDriver(
 
     test('constraints and indexes', async () => {
       try {
-        await db.createTable(TableA)
-        await db.createTable(TableB)
+        await db.create(TableA, TableB)
         await db.insert(TableA).values({})
         await db.insert(TableB).values({
           isUnique: 1,

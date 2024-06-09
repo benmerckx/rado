@@ -105,6 +105,25 @@ export class TableApi<
     )
   }
 
+  createTable(ifNotExists = false) {
+    return sql.join([
+      sql`create table`,
+      ifNotExists ? sql`if not exists` : undefined,
+      this.target(),
+      sql`(${this.createDefinition()})`
+    ])
+  }
+
+  create() {
+    return [
+      this.createTable(),
+      ...entries(this.indexes()).map(([name, index]) => {
+        const indexApi = getData(index)
+        return indexApi.toSql(this.name, name, false)
+      })
+    ]
+  }
+
   indexes() {
     return fromEntries(
       entries(this.config ?? {}).filter(([, config]) => config instanceof Index)

@@ -30,7 +30,7 @@ class PreparedStatement implements SyncStatement {
 class BunSqliteDriver implements SyncDriver {
   parsesJson = false
 
-  constructor(public client: Client) {}
+  constructor(private client: Client) {}
 
   exec(query: string): void {
     this.client.exec(query)
@@ -41,11 +41,10 @@ class BunSqliteDriver implements SyncDriver {
   }
 
   prepare(sql: string) {
-    console.log(sql)
     return new PreparedStatement(this.client.prepare(sql))
   }
 
-  batch(queries: Array<BatchQuery>): Array<unknown> {
+  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
     return this.transaction(tx => {
       return queries.map(({sql, params}) => tx.prepare(sql).values(params))
     }, {})

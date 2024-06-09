@@ -1,12 +1,12 @@
 import {
   getData,
+  getTable,
   internalData,
   internalQuery,
   type HasTable
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
-import {sql} from '../Sql.ts'
 
 export interface CreateData<Meta extends QueryMeta> extends QueryData<Meta> {
   table: HasTable
@@ -29,6 +29,7 @@ export class Create<Meta extends QueryMeta = QueryMeta> extends Query<
   }
 
   get [internalQuery]() {
-    return sql.chunk('emitCreateTable', this)
+    const {table, ifNotExists} = getData(this)
+    return getTable(table).createTable(ifNotExists)
   }
 }

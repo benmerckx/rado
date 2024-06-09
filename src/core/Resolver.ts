@@ -1,7 +1,12 @@
 import type {Dialect} from './Dialect.ts'
-import type {Driver, DriverSpecs, Statement} from './Driver.ts'
+import type {BatchQuery, Driver, DriverSpecs, Statement} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
-import {getSelection, hasSelection, type HasQuery} from './Internal.ts'
+import {
+  getSelection,
+  hasSelection,
+  type HasQuery,
+  type HasSql
+} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
 
@@ -22,9 +27,61 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     const stmt = this.#driver.prepare(emitter.sql, name)
     return new PreparedStatement<Meta>(emitter, stmt, mapRow, this.#driver)
   }
+
+  batch(queries: Array<HasSql | HasQuery>): Batch<Meta> {
+    return new Batch(
+      this.#driver,
+      queries.map(query => {
+        const isSelection = hasSelection(query)
+        const mapRow = isSelection ? getSelection(query).mapRow : undefined
+        const emitter = this.#dialect.emit(query)
+        return {sql: emitter.sql, params: emitter.bind(), mapRow}
+      })
+    )
+  }
 }
 
 type RowMapper = ((ctx: MapRowContext) => unknown) | undefined
+
+interface QueryWithMapRow extends BatchQuery {
+  mapRow: RowMapper
+}
+
+export class Batch<Meta extends QueryMeta> {
+  private declare brand: [Meta]
+  #driver: Driver
+  #queries: Array<QueryWithMapRow>
+
+  constructor(driver: Driver, queries: Array<QueryWithMapRow>) {
+    this.#driver = driver
+    this.#queries = queries
+  }
+
+  #transform = (results: Array<Array<unknown>>) => {
+    const ctx: MapRowContext = {
+      values: undefined!,
+      index: 0,
+      specs: this.#driver
+    }
+    for (let i = 0; i < this.#queries.length; i++) {
+      const {mapRow} = this.#queries[i]
+      if (!mapRow) continue
+      const rows = results[i] as Array<Array<unknown>>
+      for (let j = 0; j < results[i].length; j++) {
+        ctx.values = rows[i]
+        ctx.index = 0
+        rows[i] = mapRow(ctx) as Array<unknown>
+      }
+    }
+    return results
+  }
+
+  execute(): Array<unknown> | Promise<Array<unknown>> {
+    const results = this.#driver.batch(this.#queries)
+    if (results instanceof Promise) return results.then(this.#transform)
+    return this.#transform(results)
+  }
+}
 
 export class PreparedStatement<Meta extends QueryMeta> {
   private declare brand: [Meta]
@@ -47,7 +104,11 @@ export class PreparedStatement<Meta extends QueryMeta> {
 
   #transform = (rows: Array<Array<unknown>>) => {
     if (!this.#mapRow) return rows
-    const ctx: MapRowContext = {values: rows[0], index: 0, specs: this.#specs}
+    const ctx: MapRowContext = {
+      values: undefined!,
+      index: 0,
+      specs: this.#specs
+    }
     for (let i = 0; i < rows.length; i++) {
       ctx.values = rows[i]
       ctx.index = 0

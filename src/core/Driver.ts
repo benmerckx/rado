@@ -12,12 +12,8 @@ export interface SyncDriver extends DriverSpecs {
   close(): void
   exec(query: string): void
   prepare(query: string, name?: string): SyncStatement
-  transaction<T>(
-    run: (inner: SyncDriver) => T,
-    options: unknown,
-    depth: number
-  ): T
-  batch(queries: Array<BatchQuery>, depth: number): Array<unknown>
+  transaction<T>(run: (inner: SyncDriver) => T, options: unknown): T
+  batch(queries: Array<BatchQuery>): Array<Array<unknown>>
 }
 export interface SyncStatement {
   all(params: Array<unknown>): Array<object>
@@ -32,10 +28,9 @@ export interface AsyncDriver extends DriverSpecs {
   prepare(query: string, name?: string): AsyncStatement
   transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
-    options: unknown,
-    depth: number
+    options: unknown
   ): Promise<T>
-  batch(queries: Array<BatchQuery>, depth: number): Promise<Array<unknown>>
+  batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>>
 }
 export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<object>>
