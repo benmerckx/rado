@@ -53,6 +53,13 @@ export class Database<Meta extends QueryMeta = Either>
     )
   }
 
+  drop(...tables: Array<HasTable>): QueryBatch<unknown, Meta> {
+    return new QueryBatch(
+      getResolver(this),
+      tables.map(table => getTable(table).drop())
+    )
+  }
+
   batch<Queries extends Array<HasSql | HasQuery>>(
     queries: Queries
   ): Batch<Meta> {

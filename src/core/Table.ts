@@ -124,6 +124,10 @@ export class TableApi<
     ]
   }
 
+  drop() {
+    return sql`drop table ${this.target()}`
+  }
+
   indexes() {
     return fromEntries(
       entries(this.config ?? {}).filter(([, config]) => config instanceof Index)

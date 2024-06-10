@@ -1,6 +1,11 @@
 import pg, {type Client, type PoolClient} from 'pg'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
+import type {
+  AsyncDriver,
+  AsyncStatement,
+  BatchQuery,
+  PrepareOptions
+} from '../core/Driver.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
 
 type Queryable = Client | pg.Pool | PoolClient
@@ -63,8 +68,8 @@ export class PgDriver implements AsyncDriver {
     await this.client.query(query)
   }
 
-  prepare(sql: string, name: string) {
-    return new PreparedStatement(this.client, sql, name)
+  prepare(sql: string, options?: PrepareOptions) {
+    return new PreparedStatement(this.client, sql, options?.name)
   }
 
   async close(): Promise<void> {

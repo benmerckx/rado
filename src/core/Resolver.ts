@@ -24,7 +24,10 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     const isSelection = hasSelection(query)
     const mapRow = isSelection ? getSelection(query).mapRow : undefined
     const emitter = this.#dialect.emit(query)
-    const stmt = this.#driver.prepare(emitter.sql, name)
+    const stmt = this.#driver.prepare(emitter.sql, {
+      isSelection,
+      name
+    })
     return new PreparedStatement<Meta>(emitter, stmt, mapRow, this.#driver)
   }
 
@@ -35,7 +38,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
         const isSelection = hasSelection(query)
         const mapRow = isSelection ? getSelection(query).mapRow : undefined
         const emitter = this.#dialect.emit(query)
-        return {sql: emitter.sql, params: emitter.bind(), mapRow}
+        return {sql: emitter.sql, params: emitter.bind(), isSelection, mapRow}
       })
     )
   }

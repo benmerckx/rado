@@ -1,10 +1,18 @@
 import type {Database as Client, Statement} from 'better-sqlite3'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {
+  BatchQuery,
+  PrepareOptions,
+  SyncDriver,
+  SyncStatement
+} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement<Array<unknown>>) {}
+  constructor(
+    private stmt: Statement<Array<unknown>>,
+    private isSelection: boolean
+  ) {}
 
   all(params: Array<unknown>) {
     return <Array<object>>this.stmt.raw(false).all(...params)
@@ -38,19 +46,22 @@ class BetterSqlite3Driver implements SyncDriver {
     this.client.close()
   }
 
-  prepare(sql: string) {
-    return new PreparedStatement(this.client.prepare(sql))
+  prepare(sql: string, options: PrepareOptions) {
+    return new PreparedStatement(this.client.prepare(sql), options.isSelection)
   }
 
   batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
     return this.transaction(
-      tx => queries.map(({sql, params}) => tx.prepare(sql).values(params)),
+      tx =>
+        queries.map(({sql, params, isSelection}) =>
+          tx.prepare(sql, {isSelection}).values(params)
+        ),
       {}
     )
   }
 
   transaction<T>(
-    run: (inner: SyncDriver) => T,
+    run: (inner: BetterSqlite3Driver) => T,
     options: TransactionOptions['sqlite']
   ): T {
     let result: T | undefined

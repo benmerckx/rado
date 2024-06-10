@@ -39,6 +39,12 @@ class Executable<Result, Meta extends QueryMeta>
     return result as Array<Result>
   }
 
+  run(this: Executable<Result, Sync>): void
+  run(this: Executable<Result, Async>): Promise<void>
+  run() {
+    return this.#execute()
+  }
+
   // biome-ignore lint/suspicious/noThenProperty:
   then<TResult1 = Array<Result>, TResult2 = never>(
     this: Executable<Result, Sync | Async>,

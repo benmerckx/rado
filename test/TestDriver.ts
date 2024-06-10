@@ -75,7 +75,7 @@ export async function testDriver(
         const [node] = await db.select(Node.textField).from(Node)
         isEqual(node, 'world')
       } finally {
-        await db.dropTable(Node)
+        await db.drop(Node)
       }
     })
 
@@ -94,7 +94,7 @@ export async function testDriver(
         const rows = await query.execute({text: 'hello'})
         isEqual(rows, [{id: 1, textField: 'hello', bool: true}])
       } finally {
-        await db.dropTable(Node)
+        await db.drop(Node)
       }
     })
 
@@ -155,8 +155,7 @@ export async function testDriver(
           }
         ])
       } finally {
-        await db.dropTable(User)
-        await db.dropTable(Post)
+        await db.drop(User, Post)
       }
     })
 
@@ -181,7 +180,7 @@ export async function testDriver(
           )
         isEqual(row, {id: 1, data})
       } finally {
-        await db.dropTable(WithJson)
+        await db.drop(WithJson)
       }
     })
 
@@ -204,12 +203,12 @@ export async function testDriver(
           const nodes = await asyncDb.select().from(Node)
           isEqual(nodes, [])
         } finally {
-          await asyncDb.dropTable(Node)
+          await asyncDb.drop(Node)
         }
       } else {
         const syncDb = db as SyncDatabase<'universal'>
         try {
-          syncDb.createTable(Node).run()
+          syncDb.create(Node).run()
           syncDb.transaction((tx): void => {
             tx.insert(Node).values({
               textField: 'hello',
@@ -225,7 +224,7 @@ export async function testDriver(
           const nodes = syncDb.select().from(Node).all()
           isEqual(nodes, [])
         } finally {
-          syncDb.dropTable(Node).run()
+          syncDb.drop(Node).run()
         }
       }
     })
@@ -240,7 +239,7 @@ export async function testDriver(
           })
           const nodes = yield* tx.select().from(Node)
           isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
-          yield* tx.dropTable(Node)
+          yield* tx.drop(Node)
           return 1
         })
       )
@@ -265,8 +264,7 @@ export async function testDriver(
           colB: 1
         })
       } finally {
-        await db.dropTable(TableB)
-        await db.dropTable(TableA)
+        await db.drop(TableB, TableA)
       }
     })
   })

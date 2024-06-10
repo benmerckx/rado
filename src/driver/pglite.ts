@@ -66,27 +66,25 @@ export class PGliteDriver implements AsyncDriver {
   }
 
   async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
-    return this.transaction(async tx => {
+    const transact = async (tx: AsyncDriver) => {
       const results = []
       for (const {sql, params} of queries)
         results.push(await tx.prepare(sql).values(params))
       return results
-    }, {})
+    }
+    if (this.depth > 0) return transact(this)
+    return this.transaction(transact, {})
   }
 
   async transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionOptions['postgres']
   ): Promise<T> {
-    this.exec(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
-    try {
-      const result = run(new PGliteDriver(this.client, this.depth + 1))
-      this.exec(this.depth > 0 ? `release d${this.depth}` : 'commit')
-      return result
-    } catch (error) {
-      this.exec(this.depth > 0 ? `rollback to d${this.depth}` : 'rollback')
-      throw error
-    }
+    if ('transaction' in this.client)
+      return this.client.transaction((tx: Transaction) => {
+        return run(new PGliteDriver(tx, this.depth + 1))
+      }) as Promise<T>
+    throw new Error('Cannot nest transactions in PGLite')
   }
 }
 

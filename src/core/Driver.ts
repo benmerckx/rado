@@ -3,15 +3,20 @@ export type Statement = SyncStatement | AsyncStatement
 export interface BatchQuery {
   sql: string
   params: Array<unknown>
+  isSelection: boolean
 }
 export interface DriverSpecs {
   parsesJson: boolean
+}
+export interface PrepareOptions {
+  isSelection: boolean
+  name?: string
 }
 
 export interface SyncDriver extends DriverSpecs {
   close(): void
   exec(query: string): void
-  prepare(query: string, name?: string): SyncStatement
+  prepare(query: string, options?: PrepareOptions): SyncStatement
   transaction<T>(run: (inner: SyncDriver) => T, options: unknown): T
   batch(queries: Array<BatchQuery>): Array<Array<unknown>>
 }
@@ -25,7 +30,7 @@ export interface SyncStatement {
 export interface AsyncDriver extends DriverSpecs {
   close(): Promise<void>
   exec(query: string): Promise<void>
-  prepare(query: string, name?: string): AsyncStatement
+  prepare(query: string, options?: PrepareOptions): AsyncStatement
   transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
     options: unknown

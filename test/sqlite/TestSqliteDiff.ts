@@ -21,11 +21,11 @@ export async function testSqliteDiff(
   const db = await createDb()
   suite(meta, ({test, isEqual}) => {
     test('diff', async () => {
-      await db.createTable(TableA)
+      await db.create(TableA)
       const differ = new SqliteDiff(db)
       const diff = await differ.diffTable(TableB)
       console.log(diff)
-      await db.dropTable(TableA)
+      await db.drop(TableA)
     })
   })
 }

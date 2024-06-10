@@ -5,7 +5,12 @@ import type {
   Connection as PromiseConnection
 } from 'mysql2/promise'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
+import type {
+  AsyncDriver,
+  AsyncStatement,
+  BatchQuery,
+  PrepareOptions
+} from '../core/Driver.ts'
 import {mysqlDialect} from '../mysql/MysqlDialect.ts'
 
 type Queryable = PromiseConnection | Pool | PoolConnection
@@ -52,8 +57,8 @@ export class Mysql2Driver implements AsyncDriver {
     await this.client.query(query)
   }
 
-  prepare(sql: string, name: string) {
-    return new PreparedStatement(this.client, sql, name)
+  prepare(sql: string, options?: PrepareOptions) {
+    return new PreparedStatement(this.client, sql, options?.name)
   }
 
   async close(): Promise<void> {
