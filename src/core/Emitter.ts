@@ -13,7 +13,6 @@ import {sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {Delete} from './query/Delete.ts'
-import type {Drop} from './query/DropTable.ts'
 import type {Insert} from './query/Insert.ts'
 import type {Select} from './query/Select.ts'
 import type {Union} from './query/Union.ts'
@@ -62,18 +61,6 @@ export abstract class Emitter {
         //ifNotExists ? sql`if not exists` : undefined,
         tableApi.target(),
         sql`(${tableApi.createDefinition()})`
-      ])
-      .emitTo(this)
-  }
-
-  emitDrop(drop: Drop): void {
-    const {table, ifExists} = getData(drop)
-    const tableApi = getTable(table)
-    sql
-      .join([
-        sql`drop table`,
-        ifExists ? sql`if exists` : undefined,
-        sql.identifier(tableApi.name)
       ])
       .emitTo(this)
   }

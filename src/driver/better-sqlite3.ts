@@ -15,7 +15,7 @@ class PreparedStatement implements SyncStatement {
   ) {}
 
   all(params: Array<unknown>) {
-    return <Array<object>>this.stmt.raw(false).all(...params)
+    return <Array<object>>this.stmt.all(...params)
   }
 
   run(params: Array<unknown>) {
@@ -23,11 +23,13 @@ class PreparedStatement implements SyncStatement {
   }
 
   get(params: Array<unknown>) {
-    return <object>this.stmt.raw(false).get(...params)
+    return <object>this.stmt.get(...params)
   }
 
   values(params: Array<unknown>) {
-    return this.stmt.raw(true).all(...params)
+    if (this.isSelection) return this.stmt.raw(true).all(...params)
+    this.stmt.run(...params)
+    return []
   }
 
   free() {}
