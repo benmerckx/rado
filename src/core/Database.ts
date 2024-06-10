@@ -12,7 +12,7 @@ import {
 } from './Internal.ts'
 import type {Async, Either, QueryDialect, QueryMeta, Sync} from './MetaData.ts'
 import {QueryBatch} from './Query.ts'
-import {Resolver, type Batch} from './Resolver.ts'
+import {Resolver} from './Resolver.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -21,15 +21,13 @@ export class Database<Meta extends QueryMeta = Either>
   driver: Driver
   dialect: Dialect
   readonly [internalResolver]: Resolver<Meta>
-  #transactionDepth: number
 
-  constructor(driver: Driver, dialect: Dialect, transactionDepth = 0) {
+  constructor(driver: Driver, dialect: Dialect) {
     const resolver = new Resolver<Meta>(driver, dialect)
     super({resolver})
     this[internalResolver] = resolver
     this.driver = driver
     this.dialect = dialect
-    this.#transactionDepth = transactionDepth
   }
 
   close(this: Database<Async>): Promise<void>
@@ -60,11 +58,14 @@ export class Database<Meta extends QueryMeta = Either>
     )
   }
 
+  /*migrate(...tables: Array<HasTable>): Promise<void> {
+    return new QueryBatch(getResolver(this))
+  }*/
+
   batch<Queries extends Array<HasSql | HasQuery>>(
     queries: Queries
-  ): Batch<Meta> {
-    const resolver = getResolver(this)
-    return resolver.batch(queries)
+  ): QueryBatch<unknown, Meta> {
+    return new QueryBatch(getResolver(this), queries)
   }
 
   execute(this: Database<Sync>, input: HasSql): void

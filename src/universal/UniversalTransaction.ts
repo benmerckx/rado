@@ -1,18 +1,30 @@
 import type {Transaction} from '../core/Database.ts'
 import type {QueryMeta} from '../core/MetaData.ts'
 
+type Part<Meta extends QueryMeta> =
+  | Promise<unknown>
+  | ((tx: Transaction<Meta>) => unknown)
+type Create<Meta extends QueryMeta, T> = (
+  tx: Transaction<Meta>
+) => Generator<Part<Meta>, T>
+
 export function generateTransaction<
-  T = void,
+  Result = void,
   Meta extends QueryMeta = QueryMeta
->(
-  gen: (tx: Transaction<Meta>) => Generator<Promise<unknown>, T>
-): (tx: Transaction<Meta>) => Promise<T> {
-  return async (tx: Transaction<Meta>) => {
-    const iter = gen(tx)
-    let current: IteratorResult<Promise<unknown>>
-    while ((current = iter.next(tx))) {
-      if (current.done) return current.value
-      await current.value
+>(create: Create<Meta, Result>) {
+  function run(tx: Transaction<Meta>): Result | Promise<Result> {
+    const iter = create(tx)
+    const take = (intermediate?: any): any => {
+      const {value, done}: IteratorResult<Part<Meta>> = iter.next(intermediate)
+      if (done) return value
+      if (typeof value === 'function') return take(tx.transaction(value))
+      return value instanceof Promise ? value.then(take) : value
     }
+    return take()
   }
+  return Object.assign(run, {
+    *[Symbol.iterator](): Generator<Part<Meta>> {
+      return yield run
+    }
+  })
 }
