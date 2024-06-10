@@ -66,12 +66,14 @@ export class Mysql2Driver implements AsyncDriver {
   }
 
   async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
-    return this.transaction(async tx => {
-      const results: Array<Array<unknown>> = []
+    const transact = async (tx: AsyncDriver) => {
+      const results = []
       for (const {sql, params} of queries)
         results.push(await tx.prepare(sql).values(params))
       return results
-    }, {})
+    }
+    if (this.depth > 0) return transact(this)
+    return this.transaction(transact, {})
   }
 
   async transaction<T>(
@@ -81,10 +83,10 @@ export class Mysql2Driver implements AsyncDriver {
     const client: Queryable = isPool(this.client)
       ? await this.client.getConnection()
       : this.client
-    const driver = new Mysql2Driver(client)
+    const driver = new Mysql2Driver(client, this.depth + 1)
     try {
       await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
-      const result = await run(new Mysql2Driver(client, this.depth + 1))
+      const result = await run(driver)
       await client.query(
         this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'
       )
