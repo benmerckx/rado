@@ -175,13 +175,16 @@ export namespace sql {
     return empty().chunk(type, inner)
   }
 
+  type QueryChunk = HasSql | undefined
   export function query(
-    ast: Record<string, HasSql | boolean | undefined>
+    ast: Record<string, boolean | QueryChunk | Array<QueryChunk>>
   ): Sql {
     return join(
       Object.entries(ast).map(([key, value]) => {
         const statement = key.replace(/([A-Z])/g, ' $1').toLocaleLowerCase()
         if (value === true) return sql.unsafe(statement)
+        if (Array.isArray(value)) value = join(value)
+        if (!key) return value
         return value && sql`${sql.unsafe(statement)} ${value}`
       })
     )

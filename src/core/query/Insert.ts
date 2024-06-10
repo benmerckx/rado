@@ -1,5 +1,6 @@
 import {
   getData,
+  getQuery,
   getTable,
   internalData,
   internalQuery,
@@ -27,6 +28,7 @@ import {input, type Input} from '../expr/Input.ts'
 interface InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into: HasTable
   values?: HasSql
+  select?: HasSql
 }
 
 export interface InsertData<Meta extends QueryMeta>
@@ -170,5 +172,14 @@ export class InsertInto<
       sql`, `
     )
     return new InsertCanConflict<Definition, Meta>({...getData(this), values})
+  }
+
+  select(
+    query: Query<TableRow<Definition>, Meta>
+  ): InsertCanConflict<Definition, Meta> {
+    return new InsertCanConflict({
+      ...getData(this),
+      select: getQuery(query)
+    })
   }
 }

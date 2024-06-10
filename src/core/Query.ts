@@ -133,6 +133,7 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
   get(this: Executable<Result, Either>): Result | Promise<Result>
   get(db: HasResolver<Sync>): Result
   get(db: HasResolver<Async>): Promise<Result>
+  get(db: HasResolver<Either>): Result | Promise<Result>
   get(db?: HasResolver) {
     return this.#exec('get', db)
   }

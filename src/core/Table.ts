@@ -46,16 +46,19 @@ export class TableApi<
     return this.alias ?? this.name
   }
 
-  target(): Sql {
-    const name = sql.join(
+  identifier(altName?: string): Sql {
+    return sql.join(
       [
         this.schemaName ? sql.identifier(this.schemaName) : undefined,
-        sql.identifier(this.name)
+        sql.identifier(altName ?? this.name)
       ],
       sql`.`
     )
+  }
+
+  target(): Sql {
     return sql.join([
-      name,
+      this.identifier(),
       this.alias ? sql`as ${sql.identifier(this.alias)}` : undefined
     ])
   }
@@ -105,23 +108,24 @@ export class TableApi<
     )
   }
 
-  createTable(ifNotExists = false) {
+  createTable(altName?: string, ifNotExists = false) {
     return sql.join([
       sql`create table`,
       ifNotExists ? sql`if not exists` : undefined,
-      this.target(),
+      this.identifier(altName),
       sql`(${this.createDefinition()})`
     ])
   }
 
+  createIndexes() {
+    return entries(this.indexes()).map(([name, index]) => {
+      const indexApi = getData(index)
+      return indexApi.toSql(this.name, name, false)
+    })
+  }
+
   create() {
-    return [
-      this.createTable(),
-      ...entries(this.indexes()).map(([name, index]) => {
-        const indexApi = getData(index)
-        return indexApi.toSql(this.name, name, false)
-      })
-    ]
+    return [this.createTable(), ...this.createIndexes()]
   }
 
   drop() {
@@ -136,7 +140,7 @@ export class TableApi<
 }
 
 export type Table<
-  Definition extends TableDefinition = TableDefinition,
+  Definition extends TableDefinition = Record<never, Column>,
   Name extends string = string
 > = TableFields<Definition, Name> & HasTable<Definition, Name> & HasTarget
 

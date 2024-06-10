@@ -5,7 +5,8 @@ import {suite} from '../Suite.ts'
 
 const TableA = table('Table', {
   id: id(),
-  fieldA: text()
+  fieldA: text(),
+  removeMe: text()
 })
 
 const TableB = table('Table', {

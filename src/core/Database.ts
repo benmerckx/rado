@@ -67,6 +67,15 @@ export class Database<Meta extends QueryMeta = Either>
     return resolver.batch(queries)
   }
 
+  execute(this: Database<Sync>, input: HasSql): void
+  execute(this: Database<Async>, input: HasSql): Promise<void>
+  execute(input: HasSql): void | Promise<void>
+  execute(input: HasSql) {
+    const emitter = this.dialect.emit(input)
+    if (emitter.hasParams) throw new Error('Query has parameters')
+    return this.driver.exec(emitter.sql)
+  }
+
   transaction<T>(
     this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
@@ -114,11 +123,15 @@ export interface TransactionOptions {
   }
 }
 
-export class Rollback extends Error {}
+export class Rollback<Data = never> extends Error {
+  constructor(public data: Data) {
+    super('Rollback')
+  }
+}
 
 export class Transaction<Meta extends QueryMeta> extends Database<Meta> {
-  rollback(): never {
-    throw new Rollback('Rollback')
+  rollback<Data>(data?: Data): never {
+    throw new Rollback(data)
   }
 }
 

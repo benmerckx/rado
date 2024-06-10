@@ -22,6 +22,10 @@ export abstract class Emitter {
   sql = ''
   protected params: Array<Param> = []
 
+  get hasParams() {
+    return this.params.length > 0
+  }
+
   bind(inputs?: Record<string, unknown>) {
     return this.params.map(param => {
       if (param instanceof ValueParam) return this.processValue(param.value)
@@ -107,14 +111,14 @@ export abstract class Emitter {
   }
 
   emitInsert(insert: Insert<unknown>): void {
-    const {cte, into, values, onConflict, returning} = getData(insert)
+    const {cte, into, values, select, onConflict, returning} = getData(insert)
     if (cte) this.emitWith(cte)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
     sql
       .query({
         insertInto: sql`${tableName}(${table.listColumns()})`,
-        values,
+        ...(values ? {values} : {'': select}),
         onConflict,
         returning
       })
