@@ -7,6 +7,7 @@ import type {
   SyncStatement
 } from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
+import {sqliteDiff} from '../sqlite/SqliteDiff.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
@@ -77,5 +78,9 @@ class BetterSqlite3Driver implements SyncDriver {
 }
 
 export function connect(db: Client) {
-  return new SyncDatabase<'sqlite'>(new BetterSqlite3Driver(db), sqliteDialect)
+  return new SyncDatabase<'sqlite'>(
+    new BetterSqlite3Driver(db),
+    sqliteDialect,
+    sqliteDiff
+  )
 }

@@ -7,6 +7,7 @@ import type {
   PrepareOptions
 } from '../core/Driver.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
+import {postgresDiff} from '../postgres/PostgresDiff.ts'
 
 type Queryable = Client | pg.Pool | PoolClient
 
@@ -111,5 +112,9 @@ export class PgDriver implements AsyncDriver {
 }
 
 export function connect(client: Queryable) {
-  return new AsyncDatabase<'postgres'>(new PgDriver(client), postgresDialect)
+  return new AsyncDatabase<'postgres'>(
+    new PgDriver(client),
+    postgresDialect,
+    postgresDiff
+  )
 }

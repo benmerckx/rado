@@ -2,6 +2,7 @@ import type {BindParams, Database as Client} from 'sql.js'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
+import {sqliteDiff} from '../sqlite/SqliteDiff.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
@@ -89,5 +90,5 @@ class SqlJsDriver implements SyncDriver {
 }
 
 export function connect(db: Client) {
-  return new SyncDatabase(new SqlJsDriver(db), sqliteDialect)
+  return new SyncDatabase(new SqlJsDriver(db), sqliteDialect, sqliteDiff)
 }

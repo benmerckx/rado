@@ -25,7 +25,3 @@ export class Dialect {
     return emitter.sql
   }
 }
-
-export function dialect(createEmitter: new () => Emitter) {
-  return new Dialect(createEmitter)
-}

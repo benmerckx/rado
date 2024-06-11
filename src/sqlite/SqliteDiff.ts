@@ -1,10 +1,10 @@
-import {Rollback, type Transaction} from '../core/Database.ts'
+import {Rollback} from '../core/Database.ts'
 import {getData, getQuery, getTable, type HasSql} from '../core/Internal.ts'
-import type {QueryMeta} from '../core/MetaData.ts'
 import {sql, type Sql} from '../core/Sql.ts'
 import {table, type Table} from '../core/Table.ts'
 import {eq} from '../core/expr/Conditions.ts'
-import {generateTransaction} from '../universal.ts'
+import type {Diff} from '../migrate/Diff.ts'
+import {txGenerator} from '../universal.ts'
 import * as column from './SqliteColumns.ts'
 import {sqliteDialect} from './SqliteDialect.ts'
 
@@ -25,10 +25,10 @@ const SqliteMaster = table('SqliteMaster', {
   sql: column.text().notNull()
 })
 
-export function diffTable<Meta extends QueryMeta>(
-  hasTable: Table
-): (tx: Transaction<Meta>) => Array<string> | Promise<Array<string>> {
-  return generateTransaction(function* (tx) {
+const inline = (sql: HasSql) => sqliteDialect.inline(sql)
+
+export const sqliteDiff: Diff = (hasTable: Table) => {
+  return txGenerator(function* (tx) {
     const tableApi = getTable(hasTable)
     const columnInfo = yield* tx
       .select(TableInfo)
@@ -40,7 +40,6 @@ export function diffTable<Meta extends QueryMeta>(
         eq(SqliteMaster.tbl_name, tableApi.name),
         eq(SqliteMaster.type, 'index')
       )
-    const inline = (sql: HasSql) => sqliteDialect.inline(sql)
     const hasSinglePrimaryKey =
       columnInfo.reduce((acc, column) => acc + column.pk, 0) === 1
     const localColumns = new Map(
@@ -119,7 +118,7 @@ export function diffTable<Meta extends QueryMeta>(
     // column changes, if not we might have different contraints
 
     try {
-      yield* generateTransaction(function* (sp) {
+      yield* txGenerator(function* (sp) {
         yield* sp.batch(stmts)
 
         const [tableInfo] = yield* sp
@@ -167,6 +166,9 @@ export function diffTable<Meta extends QueryMeta>(
 
     return stmts.map(inline)
 
+    // Optimization:
+    // if we have no column changes we can rewrite the definition
+    // with pragma writable_schema
     function recreate() {
       const tempName = `new_${tableApi.name}`
       const tempTable = table(tempName, tableApi.columns)

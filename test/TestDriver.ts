@@ -7,12 +7,12 @@ import {table} from '../src/core/Table.ts'
 import {and, eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
 import {
   boolean,
-  generateTransaction,
   id,
   integer,
   json,
   lastInsertId,
-  text
+  text,
+  txGenerator
 } from '../src/universal.ts'
 import {suite} from './Suite.ts'
 
@@ -231,7 +231,7 @@ export async function testDriver(
 
     test('generator transactions', async () => {
       const result = await db.transaction(
-        generateTransaction(function* (tx) {
+        txGenerator(function* (tx) {
           yield* tx.create(Node)
           yield* tx.insert(Node).values({
             textField: 'hello',
@@ -266,6 +266,31 @@ export async function testDriver(
       } finally {
         await db.drop(TableB, TableA)
       }
+    })
+
+    test('migrate', async () => {
+      const TableA = table('Table', {
+        id: id(),
+        fieldA: text(),
+        removeMe: text()
+      })
+
+      await db.create(TableA)
+      await db.insert(TableA).values({fieldA: 'hello', removeMe: 'world'})
+
+      const node = await db.select().from(TableA).get()
+      isEqual(node, {id: 1, fieldA: 'hello', removeMe: 'world'})
+
+      const TableB = table('Table', {
+        id: id(),
+        fieldB: text('fieldA'),
+        extraColumn: text()
+      })
+
+      await db.migrate(TableB)
+      console.log('here')
+      const newNode = await db.select().from(TableB).get()
+      isEqual(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
     })
   })
 }

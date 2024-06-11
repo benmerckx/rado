@@ -31,7 +31,8 @@
       "style": {
         "noNonNullAssertion": "off",
         "useEnumInitializers": "off",
-        "noParameterAssign": "off"
+        "noParameterAssign": "off",
+        "useShorthandFunctionType": "off"
       },
       "complexity": {
         "noBannedTypes": "off"

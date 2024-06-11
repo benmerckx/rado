@@ -2,6 +2,7 @@ import type {PGlite, Transaction} from '@electric-sql/pglite'
 import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
 import {AsyncDatabase, type TransactionOptions} from '../index.ts'
 import {postgresDialect} from '../postgres/PostgresDialect.ts'
+import {postgresDiff} from '../postgres/PostgresDiff.ts'
 
 type Queryable = PGlite | Transaction
 
@@ -62,6 +63,7 @@ export class PGliteDriver implements AsyncDriver {
   }
 
   prepare(sql: string) {
+    console.log(sql)
     return new PreparedStatement(this.client, sql)
   }
 
@@ -80,14 +82,26 @@ export class PGliteDriver implements AsyncDriver {
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionOptions['postgres']
   ): Promise<T> {
-    if ('transaction' in this.client)
+    if (this.depth === 0 && 'transaction' in this.client)
       return this.client.transaction((tx: Transaction) => {
         return run(new PGliteDriver(tx, this.depth + 1))
       }) as Promise<T>
-    throw new Error('Cannot nest transactions in PGLite')
+    await this.exec(`savepoint d${this.depth}`)
+    try {
+      const result = await run(new PGliteDriver(this.client, this.depth + 1))
+      await this.exec(`release d${this.depth}`)
+      return result
+    } catch (error) {
+      await this.exec(`rollback to d${this.depth}`)
+      throw error
+    }
   }
 }
 
 export function connect(db: PGlite) {
-  return new AsyncDatabase<'postgres'>(new PGliteDriver(db), postgresDialect)
+  return new AsyncDatabase<'postgres'>(
+    new PGliteDriver(db),
+    postgresDialect,
+    postgresDiff
+  )
 }

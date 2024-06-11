@@ -1,5 +1,7 @@
-import type {HasTable} from '../core/Internal.ts'
+import type {QueryMeta} from '../core/MetaData.ts'
+import type {Table} from '../core/Table.ts'
+import type {TxGenerator} from '../universal.ts'
 
 export interface Diff {
-  diffTable(table: HasTable): Promise<Array<string>>
+  <Meta extends QueryMeta>(table: Table): TxGenerator<Meta, Array<string>>
 }

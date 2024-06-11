@@ -1,3 +1,5 @@
+import type {Diff} from '../migrate/Diff.ts'
+import {txGenerator} from '../universal.ts'
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Driver} from './Driver.ts'
@@ -10,9 +12,18 @@ import {
   type HasSql,
   type HasTable
 } from './Internal.ts'
-import type {Async, Either, QueryDialect, QueryMeta, Sync} from './MetaData.ts'
+import type {
+  Async,
+  Deliver,
+  Either,
+  QueryDialect,
+  QueryMeta,
+  Sync
+} from './MetaData.ts'
 import {QueryBatch} from './Query.ts'
 import {Resolver} from './Resolver.ts'
+import {sql} from './Sql.ts'
+import type {Table} from './Table.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -20,14 +31,16 @@ export class Database<Meta extends QueryMeta = Either>
 {
   driver: Driver
   dialect: Dialect
+  diff: Diff
   readonly [internalResolver]: Resolver<Meta>
 
-  constructor(driver: Driver, dialect: Dialect) {
+  constructor(driver: Driver, dialect: Dialect, diff: Diff) {
     const resolver = new Resolver<Meta>(driver, dialect)
     super({resolver})
     this[internalResolver] = resolver
     this.driver = driver
     this.dialect = dialect
+    this.diff = diff
   }
 
   close(this: Database<Async>): Promise<void>
@@ -58,9 +71,17 @@ export class Database<Meta extends QueryMeta = Either>
     )
   }
 
-  /*migrate(...tables: Array<HasTable>): Promise<void> {
-    return new QueryBatch(getResolver(this))
-  }*/
+  migrate(...tables: Array<Table>): Deliver<Meta, void> {
+    const computeDiff = this.diff
+    return this.transaction<void>(
+      txGenerator(function* (tx) {
+        for (const table of tables) {
+          const diff = yield* computeDiff(table)
+          if (diff.length > 0) yield* tx.batch(diff.map(sql.unsafe))
+        }
+      })
+    )
+  }
 
   batch<Queries extends Array<HasSql | HasQuery>>(
     queries: Queries
@@ -68,9 +89,7 @@ export class Database<Meta extends QueryMeta = Either>
     return new QueryBatch(getResolver(this), queries)
   }
 
-  execute(this: Database<Sync>, input: HasSql): void
-  execute(this: Database<Async>, input: HasSql): Promise<void>
-  execute(input: HasSql): void | Promise<void>
+  execute(input: HasSql): Deliver<Meta, void>
   execute(input: HasSql) {
     const emitter = this.dialect.emit(input)
     if (emitter.hasParams) throw new Error('Query has parameters')
@@ -78,22 +97,12 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   transaction<T>(
-    this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
     options?: TransactionOptions[Meta['dialect']]
-  ): T
-  transaction<T>(
-    this: Database<Async>,
-    run: (tx: Transaction<Meta>) => Promise<T>,
-    options?: TransactionOptions[Meta['dialect']]
-  ): Promise<T>
-  transaction<T>(
-    run: (tx: Transaction<Meta>) => T | Promise<T>,
-    options?: TransactionOptions[Meta['dialect']]
-  ): T | Promise<T>
+  ): Deliver<Meta, T>
   transaction(run: Function, options = {}) {
     return this.driver.transaction(inner => {
-      const tx = new Transaction<Meta>(inner, this.dialect)
+      const tx = new Transaction<Meta>(inner, this.dialect, this.diff)
       return run(tx)
     }, options)
   }

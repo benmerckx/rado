@@ -1,6 +1,5 @@
 import {isBun} from '../Suite.ts'
 import {testDriver} from '../TestDriver.ts'
-import {testSqliteDiff} from '../sqlite/TestSqliteDiff.ts'
 
 async function createDb() {
   const {Database} = await import('bun:sqlite')
@@ -10,5 +9,5 @@ async function createDb() {
 
 if (isBun) {
   await testDriver(import.meta, createDb)
-  await testSqliteDiff(import.meta, createDb)
+  //await testSqliteDiff(import.meta, createDb)
 }

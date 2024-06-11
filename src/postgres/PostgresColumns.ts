@@ -1,4 +1,4 @@
-import {type Column, JsonColumn, column} from '../core/Column.ts'
+import {JsonColumn, column, type Column} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntervalFields =
@@ -93,6 +93,10 @@ export function integer(name?: string): Column<number | null> {
 }
 
 export const int = integer
+
+export function oid(name?: string): Column<number | null> {
+  return column({name, type: column.oid()})
+}
 
 export function interval(
   name?: string,

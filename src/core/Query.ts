@@ -9,7 +9,7 @@ import {
   type HasSql,
   type HasTarget
 } from './Internal.ts'
-import type {Async, Either, QueryMeta, Sync} from './MetaData.ts'
+import type {Deliver, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
 import type {Sql} from './Sql.ts'
 
@@ -39,15 +39,12 @@ class Executable<Result, Meta extends QueryMeta>
     return result as Array<Result>
   }
 
-  run(this: Executable<Result, Sync>): void
-  run(this: Executable<Result, Async>): Promise<void>
-  run() {
+  run(): Deliver<Meta, void> {
     return this.#execute()
   }
 
   // biome-ignore lint/suspicious/noThenProperty:
   then<TResult1 = Array<Result>, TResult2 = never>(
-    this: Executable<Result, Sync | Async>,
     onfulfilled?:
       | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
       | undefined
@@ -62,7 +59,6 @@ class Executable<Result, Meta extends QueryMeta>
   }
 
   catch<TResult = never>(
-    this: Executable<Result, Async>,
     onrejected?:
       | ((reason: unknown) => TResult | PromiseLike<TResult>)
       | undefined
@@ -71,10 +67,7 @@ class Executable<Result, Meta extends QueryMeta>
     return this.then().catch(onrejected)
   }
 
-  finally(
-    this: Executable<Result, Async>,
-    onfinally?: (() => void) | undefined | null
-  ): Promise<Array<Result>> {
+  finally(onfinally?: (() => void) | undefined | null): Promise<Array<Result>> {
     return this.then().finally(onfinally)
   }
 }
@@ -120,30 +113,16 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
     }
   }
 
-  all(this: Executable<Result, Sync>): Array<Result>
-  all(this: Executable<Result, Async>): Promise<Array<Result>>
-  all(db: HasResolver<Sync>): Array<Result>
-  all(db: HasResolver<Async>): Promise<Array<Result>>
   all(db?: HasResolver) {
-    return this.#exec('all', db)
+    return this.#exec('all', db) as Deliver<Meta, Array<Result>>
   }
 
-  get(this: Executable<Result, Sync>): Result
-  get(this: Executable<Result, Async>): Promise<Result>
-  get(this: Executable<Result, Either>): Result | Promise<Result>
-  get(db: HasResolver<Sync>): Result
-  get(db: HasResolver<Async>): Promise<Result>
-  get(db: HasResolver<Either>): Result | Promise<Result>
   get(db?: HasResolver) {
-    return this.#exec('get', db)
+    return this.#exec('get', db) as Deliver<Meta, Result>
   }
 
-  run(this: Executable<Result, Sync>): void
-  run(this: Executable<Result, Async>): Promise<void>
-  run(db: HasResolver<Sync>): void
-  run(db: HasResolver<Async>): Promise<void>
   run(db?: HasResolver) {
-    return this.#exec('run', db)
+    return this.#exec('run', db) as Deliver<Meta, void>
   }
 
   prepare<Inputs extends Record<string, unknown>>(name?: string) {
@@ -158,23 +137,8 @@ export interface PreparedQuery<
   Inputs extends Record<string, unknown>,
   Meta extends QueryMeta
 > extends PreparedStatement<Meta> {
-  all(this: PreparedQuery<Result, Inputs, Sync>, inputs?: Inputs): Array<Result>
-  all(
-    this: PreparedQuery<Result, Inputs, Async>,
-    inputs?: Inputs
-  ): Promise<Array<Result>>
-
-  get(this: PreparedQuery<Result, Inputs, Sync>, inputs?: Inputs): Result
-  get(
-    this: PreparedQuery<Result, Inputs, Async>,
-    inputs?: Inputs
-  ): Promise<Result>
-
-  run(this: PreparedQuery<Result, Inputs, Sync>, inputs?: Inputs): void
-  run(
-    this: PreparedQuery<Result, Inputs, Async>,
-    inputs?: Inputs
-  ): Promise<void>
-
+  all(inputs?: Inputs): Deliver<Meta, Array<Result>>
+  get(inputs?: Inputs): Deliver<Meta, Result>
+  run(inputs?: Inputs): Deliver<Meta, void>
   execute(inputs?: Inputs): Promise<Array<Result>>
 }
