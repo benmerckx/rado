@@ -48,7 +48,7 @@ export function char(
 ): Column<string | null> {
   return column({
     name,
-    type: column.char(options?.length)
+    type: column.character(options?.length ?? 1)
   })
 }
 

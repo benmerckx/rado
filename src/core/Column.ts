@@ -86,7 +86,7 @@ export interface Columns {
 export const column: Columns = new Proxy(createColumn as any, {
   get(target: Record<string, Function>, method: string) {
     return (target[method] ??= (...args: Array<Input<unknown>>) => {
-      while (args.length > 1) if (args.at(-1) === undefined) args.pop()
+      while (args.length > 0) if (args.at(-1) === undefined) args.pop()
       if (args.length === 0) return sql.unsafe(method)
       return sql`${sql.unsafe(method)}(${sql.join(
         args.map(sql.inline),

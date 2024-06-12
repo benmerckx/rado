@@ -288,7 +288,6 @@ export async function testDriver(
       })
 
       await db.migrate(TableB)
-      console.log('here')
       const newNode = await db.select().from(TableB).get()
       isEqual(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
     })
