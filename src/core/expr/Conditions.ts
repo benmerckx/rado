@@ -126,7 +126,7 @@ export function desc<T>(input: HasSql<T>): Sql {
   return sql`${input} desc`
 }
 
-export function distinct<T>(input: Sql<T>): Sql {
+export function distinct<T>(input: HasSql<T>): Sql {
   return sql`distinct ${input}`
 }
 
@@ -149,12 +149,12 @@ export function when<Out, In = boolean>(
     compare && input(compare),
     sql.join(
       cases.map((pair, index) => {
-        if (!Array.isArray(pair)) {
-          if (index === cases.length - 1) return sql`else ${input(pair)}`
-          throw new Error('Unexpected else condition')
+        if (Array.isArray(pair)) {
+          const [condition, result] = pair
+          return sql`when ${input(condition)} then ${input(result)}`
         }
-        const [condition, result] = pair
-        return sql`when ${input(condition)} then ${input(result)}`
+        if (index === cases.length - 1) return sql`else ${input(pair)}`
+        throw new Error('Unexpected else condition')
       })
     ),
     sql`end`

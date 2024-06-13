@@ -80,6 +80,7 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
         return [name, inline(indexApi.toSql(tableApi.name, name, false))]
       })
     )
+
     const stmts: Array<Sql> = []
 
     // Check if the columns are identical

@@ -120,21 +120,23 @@ export const postgresDiff: Diff = (hasTable: Table) => {
         defaultValue
       })
       .from(def)
-    console.log(columnInfo)
-    /*const localColumns = new Map(
+    const localColumns = new Map(
       columnInfo.map(column => {
         return [
           column.name,
           inline(
             sql.chunk('emitColumn', {
               type: sql.unsafe(column.type.toLowerCase()),
-              notNull: column.notNull
+              notNull: column.notNull,
+              defaultValue: column.defaultValue
+                ? () => sql.unsafe(column.defaultValue)
+                : undefined
             })
           )
         ]
       })
     )
-    console.log(localColumns)*/
+    console.log(localColumns)
     return []
   })
 }
