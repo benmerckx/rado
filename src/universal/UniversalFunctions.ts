@@ -5,6 +5,6 @@ export function lastInsertId() {
   return sql.chunk('emitLastInsertId', undefined).mapWith(Number)
 }
 
-export function concat(...slices: Array<Input<string>>): Sql<string> {
+export function concat(...slices: Array<Input<string | null>>): Sql<string> {
   return sql`concat(${sql.join(slices.map(input), sql`, `)})`
 }

@@ -19,18 +19,20 @@ export const lt: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
   binop('<')
 export const lte: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
   binop('<=')
-export const like: (left: Input<string>, right: Input<string>) => Sql<boolean> =
-  binop('like')
+export const like: (
+  left: Input<string | null>,
+  right: Input<string>
+) => Sql<boolean> = binop('like')
 export const notLike: (
-  left: Input<string>,
+  left: Input<string | null>,
   right: Input<string>
 ) => Sql<boolean> = binop('not like')
 export const ilike: (
-  left: Input<string>,
+  left: Input<string | null>,
   right: Input<string>
 ) => Sql<boolean> = binop('ilike')
 export const notILike: (
-  left: Input<string>,
+  left: Input<string | null>,
   right: Input<string>
 ) => Sql<boolean> = binop('not ilike')
 export const arrayContains: <T>(
