@@ -1,10 +1,10 @@
+import {suite} from '@benmerckx/suite'
 import {alias, table} from '../../src/core/Table.ts'
 import {eq} from '../../src/core/expr/Conditions.ts'
 import {integer, text} from '../../src/universal.ts'
-import {suite} from '../Suite.ts'
 import {builder, emit} from '../TestUtils.ts'
 
-suite(import.meta, ({test, isEqual}) => {
+suite(import.meta, test => {
   const Node = table('Node', {
     id: integer().primaryKey(),
     field1: text()
@@ -12,12 +12,12 @@ suite(import.meta, ({test, isEqual}) => {
 
   test('select all available columns', () => {
     const query = builder.select().from(Node)
-    isEqual(emit(query), 'select "Node"."id", "Node"."field1" from "Node"')
+    test.equal(emit(query), 'select "Node"."id", "Node"."field1" from "Node"')
   })
 
   test('select distinct', () => {
     const query = builder.selectDistinct().from(Node)
-    isEqual(
+    test.equal(
       emit(query),
       'select distinct "Node"."id", "Node"."field1" from "Node"'
     )
@@ -25,13 +25,13 @@ suite(import.meta, ({test, isEqual}) => {
 
   test('select single field', () => {
     const query = builder.select(Node.id).from(Node)
-    isEqual(emit(query), 'select "Node"."id" from "Node"')
+    test.equal(emit(query), 'select "Node"."id" from "Node"')
   })
 
   test('left join', () => {
     const right = alias(Node, 'right')
     const query = builder.select().from(Node).leftJoin(right, eq(right.id, 1))
-    isEqual(
+    test.equal(
       emit(query),
       'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" left join "Node" as "right" on "right"."id" = 1'
     )
@@ -40,7 +40,7 @@ suite(import.meta, ({test, isEqual}) => {
   test('full join', () => {
     const right = alias(Node, 'right')
     const query = builder.select().from(Node).fullJoin(right, eq(right.id, 1))
-    isEqual(
+    test.equal(
       emit(query),
       'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" full join "Node" as "right" on "right"."id" = 1'
     )
@@ -48,7 +48,7 @@ suite(import.meta, ({test, isEqual}) => {
 
   test('order by', () => {
     const query = builder.select().from(Node).orderBy(Node.id)
-    isEqual(
+    test.equal(
       emit(query),
       'select "Node"."id", "Node"."field1" from "Node" order by "Node"."id"'
     )
@@ -56,7 +56,7 @@ suite(import.meta, ({test, isEqual}) => {
 
   test('group by', () => {
     const query = builder.select().from(Node).groupBy(Node.id)
-    isEqual(
+    test.equal(
       emit(query),
       'select "Node"."id", "Node"."field1" from "Node" group by "Node"."id"'
     )
@@ -64,7 +64,7 @@ suite(import.meta, ({test, isEqual}) => {
 
   test('limit and offset', () => {
     const query = builder.select().from(Node).limit(10).offset(5)
-    isEqual(
+    test.equal(
       emit(query),
       'select "Node"."id", "Node"."field1" from "Node" limit 10 offset 5'
     )
@@ -74,13 +74,13 @@ suite(import.meta, ({test, isEqual}) => {
     const query = builder
       .select({result: {id: Node.id, field1: Node.field1}})
       .from(Node)
-    isEqual(emit(query), 'select "Node"."id", "Node"."field1" from "Node"')
+    test.equal(emit(query), 'select "Node"."id", "Node"."field1" from "Node"')
   })
 
   test('subquery', () => {
     const sub = builder.select(Node.id).from(Node).as('sub')
     const query = builder.select(sub).from(sub)
-    isEqual(
+    test.equal(
       emit(query),
       'select "sub"."id" from (select "Node"."id" from "Node") as "sub"'
     )
@@ -97,7 +97,7 @@ suite(import.meta, ({test, isEqual}) => {
       })
       .from(cte)
       .limit(10)
-    isEqual(
+    test.equal(
       emit(query),
       'with "myCte" as (select "Node"."id", "Node"."field1" from "Node"), "cte2" as (select "Node"."id" from "Node") select "myCte"."id" as "nodeId", "cte2"."id" as "cte2Id" from "myCte" limit 10'
     )

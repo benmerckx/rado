@@ -1,21 +1,21 @@
+import {suite} from '@benmerckx/suite'
 import {sql} from '../../src/core/Sql.ts'
-import {suite} from '../Suite.ts'
 import {emit} from '../TestUtils.ts'
 
-suite(import.meta, ({test, isEqual}) => {
+suite(import.meta, test => {
   test('value', () => {
-    isEqual(emit(sql.empty().value(1)), '1')
+    test.equal(emit(sql.empty().value(1)), '1')
   })
 
   test('placeholder', () => {
-    isEqual(emit(sql.empty().placeholder('name')), '?name')
+    test.equal(emit(sql.empty().placeholder('name')), '?name')
   })
 
   test('identifier', () => {
-    isEqual(emit(sql.empty().identifier('name')), '"name"')
+    test.equal(emit(sql.empty().identifier('name')), '"name"')
   })
 
   test('inline value', () => {
-    isEqual(emit(sql.empty().inline(1)), '1')
+    test.equal(emit(sql.empty().inline(1)), '1')
   })
 })

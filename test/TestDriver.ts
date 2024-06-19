@@ -1,3 +1,4 @@
+import {suite} from '@benmerckx/suite'
 import {
   AsyncDatabase,
   type Database,
@@ -14,7 +15,6 @@ import {
   text,
   txGenerator
 } from '../src/universal.ts'
-import {suite} from './Suite.ts'
 
 const Node = table('Node', {
   id: id(),
@@ -61,7 +61,7 @@ export async function testDriver(
   const db = await createDb()
   const isAsync = db instanceof AsyncDatabase
 
-  suite(meta, ({test, isEqual}) => {
+  suite(meta, test => {
     test('create table', async () => {
       try {
         await db.create(Node)
@@ -70,10 +70,10 @@ export async function testDriver(
           bool: true
         })
         const nodes = await db.select().from(Node)
-        isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+        test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
         await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
         const [node] = await db.select(Node.textField).from(Node)
-        isEqual(node, 'world')
+        test.equal(node, 'world')
       } finally {
         await db.drop(Node)
       }
@@ -92,7 +92,7 @@ export async function testDriver(
           .where(eq(Node.textField, sql.placeholder('text')))
           .prepare<{text: string}>('prepared')
         const rows = await query.execute({text: 'hello'})
-        isEqual(rows, [{id: 1, textField: 'hello', bool: true}])
+        test.equal(rows, [{id: 1, textField: 'hello', bool: true}])
       } finally {
         await db.drop(Node)
       }
@@ -110,7 +110,7 @@ export async function testDriver(
         await db.insert(Post).values({userId: user1, title: 'Post 2'})
         const post2 = await db.select(lastInsertId()).get()
         const posts = await db.select().from(Post)
-        isEqual(posts, [
+        test.equal(posts, [
           {id: post1, userId: user1, title: 'Post 1'},
           {id: post2, userId: user1, title: 'Post 2'}
         ])
@@ -119,7 +119,7 @@ export async function testDriver(
           .from(User)
           .innerJoin(Post, eq(Post.userId, User.id))
           .where(eq(User.id, user1))
-        isEqual(userAndPosts, [
+        test.equal(userAndPosts, [
           {
             User: {id: user1, name: 'Bob'},
             Post: {id: post1, userId: user1, title: 'Post 1'}
@@ -135,7 +135,7 @@ export async function testDriver(
           .from(User)
           .leftJoin(Post, eq(Post.userId, 42))
           .where(eq(User.id, user1))
-        isEqual(noPosts, [
+        test.equal(noPosts, [
           {
             User: {id: user1, name: 'Bob'},
             Post: null
@@ -148,7 +148,7 @@ export async function testDriver(
           .rightJoin(User, eq(User.id, Post.userId))
           .where(eq(User.id, user2))
 
-        isEqual(rightJoin, [
+        test.equal(rightJoin, [
           {
             Post: null,
             User: {id: 2, name: 'Mario'}
@@ -178,7 +178,7 @@ export async function testDriver(
               eq(WithJson.data.arr[0], 1)
             )
           )
-        isEqual(row, {id: 1, data})
+        test.equal(row, {id: 1, data})
       } finally {
         await db.drop(WithJson)
       }
@@ -195,13 +195,13 @@ export async function testDriver(
               bool: true
             })
             const nodes = await tx.select().from(Node)
-            isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+            test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
             tx.rollback()
           })
         } catch (err) {
-          isEqual((<Error>err).message, 'Rollback')
+          test.equal((<Error>err).message, 'Rollback')
           const nodes = await asyncDb.select().from(Node)
-          isEqual(nodes, [])
+          test.equal(nodes, [])
         } finally {
           await asyncDb.drop(Node)
         }
@@ -215,14 +215,14 @@ export async function testDriver(
               bool: true
             })
             const nodes = tx.select().from(Node).all()
-            isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+            test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
             tx.rollback()
           })
           const nodes = syncDb.select().from(Node).all()
-          isEqual(nodes, [])
+          test.equal(nodes, [])
         } catch {
           const nodes = syncDb.select().from(Node).all()
-          isEqual(nodes, [])
+          test.equal(nodes, [])
         } finally {
           syncDb.drop(Node).run()
         }
@@ -238,12 +238,12 @@ export async function testDriver(
             bool: true
           })
           const nodes = yield* tx.select().from(Node)
-          isEqual(nodes, [{id: 1, textField: 'hello', bool: true}])
+          test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
           yield* tx.drop(Node)
           return 1
         })
       )
-      isEqual(result, 1)
+      test.equal(result, 1)
     })
 
     test('constraints and indexes', async () => {
@@ -257,7 +257,7 @@ export async function testDriver(
           colB: 1
         })
         const [row] = await db.select().from(TableB)
-        isEqual(row, {
+        test.equal(row, {
           isUnique: 1,
           hasRef: 1,
           colA: 1,
@@ -279,7 +279,7 @@ export async function testDriver(
       await db.insert(TableA).values({fieldA: 'hello', removeMe: 'world'})
 
       const node = await db.select().from(TableA).get()
-      isEqual(node, {id: 1, fieldA: 'hello', removeMe: 'world'})
+      test.equal(node, {id: 1, fieldA: 'hello', removeMe: 'world'})
 
       const TableB = table('Table', {
         id: id(),
@@ -289,7 +289,7 @@ export async function testDriver(
 
       await db.migrate(TableB)
       const newNode = await db.select().from(TableB).get()
-      isEqual(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
+      test.equal(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
     })
   })
 }

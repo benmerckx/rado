@@ -1,5 +1,5 @@
-import {isBun} from '../Suite.ts'
 import {testDriver} from '../TestDriver.ts'
+import {isBun} from '../TestRuntime.ts'
 
 async function createDb() {
   const {Database} = await import('bun:sqlite')

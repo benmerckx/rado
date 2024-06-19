@@ -1,6 +1,6 @@
 import {connect} from '../../src/driver/mysql2.ts'
-import {isDeno} from '../Suite.ts'
 import {testDriver} from '../TestDriver.ts'
+import {isDeno} from '../TestRuntime.ts'
 
 if (!isDeno && process.env.CI)
   await testDriver(import.meta, async () => {

@@ -1,11 +1,11 @@
+import {suite} from '@benmerckx/suite'
 import {sql} from '../../src/core/Sql.ts'
 import {table} from '../../src/core/Table.ts'
 import {QueryBuilder} from '../../src/postgres/PostgresBuilder.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
-import {suite} from '../Suite.ts'
 import {builder, emit} from '../TestUtils.ts'
 
-suite(import.meta, ({test, isEqual}) => {
+suite(import.meta, test => {
   const definition = {
     id: integer().primaryKey(),
     withDefault: integer().default(2),
@@ -21,7 +21,7 @@ suite(import.meta, ({test, isEqual}) => {
       required: 3,
       withDefault: sql<number>`${Node.required} + 1`
     })
-    isEqual(
+    test.equal(
       emit(query),
       'update "Node" set "nullable" = null, "required" = 3, "withDefault" = "required" + 1'
     )
@@ -32,6 +32,6 @@ suite(import.meta, ({test, isEqual}) => {
       .update(Node)
       .set({required: 3})
       .returning(Node.id)
-    isEqual(emit(query), 'update "Node" set "required" = 3 returning "id"')
+    test.equal(emit(query), 'update "Node" set "required" = 3 returning "id"')
   })
 })

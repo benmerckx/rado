@@ -1,11 +1,11 @@
+import {suite} from '@benmerckx/suite'
 import type {Builder} from '../../src/core/Builder.ts'
 import {table} from '../../src/core/Table.ts'
 import {eq} from '../../src/index.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
-import {suite} from '../Suite.ts'
 import {builder, emit} from '../TestUtils.ts'
 
-suite(import.meta, ({test, isEqual}) => {
+suite(import.meta, test => {
   const definition = {
     id: integer().primaryKey(),
     withDefault: integer().default(2),
@@ -20,21 +20,21 @@ suite(import.meta, ({test, isEqual}) => {
     .values({id: 1, required: 3})
 
   test('insert into', () => {
-    isEqual(
+    test.equal(
       emit(query),
       'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default)'
     )
   })
 
   test('returning', () => {
-    isEqual(
+    test.equal(
       emit(query.returning(Node.id)),
       'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) returning "id"'
     )
   })
 
   test('on conflict do nothing', () => {
-    isEqual(
+    test.equal(
       emit(
         query.onConflictDoNothing({
           target: Node.id,
@@ -46,7 +46,7 @@ suite(import.meta, ({test, isEqual}) => {
   })
 
   test('on conflict do update', () => {
-    isEqual(
+    test.equal(
       emit(
         query.onConflictDoUpdate({
           target: Node.id,

@@ -1,5 +1,5 @@
-import {isNode} from '../Suite.ts'
 import {testDriver} from '../TestDriver.ts'
+import {isNode} from '../TestRuntime.ts'
 
 if (isNode)
   await testDriver(import.meta, async () => {
