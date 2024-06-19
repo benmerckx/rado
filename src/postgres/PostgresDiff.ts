@@ -178,7 +178,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
           })
         )
       } else {
-        if (localInstruction.type !== schemaInstruction.type) {
+        if (inline(localInstruction.type) !== inline(schemaInstruction.type)) {
           stmts.push(
             sql.query({
               alterTable,
@@ -186,7 +186,10 @@ export const postgresDiff: Diff = (hasTable: Table) => {
             })
           )
         }
-        if (localInstruction.notNull !== schemaInstruction.notNull) {
+        if (
+          Boolean(localInstruction.notNull) !==
+          Boolean(schemaInstruction.notNull)
+        ) {
           stmts.push(
             sql.query({
               alterTable,
@@ -201,7 +204,9 @@ export const postgresDiff: Diff = (hasTable: Table) => {
         }
         const localDefault = localInstruction.defaultValue?.()
         const schemaDefault = schemaInstruction.defaultValue?.()
-        if (localDefault !== schemaDefault) {
+        const localDefaultStr = localDefault && inline(localDefault)
+        const schemaDefaultStr = schemaDefault && inline(schemaDefault)
+        if (localDefaultStr !== schemaDefaultStr) {
           stmts.push(
             sql.query({
               alterTable,
@@ -217,6 +222,6 @@ export const postgresDiff: Diff = (hasTable: Table) => {
       }
     }
 
-    return []
+    return stmts.map(inline)
   })
 }

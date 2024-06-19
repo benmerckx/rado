@@ -63,7 +63,6 @@ export class PGliteDriver implements AsyncDriver {
   }
 
   prepare(sql: string) {
-    console.log(sql)
     return new PreparedStatement(this.client, sql)
   }
 
