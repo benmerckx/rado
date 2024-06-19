@@ -12,6 +12,7 @@ import type {
   PrepareOptions
 } from '../core/Driver.ts'
 import {mysqlDialect} from '../mysql/MysqlDialect.ts'
+import {mysqlDiff} from '../mysql/MysqlDiff.ts'
 
 type Queryable = PromiseConnection | Pool | PoolConnection
 
@@ -110,6 +111,7 @@ function isPool(client: Queryable): client is Pool {
 export function connect(client: Queryable | Connection) {
   return new AsyncDatabase<'mysql'>(
     new Mysql2Driver('promise' in client ? client.promise() : client),
-    mysqlDialect
+    mysqlDialect,
+    mysqlDiff
   )
 }

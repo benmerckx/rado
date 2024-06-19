@@ -1,5 +1,6 @@
 import {suite} from '@benmerckx/suite'
 import type {Builder} from '../../src/core/Builder.ts'
+import type {IsPostgres} from '../../src/core/MetaData.ts'
 import {table} from '../../src/core/Table.ts'
 import {eq} from '../../src/index.ts'
 import {integer} from '../../src/sqlite/SqliteColumns.ts'
@@ -15,7 +16,7 @@ suite(import.meta, test => {
 
   const Node = table('Node', definition)
 
-  const query = (builder as Builder<{dialect: 'postgres'; mode: 'async'}>)
+  const query = (builder as Builder<IsPostgres>)
     .insert(Node)
     .values({id: 1, required: 3})
 
