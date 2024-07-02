@@ -56,7 +56,8 @@ const TableB = table(
 
 export async function testDriver(
   meta: ImportMeta,
-  createDb: () => Promise<Database>
+  createDb: () => Promise<Database>,
+  supportsDiff = true
 ) {
   const db = await createDb()
   const isAsync = db instanceof AsyncDatabase
@@ -268,28 +269,29 @@ export async function testDriver(
       }
     })
 
-    test('migrate', async () => {
-      const TableA = table('Table', {
-        id: id(),
-        fieldA: text(),
-        removeMe: text()
+    if (supportsDiff)
+      test('migrate', async () => {
+        const TableA = table('Table', {
+          id: id(),
+          fieldA: text(),
+          removeMe: text()
+        })
+
+        await db.create(TableA)
+        await db.insert(TableA).values({fieldA: 'hello', removeMe: 'world'})
+
+        const node = await db.select().from(TableA).get()
+        test.equal(node, {id: 1, fieldA: 'hello', removeMe: 'world'})
+
+        const TableB = table('Table', {
+          id: id(),
+          fieldB: text('fieldA'),
+          extraColumn: text()
+        })
+
+        await db.migrate(TableB)
+        const newNode = await db.select().from(TableB).get()
+        test.equal(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
       })
-
-      await db.create(TableA)
-      await db.insert(TableA).values({fieldA: 'hello', removeMe: 'world'})
-
-      const node = await db.select().from(TableA).get()
-      test.equal(node, {id: 1, fieldA: 'hello', removeMe: 'world'})
-
-      const TableB = table('Table', {
-        id: id(),
-        fieldB: text('fieldA'),
-        extraColumn: text()
-      })
-
-      await db.migrate(TableB)
-      const newNode = await db.select().from(TableB).get()
-      test.equal(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
-    })
   })
 }
