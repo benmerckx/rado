@@ -1,6 +1,8 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
+import {sql} from '../core/Sql.ts'
+import type {SelectData} from '../core/query/Select.ts'
 
 const BACKTICK = '`'
 const ESCAPE_BACKTICK = '``'
@@ -56,6 +58,19 @@ export const mysqlDialect = new Dialect(
     }
     emitLastInsertId() {
       this.sql += 'last_insert_id()'
+    }
+    emitInclude(data: SelectData) {
+      const requiresSubquery = Boolean(
+        data.limit || data.offset || data.orderBy
+      )
+      const inner = requiresSubquery
+        ? sql`select * from (${sql.chunk('emitSelect', data)})`
+        : sql.chunk('emitSelect', data)
+      const fields = data.select.selection!.fieldNames()
+      sql`(select json_arrayagg(json_array(${sql.join(
+        fields.map(name => sql`_.${sql.identifier(name)}`),
+        sql`, `
+      )})) from (${inner}) as _)`.emitTo(this)
     }
   }
 )

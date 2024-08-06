@@ -1,6 +1,8 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
+import {sql} from '../core/Sql.ts'
+import type {SelectData} from '../core/query/Select.ts'
 
 const DOUBLE_QUOTE = '"'
 const ESCAPE_DOUBLE_QUOTE = '""'
@@ -58,6 +60,20 @@ export const postgresDialect = new Dialect(
     }
     emitLastInsertId() {
       this.sql += 'lastval()'
+    }
+    emitInclude(data: SelectData) {
+      const requiresSubquery = Boolean(
+        data.limit || data.offset || data.orderBy
+      )
+      const inner = requiresSubquery
+        ? sql`select * from (${sql.chunk('emitSelect', data)})`
+        : sql.chunk('emitSelect', data)
+      if (!data.select.selection) throw new Error('No selection defined')
+      const fields = data.select.selection.fieldNames()
+      sql`(select json_agg(json_build_array(${sql.join(
+        fields.map(name => sql`_.${sql.identifier(name)}`),
+        sql`, `
+      )})) from (${inner}) as _)`.emitTo(this)
     }
   }
 )

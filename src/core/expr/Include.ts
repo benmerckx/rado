@@ -6,23 +6,25 @@ import {
   type HasSql
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
-import type {MapRowContext} from '../Selection.ts'
+import type {MapRowContext, RowOfRecord} from '../Selection.ts'
 import {sql, type Sql} from '../Sql.ts'
 import type {Select, SelectData} from '../query/Select.ts'
 
-// Todo: distinguish all vs one in type and mapping
+export interface IncludeData<Meta extends QueryMeta> extends SelectData<Meta> {
+  first: boolean
+}
 
-export class Include<Input, Meta extends QueryMeta = QueryMeta>
-  implements HasData<SelectData<Meta>>, HasSql
+export class Include<Result, Meta extends QueryMeta = QueryMeta>
+  implements HasData<IncludeData<Meta>>, HasSql<Result>
 {
-  private declare brand: [Input]
-  readonly [internalData]: SelectData<Meta>
+  private declare brand: [Result]
+  readonly [internalData]: IncludeData<Meta>
 
-  constructor(data: SelectData<Meta>) {
+  constructor(data: IncludeData<Meta>) {
     this[internalData] = data
   }
 
-  get [internalSql](): Sql {
+  get [internalSql](): Sql<Result> {
     const data = getData(this)
     const selection = data.select.selection!
     return sql.chunk('emitInclude', data).mapWith({
@@ -40,7 +42,7 @@ export class Include<Input, Meta extends QueryMeta = QueryMeta>
           ctx.index = 0
           rows[i] = selection.mapRow(ctx) as Array<unknown>
         }
-        return rows
+        return (data.first ? rows[0] : rows) as Result
       }
     })
   }
@@ -49,13 +51,19 @@ export class Include<Input, Meta extends QueryMeta = QueryMeta>
 export function include<Input, Meta extends QueryMeta>(
   select: Select<Input, Meta>
 ) {
-  return new Include<Input, Meta>(getData(select))
+  return new Include<Array<RowOfRecord<Input>>, Meta>({
+    ...getData(select),
+    first: false
+  })
 }
 
 export namespace include {
   export function one<Input, Meta extends QueryMeta>(
     select: Select<Input, Meta>
   ) {
-    return new Include<Input, Meta>(getData(select))
+    return new Include<RowOfRecord<Input>, Meta>({
+      ...getData(select),
+      first: true
+    })
   }
 }

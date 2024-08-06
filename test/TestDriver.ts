@@ -301,6 +301,28 @@ export async function testDriver(
           {id: 2, userId: user1, title: 'Post 2'}
         ]
       })
+      const postsWithUser = await db
+        .select({
+          ...Post,
+          user: include.one(
+            db.select().from(User).where(eq(User.id, Post.userId))
+          )
+        })
+        .from(Post)
+      test.equal(postsWithUser, [
+        {
+          id: 1,
+          userId: user1,
+          title: 'Post 1',
+          user: {id: user1, name: 'Bob'}
+        },
+        {
+          id: 2,
+          userId: user1,
+          title: 'Post 2',
+          user: {id: user1, name: 'Bob'}
+        }
+      ])
       await db.drop(User, Post)
     })
 

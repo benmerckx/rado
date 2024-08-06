@@ -29,15 +29,13 @@ export type RowOfRecord<Input> = Expand<{
 }>
 export type SelectionRow<Input> = Input extends HasSql<infer Value>
   ? Value
-  : Input extends Include<infer IncludeInput>
-    ? RowOfRecord<IncludeInput>
-    : Input extends IsNullable
-      ? RowOfRecord<Input> | null
-      : Input extends SelectionRecord
-        ? RowOfRecord<Input>
-        : Input extends Table<infer Definition>
-          ? TableRow<Definition>
-          : never
+  : Input extends IsNullable
+    ? RowOfRecord<Input> | null
+    : Input extends SelectionRecord
+      ? RowOfRecord<Input>
+      : Input extends Table<infer Definition>
+        ? TableRow<Definition>
+        : never
 
 export interface MapRowContext {
   values: Array<unknown>

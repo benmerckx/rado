@@ -2,6 +2,8 @@ import {Builder} from '../src/core/Builder.ts'
 import {Dialect} from '../src/core/Dialect.ts'
 import {Emitter} from '../src/core/Emitter.ts'
 import type {HasQuery, HasSql} from '../src/core/Internal.ts'
+import type {QueryMeta} from '../src/core/MetaData.ts'
+import type {SelectData} from '../src/index.ts'
 
 const testDialect = new Dialect(
   class extends Emitter {
@@ -28,6 +30,9 @@ const testDialect = new Dialect(
     }
     emitLastInsertId(): void {
       this.sql += 'last_insert_id()'
+    }
+    emitInclude(data: SelectData<QueryMeta>): void {
+      throw new Error('Not implemented')
     }
   }
 ).emit

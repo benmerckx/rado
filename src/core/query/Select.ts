@@ -47,7 +47,6 @@ export interface SelectData<Meta extends QueryMeta = QueryMeta>
   distinct?: boolean
   distinctOn?: Array<HasSql>
   from?: HasSql
-  subject?: HasSql
   where?: HasSql
   groupBy?: HasSql
   having?: HasSql
