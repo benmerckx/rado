@@ -4,7 +4,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && bun build.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && bun build.ts",
     "size": "esbuild src/index.ts --bundle --minify --format=esm --outdir=dist",
     "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
     "prepublishOnly": "rm -rf dist && bun run build",
