@@ -5,6 +5,7 @@ import {
   type SyncDatabase
 } from '../src/core/Database.ts'
 import {table} from '../src/core/Table.ts'
+import {include} from '../src/core/expr/Include.ts'
 import {and, eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
 import {
   boolean,
@@ -269,6 +270,40 @@ export async function testDriver(
       }
     })
 
+    test('include', async () => {
+      const User = table('User', {
+        id: id(),
+        name: text().notNull()
+      })
+      const Post = table('Post', {
+        id: id(),
+        userId: integer().notNull(),
+        title: text().notNull()
+      })
+      await db.create(User, Post)
+      await db.insert(User).values({name: 'Bob'})
+      const user1 = await db.select(lastInsertId()).get()
+      await db.insert(Post).values({userId: user1, title: 'Post 1'})
+      await db.insert(Post).values({userId: user1, title: 'Post 2'})
+      const posts = include(
+        db.select().from(Post).where(eq(Post.userId, User.id))
+      )
+      const result = await db
+        .select({...User, posts})
+        .from(User)
+        .where(eq(User.id, user1))
+        .get()
+      test.equal(result, {
+        id: user1,
+        name: 'Bob',
+        posts: [
+          {id: 1, userId: user1, title: 'Post 1'},
+          {id: 2, userId: user1, title: 'Post 2'}
+        ]
+      })
+      await db.drop(User, Post)
+    })
+
     if (supportsDiff)
       test('migrate', async () => {
         const TableA = table('Table', {
@@ -292,6 +327,7 @@ export async function testDriver(
         await db.migrate(TableB)
         const newNode = await db.select().from(TableB).get()
         test.equal(newNode, {id: 1, fieldB: 'hello', extraColumn: null})
+        await db.drop(TableB)
       })
   })
 }

@@ -11,12 +11,17 @@ import {sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
 import {virtual} from './Virtual.ts'
+import type {Include} from './expr/Include.ts'
 
 declare const nullable: unique symbol
 export interface SelectionRecord extends Record<string, SelectionInput> {}
 export type IsNullable = {[nullable]: true}
 export type MakeNullable<T> = Expand<{[K in keyof T]: T[K] & IsNullable}>
-export type SelectionInput = HasSql | HasTable | SelectionRecord
+export type SelectionInput =
+  | HasSql
+  | HasTable
+  | SelectionRecord
+  | Include<unknown>
 export type RowOfRecord<Input> = Expand<{
   [Key in keyof Input as Key extends string ? Key : never]: SelectionRow<
     Input[Key]
@@ -24,13 +29,15 @@ export type RowOfRecord<Input> = Expand<{
 }>
 export type SelectionRow<Input> = Input extends HasSql<infer Value>
   ? Value
-  : Input extends IsNullable
-    ? RowOfRecord<Input> | null
-    : Input extends SelectionRecord
-      ? RowOfRecord<Input>
-      : Input extends Table<infer Definition>
-        ? TableRow<Definition>
-        : never
+  : Input extends Include<infer IncludeInput>
+    ? RowOfRecord<IncludeInput>
+    : Input extends IsNullable
+      ? RowOfRecord<Input> | null
+      : Input extends SelectionRecord
+        ? RowOfRecord<Input>
+        : Input extends Table<infer Definition>
+          ? TableRow<Definition>
+          : never
 
 export interface MapRowContext {
   values: Array<unknown>
@@ -83,17 +90,18 @@ class ObjectColumn implements Column {
 }
 
 export class Selection implements HasSql {
-  #input: SelectionInput
   mapRow: (ctx: MapRowContext) => unknown
 
-  constructor(input: SelectionInput, nullable: Set<string>) {
-    this.#input = input
+  constructor(
+    public input: SelectionInput,
+    public nullable: Set<string>
+  ) {
     const root = this.#defineColumn(nullable, input)
     this.mapRow = root.result.bind(root)
   }
 
   makeVirtual(name: string) {
-    return virtual(name, this.#input)
+    return virtual(name, this.input)
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
@@ -109,7 +117,27 @@ export class Selection implements HasSql {
   }
 
   get [internalSql]() {
-    return this.#selectionToSql(this.#input, new Set())
+    return this.#selectionToSql(this.input, new Set())
+  }
+
+  fieldNames() {
+    return this.#fieldNames(this.input, new Set())
+  }
+
+  #fieldNames(
+    input: SelectionInput,
+    names: Set<string>,
+    name?: string
+  ): Array<string> {
+    const expr = getSql(input as HasSql)
+    if (expr) {
+      const exprName = name ?? expr.alias
+      if (!exprName) throw new Error('Missing field name')
+      return [exprName]
+    }
+    return Object.entries(input).flatMap(([name, value]) =>
+      this.#fieldNames(value, names, name)
+    )
   }
 
   #selectionToSql(
@@ -143,7 +171,7 @@ export class Selection implements HasSql {
 
 export function selection(
   input: SelectionInput,
-  nullable: Set<string> = new Set()
+  nullable: Array<string> = []
 ): Selection {
-  return new Selection(input, nullable)
+  return new Selection(input, new Set(nullable))
 }

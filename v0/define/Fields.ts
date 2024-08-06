@@ -1,5 +1,5 @@
 import {Column} from './Column.js'
-import {Expr, ObjectExpr} from './Expr.js'
+import type {Expr, ObjectExpr} from './Expr.js'
 
 // Source: https://www.steveruiz.me/posts/smooshed-object-union
 type ObjectUnion<T> = {
@@ -21,10 +21,10 @@ type FieldsOf<Row> = [Row] extends [Record<string, any>]
 type Field<T> = [NonNullable<T>] extends [{[Column.IsPrimary]: any}]
   ? Expr<T>
   : [NonNullable<T>] extends [Array<any>]
-  ? Expr<T>
-  : [NonNullable<T>] extends [object]
-  ? ObjectField<T>
-  : Expr<T>
+    ? Expr<T>
+    : [NonNullable<T>] extends [object]
+      ? ObjectField<T>
+      : Expr<T>
 
 // Source: https://stackoverflow.com/a/61625831/5872160
 type IsStrictlyAny<T> = (T extends never ? true : false) extends false

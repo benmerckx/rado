@@ -2,7 +2,6 @@ import type {ColumnData} from './Column.ts'
 import {
   getData,
   getQuery,
-  getSelection,
   getTable,
   getTarget,
   type HasQuery,
@@ -14,7 +13,7 @@ import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Insert} from './query/Insert.ts'
-import type {Select} from './query/Select.ts'
+import type {SelectData} from './query/Select.ts'
 import type {Union} from './query/Union.ts'
 import type {Update} from './query/Update.ts'
 
@@ -47,6 +46,7 @@ export abstract class Emitter {
   abstract emitDefaultValue(): void
   abstract emitLastInsertId(): void
   abstract emitIdColumn(): void
+  abstract emitInclude(data: SelectData): void
 
   emitUnsafe(value: string): void {
     this.sql += value
@@ -126,27 +126,26 @@ export abstract class Emitter {
       .emitTo(this)
   }
 
-  emitSelect(select: Select<unknown>): void {
-    const {
-      cte,
-      from,
-      distinct,
-      distinctOn,
-      where,
-      groupBy,
-      orderBy,
-      having,
-      limit,
-      offset
-    } = getData(select)
+  emitSelect({
+    select,
+    cte,
+    from,
+    distinct,
+    distinctOn,
+    where,
+    groupBy,
+    orderBy,
+    having,
+    limit,
+    offset
+  }: SelectData): void {
     if (cte) this.emitWith(cte)
-    const selected = getSelection(select)
     const prefix = distinctOn
       ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
       : distinct && sql`distinct`
     sql
       .query({
-        select: sql.join([prefix, selected]),
+        select: sql.join([prefix, select.selection]),
         from,
         where,
         groupBy,

@@ -15,6 +15,7 @@ export const internalTable = Symbol()
 export const internalField = Symbol()
 export const internalResolver = Symbol()
 export const internalConstraint = Symbol()
+export const internalInclude = Symbol()
 
 export declare class HasData<Data> {
   get [internalData](): Data
@@ -49,7 +50,6 @@ export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
 export declare class HasConstraint {
   get [internalConstraint](): Sql
 }
-
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
   internalData in obj
 export const getData = <Data>(obj: HasData<Data>) => obj[internalData]

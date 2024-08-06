@@ -12,7 +12,7 @@ import {
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
-import type {SelectionInput} from './Selection.ts'
+import {selection, type SelectionInput} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {DeleteFrom} from './query/Delete.ts'
@@ -41,9 +41,8 @@ class BuilderBase<Meta extends QueryMeta> {
       ...getData(this),
       select: {
         type: input ? 'selection' : 'allFrom',
-        input,
-        tables: [],
-        nullable: []
+        selection: input && selection(input),
+        tables: []
       }
     })
   }
@@ -57,9 +56,8 @@ class BuilderBase<Meta extends QueryMeta> {
       ...getData(this),
       select: {
         type: input ? 'selection' : 'allFrom',
-        input,
-        tables: [],
-        nullable: []
+        selection: input && selection(input),
+        tables: []
       },
       distinct: true
     })
@@ -74,14 +72,13 @@ class BuilderBase<Meta extends QueryMeta> {
     columns: Array<HasSql>,
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinctOn(columns: any, selection?: any): any {
+  selectDistinctOn(columns: any, input?: any): any {
     return new Select({
       ...getData(this),
       select: {
-        type: selection ? 'selection' : 'allFrom',
-        input: selection,
-        tables: [],
-        nullable: []
+        type: input ? 'selection' : 'allFrom',
+        selection: input && selection(input),
+        tables: []
       },
       distinctOn: columns
     })
