@@ -1,3 +1,6 @@
+export {index, uniqueIndex} from './core/Index.ts'
+export {schema as pgSchema} from './core/Schema.ts'
+export {alias, table as pgTable} from './core/Table.ts'
+export * from './postgres/PostgresBuilder.ts'
 export * from './postgres/PostgresColumns.ts'
 export * from './postgres/PostgresDialect.ts'
-export * from './postgres/PostgresTable.ts'
