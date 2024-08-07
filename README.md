@@ -3,11 +3,9 @@
 # rado
 
 Fully typed, lightweight TypeScript query builder.
-Currently focused on SQLite.
 
 - Definition via TypeScript types
 - Composable queries
-- Aggregate rows in selects
 - First class JSON columns
 - No code generation step
 - No dependencies
@@ -18,39 +16,21 @@ Currently focused on SQLite.
 
 #### Where
 
-Conditions can be created by accessing the fields of the table
-instances and using the operators of `Expr`:
+Conditions can be created by accessing the fields of the table:
 
 ```ts
-User.id // This is an Expr<number> which has an `is` method to compare
-User.id.is(1) // Compare with a value, results in an Expr<boolean>
-User.id.is(Post.userId) // Compare to fields on other tables
+import {eq} from 'rado'
+eq(User.id.is, 1) // Compare with a value
+eq(User.id, Post.userId) // Compare to fields on other tables
 ```
 
 Rows can be selected by passing the condition in the where method:
 
 ```ts
-// Call a table instance to start a query selecting from that table
-User().where(User.id.is(1))
+import {eq, or, gt, lt} from 'rado'
+db.select().from(User).where(eq(User.id, 1))
 // Conditions can be as complex as you want
-User().where(User.id.isGreater(1).and(User.id.isLess(5)))
-// `And` conditions can also be comma separated in `where` to improve readability
-User().where(User.id.isGreater(1), User.id.isLess(5))
-```
-
-There's a shortcut for comparing columns of a table directly in its call.
-The first comparison above can be simplified to:
-
-```ts
-User({id: 1}) // Is the same as User().where(User.id.is(1))
-```
-
-This comes in handy when joining tables too:
-
-```ts
-User({id: 1}).innerJoin(Post({userId: User.id}))
-// Is equal to:
-User().innerJoin(Post, Post.userId.is(User.id)).where(User.id.is(1))
+db.select().from(User).where(or(gt(User.id, 1), lt(User.id, 5)))
 ```
 
 #### Select
@@ -58,75 +38,40 @@ User().innerJoin(Post, Post.userId.is(User.id)).where(User.id.is(1))
 Retrieve a single field
 
 ```ts
-User().select(User.name)
+db.select(User.name).from(User)
 ```
 
 Or an object of data
 
 ```ts
-User().select({
-  ...User, // Get all user fields: id, username
-  posts: Post({userId: User.id}) // Aggregate posts of this user
-})
-```
-
-You can call the `posts` helper method defined in the example schema below
-to achieve the same:
-
-```ts
-User().select({
+import {eq, include} from 'rado'
+db.select({
+   // Get all user fields: id, username
   ...User,
-  posts: User.posts()
-})
-```
-
-Retrieve all posts with their author and tags and count the tag usage in other
-posts:
-
-```ts
-import {count} from 'rado/sqlite'
-// Alias tables using `as`
-const pt = PostTags().as('pt')
-Post().select({
-  ...Post,
-  author: Post.author().select(User.username),
-  tags: Post.tags().select({
-    count: pt({tagId: Tag.id}).select(count()).first(),
-    name: Tag.name
-  })
-})
+  // Aggregate posts of this user
+  posts: include(db.select().from(Post).where(eq(Post.userId, User.id))) 
+}).from(User)
 ```
 
 Join other tables and select fields from either table:
 
 ```ts
-User({id: 1}).innerJoin(Post({userId: User.id})).select({
-  username: User.username
-  post: Post
-})
-```
-
-Create expressions to select complex values:
-
-```ts
-import {iif} from 'rado/sqlite'
-Person().select({
-  name: Person.firstName.concat(' ').concat(Person.lastName),
-  isMario: Person.firstName.is('Mario'),
-  isActor: Person.id.isIn(Actor().select(Actor.personId)),
-  email: iif(Person.email.isNotNull(), Person.email, 'its.me@mario'),
-  twitterHandle: Person.socialMedia
-    .filter(media => media.type.is('twitter'))
-    .map(media => media.handle)
-    .maybeFirst()
-})
+db
+  .select({
+    username: User.username
+    post: Post
+  })
+  .from(User)
+  .innerJoin(Post, eq(Post.userId, User.id))
+  .where(eq(User.id, 1))
 ```
 
 Order, group, limit queries:
 
 ```ts
-User()
-  .orderBy(User.username.asc())
+import {asc} from 'rado'
+db.select().from(User)
+  .orderBy(asc(User.username))
   .groupBy(User.id, User.username)
   .skip(20)
   .take(10)
@@ -134,16 +79,16 @@ User()
 
 #### Insert
 
-Insert a single row and return the result:
+Insert a single row:
 
 ```ts
-User().insertOne({username: 'Mario'})
+db.insert(User).values({username: 'Mario'})
 ```
 
 Insert multiple rows:
 
 ```ts
-User().insertAll([{username: 'Mario'}, {username: 'Luigi'}])
+db.insert(User).values([{username: 'Mario'}, {username: 'Luigi'}])
 ```
 
 #### Update
@@ -151,14 +96,17 @@ User().insertAll([{username: 'Mario'}, {username: 'Luigi'}])
 Set values
 
 ```ts
-User({id: 1}).set({username: 'Bowser'})
+db.update(User)
+  .set({username: 'Bowser'})
+  .where(eq(User.id, 1))
 ```
 
 Use expressions to update complex values:
 
 ```ts
-User()
-  .set({username: User.username.concat(' [removed]')})
+import {concat} from 'rado/sqlite'
+db.update(User)
+  .set({username: concat(User.username, ' [removed]')})
   .where(User.deleted)
 ```
 
@@ -167,62 +115,49 @@ User()
 Delete rows
 
 ```ts
-User({id: 1}).delete()
+db.delete(User).where(eq(User.id, 1))
 ```
 
 ## Schema definition
 
 ```ts
-import {table, column} from 'rado'
+import * as sqlite from 'rado/sqlite'
+import {sqliteTable as table} from 'rado/sqlite'
 
 const User = table({
-  // Pass a definition under a key with the actual name of the table in database
-  user: class {
-    id = column.integer.primaryKey()
-    username = column.string
-
-    // Define helper methods directly on the model
-    posts() {
-      return Post({userId: this.id})
-    }
-  }
+  id: sqlite.integer().primaryKey(),
+  userName: sqlite.text('user') // Column names are optional
 })
 
 const Post = table({
-  post: class {
-    id = column.integer.primaryKey()
-    userId = column.integer.references(() => User.id)
-    content = column.string
-
-    author() {
-      return User({id: this.userId}).first()
-    }
-
-    tags() {
-      return Tag({id: PostTags.tagId}).innerJoin(PostTags({postId: this.id}))
-    }
-  }
+  id: sqlite.integer().primaryKey(),
+  userId: sqlite.integer().references(() => User.id),
+  content: sqlite.text()
 })
 
 const Tag = table({
-  tag: class {
-    id = column.integer.primaryKey()
-    name = column.string
-  }
+  id: sqlite.integer().primaryKey(),
+  name: sqlite.text()
 })
 
 const PostTags = table({
-  post_tag: class {
-    postId = column.integer.references(() => Post.id)
-    tagId = column.integer.references(() => Tag.id)
-  }
+  postId: sqlite.integer().references(() => Post.id),
+  tagId: sqlite.integer().references(() => Tag.id)
 })
 ```
 
 ## Connections
 
-Currently supported SQLite drivers:
-`better-sqlite3`, `sql.js`, `sqlite3`, `bun:sqlite`, `@sqlite.org/sqlite-wasm`
+Currently supported drivers:
+
+| Driver           | import                         |
+| ---------------- | ------------------------------ |
+| `better-sqlite3` | `'rado/driver/better-sqlite3'` |
+| `bun-sqlite`     | `'rado/driver/bun-sqlite'`     |
+| `mysql2`         | `'rado/driver/mysql2'`         |
+| `pg`             | `'rado/driver/pg'`             |
+| `pglite`         | `'rado/driver/pglite'`         |
+| `sql.js`         | `'rado/driver/sql.js'`         |
 
 Pass an instance of the database to the `connect` function to get started:
 
@@ -233,32 +168,16 @@ import {connect} from 'rado/driver/better-sqlite3'
 const db = connect(new Database('foobar.db'))
 ```
 
-Currently all drivers are synchronous except for the `sqlite3` driver which is
-async.
 
 #### Run queries
 
 Call the connection with a query to retrieve its results:
 
 ```ts
-const posts = db(Post())
+// For sync drivers this will be an array:
+const posts = db.select().from(Post).all()
 // For async drivers this will be a Promise:
-const posts = await db(Post())
-```
-
-#### Iterate results
-
-Iterate over query results:
-
-```ts
-const allPosts = Post()
-for (const row of db.iterate(allPosts)) {
-  console.log(row)
-}
-// For async drivers:
-for await (const row of db.iterate(allPosts)) {
-  console.log(row)
-}
+const posts = await db.select().from(Post)
 ```
 
 #### Transactions
@@ -268,10 +187,9 @@ and can optionally return a result:
 
 ```ts
 const firstUserId = db.transaction(tx => {
-  const createTable = User().create()
+  const createTable = db.create(User)
   tx(createTable)
-  const insertUser = User().insertOne({username: 'Mario'})
-  tx(insertUser)
-  return insertUser.id
+  const insertUser = db.insert(User).values({username: 'Mario'}).returning(User.id)
+  return tx(insertUser)
 })
 ```

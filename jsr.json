@@ -1,5 +1,8 @@
 {
   "name": "@rado/rado",
   "version": "1.0.0",
-  "exports": "./src/index.ts"
+  "exports": "./src/index.ts",
+  "publish": {
+    "include": ["README.md", "LICENSE", "src"]
+  }
 }
