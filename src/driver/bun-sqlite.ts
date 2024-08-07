@@ -65,10 +65,6 @@ class BunSqliteDriver implements SyncDriver {
   }
 }
 
-export function connect(db: Client) {
-  return new SyncDatabase<'sqlite'>(
-    new BunSqliteDriver(db),
-    sqliteDialect,
-    sqliteDiff
-  )
+export function connect(db: Client): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(new BunSqliteDriver(db), sqliteDialect, sqliteDiff)
 }

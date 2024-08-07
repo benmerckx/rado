@@ -89,6 +89,6 @@ class SqlJsDriver implements SyncDriver {
   }
 }
 
-export function connect(db: Client) {
+export function connect(db: Client): SyncDatabase<'sqlite'> {
   return new SyncDatabase(new SqlJsDriver(db), sqliteDialect, sqliteDiff)
 }

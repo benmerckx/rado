@@ -77,8 +77,8 @@ class BetterSqlite3Driver implements SyncDriver {
   }
 }
 
-export function connect(db: Client) {
-  return new SyncDatabase<'sqlite'>(
+export function connect(db: Client): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(
     new BetterSqlite3Driver(db),
     sqliteDialect,
     sqliteDiff

@@ -9,7 +9,7 @@ const SINGLE_QUOTE = "'"
 const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
-export const sqliteDialect = new Dialect(
+export const sqliteDialect: Dialect = new Dialect(
   class extends Emitter {
     jsonArrayFn = 'json_array'
     jsonGroupFn = 'json_group_array'

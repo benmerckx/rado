@@ -1,4 +1,4 @@
-import type {Pool, Client, PoolClient} from 'pg'
+import type {Client, Pool, PoolClient} from 'pg'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
@@ -39,11 +39,11 @@ class PreparedStatement implements AsyncStatement {
     )
   }
 
-  get(params: Array<unknown>) {
+  get(params: Array<unknown>): Promise<object> {
     return this.all(params).then(rows => rows[0] ?? null)
   }
 
-  values(params: Array<unknown>) {
+  values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
     return this.client
       .query({
         name: this.name,
@@ -69,7 +69,7 @@ export class PgDriver implements AsyncDriver {
     await this.client.query(query)
   }
 
-  prepare(sql: string, options?: PrepareOptions) {
+  prepare(sql: string, options?: PrepareOptions): PreparedStatement {
     return new PreparedStatement(this.client, sql, options?.name)
   }
 
@@ -111,10 +111,6 @@ export class PgDriver implements AsyncDriver {
   }
 }
 
-export function connect(client: Queryable) {
-  return new AsyncDatabase<'postgres'>(
-    new PgDriver(client),
-    postgresDialect,
-    postgresDiff
-  )
+export function connect(client: Queryable): AsyncDatabase<'postgres'> {
+  return new AsyncDatabase(new PgDriver(client), postgresDialect, postgresDiff)
 }

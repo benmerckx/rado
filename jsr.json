@@ -1,8 +1,18 @@
 {
   "name": "@rado/rado",
   "version": "1.0.0",
-  "exports": "./src/index.ts",
   "publish": {
     "include": ["README.md", "LICENSE", "src"]
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./sqlite": "./src/sqlite.ts",
+    "./mysql": "./src/mysql.ts",
+    "./postgres": "./src/postgres.ts",
+    "./driver/better-sqlite3": "./src/driver/better-sqlite3.ts",
+    "./driver/mysql2": "./src/driver/mysql2.ts",
+    "./driver/pg": "./src/driver/pg.ts",
+    "./driver/pglite": "./src/driver/pglite.ts",
+    "./driver/sql.js": "./src/driver/sql.js.ts"
   }
 }

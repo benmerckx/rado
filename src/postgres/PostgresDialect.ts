@@ -9,7 +9,7 @@ const SINGLE_QUOTE = "'"
 const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
-export const postgresDialect = new Dialect(
+export const postgresDialect: Dialect = new Dialect(
   class extends Emitter {
     paramIndex = 0
     jsonArrayFn = 'json_build_array'

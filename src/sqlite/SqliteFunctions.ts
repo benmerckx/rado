@@ -3,15 +3,12 @@ import {sql, type Sql} from '../core/Sql.ts'
 import {Functions} from '../core/expr/Functions.ts'
 import {input, type Input} from '../core/expr/Input.ts'
 
-const SqliteFunctions = <SqliteFunctions>Functions
-
-interface SqliteFunctions extends Functions {
-  /*
+/*
   json(json: HasSql): HasSql
   jsonb(json: HasSql): HasSql
-  json_array<T>(...values: Sql<T>): Sql<Array<T>>
-  jsonb_array<T>(...values: Sql<T>): Sql<Array<T>>
-  json_array_length(json: Sql<Array<unknown>>): Sql<number>
+  json_array<T>(...values: Sql<T>) => Sql<Array< = Functions.T>>
+  jsonb_array<T>(...values: Sql<T>) => Sql<Array< = Functions.T>>
+  json_array_length(json: Sql<Array<unknown>>) => Sql<number> = Functions.
   json_array_length(json,path)
   json_error_position(json)
   json_extract(json,path,...)
@@ -38,344 +35,317 @@ interface SqliteFunctions extends Functions {
   json_group_object(label,value)
   jsonb_group_object(name,value)*/
 
-  /** The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
-  count(x?: HasSql): Sql<number>
+/**:  The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
+export const count: (x?: HasSql) => Sql<number> = Functions.count
 
-  /** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE HasSql "CASE WHEN X THEN Y ELSE Z END".*/
-  iif<T>(x: Input<boolean>, y: Input<T>, z: Input<T>): Sql<T>
+/** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE HasSql "CASE WHEN X THEN Y ELSE Z END".*/
+export const iif: <T>(x: Input<boolean>, y: Input<T>, z: Input<T>) => Sql<T> =
+  Functions.iif
 
-  /**
-   * The EXISTS operator always evaluates to one of the integer values 0 and 1. If executing the SELECT statement specified as the right-hand operand of the EXISTS operator would return one or more rows, then the EXISTS operator evaluates to 1. If executing the SELECT would return no rows at all, then the EXISTS operator evaluates to 0.
-   */
-  exists(cursor: HasQuery): Sql<boolean>
+/**
+ * The EXISTS operator always evaluates to one of the integer values 0 and 1. If executing the SELECT statement specified as the right-hand operand of the EXISTS operator would return one or more rows, then the EXISTS operator evaluates to 1. If executing the SELECT would return no rows at all, then the EXISTS operator evaluates to 0.
+ */
+export const exists: (cursor: HasQuery) => Sql<boolean> = Functions.exists
 
-  /** Use the match operator for the FTS5 module */
-  match(table: HasTable, searchTerm: Input<string>): Sql<boolean>
+/** Use the match operator for the FTS5 module */
+export const match: (
+  table: HasTable,
+  searchTerm: Input<string>
+) => Sql<boolean> = Functions.match
 
-  /** Returns a real value reflecting the accuracy of the current match */
-  bm25(table: HasTable, ...weights: Array<Input<number>>): Sql<number>
+/** Returns a real value reflecting the accuracy of the current match */
+export const bm25: (
+  table: HasTable,
+  ...weights: Array<Input<number>>
+) => Sql<number> = Functions.bm25
 
-  /** The highlight() function returns a copy of the text from a specified column of the current row with extra markup text inserted to mark the start and end of phrase matches. */
-  highlight(
-    table: HasTable,
-    index: Input<number>,
-    insertBefore: Input<string>,
-    insertAfter: Input<string>
-  ): Sql<string>
+/** The highlight() function returns a copy of the text from a specified column of the current row with extra markup text inserted to mark the start and end of phrase matches. */
+export const highlight: (
+  table: HasTable,
+  index: Input<number>,
+  insertBefore: Input<string>,
+  insertAfter: Input<string>
+) => Sql<string> = Functions.highlight
 
-  /** The snippet() function is similar to highlight(), except that instead of returning entire column values, it automatically selects and extracts a short fragment of document text to process and return. */
-  snippet(
-    table: HasTable,
-    index: Input<number>,
-    insertBefore: Input<string>,
-    insertAfter: Input<string>,
-    snip: Input<string>,
-    maxTokens: Input<number>
-  ): Sql<string>
+/** The snippet() function is similar to highlight(), except that instead of returning entire column values, it automatically selects and extracts a short fragment of document text to process and return. */
+export const snippet: (
+  table: HasTable,
+  index: Input<number>,
+  insertBefore: Input<string>,
+  insertAfter: Input<string>,
+  snip: Input<string>,
+  maxTokens: Input<number>
+) => Sql<string> = Functions.snippet
 
-  // =====================================================
-  // https://www.sqlite.org/lang_corefunc.html
-  // =====================================================
+// =====================================================
+// https://www.sqlite.org/lang_corefunc.html
+// =====================================================
 
-  /** The abs(X) function returns the absolute value of the numeric argument X. Abs(X) returns NULL if X is NULL. Abs(X) returns 0.0 if X is a string or blob that cannot be converted to a numeric value. If X is the numbereger -9223372036854775808 then abs(X) throws an numbereger overflow error since there is no equivalent positive 64-bit two complement value.*/
-  abs(x: Input<number>): Sql<number>
+/** The abs(X) function returns the absolute value of the numeric argument X. Abs(X) returns NULL if X is NULL. Abs(X) returns 0.0 if X is a string or blob that cannot be converted to a numeric value. If X is the numbereger -9223372036854775808 then abs(X) throws an numbereger overflow error since there is no equivalent positive 64-bit two complement value.*/
+export const abs: (x: Input<number>) => Sql<number> = Functions.abs
 
-  /** The changes() function returns the number of database rows that were changed or inserted or deleted by the most recently completed INSERT, DELETE, or UPDATE statement, exclusive of statements in lower-level triggers. The changes() SQL function is a wrapper around the sqlite3_changes() C/C++ function and hence follows the same rules for counting changes.*/
-  changes(): Sql<number>
+/** The changes() function returns the number of database rows that were changed or inserted or deleted by the most recently completed INSERT, DELETE, or UPDATE statement, exclusive of statements in lower-level triggers. The changes() SQL function is a wrapper around the sqlite3_changes() C/C++ function and hence follows the same rules for counting changes.*/
+export const changes: () => Sql<number> = Functions.changes
 
-  /** The char(X1,X2,...,XN) function returns a string composed of characters having the unicode code ponumber values of numberegers X1 through XN, respectively.*/
-  char(...arg: Array<Input<number>>): Sql<string>
+/** The char(X1,X2,...,XN) function returns a string composed of characters having the unicode code ponumber values of numberegers X1 through XN, respectively.*/
+export const char: (...arg: Array<Input<number>>) => Sql<string> =
+  Functions.char
 
-  /** The coalesce() function returns a copy of its first non-NULL argument, or NULL if all arguments are NULL. Coalesce() must have at least 2 arguments.*/
-  coalesce(x: Input, y: Input, ...rest: Array<Input>): Sql
+/** The coalesce() function returns a copy of its first non-NULL argument, or NULL if all arguments are NULL. Coalesce() must have at least 2 arguments.*/
+export const coalesce: (x: Input, y: Input, ...rest: Array<Input>) => Sql =
+  Functions.coalesce
 
-  /** The hex() function numbererprets its argument as a BLOB and returns a string which is the upper-case hexadecimal rendering of the content of that blob. If the argument X in "hex(X)" is an numbereger or numbering ponumber number, then "numbererprets its argument as a BLOB" means that the binary number is first converted numbero a UTF8 text representation, then that text is numbererpreted as a BLOB. Hence, "hex(12345678)" renders as "3132333435363738" not the binary representation of the numbereger value "0000000000BC614E".*/
-  // hex(x:Input<Bytes>): Sql<string> {
-  //  return new HasSql(Call('hex', [expr(x)]));
-  // }
+/** The hex() function numbererprets its argument as a BLOB and returns a string which is the upper-case hexadecimal rendering of the content of that blob. If the argument X in "hex(X)" is an numbereger or numbering ponumber number, then "numbererprets its argument as a BLOB" means that the binary number is first converted numbero a UTF8 text representation, then that text is numbererpreted as a BLOB. Hence, "hex(12345678)" renders as "3132333435363738" not the binary representation of the numbereger value "0000000000BC614E".*/
+export const hex: (x: Input) => Sql<string> = Functions.hex
 
-  /** The ifnull() function returns a copy of its first non-NULL argument, or NULL if both arguments are NULL. Ifnull() must have exactly 2 arguments. The ifnull() function is equivalent to coalesce() with two arguments.*/
-  ifnull<T>(x: Input<T>, y: Input<T>): Sql<T>
+/** The ifnull() function returns a copy of its first non-NULL argument, or NULL if both arguments are NULL. Ifnull() must have exactly 2 arguments. The ifnull() function is equivalent to coalesce() with two arguments.*/
+export const ifnull: <T>(x: Input<T>, y: Input<T>) => Sql<T> = Functions.ifnull
 
-  /** The instr(X,Y) function finds the first occurrence of string Y within string X and returns the number of prior characters plus 1, or 0 if Y is nowhere found within X. Or, if X and Y are both BLOBs, then instr(X,Y) returns one more than the number bytes prior to the first occurrence of Y, or 0 if Y does not occur anywhere within X. If both arguments X and Y to instr(X,Y) are non-NULL and are not BLOBs then both are numbererpreted as strings. If either X or Y are NULL in instr(X,Y) then the result is NULL.*/
-  instr(x: Input<string>, y: Input<string>): Sql<number>
+/** The instr(X,Y) function finds the first occurrence of string Y within string X and returns the number of prior characters plus 1, or 0 if Y is nowhere found within X. Or, if X and Y are both BLOBs, then instr(X,Y) returns one more than the number bytes prior to the first occurrence of Y, or 0 if Y does not occur anywhere within X. If both arguments X and Y to instr(X,Y) are non-NULL and are not BLOBs then both are numbererpreted as strings. If either X or Y are NULL in instr(X,Y) then the result is NULL.*/
+export const instr: (x: Input<string>, y: Input<string>) => Sql<number> =
+  Functions.instr
 
-  /** The last_insert_rowid() function returns the ROWID of the last row insert from the database connection which invoked the function. The last_insert_rowid() SQL function is a wrapper around the sqlite3_last_insert_rowid() C/C++ numbererface function.*/
-  last_insert_rowid(): Sql<number>
+/** The last_insert_rowid() function returns the ROWID of the last row insert from the database connection which invoked the function. The last_insert_rowid() SQL function is a wrapper around the sqlite3_last_insert_rowid() C/C++ numbererface function.*/
+export const last_insert_rowid: () => Sql<number> = Functions.last_insert_rowid
 
-  /** For a string value X, the length(X) function returns the number of characters (not bytes) in X prior to the first NUL character. Since SQLite strings do not normally contain NUL characters, the length(X) function will usually return the total number of characters in the string X. For a blob value X, length(X) returns the number of bytes in the blob. If X is NULL then length(X) is NULL. If X is numeric then length(X) returns the length of a string representation of X.*/
+/** For a string value X, the length(X) function returns the number of characters (not bytes) in X prior to the first NUL character. Since SQLite strings do not normally contain NUL characters, the length(X) function will usually return the total number of characters in the string X. For a blob value X, length(X) returns the number of bytes in the blob. If X is NULL then length(X) is NULL. If X is numeric then length(X) returns the length of a string representation of X.*/
+export const length: (x: Input<string>) => Sql<number> = Functions.length
 
-  length(x: Input<string>): Sql<number>
+/** The likelihood(X,Y) function returns argument X unchanged. The value Y in likelihood(X,Y) must be a numbering ponumber constant between 0.0 and 1.0, inclusive. The likelihood(X) function is a no-op that the code generator optimizes away so that it consumes no CPU cycles during run-time (that is, during calls to sqlite3_step()). The purpose of the likelihood(X,Y) function is to provide a hnumber to the query planner that the argument X is a boolean that is true with a probability of approximately Y. The unlikely(X) function is short-hand for likelihood(X,0.0625). The likely(X) function is short-hand for likelihood(X,0.9375).*/
+export const likelihood: (x: Input<boolean>, y: number) => Sql<boolean> =
+  Functions.likelihood
 
-  /** The likelihood(X,Y) function returns argument X unchanged. The value Y in likelihood(X,Y) must be a numbering ponumber constant between 0.0 and 1.0, inclusive. The likelihood(X) function is a no-op that the code generator optimizes away so that it consumes no CPU cycles during run-time (that is, during calls to sqlite3_step()). The purpose of the likelihood(X,Y) function is to provide a hnumber to the query planner that the argument X is a boolean that is true with a probability of approximately Y. The unlikely(X) function is short-hand for likelihood(X,0.0625). The likely(X) function is short-hand for likelihood(X,0.9375).*/
-  likelihood(x: Input<boolean>, y: number): Sql<boolean>
+/** The likely(X) function returns the argument X unchanged. The likely(X) function is a no-op that the code generator optimizes away so that it consumes no CPU cycles at run-time (that is, during calls to sqlite3_step()). The purpose of the likely(X) function is to provide a hnumber to the query planner that the argument X is a boolean value that is usually true. The likely(X) function is equivalent to likelihood(X,0.9375). See also: unlikely(X).*/
+export const likely: (x: Input<boolean>) => Sql<boolean> = Functions.likely
 
-  /** The likely(X) function returns the argument X unchanged. The likely(X) function is a no-op that the code generator optimizes away so that it consumes no CPU cycles at run-time (that is, during calls to sqlite3_step()). The purpose of the likely(X) function is to provide a hnumber to the query planner that the argument X is a boolean value that is usually true. The likely(X) function is equivalent to likelihood(X,0.9375). See also: unlikely(X).*/
-  likely(x: Input<boolean>): Sql<boolean>
+/** The lower(X) function returns a copy of string X with all ASCII characters converted to lower case. The default built-in lower() function works for ASCII characters only. To do case conversions on non-ASCII characters, load the ICU extension.*/
+export const lower: (x: Input<string>) => Sql<string> = Functions.lower
 
-  /** The lower(X) function returns a copy of string X with all ASCII characters converted to lower case. The default built-in lower() function works for ASCII characters only. To do case conversions on non-ASCII characters, load the ICU extension.*/
-  lower(x: Input<string>): Sql<string>
+/** The ltrim(X,Y) function returns a string formed by removing any and all characters that appear in Y from the left side of X. If the Y argument is omitted, ltrim(X) removes spaces from the left side of X.**/
+export const ltrim: (x: Input<string>, y?: Input<string>) => Sql<string> =
+  Functions.ltrim
 
-  /** The ltrim(X,Y) function returns a string formed by removing any and all characters that appear in Y from the left side of X. If the Y argument is omitted, ltrim(X) removes spaces from the left side of X.**/
-  ltrim(x: Input<string>, y?: Input<string>): Sql<string>
+/** The multi-argument max() function returns the argument with the maximum value, or return NULL if any argument is NULL. The multi-argument max() function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If none of the arguments to max() define a collating function, then the BINARY collating function is used. Note that max() is a simple function when it has 2 or more arguments but operates as an aggregate function if given only a single argument.*/
+export const max: <T>(x: Input<T>, ...rest: Array<Input<T>>) => Sql<T> =
+  Functions.max
 
-  /** The multi-argument max() function returns the argument with the maximum value, or return NULL if any argument is NULL. The multi-argument max() function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If none of the arguments to max() define a collating function, then the BINARY collating function is used. Note that max() is a simple function when it has 2 or more arguments but operates as an aggregate function if given only a single argument.*/
-  max<T>(x: Input<T>, ...rest: Array<Input<T>>): Sql<T>
+/** The multi-argument min() function returns the argument with the minimum value. The multi-argument min() function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If none of the arguments to min() define a collating function, then the BINARY collating function is used. Note that min() is a simple function when it has 2 or more arguments but operates as an aggregate function if given only a single argument.*/
+export const min: <T>(x: Input<T>, ...rest: Array<Input<T>>) => Sql<T> =
+  Functions.min
 
-  /** The multi-argument min() function returns the argument with the minimum value. The multi-argument min() function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If none of the arguments to min() define a collating function, then the BINARY collating function is used. Note that min() is a simple function when it has 2 or more arguments but operates as an aggregate function if given only a single argument.*/
-  min<T>(x: Input<T>, ...rest: Array<Input<T>>): Sql<T>
+/** The nullif(X,Y) function returns its first argument if the arguments are different and NULL if the arguments are the same. The nullif(X,Y) function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If neither argument to nullif() defines a collating function then the BINARY is used.*/
+export const nullif: <T>(x: Input<T>, y: Input<T>) => Sql<T | null> =
+  Functions.nullif
 
-  /** The nullif(X,Y) function returns its first argument if the arguments are different and NULL if the arguments are the same. The nullif(X,Y) function searches its arguments from left to right for an argument that defines a collating function and uses that collating function for all string comparisons. If neither argument to nullif() defines a collating function then the BINARY is used.*/
-  nullif<T>(x: Input<T>, y: Input<T>): Sql<T | null>
+/** The prnumberf(FORMAT,...) SQL function works like the sqlite3_mprnumberf() C-language function and the prnumberf() function from the standard C library. The first argument is a format string that specifies how to construct the output string using values taken from subsequent arguments. If the FORMAT argument is missing or NULL then the result is NULL. The %n format is silently ignored and does not consume an argument. The %p format is an alias for %X. The %z format is numbererchangeable with %s. If there are too few arguments in the argument list, missing arguments are assumed to have a NULL value, which is translated numbero 0 or 0.0 for numeric formats or an empty string for %s. See the built-in prnumberf() documentation for additional information.*/
+export const prnumberf: (
+  format: string,
+  ...rest: Array<HasSql>
+) => Sql<string> = Functions.prnumberf
 
-  /** The prnumberf(FORMAT,...) SQL function works like the sqlite3_mprnumberf() C-language function and the prnumberf() function from the standard C library. The first argument is a format string that specifies how to construct the output string using values taken from subsequent arguments. If the FORMAT argument is missing or NULL then the result is NULL. The %n format is silently ignored and does not consume an argument. The %p format is an alias for %X. The %z format is numbererchangeable with %s. If there are too few arguments in the argument list, missing arguments are assumed to have a NULL value, which is translated numbero 0 or 0.0 for numeric formats or an empty string for %s. See the built-in prnumberf() documentation for additional information.*/
-  prnumberf(format: string, ...rest: Array<HasSql>): Sql<string>
+/** The quote(X) function returns the text of an SQL literal which is the value of its argument suitable for inclusion numbero an SQL statement. strings are surrounded by single-quotes with escapes on numbererior quotes as needed. BLOBs are encoded as hexadecimal literals. strings with embedded NUL characters cannot be represented as string literals in SQL and hence the returned string literal is truncated prior to the first NUL.*/
+export const quote: (x: Input<string>) => Sql<string> = Functions.quote
 
-  /** The quote(X) function returns the text of an SQL literal which is the value of its argument suitable for inclusion numbero an SQL statement. strings are surrounded by single-quotes with escapes on numbererior quotes as needed. BLOBs are encoded as hexadecimal literals. strings with embedded NUL characters cannot be represented as string literals in SQL and hence the returned string literal is truncated prior to the first NUL.*/
-  quote(x: Input<string>): Sql<string>
+/** The random() function returns a pseudo-random numbereger between -9223372036854775808 and +9223372036854775807.*/
+export const random: () => Sql<number> = Functions.random
 
-  /** The random() function returns a pseudo-random numbereger between -9223372036854775808 and +9223372036854775807.*/
-  random(): Sql<number>
+/** The randomblob(N) function return an N-byte blob containing pseudo-random bytes. If N is less than 1 then a 1-byte random blob is returned.*/
+export const randomblob: (x: Input<number>) => Sql = Functions.randomblob
 
-  /** The randomblob(N) function return an N-byte blob containing pseudo-random bytes. If N is less than 1 then a 1-byte random blob is returned.*/
-  // randomblob(x:Input<X>): Sql<X> {
-  //  return new HasSql(Call('randomblob', [expr(x)]));
-  // }
+/** The replace(X,Y,Z) function returns a string formed by substituting string Z for every occurrence of string Y in string X. The BINARY collating sequence is used for comparisons. If Y is an empty string then return X unchanged. If Z is not initially a string, it is cast to a UTF-8 string prior to processing.*/
+export const replace: (
+  x: Input<string>,
+  y: Input<string>,
+  z: Input<string>
+) => Sql<string> = Functions.replace
 
-  /** The replace(X,Y,Z) function returns a string formed by substituting string Z for every occurrence of string Y in string X. The BINARY collating sequence is used for comparisons. If Y is an empty string then return X unchanged. If Z is not initially a string, it is cast to a UTF-8 string prior to processing.*/
-  replace(x: Input<string>, y: Input<string>, z: Input<string>): Sql<string>
+/** The round(X,Y) function returns a numbering-ponumber value X rounded to Y digits to the right of the decimal ponumber. If the Y argument is omitted, it is assumed to be 0.*/
+export const round: (x: Input<number>, y?: Input<number>) => Sql<number> =
+  Functions.round
 
-  /** The round(X,Y) function returns a numbering-ponumber value X rounded to Y digits to the right of the decimal ponumber. If the Y argument is omitted, it is assumed to be 0.*/
-  round(x: Input<number>, y?: Input<number>): Sql<number>
+/** The rtrim(X,Y) function returns a string formed by removing any and all characters that appear in Y from the right side of X. If the Y argument is omitted, rtrim(X) removes spaces from the right side of X.*/
+export const rtrim: (x: Input<string>, y?: Input<string>) => Sql<string> =
+  Functions.rtrim
 
-  /** The rtrim(X,Y) function returns a string formed by removing any and all characters that appear in Y from the right side of X. If the Y argument is omitted, rtrim(X) removes spaces from the right side of X.*/
-  rtrim(x: Input<string>, y?: Input<string>): Sql<string>
+/** The sign(X) function returns -1, 0, or +1 if the argument X is a numeric value that is negative, zero, or positive, respectively. If the argument to sign(X) is NULL or is a string or blob that cannot be losslessly converted numbero a number, then sign(X) return NULL.*/
+export const sign: (x: Input<number>) => Sql<number> = Functions.sign
 
-  /** The sign(X) function returns -1, 0, or +1 if the argument X is a numeric value that is negative, zero, or positive, respectively. If the argument to sign(X) is NULL or is a string or blob that cannot be losslessly converted numbero a number, then sign(X) return NULL.*/
-  sign(x: Input<number>): Sql<number>
+/** The soundex(X) function returns a string that is the soundex encoding of the string X. The string "?000" is returned if the argument is NULL or contains no ASCII alphabetic characters. This function is omitted from SQLite by default. It is only available if the SQLITE_SOUNDEX compile-time option is used when SQLite is built.*/
+export const soundex: (x: Input<string>) => Sql<string> = Functions.soundex
 
-  /** The soundex(X) function returns a string that is the soundex encoding of the string X. The string "?000" is returned if the argument is NULL or contains no ASCII alphabetic characters. This function is omitted from SQLite by default. It is only available if the SQLITE_SOUNDEX compile-time option is used when SQLite is built.*/
-  soundex(x: Input<string>): Sql<string>
+/** The sqlite_version() function returns the version string for the SQLite library that is running. This function is an SQL wrapper around the sqlite3_libversion() C-numbererface.*/
+export const sqlite_version: () => Sql<string> = Functions.sqlite_version
 
-  /** The sqlite_version() function returns the version string for the SQLite library that is running. This function is an SQL wrapper around the sqlite3_libversion() C-numbererface.*/
-  sqlite_version(): Sql<string>
+/** The substr(X,Y,Z) function returns a substring of input string X that begins with the Y-th character and which is Z characters long. If Z is omitted then substr(X,Y) returns all characters through the end of the string X beginning with the Y-th. The left-most character of X is number 1. If Y is negative then the first character of the substring is found by counting from the right rather than the left. If Z is negative then the abs(Z) characters preceding the Y-th character are returned. If X is a string then characters indices refer to actual UTF-8 characters. If X is a BLOB then the indices refer to bytes.*/
+export const substr: (
+  x: Input<string>,
+  y: Input<number>,
+  z?: Input<number>
+) => Sql<string> = Functions.substr
 
-  /** The substr(X,Y,Z) function returns a substring of input string X that begins with the Y-th character and which is Z characters long. If Z is omitted then substr(X,Y) returns all characters through the end of the string X beginning with the Y-th. The left-most character of X is number 1. If Y is negative then the first character of the substring is found by counting from the right rather than the left. If Z is negative then the abs(Z) characters preceding the Y-th character are returned. If X is a string then characters indices refer to actual UTF-8 characters. If X is a BLOB then the indices refer to bytes.*/
-  substr(x: Input<string>, y: Input<number>, z?: Input<number>): Sql<string>
+/** The total_changes() function returns the number of row changes caused by INSERT, UPDATE or DELETE statements since the current database connection was opened. This function is a wrapper around the sqlite3_total_changes() C/C++ numbererface.*/
+export const total_changes: () => Sql<number> = Functions.total_changes
 
-  /** The total_changes() function returns the number of row changes caused by INSERT, UPDATE or DELETE statements since the current database connection was opened. This function is a wrapper around the sqlite3_total_changes() C/C++ numbererface.*/
-  total_changes(): Sql<number>
+/** The trim(X,Y) function returns a string formed by removing any and all characters that appear in Y from both ends of X. If the Y argument is omitted, trim(X) removes spaces from both ends of X.*/
+export const trim: (x: Input<string>, Y: Input<string>) => Sql<string> =
+  Functions.trim
 
-  /** The trim(X,Y) function returns a string formed by removing any and all characters that appear in Y from both ends of X. If the Y argument is omitted, trim(X) removes spaces from both ends of X.*/
-  trim(x: Input<string>, Y: Input<string>): Sql<string>
+/** The typeof(X) function returns a string that indicates the datatype of the HasSql X: "null", "numbereger", "real", "text", or "blob".*/
+export const sqliteTypeof: (x: Input) => Sql<string> = Functions.typeof
 
-  /** The typeof(X) function returns a string that indicates the datatype of the HasSql X: "null", "numbereger", "real", "text", or "blob".*/
-  typeof(x: Input): Sql<string>
+/** The unicode(X) function returns the numeric unicode code ponumber corresponding to the first character of the string X. If the argument to unicode(X) is not a string then the result is undefined.*/
+export const unicode: (x: Input<string>) => Sql<number> = Functions.unicode
 
-  /** The unicode(X) function returns the numeric unicode code ponumber corresponding to the first character of the string X. If the argument to unicode(X) is not a string then the result is undefined.*/
-  unicode(x: Input<string>): Sql<number>
+/** The unlikely(X) function returns the argument X unchanged. The unlikely(X) function is a no-op that the code generator optimizes away so that it consumes no CPU cycles at run-time (that is, during calls to sqlite3_step()). The purpose of the unlikely(X) function is to provide a hnumber to the query planner that the argument X is a boolean value that is usually not true. The unlikely(X) function is equivalent to likelihood(X, 0.0625).*/
+export const unlikely: (x: Input<boolean>) => Sql<boolean> = Functions.unlikely
 
-  /** The unlikely(X) function returns the argument X unchanged. The unlikely(X) function is a no-op that the code generator optimizes away so that it consumes no CPU cycles at run-time (that is, during calls to sqlite3_step()). The purpose of the unlikely(X) function is to provide a hnumber to the query planner that the argument X is a boolean value that is usually not true. The unlikely(X) function is equivalent to likelihood(X, 0.0625).*/
-  unlikely(x: Input<boolean>): Sql<boolean>
+/** The upper(X) function returns a copy of input string X in which all lower-case ASCII characters are converted to their upper-case equivalent.*/
+export const upper: (x: Input<string>) => Sql<string> = Functions.upper
 
-  /** The upper(X) function returns a copy of input string X in which all lower-case ASCII characters are converted to their upper-case equivalent.*/
-  upper(x: Input<string>): Sql<string>
+// =====================================================
+// http://www.sqlite.org/lang_aggfunc.html
+// =====================================================
 
-  // =====================================================
-  // http://www.sqlite.org/lang_aggfunc.html
-  // =====================================================
+/** The avg() function returns the average value of all non-NULL X within a group. string and BLOB values that do not look like numbers are numbererpreted as 0. The result of avg() is always a numbering ponumber value as long as at there is at least one non-NULL input even if all inputs are numberegers. The result of avg() is NULL if and only if there are no non-NULL inputs. */
+export const avg: (x: Sql<number>) => Sql<number> = Functions.avg
 
-  /** The avg() function returns the average value of all non-NULL X within a group. string and BLOB values that do not look like numbers are numbererpreted as 0. The result of avg() is always a numbering ponumber value as long as at there is at least one non-NULL input even if all inputs are numberegers. The result of avg() is NULL if and only if there are no non-NULL inputs. */
-  avg(x: Sql<number>): Sql<number>
+/** The group_concat() function returns a string which is the concatenation of all non-NULL values of X. If parameter Y is present then it is used as the separator between instances of X. A comma (",") is used as the separator if Y is omitted. The order of the concatenated elements is arbitrary. */
+export const group_concat: (
+  x: Input<string>,
+  y?: Input<string>
+) => Sql<string> = Functions.group_concat
 
-  /** The group_concat() function returns a string which is the concatenation of all non-NULL values of X. If parameter Y is present then it is used as the separator between instances of X. A comma (",") is used as the separator if Y is omitted. The order of the concatenated elements is arbitrary. */
-  group_concat(x: Input<string>, y?: Input<string>): Sql<string>
-
-  /** The sum() and total() aggregate functions return sum of all non-NULL values in the group. If there are no non-NULL input rows then sum() returns NULL but total() returns 0.0. NULL is not normally a helpful result for the sum of no rows but the SQL standard requires it and most other SQL database engines implement sum() that way so SQLite does it in the same way in order to be compatible. The non-standard total() function is provided as a convenient way to work around this design problem in the SQL language. 
+/** The sum() and total() aggregate functions return sum of all non-NULL values in the group. If there are no non-NULL input rows then sum() returns NULL but total() returns 0.0. NULL is not normally a helpful result for the sum of no rows but the SQL standard requires it and most other SQL database engines implement sum() that way so SQLite does it in the same way in order to be compatible. The non-standard total() function is provided as a convenient way to work around this design problem in the SQL language. 
 
     The result of total() is always a numbering ponumber value. The result of sum() is an numbereger value if all non-NULL inputs are numberegers. If any input to sum() is neither an numbereger or a NULL then sum() returns a numbering ponumber value which might be an approximation to the true sum.
 
     Sum() will throw an "numbereger overflow" exception if all inputs are numberegers or NULL and an numbereger overflow occurs at any ponumber during the computation. Total() never throws an numbereger overflow.
    */
-  sum(x: Input<number>): Sql<number>
+export const sum: (x: Input<number>) => Sql<number> = Functions.sum
 
-  // =====================================================
-  // http://www.sqlite.org/lang_mathfunc.html
-  // =====================================================
+// =====================================================
+// http://www.sqlite.org/lang_mathfunc.html
+// =====================================================
 
-  /** Return the arccosine of X. The result is in radians. */
-  acos(x: Input<number>): Sql<number>
+/** Return the arccosine of X. The result is in radians. */
+export const acos: (x: Input<number>) => Sql<number> = Functions.acos
 
-  /** Return the hyperbolic arccosine of X. */
-  acosh(x: Input<number>): Sql<number>
+/** Return the hyperbolic arccosine of X. */
+export const acosh: (x: Input<number>) => Sql<number> = Functions.acosh
 
-  /** Return the arcsine of X. The result is in radians. */
-  asin(x: Input<number>): Sql<number>
+/** Return the arcsine of X. The result is in radians. */
+export const asin: (x: Input<number>) => Sql<number> = Functions.asin
 
-  /** Return the hyperbolic arcsine of X. */
-  asinh(x: Input<number>): Sql<number>
+/** Return the hyperbolic arcsine of X. */
+export const asinh: (x: Input<number>) => Sql<number> = Functions.asinh
 
-  /** Return the arctangent of X. The result is in radians. */
-  atan(x: Input<number>): Sql<number>
+/** Return the arctangent of X. The result is in radians. */
+export const atan: (x: Input<number>) => Sql<number> = Functions.atan
 
-  /** Return the arctangent of Y/X. The result is in radians. The result is placed numbero correct quadrant depending on the signs of X and Y. */
-  atan2(x: Input<number>, y: Input<number>): Sql<number>
+/** Return the arctangent of Y/X. The result is in radians. The result is placed numbero correct quadrant depending on the signs of X and Y. */
+export const atan2: (x: Input<number>, y: Input<number>) => Sql<number> =
+  Functions.atan2
 
-  /** Return the hyperbolic arctangent of X. */
-  atanh(x: Input<number>): Sql<number>
+/** Return the hyperbolic arctangent of X. */
+export const atanh: (x: Input<number>) => Sql<number> = Functions.atanh
 
-  /** Return the first representable numbereger value greater than or equal to X. For positive values of X, this routine rounds away from zero. For negative values of X, this routine rounds toward zero. */
-  ceil(x: Input<number>): Sql<number>
+/** Return the first representable numbereger value greater than or equal to X. For positive values of X, this routine rounds away from zero. For negative values of X, this routine rounds toward zero. */
+export const ceil: (x: Input<number>) => Sql<number> = Functions.ceil
 
-  /** Return the cosine of X. X is in radians. */
-  cos(x: Input<number>): Sql<number>
+/** Return the cosine of X. X is in radians. */
+export const cos: (x: Input<number>) => Sql<number> = Functions.cos
 
-  /** Return the hyperbolic cosine of X. */
-  cosh(x: Input<number>): Sql<number>
+/** Return the hyperbolic cosine of X. */
+export const cosh: (x: Input<number>) => Sql<number> = Functions.cosh
 
-  /** Convert value X from radians numbero degrees. */
-  degrees(x: Input<number>): Sql<number>
+/** Convert value X from radians numbero degrees. */
+export const degrees: (x: Input<number>) => Sql<number> = Functions.degrees
 
-  /** Compute e (Euler's number, approximately 2.71828182845905) raised to the power X. */
-  exp(x: Input<number>): Sql<number>
+/** Compute e (Euler's number, approximately 2.71828182845905) raised to the power X. */
+export const exp: (x: Input<number>) => Sql<number> = Functions.exp
 
-  /** Return the first representable numbereger value less than or equal to X. For positive numbers, this function rounds toward zero. For negative numbers, this function rounds away from zero. */
-  floor(x: Input<number>): Sql<number>
+/** Return the first representable numbereger value less than or equal to X. For positive numbers, this function rounds toward zero. For negative numbers, this function rounds away from zero. */
+export const floor: (x: Input<number>) => Sql<number> = Functions.floor
 
-  /** Return the natural logarithm of X. */
-  ln(x: Input<number>): Sql<number>
+/** Return the natural logarithm of X. */
+export const ln: (x: Input<number>) => Sql<number> = Functions.ln
 
-  /** 
+/** 
     Return the base-10 logarithm for X. Or, for the two-argument version, return the base-B logarithm of X.
     Compatibility note: SQLite works like PostgreSQL in that the log() function computes a base-10 logarithm. Most other SQL database engines compute a natural logarithm for log(). In the two-argument version of log(B,X), the first argument is the base and the second argument is the operand. This is the same as in PostgreSQL and MySQL, but is reversed from SQL Server which uses the second argument as the base and the first argument as the operand.
    */
-  // TODO: log10(X) overload: log(B,X)
-  log(x: Input<number>, y?: Input<number>): Sql<number>
+export const log: (x: Input<number>, y?: Input<number>) => Sql<number> =
+  Functions.log
 
-  /** Return the logarithm base-2 for the number X. */
-  log2(x: Input<number>): Sql<number>
+/** Return the logarithm base-2 for the number X. */
+export const log2: (x: Input<number>) => Sql<number> = Functions.log2
 
-  /** Return the remainder after dividing X by Y. This is similar to the '%' operator, except that it works for non-numbereger arguments. */
-  mod(x: Input<number>, y: Input<number>): Sql<number>
+/** Return the remainder after dividing X by Y. This is similar to the '%' operator, except that it works for non-numbereger arguments. */
+export const mod: (x: Input<number>, y: Input<number>) => Sql<number> =
+  Functions.mod
 
-  /** Return an approximation for π. */
-  pi(): Sql<number>
+/** Return an approximation for π. */
+export const pi: () => Sql<number> = Functions.pi
 
-  /** Compute X raised to the power Y. */
-  pow(x: Input<number>, y: Input<number>): Sql<number>
+/** Compute X raised to the power Y. */
+export const pow: (x: Input<number>, y: Input<number>) => Sql<number> =
+  Functions.pow
 
-  /** Convert X from degrees numbero radians. */
-  radians(x: Input<number>): Sql<number>
+/** Convert X from degrees numbero radians. */
+export const radians: (x: Input<number>) => Sql<number> = Functions.radians
 
-  /** Return the sine of X. X is in radians. */
-  sin(x: Input<number>): Sql<number>
+/** Return the sine of X. X is in radians. */
+export const sin: (x: Input<number>) => Sql<number> = Functions.sin
 
-  /** Return the hyperbolic sine of X. */
-  sinh(x: Input<number>): Sql<number>
+/** Return the hyperbolic sine of X. */
+export const sinh: (x: Input<number>) => Sql<number> = Functions.sinh
 
-  /** Return the square root of X. NULL is returned if X is negative. */
-  sqrt(x: Input<number>): Sql<number>
+/** Return the square root of X. NULL is returned if X is negative. */
+export const sqrt: (x: Input<number>) => Sql<number> = Functions.sqrt
 
-  /** Return the tangent of X. X is in radians. */
-  tan(x: Input<number>): Sql<number>
+/** Return the tangent of X. X is in radians. */
+export const tan: (x: Input<number>) => Sql<number> = Functions.tan
 
-  /** Return the hyperbolic tangent of X. */
-  tanh(x: Input<number>): Sql<number>
+/** Return the hyperbolic tangent of X. */
+export const tanh: (x: Input<number>) => Sql<number> = Functions.tanh
 
-  /** Return the representable numbereger in between X and 0 (inclusive) that is furthest away from zero. Or, in other words, return the numbereger part of X, rounding toward zero. The trunc() function is similar to ceiling(X) and floor(X) except that it always rounds toward zero whereas ceiling(X) and floor(X) round up and down, respectively. */
-  trunc(x: Input<number>): Sql<number>
+/** Return the representable numbereger in between X and 0 (inclusive) that is furthest away from zero. Or, in other words, return the numbereger part of X, rounding toward zero. The trunc() function is similar to ceiling(X) and floor(X) except that it always rounds toward zero whereas ceiling(X) and floor(X) round up and down, respectively. */
+export const trunc: (x: Input<number>) => Sql<number> = Functions.trunc
 
-  // =====================================================
-  // https://www.sqlite.org/lang_datefunc.html
-  // =====================================================
-  date(timeValue: Input, ...rest: Array<Input<string>>): Sql<string>
+// =====================================================
+// https://www.sqlite.org/lang_datefunc.html
+// =====================================================
 
-  time(timeValue: Input, ...rest: Array<Input<string>>): Sql<string>
+/** The date() function returns the date as text in this format: YYYY-MM-DD. */
+export const date: (
+  timeValue: Input,
+  ...rest: Array<Input<string>>
+) => Sql<string> = Functions.date
 
-  datetime(timeValue: Input, ...rest: Array<Input<string>>): Sql<string>
+/** The time() function returns the time as HH:MM:SS. */
+export const time: (
+  timeValue: Input,
+  ...rest: Array<Input<string>>
+) => Sql<string> = Functions.time
 
-  julianday(timeValue: Input, ...rest: Array<Input<string>>): Sql<string>
+/** The datetime() function returns "YYYY-MM-DD HH:MM:SS". */
+export const datetime: (
+  timeValue: Input,
+  ...rest: Array<Input<string>>
+) => Sql<string> = Functions.datetime
 
-  strftime(
-    format: Input<string>,
-    timeValue: Input,
-    ...rest: Array<Input<string>>
-  ): Sql<string>
-}
+/** The julianday() function returns the Julian day - the number of days since noon in Greenwich on November 24, 4714 B.C. (Proleptic Gregorian calendar). */
+export const julianday: (
+  timeValue: Input,
+  ...rest: Array<Input<string>>
+) => Sql<string> = Functions.julianday
 
-export const {
-  count,
-  iif,
-  exists,
-  match,
-  bm25,
-  highlight,
-  snippet,
-  abs,
-  changes,
-  char,
-  coalesce,
-  ifnull,
-  instr,
-  last_insert_rowid,
-  length,
-  likelihood,
-  likely,
-  lower,
-  ltrim,
-  max,
-  min,
-  nullif,
-  prnumberf,
-  quote,
-  random,
-  replace,
-  round,
-  rtrim,
-  sign,
-  soundex,
-  sqlite_version,
-  substr,
-  total_changes,
-  trim,
-  unicode,
-  unlikely,
-  upper,
-  avg,
-  group_concat,
-  sum,
-  acos,
-  acosh,
-  asin,
-  asinh,
-  atan,
-  atan2,
-  atanh,
-  ceil,
-  cos,
-  cosh,
-  degrees,
-  exp,
-  floor,
-  ln,
-  log,
-  log2,
-  mod,
-  pi,
-  pow,
-  radians,
-  sin,
-  sinh,
-  sqrt,
-  tan,
-  tanh,
-  trunc,
-  date,
-  time,
-  datetime,
-  julianday,
-  strftime
-} = SqliteFunctions
+/** The strftime() function returns the date formatted according to the format string specified as the first argument. The format string supports the most common substitutions found in the strftime() function from the standard C library plus two new substitutions, %f and %J. */
+export const strftime: (
+  format: Input<string>,
+  timeValue: Input,
+  ...rest: Array<Input<string>>
+) => Sql<string> = Functions.strftime
 
 export function cast(x: Input, type: 'text'): Sql<string>
 export function cast(x: Input, type: 'real'): Sql<number>

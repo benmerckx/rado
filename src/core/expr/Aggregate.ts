@@ -27,10 +27,10 @@ export function sumDistinct(input: HasSql): HasSql<string | null> {
   return Functions.sum(distinct(input)).mapWith(String)
 }
 
-export function max<T>(input: HasSql<T>) {
+export function max<T>(input: HasSql<T>): Sql<T> {
   return Functions.max(input).mapWith(getSql(input))
 }
 
-export function min<T>(input: HasSql<T>) {
+export function min<T>(input: HasSql<T>): Sql<T> {
   return Functions.min(input).mapWith(getSql(input))
 }

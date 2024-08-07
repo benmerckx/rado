@@ -26,11 +26,11 @@ class PreparedStatement implements AsyncStatement {
     })
   }
 
-  get(params: Array<unknown>) {
+  get(params: Array<unknown>): Promise<object> {
     return this.all(params).then(rows => rows[0] ?? null)
   }
 
-  values(params: Array<unknown>) {
+  values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
     return this.client
       .query<Array<unknown>>(this.sql, params, {
         rowMode: 'array'
@@ -53,7 +53,7 @@ export class PGliteDriver implements AsyncDriver {
     await this.client.exec(query)
   }
 
-  close() {
+  close(): Promise<void> {
     if ('close' in this.client) {
       return Promise.resolve()
       // This fails currently
@@ -62,7 +62,7 @@ export class PGliteDriver implements AsyncDriver {
     throw new Error('Cannot close a transaction')
   }
 
-  prepare(sql: string) {
+  prepare(sql: string): PreparedStatement {
     return new PreparedStatement(this.client, sql)
   }
 
@@ -97,10 +97,6 @@ export class PGliteDriver implements AsyncDriver {
   }
 }
 
-export function connect(db: PGlite) {
-  return new AsyncDatabase<'postgres'>(
-    new PGliteDriver(db),
-    postgresDialect,
-    postgresDiff
-  )
+export function connect(db: PGlite): AsyncDatabase<'postgres'> {
+  return new AsyncDatabase(new PGliteDriver(db), postgresDialect, postgresDiff)
 }

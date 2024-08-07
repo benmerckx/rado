@@ -33,11 +33,11 @@ class PreparedStatement implements AsyncStatement {
     await this.client.query(this.sql, params)
   }
 
-  get(params: Array<unknown>) {
+  get(params: Array<unknown>): Promise<object> {
     return this.all(params).then(rows => rows[0] ?? null)
   }
 
-  values(params: Array<unknown>) {
+  values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
     return this.client
       .query({sql: this.sql, values: params, rowsAsArray: true})
       .then(res => res[0] as Array<Array<unknown>>)
@@ -58,7 +58,7 @@ export class Mysql2Driver implements AsyncDriver {
     await this.client.query(query)
   }
 
-  prepare(sql: string, options?: PrepareOptions) {
+  prepare(sql: string, options?: PrepareOptions): PreparedStatement {
     return new PreparedStatement(this.client, sql, options?.name)
   }
 
@@ -108,8 +108,10 @@ function isPool(client: Queryable): client is Pool {
   return 'getConnection' in client
 }
 
-export function connect(client: Queryable | Connection) {
-  return new AsyncDatabase<'mysql'>(
+export function connect(
+  client: Queryable | Connection
+): AsyncDatabase<'mysql'> {
+  return new AsyncDatabase(
     new Mysql2Driver('promise' in client ? client.promise() : client),
     mysqlDialect,
     mysqlDiff
