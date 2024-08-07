@@ -11,6 +11,7 @@ import {ValueParam, type Param} from './Param.ts'
 import {sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
+import type {IncludeData} from './expr/Include.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Insert} from './query/Insert.ts'
 import type {SelectData} from './query/Select.ts'
@@ -38,6 +39,8 @@ export abstract class Emitter {
     return value
   }
 
+  abstract jsonArrayFn: string
+  abstract jsonGroupFn: string
   abstract emitIdentifier(value: string): void
   abstract emitValue(value: unknown): void
   abstract emitInline(value: unknown): void
@@ -46,7 +49,6 @@ export abstract class Emitter {
   abstract emitDefaultValue(): void
   abstract emitLastInsertId(): void
   abstract emitIdColumn(): void
-  abstract emitInclude(data: SelectData): void
 
   emitUnsafe(value: string): void {
     this.sql += value
@@ -191,5 +193,19 @@ export abstract class Emitter {
       })
       .add(sql` `)
       .emitTo(this)
+  }
+
+  emitInclude(data: IncludeData) {
+    const wrapQuery = Boolean(data.limit || data.offset || data.orderBy)
+    const innerQuery = sql.chunk('emitSelect', data)
+    const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
+    if (!data.select.selection) throw new Error('No selection defined')
+    const fields = data.select.selection.fieldNames()
+    let subject = sql`${sql.unsafe(this.jsonArrayFn)}(${sql.join(
+      fields.map(name => sql`_.${sql.identifier(name)}`),
+      sql`, `
+    )})`
+    if (!data.first) subject = sql`${sql.unsafe(this.jsonGroupFn)}(${subject})`
+    sql`(select ${subject} from (${inner}) as _)`.emitTo(this)
   }
 }

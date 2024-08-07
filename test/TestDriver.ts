@@ -301,6 +301,12 @@ export async function testDriver(
           {id: 2, userId: user1, title: 'Post 2'}
         ]
       })
+      const emptyOne = await db
+        .select({
+          empty: include.one(db.select().from(User).where(eq(User.id, 42)))
+        })
+        .get()
+      test.equal(emptyOne, {empty: null})
       const postsWithUser = await db
         .select({
           ...Post,
@@ -323,6 +329,36 @@ export async function testDriver(
           user: {id: user1, name: 'Bob'}
         }
       ])
+
+      const emptyResult = await db.select({
+        empty: include(db.select().from(User).where(eq(User.id, 42)))
+      })
+      test.equal(emptyResult, [{empty: []}])
+
+      const nestedResult = await db
+        .select({
+          user: include.one(
+            db
+              .select({
+                ...User,
+                posts: include(
+                  db.select().from(Post).where(eq(Post.userId, User.id))
+                )
+              })
+              .from(User)
+          )
+        })
+        .get()
+      test.equal(nestedResult, {
+        user: {
+          id: user1,
+          name: 'Bob',
+          posts: [
+            {id: 1, userId: user1, title: 'Post 1'},
+            {id: 2, userId: user1, title: 'Post 2'}
+          ]
+        }
+      })
       await db.drop(User, Post)
     })
 

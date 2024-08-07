@@ -1,3 +1,4 @@
+import type {DriverSpecs} from '../Driver.ts'
 import {
   getData,
   internalData,
@@ -8,9 +9,10 @@ import {
 import type {QueryMeta} from '../MetaData.ts'
 import type {MapRowContext, RowOfRecord} from '../Selection.ts'
 import {sql, type Sql} from '../Sql.ts'
-import type {Select, SelectData} from '../query/Select.ts'
+import type {Select, SelectBase, SelectData} from '../query/Select.ts'
 
-export interface IncludeData<Meta extends QueryMeta> extends SelectData<Meta> {
+export interface IncludeData<Meta extends QueryMeta = QueryMeta>
+  extends SelectData<Meta> {
   first: boolean
 }
 
@@ -24,26 +26,30 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
     this[internalData] = data
   }
 
+  #mapFromDriverValue = (value: any, specs: DriverSpecs): any => {
+    const {select, first} = getData(this)
+    const selection = select.selection!
+    const parsed = specs.parsesJson ? value : JSON.parse(value)
+    if (first)
+      return parsed ? selection.mapRow({values: parsed, index: 0, specs}) : null
+    if (!parsed) return []
+    const rows: Array<Array<unknown>> = parsed
+    const ctx: MapRowContext = {
+      values: undefined!,
+      index: 0,
+      specs
+    }
+    for (let i = 0; i < rows.length; i++) {
+      ctx.values = rows[i]
+      ctx.index = 0
+      rows[i] = selection.mapRow(ctx) as Array<unknown>
+    }
+    return rows ?? []
+  }
+
   get [internalSql](): Sql<Result> {
-    const data = getData(this)
-    const selection = data.select.selection!
-    return sql.chunk('emitInclude', data).mapWith({
-      mapFromDriverValue(value: any, specs) {
-        const rows: Array<Array<unknown>> = specs.parsesJson
-          ? value
-          : JSON.parse(value)
-        const ctx: MapRowContext = {
-          values: undefined!,
-          index: 0,
-          specs
-        }
-        for (let i = 0; i < rows.length; i++) {
-          ctx.values = rows[i]
-          ctx.index = 0
-          rows[i] = selection.mapRow(ctx) as Array<unknown>
-        }
-        return (data.first ? rows[0] : rows) as Result
-      }
+    return sql.chunk('emitInclude', getData(this)).mapWith<Result>({
+      mapFromDriverValue: this.#mapFromDriverValue
     })
   }
 }
@@ -59,10 +65,10 @@ export function include<Input, Meta extends QueryMeta>(
 
 export namespace include {
   export function one<Input, Meta extends QueryMeta>(
-    select: Select<Input, Meta>
+    select: SelectBase<Input, Meta>
   ) {
-    return new Include<RowOfRecord<Input>, Meta>({
-      ...getData(select),
+    return new Include<RowOfRecord<Input> | null, Meta>({
+      ...(getData(select) as SelectData<Meta>),
       first: true
     })
   }
