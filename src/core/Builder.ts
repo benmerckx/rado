@@ -84,15 +84,19 @@ class BuilderBase<Meta extends QueryMeta> {
     })
   }
 
-  update<Definition extends TableDefinition>(table: Table<Definition>) {
+  update<Definition extends TableDefinition>(
+    table: Table<Definition>
+  ): UpdateTable<Definition, Meta> {
     return new UpdateTable<Definition, Meta>({...getData(this), table})
   }
 
-  insert<Definition extends TableDefinition>(into: Table<Definition>) {
+  insert<Definition extends TableDefinition>(
+    into: Table<Definition>
+  ): InsertInto<Definition, Meta> {
     return new InsertInto<Definition, Meta>({...getData(this), into})
   }
 
-  delete(from: HasTable) {
+  delete(from: HasTable): DeleteFrom<Meta> {
     return new DeleteFrom<Meta>({...getData(this), from})
   }
 }
@@ -100,7 +104,9 @@ class BuilderBase<Meta extends QueryMeta> {
 export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
-  $with(cteName: string) {
+  $with(cteName: string): {
+    as<Input extends SelectionInput>(query: SelectBase<Input, Meta>): CTE<Input>
+  } {
     return {
       as<Input extends SelectionInput>(
         query: SelectBase<Input, Meta>
@@ -114,8 +120,8 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
     }
   }
 
-  with(...cte: Array<CTE>) {
-    return new BuilderBase<Meta>({
+  with(...cte: Array<CTE>): BuilderBase<Meta> {
+    return new BuilderBase({
       ...getData(this),
       cte
     })

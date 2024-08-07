@@ -1,5 +1,5 @@
 import {getData, internalData, type HasData, type HasSql} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {Field} from './expr/Field.ts'
 
 class IndexData {
@@ -46,43 +46,43 @@ export class Index<TableName extends string = string>
     return new Index({...getData(this), fields})
   }
 
-  concurrently() {
+  concurrently(): Index<TableName> {
     return new Index({...getData(this), concurrently: true})
   }
 
-  only() {
+  only(): Index<TableName> {
     return new Index({...getData(this), only: true})
   }
 
-  using<Sql>(using: HasSql<Sql>) {
+  using<Sql>(using: HasSql<Sql>): Index<TableName> {
     return new Index({...getData(this), using})
   }
 
-  asc() {
+  asc(): Index<TableName> {
     return new Index({...getData(this), order: 'asc'})
   }
 
-  desc() {
+  desc(): Index<TableName> {
     return new Index({...getData(this), order: 'desc'})
   }
 
-  nullsFirst() {
+  nullsFirst(): Index<TableName> {
     return new Index({...getData(this), nulls: 'first'})
   }
 
-  nullsLast() {
+  nullsLast(): Index<TableName> {
     return new Index({...getData(this), nulls: 'last'})
   }
 
-  where(where: HasSql<boolean>) {
+  where(where: HasSql<boolean>): Index<TableName> {
     return new Index({...getData(this), where})
   }
 }
 
-export function index() {
+export function index(): Index<string> {
   return new Index({fields: []})
 }
 
-export function uniqueIndex() {
+export function uniqueIndex(): Index<string> {
   return new Index({fields: [], unique: true})
 }

@@ -10,7 +10,7 @@ import {
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
 import type {Selection, SelectionRow} from '../Selection.ts'
-import {sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 
 export interface UnionBaseData<Meta extends QueryMeta> extends QueryData<Meta> {
   selection?: Selection
@@ -102,7 +102,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     this[internalSelection] = data.selection!
   }
 
-  get [internalQuery]() {
+  get [internalQuery](): Sql {
     return sql.chunk('emitUnion', this)
   }
 }

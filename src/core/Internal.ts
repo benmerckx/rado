@@ -5,17 +5,17 @@ import type {Sql} from './Sql.ts'
 import type {TableApi, TableDefinition} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 
-export const internalData = Symbol()
-export const internalSql = Symbol()
-export const internalSelection = Symbol()
-export const internalTarget = Symbol()
-export const internalQuery = Symbol()
-export const internalBatch = Symbol()
-export const internalTable = Symbol()
-export const internalField = Symbol()
-export const internalResolver = Symbol()
-export const internalConstraint = Symbol()
-export const internalInclude = Symbol()
+export const internalData: unique symbol = Symbol()
+export const internalSql: unique symbol = Symbol()
+export const internalSelection: unique symbol = Symbol()
+export const internalTarget: unique symbol = Symbol()
+export const internalQuery: unique symbol = Symbol()
+export const internalBatch: unique symbol = Symbol()
+export const internalTable: unique symbol = Symbol()
+export const internalField: unique symbol = Symbol()
+export const internalResolver: unique symbol = Symbol()
+export const internalConstraint: unique symbol = Symbol()
+export const internalInclude: unique symbol = Symbol()
 
 export declare class HasData<Data> {
   get [internalData](): Data

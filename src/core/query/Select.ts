@@ -27,7 +27,7 @@ import {
   type SelectionRecord,
   type SelectionRow
 } from '../Selection.ts'
-import {sql} from '../Sql.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
@@ -184,13 +184,13 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  get [internalSelection]() {
+  get [internalSelection](): Selection {
     const {select} = getData(this)
     if (!select.selection) throw new Error('No selection defined')
     return select.selection
   }
 
-  get [internalQuery]() {
+  get [internalQuery](): Sql {
     return sql.chunk('emitSelect', getData(this))
   }
 }

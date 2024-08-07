@@ -113,19 +113,21 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
     }
   }
 
-  all(db?: HasResolver) {
+  all(db?: HasResolver): Deliver<Meta, Array<Result>> {
     return this.#exec('all', db) as Deliver<Meta, Array<Result>>
   }
 
-  get(db?: HasResolver) {
+  get(db?: HasResolver): Deliver<Meta, Result> {
     return this.#exec('get', db) as Deliver<Meta, Result>
   }
 
-  run(db?: HasResolver) {
+  run(db?: HasResolver): Deliver<Meta, void> {
     return this.#exec('run', db) as Deliver<Meta, void>
   }
 
-  prepare<Inputs extends Record<string, unknown>>(name?: string) {
+  prepare<Inputs extends Record<string, unknown>>(
+    name?: string
+  ): PreparedQuery<Result, Inputs, Meta> {
     return <PreparedQuery<Result, Inputs, Meta>>(
       getData(this).resolver!.prepare(this, name)
     )

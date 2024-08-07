@@ -56,20 +56,14 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
 
 export function include<Input, Meta extends QueryMeta>(
   select: Select<Input, Meta>
-) {
-  return new Include<Array<RowOfRecord<Input>>, Meta>({
-    ...getData(select),
-    first: false
-  })
+): Include<Array<RowOfRecord<Input>>, Meta> {
+  return new Include({...getData(select), first: false})
 }
 
 export namespace include {
   export function one<Input, Meta extends QueryMeta>(
     select: SelectBase<Input, Meta>
-  ) {
-    return new Include<RowOfRecord<Input> | null, Meta>({
-      ...(getData(select) as SelectData<Meta>),
-      first: true
-    })
+  ): Include<RowOfRecord<Input> | null, Meta> {
+    return new Include({...(getData(select) as SelectData<Meta>), first: true})
   }
 }

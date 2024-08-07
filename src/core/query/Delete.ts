@@ -14,7 +14,7 @@ import {
   type SelectionInput,
   type SelectionRow
 } from '../Selection.ts'
-import {sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 
 export interface DeleteData<Meta extends QueryMeta = QueryMeta>
   extends QueryData<Meta> {
@@ -35,18 +35,20 @@ export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     this[internalData] = data
     if (data.returning) this[internalSelection] = data.returning
   }
-  get [internalQuery]() {
+  get [internalQuery](): Sql {
     return sql.chunk('emitDelete', this)
   }
 }
 
 export class DeleteFrom<Meta extends QueryMeta> extends Delete<void, Meta> {
-  where(condition: HasSql<boolean>) {
-    return new DeleteFrom<Meta>({...getData(this), where: condition})
+  where(condition: HasSql<boolean>): DeleteFrom<Meta> {
+    return new DeleteFrom({...getData(this), where: condition})
   }
 
-  returning<Input extends SelectionInput>(returning: Input) {
-    return new Delete<SelectionRow<Input>, Meta>({
+  returning<Input extends SelectionInput>(
+    returning: Input
+  ): Delete<SelectionRow<Input>, Meta> {
+    return new Delete({
       ...getData(this),
       returning: selection(returning)
     })

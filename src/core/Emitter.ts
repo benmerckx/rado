@@ -22,11 +22,11 @@ export abstract class Emitter {
   sql = ''
   protected params: Array<Param> = []
 
-  get hasParams() {
+  get hasParams(): boolean {
     return this.params.length > 0
   }
 
-  bind(inputs?: Record<string, unknown>) {
+  bind(inputs?: Record<string, unknown>): Array<unknown> {
     return this.params.map(param => {
       if (param instanceof ValueParam) return this.processValue(param.value)
       if (inputs && param.name in inputs)

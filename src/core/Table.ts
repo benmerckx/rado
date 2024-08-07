@@ -42,7 +42,7 @@ export class TableApi<
 > extends TableData {
   private declare brand: [Definition, Name]
 
-  get aliased() {
+  get aliased(): string {
     return this.alias ?? this.name
   }
 
@@ -108,7 +108,7 @@ export class TableApi<
     )
   }
 
-  createTable(altName?: string, ifNotExists = false) {
+  createTable(altName?: string, ifNotExists = false): Sql {
     return sql.join([
       sql`create table`,
       ifNotExists ? sql`if not exists` : undefined,
@@ -117,22 +117,22 @@ export class TableApi<
     ])
   }
 
-  createIndexes() {
+  createIndexes(): Array<Sql> {
     return entries(this.indexes()).map(([name, index]) => {
       const indexApi = getData(index)
       return indexApi.toSql(this.name, name, false)
     })
   }
 
-  create() {
+  create(): Array<Sql> {
     return [this.createTable(), ...this.createIndexes()]
   }
 
-  drop() {
+  drop(): Sql {
     return sql`drop table ${this.target()}`
   }
 
-  indexes() {
+  indexes(): Record<string, Index> {
     return fromEntries(
       entries(this.config ?? {}).filter(([, config]) => config instanceof Index)
     ) as Record<string, Index>
@@ -200,7 +200,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
   columns: Definition,
   config?: (self: Table<Definition, Name>) => TableConfig<Name>,
   schemaName?: string
-) {
+): Table<Definition, Name> {
   const api = assign(new TableApi<Definition, Name>(), {
     name,
     schemaName,
@@ -218,7 +218,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
 export function alias<Definition extends TableDefinition, Alias extends string>(
   table: Table<Definition>,
   alias: Alias
-) {
+): Table<Definition, Alias> {
   const api = assign(new TableApi<Definition, Alias>(), {
     ...getTable(table),
     alias

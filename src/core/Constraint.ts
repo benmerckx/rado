@@ -6,7 +6,7 @@ import {
   type HasConstraint,
   type HasData
 } from './Internal.ts'
-import {sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 
 export interface UniqueConstraintData {
@@ -31,11 +31,11 @@ export class UniqueConstraint<TableName extends string = string>
     return new UniqueConstraint({...getData(this), fields})
   }
 
-  nullsNotDistinct() {
+  nullsNotDistinct(): UniqueConstraint<TableName> {
     return new UniqueConstraint({...getData(this), nullsNotDistinct: true})
   }
 
-  get [internalConstraint]() {
+  get [internalConstraint](): Sql {
     const {fields, nullsNotDistinct} = getData(this)
     return sql.join([
       sql`unique`,
@@ -48,7 +48,7 @@ export class UniqueConstraint<TableName extends string = string>
   }
 }
 
-export function unique() {
+export function unique(): UniqueConstraint {
   return new UniqueConstraint({fields: []})
 }
 
@@ -66,7 +66,7 @@ export class PrimaryKeyConstraint<TableName extends string = string>
     this[internalData] = data
   }
 
-  get [internalConstraint]() {
+  get [internalConstraint](): Sql {
     const {fields} = getData(this)
     return sql`primary key (${sql.join(
       fields.map(field => sql.identifier(field.fieldName)),
@@ -77,8 +77,8 @@ export class PrimaryKeyConstraint<TableName extends string = string>
 
 export function primaryKey<TableName extends string = string>(
   ...fields: Array<Field<unknown, TableName>>
-) {
-  return new PrimaryKeyConstraint<TableName>({fields: fields.map(getField)})
+): PrimaryKeyConstraint<TableName> {
+  return new PrimaryKeyConstraint({fields: fields.map(getField)})
 }
 
 export interface ForeignKeyConstraintData {
@@ -105,7 +105,7 @@ export class ForeignKeyConstraint<TableName extends string = string>
     })
   }
 
-  get [internalConstraint]() {
+  get [internalConstraint](): Sql {
     const {fields, references} = getData(this)
     return sql`foreign key (${sql.join(
       fields.map(field => sql.identifier(field.fieldName)),
@@ -119,8 +119,8 @@ export class ForeignKeyConstraint<TableName extends string = string>
 
 export function foreignKey<TableName extends string = string>(
   ...fields: Array<Field<unknown, TableName>>
-) {
-  return new ForeignKeyConstraint<TableName>({
+): ForeignKeyConstraint<TableName> {
+  return new ForeignKeyConstraint({
     fields: fields.map(getField),
     references: []
   })

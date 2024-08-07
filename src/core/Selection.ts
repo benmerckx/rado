@@ -98,7 +98,7 @@ export class Selection implements HasSql {
     this.mapRow = root.result.bind(root)
   }
 
-  makeVirtual(name: string) {
+  makeVirtual(name: string): SelectionInput {
     return virtual(name, this.input)
   }
 
@@ -114,11 +114,11 @@ export class Selection implements HasSql {
     )
   }
 
-  get [internalSql]() {
+  get [internalSql](): Sql {
     return this.#selectionToSql(this.input, new Set())
   }
 
-  fieldNames() {
+  fieldNames(): Array<string> {
     return this.#fieldNames(this.input, new Set())
   }
 
