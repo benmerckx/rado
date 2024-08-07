@@ -1,16 +1,16 @@
-import type {Diff} from '../migrate/Diff.ts'
 import {txGenerator} from '../universal.ts'
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
+import type {Diff} from './Diff.ts'
 import type {Driver} from './Driver.ts'
 import {
-  getResolver,
-  getTable,
-  internalResolver,
   type HasQuery,
   type HasResolver,
   type HasSql,
-  type HasTable
+  type HasTable,
+  getResolver,
+  getTable,
+  internalResolver
 } from './Internal.ts'
 import type {
   Async,
