@@ -1,65 +1,86 @@
-import type {Database, Statement as NativeStatement} from 'better-sqlite3'
-import {SchemaInstructions} from '../define/Schema.js'
-import {Driver, DriverOptions} from '../lib/Driver.js'
-import {Statement} from '../lib/Statement.js'
-import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
-import {SqliteSchema} from '../sqlite/SqliteSchema.js'
+import type {Database as Client, Statement} from 'better-sqlite3'
+import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import type {
+  BatchQuery,
+  PrepareOptions,
+  SyncDriver,
+  SyncStatement
+} from '../core/Driver.ts'
+import {sqliteDialect} from '../sqlite.ts'
+import {sqliteDiff} from '../sqlite/SqliteDiff.ts'
 
-class PreparedStatement implements Driver.Sync.PreparedStatement {
-  constructor(private stmt: NativeStatement) {}
+class PreparedStatement implements SyncStatement {
+  constructor(
+    private stmt: Statement<Array<unknown>>,
+    private isSelection: boolean
+  ) {}
 
-  iterate<T>(params: Array<any>): IterableIterator<T> {
-    return this.stmt.iterate(...params)
+  all(params: Array<unknown>) {
+    return <Array<object>>this.stmt.all(...params)
   }
 
-  all<T>(params: Array<any>): Array<T> {
-    return this.stmt.all(...params)
+  run(params: Array<unknown>) {
+    return this.stmt.run(...params)
   }
 
-  run(params: Array<any>): {rowsAffected: number} {
-    return {rowsAffected: this.stmt.run(...params).changes}
+  get(params: Array<unknown>) {
+    return <object>this.stmt.get(...params)
   }
 
-  get<T>(params: Array<any>): T {
-    return this.stmt.get(...params)
-  }
-
-  execute(params: Array<any>): void {
+  values(params: Array<unknown>) {
+    if (this.isSelection) return this.stmt.raw(true).all(...params)
     this.stmt.run(...params)
+    return []
   }
+
+  free() {}
 }
 
-export class BetterSqlite3Driver extends Driver.Sync {
-  tableData: (tableName: string) => Array<SqliteSchema.Column>
-  indexData: (tableName: string) => Array<SqliteSchema.Index>
+class BetterSqlite3Driver implements SyncDriver {
+  parsesJson = false
 
-  constructor(public db: Database, options?: DriverOptions) {
-    super(new SqliteFormatter(), options)
-    this.tableData = this.prepare(SqliteSchema.tableData)
-    this.indexData = this.prepare(SqliteSchema.indexData)
+  constructor(private client: Client) {}
+
+  exec(query: string): void {
+    this.client.exec(query)
   }
 
   close() {
-    this.db.close()
+    this.client.close()
   }
 
-  prepareStatement(stmt: Statement): Driver.Sync.PreparedStatement {
-    return new PreparedStatement(this.db.prepare(stmt.sql))
+  prepare(sql: string, options: PrepareOptions) {
+    return new PreparedStatement(this.client.prepare(sql), options.isSelection)
   }
 
-  schemaInstructions(tableName: string): SchemaInstructions | undefined {
-    const columnData = this.tableData(tableName)
-    const indexData = this.indexData(tableName)
-    return SqliteSchema.createInstructions(columnData, indexData)
+  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
+    return this.transaction(
+      tx =>
+        queries.map(({sql, params, isSelection}) =>
+          tx.prepare(sql, {isSelection}).values(params)
+        ),
+      {}
+    )
   }
 
-  export(): Uint8Array {
-    // This is missing from the type definitions
-    // @ts-ignore
-    return this.db.serialize()
+  transaction<T>(
+    run: (inner: BetterSqlite3Driver) => T,
+    options: TransactionOptions['sqlite']
+  ): T {
+    let result: T | undefined
+    this.client
+      .transaction(() => {
+        result = run(this)
+      })
+      [options.behavior ?? 'deferred']()
+    return result!
   }
 }
 
-export function connect(db: Database, options?: DriverOptions) {
-  return new BetterSqlite3Driver(db, options)
+export function connect(db: Client): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(
+    new BetterSqlite3Driver(db),
+    sqliteDialect,
+    sqliteDiff
+  )
 }

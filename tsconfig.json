@@ -1,14 +1,18 @@
 {
   "compilerOptions": {
-    "module": "esnext",
-    "target": "esnext",
-    "moduleResolution": "nodenext",
+    "module": "NodeNext",
+    "target": "ESNext",
+    "allowImportingTsExtensions": true,
+    "moduleResolution": "NodeNext",
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
+    "outDir": "dist",
+    "emitDeclarationOnly": true,
+    "declaration": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "types": ["bun-types", "@cloudflare/workers-types"]
-  }
+  },
+  "include": ["src", "test"]
 }

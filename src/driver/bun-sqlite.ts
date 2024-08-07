@@ -1,74 +1,70 @@
-import type {Database, Statement as NativeStatement} from 'bun:sqlite'
-import {QueryData, SelectFirst} from '../define/Query.js'
-import {SchemaInstructions} from '../define/Schema.js'
-import {Driver, DriverOptions} from '../lib/Driver.js'
-import {Statement} from '../lib/Statement.js'
-import {SqliteFormatter} from '../sqlite/SqliteFormatter.js'
-import {SqliteSchema} from '../sqlite/SqliteSchema.js'
+import type {Database as Client, Statement} from 'bun:sqlite'
+import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import {sqliteDialect} from '../sqlite.ts'
+import {sqliteDiff} from '../sqlite/SqliteDiff.ts'
 
-class PreparedStatement implements Driver.Sync.PreparedStatement {
-  constructor(
-    private lastChanges: () => {rowsAffected: number},
-    private stmt: NativeStatement
-  ) {}
+class PreparedStatement implements SyncStatement {
+  constructor(private stmt: Statement<unknown>) {}
 
-  *iterate<T>(params: Array<any>): IterableIterator<T> {
-    for (const row of this.stmt.all(...params)) yield row
+  all(params: Array<unknown>) {
+    return <Array<object>>this.stmt.all(...params)
   }
 
-  all<T>(params: Array<any>): Array<T> {
-    return this.stmt.all(...params)
+  run(params: Array<unknown>) {
+    return this.stmt.run(...params)
   }
 
-  run(params: Array<any>): {rowsAffected: number} {
-    this.stmt.run(...params)
-    return this.lastChanges()
+  get(params: Array<unknown>) {
+    return <object>this.stmt.get(...params)
   }
 
-  get<T>(params: Array<any>): T {
-    return this.stmt.get(...params)
+  values(params: Array<unknown>) {
+    return this.stmt.values(...params)
   }
 
-  execute(params: Array<any>): void {
-    this.stmt.run(...params)
+  free() {
+    this.stmt.finalize()
   }
 }
 
-export class BunSqliteDriver extends Driver.Sync {
-  tableData: (tableName: string) => Array<SqliteSchema.Column>
-  indexData: (tableName: string) => Array<SqliteSchema.Index>
-  lastChanges: () => {rowsAffected: number}
+class BunSqliteDriver implements SyncDriver {
+  parsesJson = false
 
-  constructor(public db: Database, options?: DriverOptions) {
-    super(new SqliteFormatter(), options)
-    this.tableData = this.prepare(SqliteSchema.tableData)
-    this.indexData = this.prepare(SqliteSchema.indexData)
-    this.lastChanges = this.prepare(() => {
-      return new SelectFirst<{rowsAffected: number}>(
-        new QueryData.Raw({
-          expectedReturn: 'row',
-          strings: ['SELECT changes() as rowsAffected'],
-          params: []
-        }) as any
-      )
-    })
+  constructor(private client: Client) {}
+
+  exec(query: string): void {
+    this.client.exec(query)
   }
 
   close() {
-    this.db.close()
+    this.client.close()
   }
 
-  prepareStatement(stmt: Statement): Driver.Sync.PreparedStatement {
-    return new PreparedStatement(this.lastChanges, this.db.prepare(stmt.sql))
+  prepare(sql: string) {
+    return new PreparedStatement(this.client.prepare(sql))
   }
 
-  schemaInstructions(tableName: string): SchemaInstructions | undefined {
-    const columnData = this.tableData(tableName)
-    const indexData = this.indexData(tableName)
-    return SqliteSchema.createInstructions(columnData, indexData)
+  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
+    return this.transaction(tx => {
+      return queries.map(({sql, params}) => tx.prepare(sql).values(params))
+    }, {})
+  }
+
+  transaction<T>(
+    run: (inner: SyncDriver) => T,
+    options: TransactionOptions['sqlite']
+  ): T {
+    let result: T | undefined
+    this.client
+      .transaction(() => {
+        result = run(this)
+      })
+      [options.behavior ?? 'deferred']()
+    return result!
   }
 }
 
-export function connect(db: Database, options?: DriverOptions) {
-  return new BunSqliteDriver(db, options)
+export function connect(db: Client): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(new BunSqliteDriver(db), sqliteDialect, sqliteDiff)
 }

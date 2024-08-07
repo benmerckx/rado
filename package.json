@@ -1,73 +1,55 @@
 {
   "name": "rado",
-  "version": "0.4.9",
+  "version": "1.0.0-preview.3",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && bun build.ts",
+    "size": "esbuild src/index.ts --bundle --minify --format=esm --outdir=dist",
+    "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
+    "prepublishOnly": "rm -rf dist && bun run build",
+    "cycles": "madge --warning --circular src/index.ts",
+    "test:bun": "bun test",
+    "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
+    "test:deno": "deno test --no-check --allow-read"
+  },
+  "sideEffects": false,
   "exports": {
+    "./package.json": "./package.json",
     ".": "./dist/index.js",
-    "./*": "./dist/*.js",
-    "./driver/bun:sqlite": "./dist/driver/bun-sqlite.js"
+    "./*": "./dist/*.js"
   },
   "typesVersions": {
     "*": {
-      "driver/*": [
-        "dist/driver/*.d.ts"
-      ],
-      "lib/*": [
-        "dist/lib/*.d.ts"
-      ],
-      "driver/bun:sqlite": [
-        "dist/driver/bun-sqlite.d.ts"
-      ],
-      "define/*": [
-        "dist/define/*.d.ts"
-      ],
-      "sqlite/*": [
-        "dist/sqlite/*.d.ts"
-      ],
-      "sqlite": [
-        "dist/sqlite.d.ts"
-      ],
-      "util/*": [
-        "dist/util/*.d.ts"
-      ]
+      "*": ["./dist/*"]
     }
   },
-  "files": [
-    "dist"
-  ],
-  "sideEffects": false,
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json && tsx build.ts",
-    "test": "tsx test",
-    "test:bun": "bun test/index.ts --driver=bun:sqlite",
-    "profile": "cross-env PROFILE=true tsx build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
-    "prepublishOnly": "tsc -p tsconfig.build.json && tsx build.ts"
-  },
+  "files": ["dist"],
   "devDependencies": {
+    "@benmerckx/suite": "^0.3.0",
+    "@biomejs/biome": "^1.6.1",
     "@cloudflare/workers-types": "^4.20230628.0",
+    "@electric-sql/pglite": "^0.1.5",
     "@sqlite.org/sqlite-wasm": "^3.42.0-build4",
     "@types/better-sqlite3": "^5.4.1",
     "@types/glob": "^8.0.0",
+    "@types/pg": "^8.11.5",
     "@types/sql.js": "^1.4.2",
-    "better-sqlite3": "^7.5.1",
+    "better-sqlite3": "^11.0.0",
     "bun-types": "^0.5.0",
     "cross-env": "^7.0.3",
     "esbuild": "^0.18.11",
     "glob": "^8.0.3",
+    "madge": "^6.1.0",
+    "mysql2": "^3.9.7",
+    "pg": "^8.11.5",
     "rimraf": "^4.1.2",
     "sade": "^1.8.1",
     "speedscope": "^1.15.0",
     "sql.js": "^1.8.0",
     "sqlite3": "^5.1.6",
-    "tsx": "^3.12.3",
-    "typescript": "beta",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5",
     "uvu": "^0.5.6"
-  },
-  "volta": {
-    "node": "18.12.1"
-  },
-  "packageManager": "yarn@3.3.1"
+  }
 }
