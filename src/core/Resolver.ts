@@ -20,7 +20,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     this.#dialect = dialect
   }
 
-  toSQL(query: HasQuery) {
+  toSQL(query: HasQuery): {sql: string; params: Array<unknown>} {
     const emitter = this.#dialect.emit(query)
     return {sql: emitter.sql, params: emitter.bind()}
   }

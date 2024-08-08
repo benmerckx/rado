@@ -133,7 +133,7 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
     )
   }
 
-  toSQL() {
+  toSQL(): {sql: string; params: Array<unknown>} {
     const {resolver} = getData(this)
     if (!resolver) throw new Error('Query has no resolver')
     return resolver.toSQL(this)
