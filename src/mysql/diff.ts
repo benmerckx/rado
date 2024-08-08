@@ -1,7 +1,7 @@
 import type {Diff} from '../core/Diff.ts'
 import type {HasSql} from '../core/Internal.ts'
 import type {Table} from '../core/Table.ts'
-import {mysqlDialect} from './MysqlDialect.ts'
+import {mysqlDialect} from './dialect.ts'
 
 const inline = (sql: HasSql) => mysqlDialect.inline(sql)
 

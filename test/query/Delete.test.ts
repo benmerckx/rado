@@ -1,7 +1,7 @@
 import {suite} from '@benmerckx/suite'
 import {table} from '../../src/core/Table.ts'
 import {eq} from '../../src/core/expr/Conditions.ts'
-import {integer} from '../../src/sqlite/SqliteColumns.ts'
+import {integer} from '../../src/sqlite/columns.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

@@ -5,8 +5,8 @@ import {type Sql, sql} from '../core/Sql.ts'
 import {type Table, table} from '../core/Table.ts'
 import {eq} from '../core/expr/Conditions.ts'
 import {txGenerator} from '../universal.ts'
-import * as column from './SqliteColumns.ts'
-import {sqliteDialect} from './SqliteDialect.ts'
+import * as column from './columns.ts'
+import {sqliteDialect} from './dialect.ts'
 
 const TableInfo = table('TableInfo', {
   cid: column.integer().notNull(),

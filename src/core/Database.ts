@@ -97,7 +97,17 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   transaction<T>(
+    this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
+    options?: TransactionOptions[Meta['dialect']]
+  ): T
+  transaction<T>(
+    this: Database<Async>,
+    run: (tx: Transaction<Meta>) => Promise<T>,
+    options?: TransactionOptions[Meta['dialect']]
+  ): Promise<T>
+  transaction<T>(
+    run: (tx: Transaction<Meta>) => T | Promise<T>,
     options?: TransactionOptions[Meta['dialect']]
   ): Deliver<Meta, T>
   transaction(run: Function, options = {}) {

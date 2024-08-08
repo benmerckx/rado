@@ -2,10 +2,10 @@ import type {Dialect} from './Dialect.ts'
 import type {BatchQuery, Driver, DriverSpecs, Statement} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {
-  getSelection,
-  hasSelection,
   type HasQuery,
-  type HasSql
+  type HasSql,
+  getSelection,
+  hasSelection
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
@@ -18,6 +18,11 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   constructor(driver: Driver, dialect: Dialect) {
     this.#driver = driver
     this.#dialect = dialect
+  }
+
+  toSQL(query: HasQuery) {
+    const emitter = this.#dialect.emit(query)
+    return {sql: emitter.sql, params: emitter.bind()}
   }
 
   prepare(query: HasQuery, name?: string): PreparedStatement<Meta> {

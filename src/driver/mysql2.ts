@@ -11,8 +11,8 @@ import type {
   BatchQuery,
   PrepareOptions
 } from '../core/Driver.ts'
-import {mysqlDialect} from '../mysql/MysqlDialect.ts'
-import {mysqlDiff} from '../mysql/MysqlDiff.ts'
+import {mysqlDialect} from '../mysql/dialect.ts'
+import {mysqlDiff} from '../mysql/diff.ts'
 
 type Queryable = PromiseConnection | Pool | PoolConnection
 

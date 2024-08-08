@@ -1,9 +1,8 @@
 import type {DriverSpecs} from './Driver.ts'
-import type {HasSql} from './Internal.ts'
 import {getData, getField, internalData} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
-import {input, type Input} from './expr/Input.ts'
+import {type Input, input} from './expr/Input.ts'
 
 export interface ColumnData {
   type: Sql
@@ -13,10 +12,10 @@ export interface ColumnData {
   notNull?: boolean
   isUnique?: boolean
   autoIncrement?: boolean
-  defaultValue?(): HasSql
+  defaultValue?(): Sql
   references?(): FieldData
-  onUpdate?: HasSql
-  onDelete?: HasSql
+  onUpdate?: Sql
+  onDelete?: Sql
   mapFromDriverValue?(value: unknown, specs: DriverSpecs): unknown
   mapToDriverValue?(value: unknown): unknown
 }
@@ -28,19 +27,27 @@ export class Column<Value = unknown> {
   constructor(data: ColumnData) {
     this[internalData] = data
   }
-  notNull(): RequiredColumn<WithoutNull<Value>> {
-    return new Column({
+  notNull(): RequiredColumn<Value> {
+    return <any>new Column({
       ...getData(this),
       notNull: true
-    }) as RequiredColumn
+    })
   }
   default(
     value: Input<WithoutNull<Value>> | (() => Input<WithoutNull<Value>>)
   ): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
-      defaultValue(): HasSql {
+      defaultValue(): Sql {
         return input(value instanceof Function ? value() : value)
+      }
+    })
+  }
+  defaultNow(): Column<WithoutNull<Value>> {
+    return new Column({
+      ...getData(this),
+      defaultValue(): Sql {
+        return sql.unsafe('now()')
       }
     })
   }
@@ -60,6 +67,9 @@ export class Column<Value = unknown> {
       }
     })
   }
+  $type<T>(): Column<null extends Value ? T | null : T> {
+    return this as any
+  }
 }
 
 export class JsonColumn<Value = unknown> extends Column<Value> {
@@ -70,7 +80,8 @@ export class JsonColumn<Value = unknown> extends Column<Value> {
 }
 
 declare const required: unique symbol
-export interface RequiredColumn<Value = unknown> extends Column<Value> {
+export interface RequiredColumn<Value = unknown>
+  extends Column<WithoutNull<Value>> {
   [required]: true
 }
 

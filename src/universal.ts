@@ -1,3 +1,3 @@
-export * from './universal/UniversalColumns.ts'
-export * from './universal/UniversalFunctions.ts'
-export * from './universal/UniversalTransaction.ts'
+export * from './universal/columns.ts'
+export * from './universal/functions.ts'
+export * from './universal/transactions.ts'

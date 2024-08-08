@@ -6,21 +6,21 @@ import type {
 } from './Constraint.ts'
 import {Index} from './Index.ts'
 import {
+  type HasConstraint,
+  type HasSql,
+  type HasTable,
+  type HasTarget,
   getConstraint,
   getData,
   getTable,
   hasConstraint,
   internalTable,
-  internalTarget,
-  type HasConstraint,
-  type HasSql,
-  type HasTable,
-  type HasTarget
+  internalTarget
 } from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
-import {jsonExpr, type JsonExpr} from './expr/Json.ts'
+import {type JsonExpr, jsonExpr} from './expr/Json.ts'
 
 const {assign, fromEntries, entries, keys} = Object
 
@@ -159,22 +159,20 @@ export type TableRow<Definition extends TableDefinition> = {
   [K in keyof Definition]: Definition[K] extends Column<infer T> ? T : never
 } & {}
 
-type IsReq<Col> = Col extends RequiredColumn ? true : false
-type Required<D> = {
-  [K in keyof D as true extends IsReq<D[K]> ? K : never]: D[K]
-}
-type Optional<D> = {
-  [K in keyof D as false extends IsReq<D[K]> ? K : never]: D[K]
-}
+type IsReq<Col> = Col extends RequiredColumn<infer Value>
+  ? null extends Value
+    ? true
+    : false
+  : false
 type RequiredInput<D> = {
-  readonly [K in keyof Required<D>]: D[K] extends Column<infer V>
-    ? Input<V>
-    : never
+  readonly [K in keyof D as true extends IsReq<D[K]>
+    ? K
+    : never]: D[K] extends Column<infer V> ? Input<V> : never
 }
 type OptionalInput<D> = {
-  readonly [K in keyof Optional<D>]?: D[K] extends Column<infer V>
-    ? Input<V>
-    : never
+  readonly [K in keyof D as false extends IsReq<D[K]>
+    ? K
+    : never]?: D[K] extends Column<infer V> ? Input<V> : never
 }
 
 export type TableInsert<Definition extends TableDefinition> =

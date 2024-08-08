@@ -7,7 +7,7 @@ import type {
   SyncStatement
 } from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
-import {sqliteDiff} from '../sqlite/SqliteDiff.ts'
+import {sqliteDiff} from '../sqlite/diff.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(

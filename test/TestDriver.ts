@@ -18,7 +18,7 @@ import {
 } from '../src/universal.ts'
 
 const Node = table('Node', {
-  id: id(),
+  id: id().notNull(),
   textField: text().notNull(),
   bool: boolean()
 })

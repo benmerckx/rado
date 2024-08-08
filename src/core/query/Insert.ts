@@ -1,20 +1,20 @@
 import {
+  type HasSql,
+  type HasTable,
   getData,
   getQuery,
   getTable,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasSql,
-  type HasTable
+  internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
 import {
-  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {
@@ -23,7 +23,7 @@ import type {
   TableRow,
   TableUpdate
 } from '../Table.ts'
-import {input, type Input} from '../expr/Input.ts'
+import {type Input, input} from '../expr/Input.ts'
 
 interface InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
   into: HasTable
@@ -159,11 +159,10 @@ export class InsertInto<
         return sql`(${sql.join(
           Object.entries(table.columns).map(([key, column]) => {
             const value = row[key]
-            const {defaultValue, notNull, mapToDriverValue} = getData(column)
+            const {defaultValue, mapToDriverValue} = getData(column)
             if (value !== undefined)
               return input(mapToDriverValue?.(value) ?? value)
             if (defaultValue) return defaultValue()
-            if (notNull) throw new Error(`Column "${key}" is not nullable`)
             return sql.chunk('emitDefaultValue', undefined)
           }),
           sql`, `

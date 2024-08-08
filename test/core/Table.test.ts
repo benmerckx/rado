@@ -1,6 +1,6 @@
 import {suite} from '@benmerckx/suite'
 import {table} from '../../src/core/Table.ts'
-import {integer} from '../../src/sqlite/SqliteColumns.ts'
+import {integer} from '../../src/sqlite/columns.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

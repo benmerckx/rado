@@ -1,13 +1,13 @@
 import {
+  type HasQuery,
+  type HasResolver,
+  type HasSql,
+  type HasTarget,
   getData,
   getResolver,
   hasSelection,
   internalData,
-  internalQuery,
-  type HasQuery,
-  type HasResolver,
-  type HasSql,
-  type HasTarget
+  internalQuery
 } from './Internal.ts'
 import type {Deliver, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
@@ -131,6 +131,12 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
     return <PreparedQuery<Result, Inputs, Meta>>(
       getData(this).resolver!.prepare(this, name)
     )
+  }
+
+  toSQL() {
+    const {resolver} = getData(this)
+    if (!resolver) throw new Error('Query has no resolver')
+    return resolver.toSQL(this)
   }
 }
 

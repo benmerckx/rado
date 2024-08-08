@@ -1,22 +1,22 @@
 import {
+  type HasSql,
+  type HasTable,
   getData,
   getTable,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasSql,
-  type HasTable
+  internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
 import {
-  selection,
   type Selection,
   type SelectionInput,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
-import type {TableDefinition, TableUpdate} from '../Table.ts'
+import {type Sql, sql} from '../Sql.ts'
+import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
 import {input} from '../expr/Input.ts'
 
 export interface UpdateData<Meta extends QueryMeta = QueryMeta>
@@ -68,13 +68,18 @@ export class UpdateTable<
     return new UpdateTable<Definition, Meta>({...getData(this), where})
   }
 
+  returning(
+    this: UpdateTable<Definition, IsPostgres | IsSqlite>
+  ): Update<TableRow<Definition>, Meta>
   returning<Input extends SelectionInput>(
     this: UpdateTable<Definition, IsPostgres | IsSqlite>,
-    returning: Input
-  ): Update<SelectionRow<Input>, Meta> {
-    return new Update<SelectionRow<Input>, Meta>({
-      ...getData(this as UpdateTable<Definition, Meta>),
-      returning: selection(returning)
+    returning?: Input
+  ): Update<SelectionRow<Input>, Meta>
+  returning(returning?: SelectionInput) {
+    const data = getData(this)
+    return new Update({
+      ...data,
+      returning: selection(returning ?? data.table)
     })
   }
 }

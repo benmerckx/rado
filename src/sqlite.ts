@@ -6,7 +6,7 @@ export {
   unionAll
 } from './core/query/Union.ts'
 export {alias, table as sqliteTable} from './core/Table.ts'
-export * from './sqlite/SqliteBuilder.ts'
-export * from './sqlite/SqliteColumns.ts'
-export * from './sqlite/SqliteDialect.ts'
-export * from './sqlite/SqliteFunctions.ts'
+export * from './sqlite/builder.ts'
+export * from './sqlite/columns.ts'
+export * from './sqlite/dialect.ts'
+export * from './sqlite/functions.ts'

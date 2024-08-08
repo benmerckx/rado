@@ -6,8 +6,8 @@ import type {
   BatchQuery,
   PrepareOptions
 } from '../core/Driver.ts'
-import {postgresDialect} from '../postgres/PostgresDialect.ts'
-import {postgresDiff} from '../postgres/PostgresDiff.ts'
+import {postgresDialect} from '../postgres/dialect.ts'
+import {postgresDiff} from '../postgres/diff.ts'
 
 type Queryable = Client | Pool | PoolClient
 

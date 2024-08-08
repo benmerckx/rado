@@ -16,8 +16,8 @@ import {
   when
 } from '../core/expr/Conditions.ts'
 import {concat, txGenerator} from '../universal.ts'
-import * as column from './PostgresColumns.ts'
-import {postgresDialect} from './PostgresDialect.ts'
+import * as column from './columns.ts'
+import {postgresDialect} from './dialect.ts'
 
 const Attr = table('pg_attribute', {
   name: column.text('attname').notNull(),

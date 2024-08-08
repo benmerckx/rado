@@ -1,6 +1,7 @@
-import type {HasSql} from '../Internal.ts'
-import {sql, type Sql} from '../Sql.ts'
-import {input, type Input} from './Input.ts'
+import {type HasSql, getQuery} from '../Internal.ts'
+import {type Sql, sql} from '../Sql.ts'
+import type {SelectBase} from '../query/Select.ts'
+import {type Input, input} from './Input.ts'
 
 function binop(operator: string) {
   return (left: Input, right: Input): Sql<boolean> =>
@@ -163,54 +164,6 @@ export function when<Out, In = boolean>(
   ])
 }
 
-/*
-class Condition implements HasSql<boolean> {
-  readonly [internalSql]: Sql<boolean>
-  constructor(sql: Sql<boolean>) {
-    this[internalSql] = sql
-  }
-  or(...conditions: Array<undefined | Input<boolean>>) {
-    return new Condition(or(this, ...conditions))
-  }
-  eq<T>(left: Input<T>, right: Input<T>) {
-    return new Condition(and(this, eq(left, right)))
-  }
-  ne<T>(left: Input<T>, right: Input<T>) {
-    return new Condition(and(this, ne(left, right)))
-  }
-  gt<T>(left: Input<T>, right: Input<T>) {
-    return new Condition(and(this, gt(left, right)))
-  }
-  gte<T>(left: Input<T>, right: Input<T>) {
-    return new Condition(and(this, gte(left, right)))
-  }
-  lt<T>(left: Input<T>, right: Input<T>) {
-    return new Condition(and(this, lt(left, right)))
-  }
-  lte<T>(left: Input<T>, right: Input<T>) {
-    return new Condition(and(this, lte(left, right)))
-  }
-  like(left: Input<string>, right: Input<string>) {
-    return new Condition(and(this, like(left, right)))
-  }
-  notLike(left: Input<string>, right: Input<string>) {
-    return new Condition(and(this, notLike(left, right)))
-  }
-  ilike(left: Input<string>, right: Input<string>) {
-    return new Condition(and(this, ilike(left, right)))
-  }
-  notILike(left: Input<string>, right: Input<string>) {
-    return new Condition(and(this, notILike(left, right)))
-  }
-  arrayContains<T>(left: Input<Array<T>>, right: Input<T>) {
-    return new Condition(and(this, arrayContains(left, right)))
-  }
-  arrayContained<T>(left: Input<Array<T>>, right: Input<Array<T>>) {
-    return new Condition(and(this, arrayContained(left, right)))
-  }
-  arrayOverlaps<T>(left: Input<Array<T>>, right: Input<Array<T>>) {
-    return new Condition(and(this, arrayOverlaps(left, right)))
-  }
+export function exists<T>(query: SelectBase<T>): Sql<boolean> {
+  return sql`exists (${getQuery(query)})`
 }
-
-export const on = new Condition(sql`true`)*/

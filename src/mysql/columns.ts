@@ -40,11 +40,14 @@ export function char(
 }
 
 export function date(
+  name?: string,
+  options?: {mode: 'string'}
+): Column<string | null>
+export function date(
   name: string | undefined,
   options: {mode: 'date'}
 ): Column<Date | null>
-export function date(name?: string): Column<string | null>
-export function date(name?: string, options?: {mode: 'date'}) {
+export function date(name?: string, options?: {mode: 'date' | 'string'}) {
   return column({
     name,
     type: column.date(),

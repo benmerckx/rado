@@ -10,7 +10,7 @@ import {
   union,
   unionAll
 } from '../../src/index.ts'
-import {integer} from '../../src/sqlite/SqliteColumns.ts'
+import {integer} from '../../src/sqlite/columns.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 const pg = builder as Builder<IsPostgres>

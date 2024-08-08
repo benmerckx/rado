@@ -1,4 +1,4 @@
-import {JsonColumn, column, type Column} from '../core/Column.ts'
+import {type Column, JsonColumn, column} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntervalFields =
@@ -57,11 +57,14 @@ export function cidr(name?: string): Column<string | null> {
 }
 
 export function date(
+  name?: string,
+  options?: {mode: 'string'}
+): Column<string | null>
+export function date(
   name: string | undefined,
   options: {mode: 'date'}
 ): Column<Date | null>
-export function date(name?: string): Column<string | null>
-export function date(name?: string, options?: {mode: 'date'}) {
+export function date(name?: string, options?: {mode: 'date' | 'string'}) {
   return column({
     name,
     type: column.date(),
@@ -110,7 +113,7 @@ export function interval(
   })
 }
 
-export function serial(name?: string): Column<number | null> {
+export function serial(name?: string): Column<number> {
   return column({name, type: column.serial()})
 }
 
@@ -211,7 +214,7 @@ export function timestamp(
 export function timestamp(
   name?: string,
   options?: {mode?: 'string'; precision?: Precision; withTimeZone?: boolean}
-): Column<string | null> | Column<Date | null> {
+) {
   return column({
     name,
     type: column[
