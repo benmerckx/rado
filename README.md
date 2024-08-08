@@ -73,8 +73,7 @@ import {asc} from 'rado'
 db.select().from(User)
   .orderBy(asc(User.username))
   .groupBy(User.id, User.username)
-  .skip(20)
-  .take(10)
+  .limit(10, 20)
 ```
 
 #### Insert
