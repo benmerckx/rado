@@ -1,18 +1,17 @@
 import {
+  type HasQuery,
+  type HasSql,
+  type HasTarget,
   getData,
   getQuery,
   getSelection,
   internalData,
   internalQuery,
-  internalTarget,
-  type HasQuery,
-  type HasSql,
-  type HasTable,
-  type HasTarget
+  internalTarget
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
-import {selection, type SelectionInput} from './Selection.ts'
+import {type SelectionInput, selection} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {DeleteFrom} from './query/Delete.ts'
@@ -96,8 +95,10 @@ class BuilderBase<Meta extends QueryMeta> {
     return new InsertInto<Definition, Meta>({...getData(this), into})
   }
 
-  delete(from: HasTable): DeleteFrom<Meta> {
-    return new DeleteFrom<Meta>({...getData(this), from})
+  delete<Definition extends TableDefinition>(
+    from: Table<Definition>
+  ): DeleteFrom<Definition, Meta> {
+    return new DeleteFrom<Definition, Meta>({...getData(this), from})
   }
 }
 

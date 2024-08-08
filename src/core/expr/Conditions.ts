@@ -1,6 +1,6 @@
 import {type HasSql, getQuery} from '../Internal.ts'
 import {type Sql, sql} from '../Sql.ts'
-import type {SelectBase} from '../query/Select.ts'
+import type {Select} from '../query/Select.ts'
 import {type Input, input} from './Input.ts'
 
 function binop(operator: string) {
@@ -164,6 +164,6 @@ export function when<Out, In = boolean>(
   ])
 }
 
-export function exists<T>(query: SelectBase<T>): Sql<boolean> {
+export function exists<T>(query: Select<T>): Sql<boolean> {
   return sql`exists (${getQuery(query)})`
 }

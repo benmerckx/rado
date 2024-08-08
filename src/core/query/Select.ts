@@ -1,4 +1,8 @@
 import {
+  type HasSelection,
+  type HasSql,
+  type HasTable,
+  type HasTarget,
   getData,
   getQuery,
   getSelection,
@@ -10,29 +14,25 @@ import {
   internalData,
   internalQuery,
   internalSelection,
-  internalTarget,
-  type HasSelection,
-  type HasSql,
-  type HasTable,
-  type HasTarget
+  internalTarget
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {Query} from '../Query.ts'
 import {
-  selection,
   type IsNullable,
   type MakeNullable,
   type Selection,
   type SelectionInput,
   type SelectionRecord,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
-import {input, type Input as UserInput} from '../expr/Input.ts'
+import {type Input as UserInput, input} from '../expr/Input.ts'
 import {UnionBase, type UnionBaseData} from './Union.ts'
 
 export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
@@ -151,7 +151,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join('full', right, on)
   }
 
-  where(...where: Array<HasSql<boolean>>): Select<Input, Meta> {
+  where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta> {
     return new Select({...getData(this), where: and(...where)})
   }
 

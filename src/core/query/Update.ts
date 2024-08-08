@@ -17,6 +17,7 @@ import {
 } from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
+import {and} from '../expr/Conditions.ts'
 import {input} from '../expr/Input.ts'
 
 export interface UpdateData<Meta extends QueryMeta = QueryMeta>
@@ -64,8 +65,13 @@ export class UpdateTable<
     return new UpdateTable<Definition, Meta>({...getData(this), set})
   }
 
-  where(where: HasSql<boolean>): UpdateTable<Definition, Meta> {
-    return new UpdateTable<Definition, Meta>({...getData(this), where})
+  where(
+    ...where: Array<HasSql<boolean> | undefined>
+  ): UpdateTable<Definition, Meta> {
+    return new UpdateTable<Definition, Meta>({
+      ...getData(this),
+      where: and(...where)
+    })
   }
 
   returning(
