@@ -13,6 +13,7 @@ import type {
 } from '../core/Driver.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
 import {mysqlDiff} from '../mysql/diff.ts'
+import {setTransaction, startTransaction} from '../mysql/transactions.ts'
 
 type Queryable = PromiseConnection | Pool | PoolConnection
 
@@ -86,7 +87,13 @@ export class Mysql2Driver implements AsyncDriver {
       : this.client
     const driver = new Mysql2Driver(client, this.depth + 1)
     try {
-      await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
+      await client.query(
+        this.depth > 0 ? `savepoint d${this.depth}` : startTransaction(options)
+      )
+      if (this.depth === 0) {
+        const setOptions = setTransaction(options)
+        if (setOptions) await client.query(setOptions)
+      }
       const result = await run(driver)
       await client.query(
         this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'

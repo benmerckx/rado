@@ -8,6 +8,7 @@ import type {
 } from '../core/Driver.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
+import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = Client | Pool | PoolClient
 
@@ -95,6 +96,7 @@ export class PgDriver implements AsyncDriver {
       'totalCount' in this.client ? await this.client.connect() : this.client
     try {
       await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
+      if (this.depth === 0) await client.query(setTransaction(options))
       const result = await run(new PgDriver(client, this.depth + 1))
       await client.query(
         this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'

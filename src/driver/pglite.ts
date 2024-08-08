@@ -3,6 +3,7 @@ import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
 import {AsyncDatabase, type TransactionOptions} from '../index.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
+import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = PGlite | Transaction
 
@@ -82,7 +83,8 @@ export class PGliteDriver implements AsyncDriver {
     options: TransactionOptions['postgres']
   ): Promise<T> {
     if (this.depth === 0 && 'transaction' in this.client)
-      return this.client.transaction((tx: Transaction) => {
+      return this.client.transaction(async (tx: Transaction) => {
+        await tx.query(setTransaction(options))
         return run(new PGliteDriver(tx, this.depth + 1))
       }) as Promise<T>
     await this.exec(`savepoint d${this.depth}`)
