@@ -5,3 +5,4 @@
 /dist
 /bin
 /*.cpuprofile
+/deno.lock
