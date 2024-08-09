@@ -20,7 +20,7 @@ Conditions can be created by accessing the fields of the table:
 
 ```ts
 import {eq} from 'rado'
-eq(User.id.is, 1) // Compare with a value
+eq(User.id, 1) // Compare with a value
 eq(User.id, Post.userId) // Compare to fields on other tables
 ```
 
