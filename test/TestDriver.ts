@@ -67,6 +67,8 @@ export async function testDriver(
     test('create table', async () => {
       try {
         await db.create(Node)
+        const nothing = await db.select().from(Node).get()
+        test.equal(nothing, null)
         await db.insert(Node).values({
           textField: 'hello',
           bool: true
@@ -107,9 +109,9 @@ export async function testDriver(
         const user1 = await db.select(lastInsertId()).get()
         await db.insert(User).values({name: 'Mario'})
         const user2 = await db.select(lastInsertId()).get()
-        await db.insert(Post).values({userId: user1, title: 'Post 1'})
+        await db.insert(Post).values({userId: user1!, title: 'Post 1'})
         const post1 = await db.select(lastInsertId()).get()
-        await db.insert(Post).values({userId: user1, title: 'Post 2'})
+        await db.insert(Post).values({userId: user1!, title: 'Post 2'})
         const post2 = await db.select(lastInsertId()).get()
         const posts = await db.select().from(Post)
         test.equal(posts, [
@@ -283,8 +285,8 @@ export async function testDriver(
       await db.create(User, Post)
       await db.insert(User).values({name: 'Bob'})
       const user1 = await db.select(lastInsertId()).get()
-      await db.insert(Post).values({userId: user1, title: 'Post 1'})
-      await db.insert(Post).values({userId: user1, title: 'Post 2'})
+      await db.insert(Post).values({userId: user1!, title: 'Post 1'})
+      await db.insert(Post).values({userId: user1!, title: 'Post 2'})
       const posts = include(
         db.select().from(Post).where(eq(Post.userId, User.id))
       )

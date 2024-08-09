@@ -1,13 +1,13 @@
 import {
-  type HasQuery,
-  type HasResolver,
-  type HasSql,
-  type HasTarget,
   getData,
   getResolver,
   hasSelection,
   internalData,
-  internalQuery
+  internalQuery,
+  type HasQuery,
+  type HasResolver,
+  type HasSql,
+  type HasTarget
 } from './Internal.ts'
 import type {Deliver, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
@@ -104,9 +104,11 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
     try {
       const result = prepared[resultType]()
       if (result instanceof Promise)
-        return result.finally(prepared.free.bind(prepared))
+        return result
+          .then(res => res ?? null)
+          .finally(prepared.free.bind(prepared))
       prepared.free()
-      return result
+      return result ?? null
     } catch (error) {
       prepared.free()
       throw error
@@ -117,8 +119,8 @@ export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
     return this.#exec('all', db) as Deliver<Meta, Array<Result>>
   }
 
-  get(db?: HasResolver): Deliver<Meta, Result> {
-    return this.#exec('get', db) as Deliver<Meta, Result>
+  get(db?: HasResolver): Deliver<Meta, Result | null> {
+    return this.#exec('get', db) as Deliver<Meta, Result | null>
   }
 
   run(db?: HasResolver): Deliver<Meta, void> {
