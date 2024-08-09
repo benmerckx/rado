@@ -10,6 +10,7 @@ import {
   internalData,
   internalQuery,
   internalSelection,
+  internalSql,
   internalTarget,
   type HasSelection,
   type HasSql,
@@ -193,13 +194,18 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   get [internalQuery](): Sql {
     return sql.chunk('emitSelect', getData(this))
   }
+
+  get [internalSql](): Sql<SelectionRow<Input>> {
+    return sql`(${getQuery(this)})`
+  }
 }
 
 export type SubQuery<Input> = Input & HasTarget
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Input, Meta>,
-    HasSelection {
+    HasSelection,
+    HasSql<SelectionRow<Input>> {
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
   having(having: HasSql<boolean>): Select<Input, Meta>
@@ -233,7 +239,8 @@ export interface WithoutSelection<Meta extends QueryMeta> {
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
-  extends Query<SelectionRow<Input>, Meta> {
+  extends Query<SelectionRow<Input>, Meta>,
+    HasSql<SelectionRow<Input>> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>

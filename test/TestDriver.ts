@@ -76,8 +76,12 @@ export async function testDriver(
         const nodes = await db.select().from(Node)
         test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
         await db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1))
-        const [node] = await db.select(Node.textField).from(Node)
-        test.equal(node, 'world')
+        const textField = db.select(Node.textField).from(Node)
+        test.equal(await textField.get(), 'world')
+        await db.update(Node).set({
+          textField: db.select(sql.value('test'))
+        })
+        test.equal(await textField.get(), 'test')
       } finally {
         await db.drop(Node)
       }

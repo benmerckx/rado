@@ -2,7 +2,7 @@ import type {Emitter} from './Emitter.ts'
 import {
   getQuery,
   getSql,
-  hasSql,
+  hasQuery,
   type HasQuery,
   type HasSql
 } from './Internal.ts'
@@ -13,13 +13,13 @@ export class Dialect {
     this.#createEmitter = createEmitter
   }
   emit = (input: HasSql | HasQuery): Emitter => {
-    const sql = hasSql(input) ? getSql(input) : getQuery(input)
+    const sql = hasQuery(input) ? getQuery(input) : getSql(input)
     const emitter = new this.#createEmitter()
     sql.emitTo(emitter)
     return emitter
   }
   inline = (input: HasSql | HasQuery): string => {
-    const sql = hasSql(input) ? getSql(input) : getQuery(input)
+    const sql = hasQuery(input) ? getQuery(input) : getSql(input)
     const emitter = new this.#createEmitter()
     sql.inlineValues().emitTo(emitter)
     return emitter.sql
