@@ -12,6 +12,7 @@ import {type Param, ValueParam} from './Param.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
+import {callFunction} from './expr/Functions.ts'
 import type {IncludeData} from './expr/Include.ts'
 import {jsonAggregateArray, jsonArray} from './expr/Json.ts'
 import type {Delete} from './query/Delete.ts'
@@ -86,15 +87,10 @@ export abstract class Emitter {
   }
 
   emitReferences(fields: Array<FieldData>): void {
-    sql
-      .join([
-        sql.identifier(fields[0].targetName),
-        sql`(${sql.join(
-          fields.map(field => sql.identifier(field.fieldName)),
-          sql`, `
-        )})`
-      ])
-      .emitTo(this)
+    callFunction(
+      sql.identifier(fields[0].targetName),
+      fields.map(field => sql.identifier(field.fieldName))
+    ).emitTo(this)
   }
 
   emitDelete(deleteOp: Delete<unknown>): void {
@@ -199,11 +195,12 @@ export abstract class Emitter {
     const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
     if (!data.select.selection) throw new Error('No selection defined')
     const fields = data.select.selection.fieldNames()
-    let subject = jsonArray(
+    const subject = jsonArray(
       ...fields.map(name => sql`_.${sql.identifier(name)}`)
     )
-    if (!data.first) subject = jsonAggregateArray(subject)
-    sql`(select ${subject} from (${inner}) as _)`.emitTo(this)
+    sql`(select ${
+      data.first ? subject : jsonAggregateArray(subject)
+    } from (${inner}) as _)`.emitTo(this)
   }
 
   emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
