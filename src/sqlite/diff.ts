@@ -179,8 +179,7 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
       const selection: Record<string, HasSql> = {...hasTable}
       for (const name of missingColumns) {
         selection[name] =
-          getData(tableApi.columns[name]).defaultValue?.() ??
-          sql.chunk('emitDefaultValue', undefined)
+          getData(tableApi.columns[name]).defaultValue?.() ?? sql`null`
       }
       return [
         // Create a new temporary table with the new definition

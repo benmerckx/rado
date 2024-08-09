@@ -137,6 +137,11 @@ class InsertCanConflict<
   }
 }
 
+const defaultKeyword = sql.universal({
+  sqlite: sql`null`,
+  default: sql`default`
+})
+
 export class InsertInto<
   Definition extends TableDefinition,
   Meta extends QueryMeta
@@ -163,7 +168,7 @@ export class InsertInto<
             if (value !== undefined)
               return input(mapToDriverValue?.(value) ?? value)
             if (defaultValue) return defaultValue()
-            return sql.chunk('emitDefaultValue', undefined)
+            return defaultKeyword
           }),
           sql`, `
         )})`

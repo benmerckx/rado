@@ -1,5 +1,6 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
+import type {Runtime} from '../core/MetaData.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
 
 const BACKTICK = '`'
@@ -11,9 +12,8 @@ const MATCH_SINGLE_QUOTE = /'/g
 
 export const mysqlDialect: Dialect = new Dialect(
   class extends Emitter {
+    runtime: Runtime = 'mysql'
     paramIndex = 0
-    jsonArrayFn = 'json_array'
-    jsonGroupFn = 'json_arrayagg'
     emitValue(value: unknown) {
       this.sql += '?'
       this.params.push(new ValueParam(value))
@@ -49,15 +49,6 @@ export const mysqlDialect: Dialect = new Dialect(
         BACKTICK +
         identifier.replace(MATCH_BACKTICK, ESCAPE_BACKTICK) +
         BACKTICK
-    }
-    emitDefaultValue() {
-      this.sql += 'default'
-    }
-    emitIdColumn() {
-      this.sql += 'int not null auto_increment'
-    }
-    emitLastInsertId() {
-      this.sql += 'last_insert_id()'
     }
   }
 )

@@ -1,5 +1,6 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
+import type {Runtime} from '../core/MetaData.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
 
 const DOUBLE_QUOTE = '"'
@@ -11,9 +12,8 @@ const MATCH_SINGLE_QUOTE = /'/g
 
 export const postgresDialect: Dialect = new Dialect(
   class extends Emitter {
+    runtime: Runtime = 'postgres'
     paramIndex = 0
-    jsonArrayFn = 'json_build_array'
-    jsonGroupFn = 'json_agg'
     emitValue(value: unknown) {
       this.sql += `$${++this.paramIndex}`
       this.params.push(new ValueParam(value))
@@ -51,15 +51,6 @@ export const postgresDialect: Dialect = new Dialect(
         DOUBLE_QUOTE +
         identifier.replace(MATCH_DOUBLE_QUOTE, ESCAPE_DOUBLE_QUOTE) +
         DOUBLE_QUOTE
-    }
-    emitDefaultValue() {
-      this.sql += 'default'
-    }
-    emitIdColumn() {
-      this.sql += 'integer generated always as identity'
-    }
-    emitLastInsertId() {
-      this.sql += 'lastval()'
     }
   }
 )

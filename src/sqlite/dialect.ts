@@ -1,5 +1,6 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
+import type {Runtime} from '../core/MetaData.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
 
 const DOUBLE_QUOTE = '"'
@@ -11,8 +12,7 @@ const MATCH_SINGLE_QUOTE = /'/g
 
 export const sqliteDialect: Dialect = new Dialect(
   class extends Emitter {
-    jsonArrayFn = 'json_array'
-    jsonGroupFn = 'json_group_array'
+    runtime: Runtime = 'sqlite'
     processValue(value: unknown): unknown {
       return typeof value === 'boolean' ? (value ? 1 : 0) : value
     }
@@ -45,21 +45,12 @@ export const sqliteDialect: Dialect = new Dialect(
         identifier.replace(MATCH_DOUBLE_QUOTE, ESCAPE_DOUBLE_QUOTE) +
         DOUBLE_QUOTE
     }
-    emitDefaultValue() {
-      this.sql += 'null'
-    }
     quoteString(input: string): string {
       return (
         SINGLE_QUOTE +
         input.replace(MATCH_SINGLE_QUOTE, ESCAPE_SINGLE_QUOTE) +
         SINGLE_QUOTE
       )
-    }
-    emitIdColumn() {
-      this.sql += 'integer'
-    }
-    emitLastInsertId() {
-      this.sql += 'last_insert_rowid()'
     }
   }
 )

@@ -1,17 +1,19 @@
 import type {ColumnData} from './Column.ts'
 import {
+  type HasQuery,
+  type HasTarget,
   getData,
   getQuery,
   getTable,
-  getTarget,
-  type HasQuery,
-  type HasTarget
+  getTarget
 } from './Internal.ts'
-import {ValueParam, type Param} from './Param.ts'
-import {sql} from './Sql.ts'
+import type {Runtime} from './MetaData.ts'
+import {type Param, ValueParam} from './Param.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {IncludeData} from './expr/Include.ts'
+import {jsonAggregateArray, jsonArray} from './expr/Json.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Insert} from './query/Insert.ts'
 import type {SelectData} from './query/Select.ts'
@@ -39,16 +41,12 @@ export abstract class Emitter {
     return value
   }
 
-  abstract jsonArrayFn: string
-  abstract jsonGroupFn: string
+  abstract runtime: Runtime
   abstract emitIdentifier(value: string): void
   abstract emitValue(value: unknown): void
   abstract emitInline(value: unknown): void
   abstract emitJsonPath(value: Array<number | string>): void
   abstract emitPlaceholder(value: string): void
-  abstract emitDefaultValue(): void
-  abstract emitLastInsertId(): void
-  abstract emitIdColumn(): void
 
   emitUnsafe(value: string): void {
     this.sql += value
@@ -201,11 +199,16 @@ export abstract class Emitter {
     const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
     if (!data.select.selection) throw new Error('No selection defined')
     const fields = data.select.selection.fieldNames()
-    let subject = sql`${sql.unsafe(this.jsonArrayFn)}(${sql.join(
-      fields.map(name => sql`_.${sql.identifier(name)}`),
-      sql`, `
-    )})`
-    if (!data.first) subject = sql`${sql.unsafe(this.jsonGroupFn)}(${subject})`
+    let subject = jsonArray(
+      ...fields.map(name => sql`_.${sql.identifier(name)}`)
+    )
+    if (!data.first) subject = jsonAggregateArray(subject)
     sql`(select ${subject} from (${inner}) as _)`.emitTo(this)
+  }
+
+  emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
+    const sql = runtimes[this.runtime] ?? runtimes.default
+    if (!sql) throw new Error('Unsupported runtime')
+    sql.emitTo(this)
   }
 }

@@ -1,5 +1,6 @@
 export type QueryMode = 'sync' | 'async' | undefined
-export type QueryDialect = 'universal' | 'sqlite' | 'mysql' | 'postgres'
+export type Runtime = 'sqlite' | 'mysql' | 'postgres'
+export type QueryDialect = 'universal' | Runtime
 
 export type Deliver<Meta extends QueryMeta, Result> = Meta extends Either
   ? Result | Promise<Result>

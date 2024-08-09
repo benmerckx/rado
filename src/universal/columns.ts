@@ -1,10 +1,16 @@
-import {JsonColumn, column, type Column} from '../core/Column.ts'
+import {type Column, JsonColumn, column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
+
+const idType = sql.universal({
+  sqlite: sql`integer`,
+  postgres: sql`integer generated always as identity`,
+  mysql: sql`int not null auto_increment`
+})
 
 export function id(name?: string): Column<number> {
   return column({
     name,
-    type: sql.chunk('emitIdColumn', undefined),
+    type: idType,
     primary: true
   })
 }

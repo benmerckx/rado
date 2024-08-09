@@ -1,6 +1,7 @@
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
-import {getSql, internalSql, type HasSql} from './Internal.ts'
+import {type HasSql, getSql, internalSql} from './Internal.ts'
+import type {Runtime} from './MetaData.ts'
 import type {FieldData} from './expr/Field.ts'
 
 type EmitMethods = {
@@ -173,6 +174,12 @@ export namespace sql {
     inner: Parameters<EmitMethods[Type]>[0]
   ): Sql {
     return empty().chunk(type, inner)
+  }
+
+  export function universal(
+    runtimes: Partial<Record<Runtime | 'default', Sql>>
+  ): Sql {
+    return chunk('emitUniversal', runtimes)
   }
 
   type QueryChunk = HasSql | undefined

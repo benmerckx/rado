@@ -1,5 +1,7 @@
 import type {HasSql} from '../Internal.ts'
 import {sql} from '../Sql.ts'
+import {callFunction} from './Functions.ts'
+import type {Input} from './Input.ts'
 
 export interface JsonArrayHasSql<Value> extends HasSql<Array<Value>> {
   [index: number]: JsonExpr<Value>
@@ -27,4 +29,25 @@ export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
       return jsonExpr(sql`${target}`.jsonPath([isNumber ? Number(prop) : prop]))
     }
   })
+}
+
+export function jsonAggregateArray(...args: Array<Input<unknown>>) {
+  return callFunction(
+    sql.universal({
+      sqlite: sql`json_group_array`,
+      postgres: sql`json_agg`,
+      mysql: sql`json_arrayagg`
+    }),
+    args
+  )
+}
+
+export function jsonArray(...args: Array<Input<unknown>>) {
+  return callFunction(
+    sql.universal({
+      postgres: sql`json_build_array`,
+      default: sql`json_array`
+    }),
+    args
+  )
 }

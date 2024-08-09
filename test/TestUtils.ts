@@ -2,11 +2,11 @@ import {Builder} from '../src/core/Builder.ts'
 import {Dialect} from '../src/core/Dialect.ts'
 import {Emitter} from '../src/core/Emitter.ts'
 import type {HasQuery, HasSql} from '../src/core/Internal.ts'
+import type {Runtime} from '../src/core/MetaData.ts'
 
 const testDialect = new Dialect(
   class extends Emitter {
-    jsonArrayFn = 'json_array'
-    jsonGroupFn = 'json_group_array'
+    runtime: Runtime = 'postgres'
     emitValue(v: unknown) {
       this.sql += JSON.stringify(v)
     }
@@ -21,15 +21,6 @@ const testDialect = new Dialect(
     }
     emitPlaceholder(name: string) {
       this.sql += `?${name}`
-    }
-    emitDefaultValue() {
-      this.sql += 'default'
-    }
-    emitIdColumn(): void {
-      this.sql += 'id'
-    }
-    emitLastInsertId(): void {
-      this.sql += 'last_insert_id()'
     }
   }
 ).emit
