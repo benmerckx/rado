@@ -1,8 +1,4 @@
 import {
-  type HasSelection,
-  type HasSql,
-  type HasTable,
-  type HasTarget,
   getData,
   getQuery,
   getSelection,
@@ -14,25 +10,29 @@ import {
   internalData,
   internalQuery,
   internalSelection,
-  internalTarget
+  internalTarget,
+  type HasSelection,
+  type HasSql,
+  type HasTable,
+  type HasTarget
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {Query} from '../Query.ts'
 import {
+  selection,
   type IsNullable,
   type MakeNullable,
   type Selection,
   type SelectionInput,
   type SelectionRecord,
-  type SelectionRow,
-  selection
+  type SelectionRow
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {sql, type Sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
-import {type Input as UserInput, input} from '../expr/Input.ts'
+import {input, type Input as UserInput} from '../expr/Input.ts'
 import {UnionBase, type UnionBaseData} from './Union.ts'
 
 export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
@@ -200,7 +200,7 @@ export type SubQuery<Input> = Input & HasTarget
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Input, Meta>,
     HasSelection {
-  where(where: HasSql<boolean>): Select<Input, Meta>
+  where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
   having(having: HasSql<boolean>): Select<Input, Meta>
   orderBy(...exprs: Array<HasSql>): Select<Input, Meta>
