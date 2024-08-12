@@ -2,11 +2,13 @@ import type {DriverSpecs} from './Driver.ts'
 import {
   getField,
   getSql,
+  getTable,
   hasField,
   internalSql,
   type HasSql,
   type HasTable
 } from './Internal.ts'
+import type {JoinOperator} from './Join.ts'
 import {sql, type Sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
@@ -114,10 +116,6 @@ export class Selection implements HasSql {
     )
   }
 
-  get [internalSql](): Sql {
-    return this.#selectionToSql(this.input, new Set())
-  }
-
   fieldNames(): Array<string> {
     return this.#fieldNames(this.input, new Set())
   }
@@ -165,6 +163,55 @@ export class Selection implements HasSql {
       sql`, `
     )
   }
+
+  get [internalSql](): Sql {
+    return this.#selectionToSql(this.input, new Set())
+  }
+
+  join(right: HasTable, operator: JoinOperator): Selection {
+    return this
+  }
+}
+
+export class TableSelection extends Selection {
+  constructor(public table: HasTable) {
+    super(table, new Set())
+  }
+
+  join(right: HasTable, operator: JoinOperator): Selection {
+    const leftTable = getTable(this.table)
+    const rightTable = getTable(right)
+    const nullable = new Set(this.nullable)
+    if (operator === 'right' || operator === 'full')
+      nullable.add(leftTable.aliased)
+    if (operator === 'left' || operator === 'full')
+      nullable.add(rightTable.aliased)
+    return new JoinSelection([this.table, right], nullable)
+  }
+}
+
+export class JoinSelection extends Selection {
+  constructor(
+    public tables: Array<HasTable>,
+    nullable: Set<string>
+  ) {
+    super(
+      Object.fromEntries(tables.map(table => [getTable(table).aliased, table])),
+      nullable
+    )
+  }
+
+  join(right: HasTable, operator: JoinOperator): Selection {
+    const rightTable = getTable(right)
+    const nullable = new Set(this.nullable)
+    if (operator === 'right' || operator === 'full')
+      this.tables
+        .map(table => getTable(table).aliased)
+        .forEach(nullable.add, nullable)
+    if (operator === 'left' || operator === 'full')
+      nullable.add(rightTable.aliased)
+    return new JoinSelection([...this.tables, right], nullable)
+  }
 }
 
 export function selection(
@@ -172,4 +219,10 @@ export function selection(
   nullable: Array<string> = []
 ): Selection {
   return new Selection(input, new Set(nullable))
+}
+
+export namespace selection {
+  export function table(table: HasTable): TableSelection {
+    return new TableSelection(table)
+  }
 }

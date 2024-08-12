@@ -13,7 +13,7 @@ import type {Selection, SelectionRow} from '../Selection.ts'
 import {sql, type Sql} from '../Sql.ts'
 
 export interface UnionBaseData<Meta extends QueryMeta> extends QueryData<Meta> {
-  selection?: Selection
+  select?: Selection
 }
 
 export abstract class UnionBase<
@@ -109,7 +109,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitUnion', getData(this))
+    return sql.chunk('emitUnion', this)
   }
 }
 

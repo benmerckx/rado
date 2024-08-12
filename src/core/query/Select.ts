@@ -17,6 +17,7 @@ import {
   type HasTable,
   type HasTarget
 } from '../Internal.ts'
+import type {JoinOperator} from '../Join.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {Query} from '../Query.ts'
 import {
@@ -24,7 +25,6 @@ import {
   type IsNullable,
   type MakeNullable,
   type Selection,
-  type SelectionInput,
   type SelectionRecord,
   type SelectionRow
 } from '../Selection.ts'
@@ -40,11 +40,6 @@ export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
 
 export interface SelectData<Meta extends QueryMeta = QueryMeta>
   extends UnionBaseData<Meta> {
-  select: {
-    type: SelectionType
-    tables: Array<string>
-    selection?: Selection
-  }
   distinct?: boolean
   distinctOn?: Array<HasSql>
   from?: HasSql
@@ -78,59 +73,30 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
 
   from(target: HasTarget | HasSql): Select<Input, Meta> {
     const {select: current} = getData(this)
-    const selected = current.selection
     const from = hasTarget(target) ? getTarget(target) : getSql(target)
     const isTable = hasTable(target)
-    const selectionInput = selected ?? selection(isTable ? target : sql`*`)
+    const selected =
+      current ?? isTable ? selection.table(<any>target) : selection(sql`*`)
     return new Select({
       ...getData(this),
-      select: {
-        ...current,
-        selection: selectionInput,
-        tables: isTable ? [getTable(target).aliased] : []
-      },
+      select: selected,
       from
     })
   }
 
   #join(
-    operator: 'left' | 'right' | 'inner' | 'full',
+    operator: JoinOperator,
     right: HasTable,
     on: HasSql<boolean>
   ): Select<Input, Meta> {
     const {from, select: current} = getData(this)
-    const selected = current.selection
-    const rightTable = getTable(right)
-    const addNullable: Array<string> = []
-    if (operator === 'right' || operator === 'full')
-      addNullable.push(...current.tables)
-    if (operator === 'left' || operator === 'full')
-      addNullable.push(rightTable.aliased)
-    if (selected) addNullable.push(...selected.nullable)
-    const select =
-      current.type === 'selection'
-        ? current
-        : {
-            type: 'joinTables' as const,
-            selection: selection(<SelectionInput>(current.type === 'allFrom'
-                ? {
-                    // Todo: handle this properly
-                    [getTable(selected!.input as any).aliased]: selected!.input,
-                    [rightTable.aliased]: right
-                  }
-                : {
-                    ...selected?.input,
-                    [rightTable.aliased]: right
-                  }), addNullable),
-            tables: [...current.tables, rightTable.aliased]
-          }
     return new Select({
       ...getData(this),
-      select,
+      select: current?.join(right, operator),
       from: sql.join([
         from,
         sql.unsafe(`${operator} join`),
-        rightTable.target(),
+        getTable(right).target(),
         sql`on ${on}`
       ])
     })
@@ -187,8 +153,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
 
   get [internalSelection](): Selection {
     const {select} = getData(this)
-    if (!select.selection) throw new Error('No selection defined')
-    return select.selection
+    if (!select) throw new Error('No selection defined')
+    return select
   }
 
   get [internalQuery](): Sql {

@@ -39,11 +39,7 @@ class BuilderBase<Meta extends QueryMeta> {
   select(input?: SelectionInput): any {
     return new Select<unknown, Meta>({
       ...getData(this),
-      select: {
-        type: input ? 'selection' : 'allFrom',
-        selection: input && selection(input),
-        tables: []
-      }
+      select: input && selection(input)
     })
   }
 
@@ -54,11 +50,7 @@ class BuilderBase<Meta extends QueryMeta> {
   selectDistinct(input?: SelectionInput): any {
     return new Select({
       ...getData(this),
-      select: {
-        type: input ? 'selection' : 'allFrom',
-        selection: input && selection(input),
-        tables: []
-      },
+      select: input && selection(input),
       distinct: true
     })
   }
@@ -75,11 +67,7 @@ class BuilderBase<Meta extends QueryMeta> {
   selectDistinctOn(columns: any, input?: any): any {
     return new Select({
       ...getData(this),
-      select: {
-        type: input ? 'selection' : 'allFrom',
-        selection: input && selection(input),
-        tables: []
-      },
+      select: input && selection(input),
       distinctOn: columns
     })
   }
