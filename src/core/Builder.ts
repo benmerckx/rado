@@ -1,17 +1,17 @@
 import {
-  type HasQuery,
-  type HasSql,
-  type HasTarget,
   getData,
   getQuery,
   getSelection,
   internalData,
   internalQuery,
-  internalTarget
+  internalTarget,
+  type HasQuery,
+  type HasSql,
+  type HasTarget
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
-import {type SelectionInput, selection} from './Selection.ts'
+import {selection, type SelectionInput} from './Selection.ts'
 import {sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {DeleteFrom} from './query/Delete.ts'
@@ -22,6 +22,7 @@ import type {
   WithoutSelection
 } from './query/Select.ts'
 import {Select} from './query/Select.ts'
+import type {UnionBase} from './query/Union.ts'
 import {UpdateTable} from './query/Update.ts'
 
 class BuilderBase<Meta extends QueryMeta> {
@@ -105,6 +106,22 @@ class BuilderBase<Meta extends QueryMeta> {
 export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
+  $withRecursive(cteName: string): {
+    as<Input extends SelectionInput>(query: UnionBase<Input, Meta>): CTE<Input>
+  } {
+    return {
+      as<Input extends SelectionInput>(
+        query: SelectBase<Input, Meta>
+      ): CTE<Input> {
+        const fields = getSelection(query).makeVirtual(cteName)
+        return Object.assign(<any>fields, {
+          [internalTarget]: sql.identifier(cteName),
+          [internalQuery]: getQuery(query)
+        })
+      }
+    }
+  }
+
   $with(cteName: string): {
     as<Input extends SelectionInput>(query: SelectBase<Input, Meta>): CTE<Input>
   } {

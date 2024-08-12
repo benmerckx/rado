@@ -92,4 +92,18 @@ suite(import.meta, test => {
     const qInline = exceptAll(a, b)
     test.equal(emit(qInline), emit(query))
   })
+
+  test('recursive', () => {
+    const loopCte = pg.$withRecursive('loopCte').as(
+      pg
+        .select()
+        .from(Node)
+        .unionAll(self => pg.select({id: self.id}).from(Node))
+    )
+    const query = pg.with(loopCte).select().from(loopCte)
+    test.equal(
+      emit(query),
+      'with recursive "loopCte" as (select "Node"."id" from "Node" union all select "loopCte"."id" from "Node") select * from "loopCte"'
+    )
+  })
 })

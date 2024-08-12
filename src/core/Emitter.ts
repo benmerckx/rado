@@ -1,15 +1,15 @@
 import type {ColumnData} from './Column.ts'
 import {
-  type HasQuery,
-  type HasTarget,
   getData,
   getQuery,
   getTable,
-  getTarget
+  getTarget,
+  type HasQuery,
+  type HasTarget
 } from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
-import {type Param, ValueParam} from './Param.ts'
-import {type Sql, sql} from './Sql.ts'
+import {ValueParam, type Param} from './Param.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
@@ -18,7 +18,7 @@ import {jsonAggregateArray, jsonArray} from './expr/Json.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Insert} from './query/Insert.ts'
 import type {SelectData} from './query/Select.ts'
-import type {Union} from './query/Union.ts'
+import type {UnionData} from './query/Union.ts'
 import type {Update} from './query/Update.ts'
 
 export abstract class Emitter {
@@ -153,8 +153,7 @@ export abstract class Emitter {
       .emitTo(this)
   }
 
-  emitUnion(union: Union<unknown>): void {
-    const {left, operator, right} = getData(union)
+  emitUnion({left, operator, right}: UnionData): void {
     sql.join([getQuery(left), operator, getQuery(right)]).emitTo(this)
   }
 

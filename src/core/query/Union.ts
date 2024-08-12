@@ -10,7 +10,7 @@ import {
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
 import type {Selection, SelectionRow} from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {sql, type Sql} from '../Sql.ts'
 
 export interface UnionBaseData<Meta extends QueryMeta> extends QueryData<Meta> {
   selection?: Selection
@@ -31,12 +31,17 @@ export abstract class UnionBase<
     })
   }
 
-  unionAll(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+  unionAll(
+    right: UnionBase<Input, Meta> | ((self: Input) => UnionBase<Input, Meta>)
+  ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this),
       left: this,
       operator: sql`union all`,
-      right
+      right:
+        typeof right === 'function'
+          ? right(getData(this).selection?.input as Input)
+          : right
     })
   }
 
@@ -83,7 +88,8 @@ export abstract class UnionBase<
   }
 }
 
-export interface UnionData<Meta extends QueryMeta> extends UnionBaseData<Meta> {
+export interface UnionData<Meta extends QueryMeta = QueryMeta>
+  extends UnionBaseData<Meta> {
   left: HasQuery
   operator: HasSql
   right: HasQuery
@@ -103,7 +109,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitUnion', this)
+    return sql.chunk('emitUnion', getData(this))
   }
 }
 
