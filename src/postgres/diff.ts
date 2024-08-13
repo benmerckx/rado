@@ -135,7 +135,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
             type: sql.unsafe(column.type.toLowerCase()),
             notNull: column.notNull,
             defaultValue: column.defaultValue
-              ? () => sql.unsafe(column.defaultValue)
+              ? sql.unsafe(column.defaultValue)
               : undefined
           }
         ]
@@ -202,8 +202,8 @@ export const postgresDiff: Diff = (hasTable: Table) => {
             })
           )
         }
-        const localDefault = localInstruction.defaultValue?.()
-        const schemaDefault = schemaInstruction.defaultValue?.()
+        const localDefault = localInstruction.defaultValue
+        const schemaDefault = schemaInstruction.defaultValue
         const localDefaultStr = localDefault && inline(localDefault)
         const schemaDefaultStr = schemaDefault && inline(schemaDefault)
         if (localDefaultStr !== schemaDefaultStr) {

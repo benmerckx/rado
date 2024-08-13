@@ -53,7 +53,7 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
               primary: hasSinglePrimaryKey && column.pk === 1,
               defaultValue:
                 column.dflt_value !== null
-                  ? () => sql.unsafe(column.dflt_value!)
+                  ? sql.unsafe(column.dflt_value!)
                   : undefined
             })
           )
@@ -179,7 +179,7 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
       const selection: Record<string, HasSql> = {...hasTable}
       for (const name of missingColumns) {
         selection[name] =
-          getData(tableApi.columns[name]).defaultValue?.() ?? sql`null`
+          getData(tableApi.columns[name]).defaultValue ?? sql`null`
       }
       return [
         // Create a new temporary table with the new definition
