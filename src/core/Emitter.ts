@@ -1,15 +1,15 @@
 import type {ColumnData} from './Column.ts'
 import {
+  type HasQuery,
+  type HasTarget,
   getData,
   getQuery,
   getTable,
-  getTarget,
-  type HasQuery,
-  type HasTarget
+  getTarget
 } from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
-import {ValueParam, type Param} from './Param.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Param, ValueParam} from './Param.ts'
+import {Sql, sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
@@ -49,14 +49,30 @@ export abstract class Emitter {
   abstract emitJsonPath(value: Array<number | string>): void
   abstract emitPlaceholder(value: string): void
 
+  emitIdentifierOrSelf(value: string): void {
+    if (value === Sql.SELF_TARGET) {
+      if (!this.selfName) throw new Error('Self target not defined')
+      this.emitIdentifier(this.selfName)
+    } else {
+      this.emitIdentifier(value)
+    }
+  }
+
+  selfName?: string
+  emitSelf({name, inner}: {name: string; inner: Sql}): void {
+    this.selfName = name
+    inner.emitTo(this)
+    this.selfName = undefined
+  }
+
   emitUnsafe(value: string): void {
     this.sql += value
   }
 
-  emitField(field: FieldData): void {
-    this.emitIdentifier(field.targetName)
+  emitField({targetName, fieldName}: FieldData): void {
+    this.emitIdentifierOrSelf(targetName)
     this.emitUnsafe('.')
-    this.emitIdentifier(field.fieldName)
+    this.emitIdentifier(fieldName)
   }
 
   emitCreateTable(tableApi: TableApi): void {
@@ -141,7 +157,7 @@ export abstract class Emitter {
       : distinct && sql`distinct`
     sql
       .query({
-        select: sql.join([prefix, select.selection]),
+        select: sql.join([prefix, select]),
         from,
         where,
         groupBy,
@@ -172,11 +188,14 @@ export abstract class Emitter {
       .emitTo(this)
   }
 
-  emitWith(cte: Array<HasQuery & HasTarget>): void {
+  emitWith(cte: {
+    recursive: boolean
+    definitions: Array<HasQuery & HasTarget>
+  }): void {
     sql
       .query({
-        with: sql.join(
-          cte.map(cte => {
+        [cte.recursive ? 'withRecursive' : 'with']: sql.join(
+          cte.definitions.map(cte => {
             const query = getQuery(cte)
             const target = getTarget(cte)
             return sql`${target} as (${query})`
@@ -192,8 +211,8 @@ export abstract class Emitter {
     const wrapQuery = Boolean(data.limit || data.offset || data.orderBy)
     const innerQuery = sql.chunk('emitSelect', data)
     const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
-    if (!data.select.selection) throw new Error('No selection defined')
-    const fields = data.select.selection.fieldNames()
+    if (!data.select) throw new Error('No selection defined')
+    const fields = data.select.fieldNames()
     const subject = jsonArray(
       ...fields.map(name => sql`_.${sql.identifier(name)}`)
     )

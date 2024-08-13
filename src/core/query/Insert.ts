@@ -70,7 +70,7 @@ class InsertCanReturn<
     const data = getData(this)
     return new Insert({
       ...data,
-      returning: selection(returning ?? data.into)
+      returning: returning ? selection(returning) : selection.table(data.into)
     })
   }
 }

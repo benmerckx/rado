@@ -62,7 +62,7 @@ export class DeleteFrom<
     const data = getData(this)
     return new Delete({
       ...data,
-      returning: selection(returning ?? data.from)
+      returning: returning ? selection(returning) : selection.table(data.from)
     })
   }
 }

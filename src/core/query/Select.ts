@@ -1,4 +1,8 @@
 import {
+  type HasSelection,
+  type HasSql,
+  type HasTable,
+  type HasTarget,
   getData,
   getQuery,
   getSelection,
@@ -11,29 +15,24 @@ import {
   internalQuery,
   internalSelection,
   internalSql,
-  internalTarget,
-  type HasSelection,
-  type HasSql,
-  type HasTable,
-  type HasTarget
+  internalTarget
 } from '../Internal.ts'
 import type {JoinOperator} from '../Join.ts'
 import type {QueryMeta} from '../MetaData.ts'
-import type {Query} from '../Query.ts'
 import {
-  selection,
   type IsNullable,
   type MakeNullable,
   type Selection,
   type SelectionRecord,
-  type SelectionRow
+  type SelectionRow,
+  selection
 } from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
-import {input, type Input as UserInput} from '../expr/Input.ts'
+import {type Input as UserInput, input} from '../expr/Input.ts'
 import {UnionBase, type UnionBaseData} from './Union.ts'
 
 export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
@@ -76,7 +75,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     const from = hasTarget(target) ? getTarget(target) : getSql(target)
     const isTable = hasTable(target)
     const selected =
-      current ?? isTable ? selection.table(<any>target) : selection(sql`*`)
+      current ?? (isTable ? selection.table(<any>target) : selection(sql`*`))
     return new Select({
       ...getData(this),
       select: selected,
@@ -129,8 +128,16 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  having(having: HasSql<boolean>): Select<Input, Meta> {
-    return new Select({...getData(this), having})
+  having(
+    having: HasSql<boolean> | ((self: Input) => HasSql<boolean>)
+  ): Select<Input, Meta> {
+    return new Select({
+      ...getData(this),
+      having:
+        typeof having === 'function'
+          ? having(<Input>getSelection(this).input)
+          : having
+    })
   }
 
   orderBy(...exprs: Array<HasSql>): Select<Input, Meta> {
@@ -205,7 +212,7 @@ export interface WithoutSelection<Meta extends QueryMeta> {
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
-  extends Query<SelectionRow<Input>, Meta>,
+  extends SelectBase<Input, Meta>,
     HasSql<SelectionRow<Input>> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>

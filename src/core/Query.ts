@@ -1,13 +1,13 @@
 import {
+  type HasQuery,
+  type HasResolver,
+  type HasSql,
+  type HasTarget,
   getData,
   getResolver,
   hasSelection,
   internalData,
-  internalQuery,
-  type HasQuery,
-  type HasResolver,
-  type HasSql,
-  type HasTarget
+  internalQuery
 } from './Internal.ts'
 import type {Deliver, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
@@ -15,7 +15,7 @@ import type {Sql} from './Sql.ts'
 
 export class QueryData<Meta extends QueryMeta> {
   resolver?: Resolver<Meta>
-  cte?: Array<HasQuery & HasTarget>
+  cte?: {recursive: boolean; definitions: Array<HasQuery & HasTarget>}
 }
 
 type Exec = () => any

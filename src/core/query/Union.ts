@@ -1,16 +1,17 @@
 import {
+  type HasQuery,
+  type HasSelection,
+  type HasSql,
+  type HasTarget,
   getData,
   internalData,
   internalQuery,
-  internalSelection,
-  type HasQuery,
-  type HasSelection,
-  type HasSql
+  internalSelection
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
 import type {Selection, SelectionRow} from '../Selection.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {Sql, sql} from '../Sql.ts'
 
 export interface UnionBaseData<Meta extends QueryMeta> extends QueryData<Meta> {
   select?: Selection
@@ -22,68 +23,88 @@ export abstract class UnionBase<
 > extends Query<SelectionRow<Input>, Meta> {
   readonly [internalData]!: UnionBaseData<Meta>
 
-  union(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+  #makeSelf(): Input & HasTarget {
+    const {select} = getData(this)
+    return select!.makeVirtual(Sql.SELF_TARGET)
+  }
+
+  union(
+    right:
+      | UnionBase<Input, Meta>
+      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
+  ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this),
       left: this,
       operator: sql`union`,
-      right
+      right: typeof right === 'function' ? right(this.#makeSelf()) : right
     })
   }
 
   unionAll(
-    right: UnionBase<Input, Meta> | ((self: Input) => UnionBase<Input, Meta>)
+    right:
+      | UnionBase<Input, Meta>
+      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
   ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this),
       left: this,
       operator: sql`union all`,
-      right:
-        typeof right === 'function'
-          ? right(getData(this).selection?.input as Input)
-          : right
+      right: typeof right === 'function' ? right(this.#makeSelf()) : right
     })
   }
 
-  intersect(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+  intersect(
+    right:
+      | UnionBase<Input, Meta>
+      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
+  ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this),
       left: this,
       operator: sql`intersect`,
-      right
+      right: typeof right === 'function' ? right(this.#makeSelf()) : right
     })
   }
 
   intersectAll(
     this: UnionBase<Input, IsPostgres | IsMysql>,
-    right: UnionBase<Input, Meta>
+    right:
+      | UnionBase<Input, Meta>
+      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
   ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this as UnionBase<Input, Meta>),
       left: this,
       operator: sql`intersect all`,
-      right
+      right: typeof right === 'function' ? right(this.#makeSelf()) : right
     })
   }
 
-  except(right: UnionBase<Input, Meta>): Union<Input, Meta> {
+  except(
+    right:
+      | UnionBase<Input, Meta>
+      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
+  ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this),
       left: this,
       operator: sql`except`,
-      right
+      right: typeof right === 'function' ? right(this.#makeSelf()) : right
     })
   }
 
   exceptAll(
     this: UnionBase<Input, IsPostgres | IsMysql>,
-    right: UnionBase<Input, Meta>
+    right:
+      | UnionBase<Input, Meta>
+      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
   ): Union<Input, Meta> {
     return new Union<Input, Meta>({
       ...getData(this as UnionBase<Input, Meta>),
       left: this,
       operator: sql`except all`,
-      right
+      right: typeof right === 'function' ? right(this.#makeSelf()) : right
     })
   }
 }
@@ -105,11 +126,11 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   constructor(data: UnionData<Meta>) {
     super(data)
     this[internalData] = data
-    this[internalSelection] = data.selection!
+    this[internalSelection] = data.select!
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitUnion', this)
+    return sql.chunk('emitUnion', getData(this))
   }
 }
 

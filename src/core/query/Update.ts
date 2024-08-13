@@ -85,7 +85,7 @@ export class UpdateTable<
     const data = getData(this)
     return new Update({
       ...data,
-      returning: selection(returning ?? data.table)
+      returning: returning ? selection(returning) : selection.table(data.table)
     })
   }
 }

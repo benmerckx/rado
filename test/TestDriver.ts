@@ -6,7 +6,15 @@ import {
 } from '../src/core/Database.ts'
 import {table} from '../src/core/Table.ts'
 import {include} from '../src/core/expr/Include.ts'
-import {and, eq, foreignKey, primaryKey, sql, unique} from '../src/index.ts'
+import {
+  and,
+  eq,
+  foreignKey,
+  lte,
+  primaryKey,
+  sql,
+  unique
+} from '../src/index.ts'
 import {
   boolean,
   id,
@@ -274,6 +282,26 @@ export async function testDriver(
       } finally {
         await db.drop(TableB, TableA)
       }
+    })
+
+    test('recursive cte', async () => {
+      const fibonacci = db.$with('fibonacci').as(
+        db.select({n: sql<number>`1`, next: sql<number>`1`}).unionAll(self =>
+          db
+            .select({
+              n: self.next,
+              next: sql<number>`${self.n} + ${self.next}`
+            })
+            .from(self)
+            .where(lte(self.next, 13))
+        )
+      )
+      const query = db
+        .withRecursive(fibonacci)
+        .select(fibonacci.n)
+        .from(fibonacci)
+      const result = await query.all()
+      test.equal(result, [1, 1, 2, 3, 5, 8, 13])
     })
 
     test('include', async () => {

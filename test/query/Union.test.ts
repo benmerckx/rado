@@ -7,6 +7,8 @@ import {
   exceptAll,
   intersect,
   intersectAll,
+  lt,
+  sql,
   union,
   unionAll
 } from '../../src/index.ts'
@@ -94,16 +96,22 @@ suite(import.meta, test => {
   })
 
   test('recursive', () => {
-    const loopCte = pg.$withRecursive('loopCte').as(
-      pg
-        .select()
-        .from(Node)
-        .unionAll(self => pg.select({id: self.id}).from(Node))
-    )
-    const query = pg.with(loopCte).select().from(loopCte)
+    const def = pg
+      .select({n: sql.value(1), next: sql.value(1)})
+      .unionAll(self =>
+        pg
+          .select({
+            n: self.next,
+            next: sql<number>`${self.n} + ${self.next}`
+          })
+          .from(self)
+          .where(lt(self.n, 500))
+      )
+    const fibonacci = pg.$with('fibonacci').as(def)
+    const query = pg.withRecursive(fibonacci).select().from(fibonacci)
     test.equal(
       emit(query),
-      'with recursive "loopCte" as (select "Node"."id" from "Node" union all select "loopCte"."id" from "Node") select * from "loopCte"'
+      'with recursive "fibonacci" as (select 1 as "n", 1 as "next" union all select "fibonacci"."next" as "n", "fibonacci"."n" + "fibonacci"."next" as "next" from "fibonacci" where "fibonacci"."n" < 500) select * from "fibonacci"'
     )
   })
 })

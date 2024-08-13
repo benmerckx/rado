@@ -1,18 +1,16 @@
 import {
+  type HasQuery,
+  type HasSql,
+  type HasTarget,
   getData,
   getQuery,
   getSelection,
   internalData,
-  internalQuery,
-  internalTarget,
-  type HasQuery,
-  type HasSql,
-  type HasTarget
+  internalQuery
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
-import {selection, type SelectionInput} from './Selection.ts'
-import {sql} from './Sql.ts'
+import {type SelectionInput, selection} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {DeleteFrom} from './query/Delete.ts'
 import {InsertInto} from './query/Insert.ts'
@@ -94,7 +92,7 @@ class BuilderBase<Meta extends QueryMeta> {
 export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
-  $withRecursive(cteName: string): {
+  $with(cteName: string): {
     as<Input extends SelectionInput>(query: UnionBase<Input, Meta>): CTE<Input>
   } {
     return {
@@ -103,33 +101,23 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
       ): CTE<Input> {
         const fields = getSelection(query).makeVirtual(cteName)
         return Object.assign(<any>fields, {
-          [internalTarget]: sql.identifier(cteName),
-          [internalQuery]: getQuery(query)
+          [internalQuery]: getQuery(query).nameSelf(cteName)
         })
       }
     }
   }
 
-  $with(cteName: string): {
-    as<Input extends SelectionInput>(query: SelectBase<Input, Meta>): CTE<Input>
-  } {
-    return {
-      as<Input extends SelectionInput>(
-        query: SelectBase<Input, Meta>
-      ): CTE<Input> {
-        const fields = getSelection(query).makeVirtual(cteName)
-        return Object.assign(<any>fields, {
-          [internalTarget]: sql.identifier(cteName),
-          [internalQuery]: getQuery(query)
-        })
-      }
-    }
-  }
-
-  with(...cte: Array<CTE>): BuilderBase<Meta> {
+  with(...definitions: Array<CTE>): BuilderBase<Meta> {
     return new BuilderBase({
       ...getData(this),
-      cte
+      cte: {recursive: false, definitions}
+    })
+  }
+
+  withRecursive(...definitions: Array<CTE>): BuilderBase<Meta> {
+    return new BuilderBase({
+      ...getData(this),
+      cte: {recursive: true, definitions}
     })
   }
 }

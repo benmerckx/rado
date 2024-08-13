@@ -1,15 +1,16 @@
 import type {DriverSpecs} from './Driver.ts'
 import {
+  type HasSql,
+  type HasTable,
+  type HasTarget,
   getField,
   getSql,
   getTable,
   hasField,
-  internalSql,
-  type HasSql,
-  type HasTable
+  internalSql
 } from './Internal.ts'
 import type {JoinOperator} from './Join.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
 import {virtual} from './Virtual.ts'
@@ -100,13 +101,13 @@ export class Selection implements HasSql {
     this.mapRow = root.result.bind(root)
   }
 
-  makeVirtual(name: string): SelectionInput {
-    return virtual(name, this.input)
+  makeVirtual<Input>(name: string): Input & HasTarget {
+    return virtual<Input>(name, <Input>this.input)
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
     const expr = getSql(input as HasSql)
-    if (expr) return new SqlColumn(expr, getField(input as any)?.targetName)
+    if (expr) return new SqlColumn(expr, getField(<any>input)?.targetName)
     return new ObjectColumn(
       nullable,
       Object.entries(input).map(([name, value]) => [

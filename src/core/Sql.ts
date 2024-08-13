@@ -23,6 +23,7 @@ export type Decoder<T> =
   | {mapFromDriverValue?(value: unknown, specs: DriverSpecs): T}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
+  static SELF_TARGET = '$$self'
   private declare brand: [Value]
   alias?: string
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
@@ -90,7 +91,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   identifier(identifier: string): Sql<Value> {
-    return this.chunk('emitIdentifier', identifier)
+    return this.chunk('emitIdentifierOrSelf', identifier)
   }
 
   inlineValues(): Sql<Value> {
@@ -109,13 +110,17 @@ export class Sql<Value = unknown> implements HasSql<Value> {
         const data = <FieldData>chunk.inner
         if (withTableName)
           return [
-            new Chunk('emitIdentifier', data.targetName),
+            new Chunk('emitIdentifierOrSelf', data.targetName),
             new Chunk('emitUnsafe', '.'),
             new Chunk('emitIdentifier', data.fieldName)
           ]
         return [new Chunk('emitIdentifier', data.fieldName)]
       })
     )
+  }
+
+  nameSelf(name: string): Sql {
+    return sql.chunk('emitSelf', {name, inner: this})
   }
 
   emitTo(emitter: Emitter): void {
