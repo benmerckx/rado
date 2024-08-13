@@ -19,6 +19,7 @@ import {
 } from '../src/index.ts'
 import {
   boolean,
+  concat,
   id,
   integer,
   json,
@@ -74,7 +75,7 @@ export async function testDriver(
   const isAsync = db instanceof AsyncDatabase
 
   suite(meta, test => {
-    test('create table', async () => {
+    test('basics', async () => {
       try {
         await db.create(Node)
         const nothing = await db.select().from(Node).get()
@@ -92,6 +93,8 @@ export async function testDriver(
           textField: db.select(sql.value('test'))
         })
         test.equal(await textField.get(), 'test')
+        const abc = await db.select(concat('a', 'b', 'c')).get()
+        test.equal(abc, 'abc')
       } finally {
         await db.drop(Node)
       }

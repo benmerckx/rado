@@ -1,12 +1,12 @@
 import {type Sql, sql} from '../core/Sql.ts'
-import {callFunction} from '../core/expr/Functions.ts'
-import type {Input} from '../core/expr/Input.ts'
+import {Functions} from '../core/expr/Functions.ts'
+import {type Input, input} from '../core/expr/Input.ts'
 
 const insertId = sql
   .universal({
-    sqlite: sql`last_insert_rowid()`,
-    postgres: sql`lastval()`,
-    mysql: sql`last_insert_id()`
+    sqlite: Functions.last_insert_rowid(),
+    postgres: Functions.lastval(),
+    mysql: Functions.last_insert_id()
   })
   .mapWith(Number)
 
@@ -15,5 +15,8 @@ export function lastInsertId(): Sql<number> {
 }
 
 export function concat(...slices: Array<Input<string | null>>): Sql<string> {
-  return callFunction(sql`concat`, slices)
+  return sql.universal({
+    mysql: Functions.concat(...slices),
+    default: sql.join(slices.map(input), sql` || `)
+  })
 }

@@ -181,10 +181,10 @@ export namespace sql {
     return empty().chunk(type, inner)
   }
 
-  export function universal(
-    runtimes: Partial<Record<Runtime | 'default', Sql>>
-  ): Sql {
-    return chunk('emitUniversal', runtimes)
+  export function universal<T>(
+    runtimes: Partial<Record<Runtime | 'default', Sql<T>>>
+  ): Sql<T> {
+    return empty<T>().chunk('emitUniversal', runtimes)
   }
 
   type QueryChunk = HasSql | undefined
