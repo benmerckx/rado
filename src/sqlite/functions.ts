@@ -1,7 +1,7 @@
-import type {HasQuery, HasSql, HasTable} from '../core/Internal.ts'
-import {sql, type Sql} from '../core/Sql.ts'
+import type {HasSql, HasTable} from '../core/Internal.ts'
+import {type Sql, sql} from '../core/Sql.ts'
 import {Functions} from '../core/expr/Functions.ts'
-import {input, type Input} from '../core/expr/Input.ts'
+import {type Input, input} from '../core/expr/Input.ts'
 
 /*
   json(json: HasSql): HasSql
@@ -41,11 +41,6 @@ export const count: (x?: HasSql) => Sql<number> = Functions.count
 /** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE HasSql "CASE WHEN X THEN Y ELSE Z END".*/
 export const iif: <T>(x: Input<boolean>, y: Input<T>, z: Input<T>) => Sql<T> =
   Functions.iif
-
-/**
- * The EXISTS operator always evaluates to one of the integer values 0 and 1. If executing the SELECT statement specified as the right-hand operand of the EXISTS operator would return one or more rows, then the EXISTS operator evaluates to 1. If executing the SELECT would return no rows at all, then the EXISTS operator evaluates to 0.
- */
-export const exists: (cursor: HasQuery) => Sql<boolean> = Functions.exists
 
 /** Use the match operator for the FTS5 module */
 export const match: (
