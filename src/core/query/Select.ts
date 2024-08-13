@@ -7,7 +7,6 @@ import {
   getQuery,
   getSelection,
   getSql,
-  getTable,
   getTarget,
   hasTable,
   hasTarget,
@@ -85,35 +84,47 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
 
   #join(
     operator: JoinOperator,
-    right: HasTable,
+    right: HasTable | HasTarget,
     on: HasSql<boolean>
   ): Select<Input, Meta> {
     const {from, select: current} = getData(this)
     return new Select({
       ...getData(this),
-      select: current?.join(right, operator),
+      select: hasTable(right) ? current?.join(right, operator) : current,
       from: sql.join([
         from,
         sql.unsafe(`${operator} join`),
-        getTable(right).target(),
+        getTarget(<HasTarget>right),
         sql`on ${on}`
       ])
     })
   }
 
-  leftJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
+  leftJoin(
+    right: HasTable | HasTarget,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join('left', right, on)
   }
 
-  rightJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
+  rightJoin(
+    right: HasTable | HasTarget,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join('right', right, on)
   }
 
-  innerJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
+  innerJoin(
+    right: HasTable | HasTarget,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join('inner', right, on)
   }
 
-  fullJoin(right: HasTable, on: HasSql<boolean>): Select<Input, Meta> {
+  fullJoin(
+    right: HasTable | HasTarget,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join('full', right, on)
   }
 
@@ -185,18 +196,6 @@ export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   orderBy(...exprs: Array<HasSql>): Select<Input, Meta>
   limit(limit: UserInput<number>): Select<Input, Meta>
   offset(offset: UserInput<number>): Select<Input, Meta>
-  /*union(right: UnionBase<Input, Meta>): Union<Input, Meta>
-  unionAll(right: UnionBase<Input, Meta>): Union<Input, Meta>
-  intersect(right: UnionBase<Input, Meta>): Union<Input, Meta>
-  intersectAll(
-    this: UnionBase<Input, IsPostgres | IsMysql>,
-    right: UnionBase<Input, Meta>
-  ): Union<Input, Meta>
-  except(right: UnionBase<Input, Meta>): Union<Input, Meta>
-  exceptAll(
-    this: UnionBase<Input, IsPostgres | IsMysql>,
-    right: UnionBase<Input, Meta>
-  ): Union<Input, Meta>*/
   as(name: string): SubQuery<Input>
 }
 
@@ -273,16 +272,20 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  leftJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
+  rightJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
+  innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
+  fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
 }
