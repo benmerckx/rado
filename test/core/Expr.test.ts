@@ -2,7 +2,7 @@ import {suite} from '@benmerckx/suite'
 import {sql} from '../../src/core/Sql.ts'
 import * as e from '../../src/core/expr/Conditions.ts'
 import {jsonExpr} from '../../src/core/expr/Json.ts'
-import {emit} from '../TestUtils.ts'
+import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
   test('eq', () => {
@@ -46,6 +46,8 @@ suite(import.meta, test => {
     const a = sql<string>`a`
     const b = sql<Array<string>>`b`
     test.equal(emit(e.inArray(a, b)), 'a in b')
+    const q = builder.select(sql<string>`a`)
+    test.equal(emit(e.inArray(a, q)), 'a in (select a)')
   })
 
   test('notInArray', () => {
