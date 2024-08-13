@@ -34,7 +34,9 @@ export class Column<Value = unknown> {
       notNull: true
     })
   }
-  $defaultFn(value: () => Input<WithoutNull<Value>>) {
+  $defaultFn(
+    value: () => Input<WithoutNull<Value>>
+  ): Column<WithoutNull<Value>> {
     return this.$default(value)
   }
   $default(
