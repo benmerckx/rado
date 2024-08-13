@@ -54,6 +54,7 @@ jobs:
           deno-version: v1.x
       - run: bun install --frozen-lockfile
       - run: bun tsc
+      - run: bun cycles
       - run: bun test:bun
       - run: bun test:node
       - run: bun test:deno
