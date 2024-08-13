@@ -3,6 +3,7 @@ import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
+import {execTransaction} from '../sqlite/transactions.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
@@ -76,16 +77,13 @@ class SqlJsDriver implements SyncDriver {
     run: (inner: SyncDriver) => T,
     options: TransactionOptions['sqlite']
   ): T {
-    const behavior = options.behavior ?? 'deferred'
-    this.exec(this.depth > 0 ? `savepoint d${this.depth}` : `begin ${behavior}`)
-    try {
-      const result = run(new SqlJsDriver(this.client, this.depth + 1))
-      this.exec(this.depth > 0 ? `release d${this.depth}` : 'commit')
-      return result
-    } catch (error) {
-      this.exec(this.depth > 0 ? `rollback to d${this.depth}` : 'rollback')
-      throw error
-    }
+    return execTransaction(
+      this,
+      this.depth,
+      depth => new SqlJsDriver(this.client, depth),
+      run,
+      options
+    )
   }
 }
 

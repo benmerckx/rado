@@ -8,6 +8,7 @@ import type {
 } from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
+import {execTransaction} from '../sqlite/transactions.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
@@ -39,7 +40,10 @@ class PreparedStatement implements SyncStatement {
 class BetterSqlite3Driver implements SyncDriver {
   parsesJson = false
 
-  constructor(private client: Client) {}
+  constructor(
+    private client: Client,
+    private depth = 0
+  ) {}
 
   exec(query: string): void {
     this.client.exec(query)
@@ -64,16 +68,16 @@ class BetterSqlite3Driver implements SyncDriver {
   }
 
   transaction<T>(
-    run: (inner: BetterSqlite3Driver) => T,
+    run: (inner: SyncDriver) => T,
     options: TransactionOptions['sqlite']
   ): T {
-    let result: T | undefined
-    this.client
-      .transaction(() => {
-        result = run(this)
-      })
-      [options.behavior ?? 'deferred']()
-    return result!
+    return execTransaction(
+      this,
+      this.depth,
+      depth => new BetterSqlite3Driver(this.client, depth),
+      run,
+      options
+    )
   }
 }
 

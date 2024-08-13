@@ -1,13 +1,10 @@
 import {suite} from '@benmerckx/suite'
-import {
-  AsyncDatabase,
-  type Database,
-  type SyncDatabase
-} from '../src/core/Database.ts'
+import {AsyncDatabase, type Database} from '../src/core/Database.ts'
 import {table} from '../src/core/Table.ts'
 import {include} from '../src/core/expr/Include.ts'
 import {
   and,
+  count,
   eq,
   exists,
   foreignKey,
@@ -226,11 +223,10 @@ export async function testDriver(
     })
 
     test('transactions', async () => {
-      if (isAsync) {
-        const asyncDb = db as AsyncDatabase<'universal'>
-        try {
-          await asyncDb.create(Node)
-          await asyncDb.transaction(async tx => {
+      try {
+        await db.create(Node)
+        await Promise.allSettled([
+          db.transaction(async tx => {
             await tx.insert(Node).values({
               textField: 'hello',
               bool: true
@@ -238,35 +234,23 @@ export async function testDriver(
             const nodes = await tx.select().from(Node)
             test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
             tx.rollback()
-          })
-        } catch (err) {
-          test.equal((<Error>err).message, 'Rollback')
-          const nodes = await asyncDb.select().from(Node)
-          test.equal(nodes, [])
-        } finally {
-          await asyncDb.drop(Node)
-        }
-      } else {
-        const syncDb = db as SyncDatabase<'universal'>
-        try {
-          syncDb.create(Node).run()
-          syncDb.transaction((tx): void => {
-            tx.insert(Node).values({
-              textField: 'hello',
+          }),
+          db.transaction(async tx => {
+            await tx.insert(Node).values({
+              textField: 'hello1',
               bool: true
             })
-            const nodes = tx.select().from(Node).all()
-            test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
+            const nodes = await tx.select(count()).from(Node).get()
+            test.equal(nodes, 1)
             tx.rollback()
           })
-          const nodes = syncDb.select().from(Node).all()
-          test.equal(nodes, [])
-        } catch {
-          const nodes = syncDb.select().from(Node).all()
-          test.equal(nodes, [])
-        } finally {
-          syncDb.drop(Node).run()
-        }
+        ])
+      } catch (err) {
+        test.equal((<Error>err).message, 'Rollback')
+        const nodes = await db.select().from(Node)
+        test.equal(nodes, [])
+      } finally {
+        await db.drop(Node)
       }
     })
 

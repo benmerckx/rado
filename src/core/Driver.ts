@@ -1,3 +1,5 @@
+import type {TransactionUniversalOptions} from './Database.ts'
+
 export type Driver = SyncDriver | AsyncDriver
 export type Statement = SyncStatement | AsyncStatement
 export interface BatchQuery {
@@ -17,7 +19,10 @@ export interface SyncDriver extends DriverSpecs {
   close(): void
   exec(query: string): void
   prepare(query: string, options?: PrepareOptions): SyncStatement
-  transaction<T>(run: (inner: SyncDriver) => T, options: unknown): T
+  transaction<T>(
+    run: (inner: SyncDriver) => T,
+    options: TransactionUniversalOptions
+  ): T
   batch(queries: Array<BatchQuery>): Array<Array<unknown>>
 }
 export interface SyncStatement {
@@ -33,7 +38,7 @@ export interface AsyncDriver extends DriverSpecs {
   prepare(query: string, options?: PrepareOptions): AsyncStatement
   transaction<T>(
     run: (inner: AsyncDriver) => Promise<T>,
-    options: unknown
+    options: TransactionUniversalOptions
   ): Promise<T>
   batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>>
 }

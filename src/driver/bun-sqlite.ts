@@ -3,6 +3,7 @@ import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
+import {execTransaction} from '../sqlite/transactions.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(private stmt: Statement<unknown>) {}
@@ -31,7 +32,10 @@ class PreparedStatement implements SyncStatement {
 class BunSqliteDriver implements SyncDriver {
   parsesJson = false
 
-  constructor(private client: Client) {}
+  constructor(
+    private client: Client,
+    private depth = 0
+  ) {}
 
   exec(query: string): void {
     this.client.exec(query)
@@ -55,13 +59,13 @@ class BunSqliteDriver implements SyncDriver {
     run: (inner: SyncDriver) => T,
     options: TransactionOptions['sqlite']
   ): T {
-    let result: T | undefined
-    this.client
-      .transaction(() => {
-        result = run(this)
-      })
-      [options.behavior ?? 'deferred']()
-    return result!
+    return execTransaction(
+      this,
+      this.depth,
+      depth => new BunSqliteDriver(this.client, depth),
+      run,
+      options
+    )
   }
 }
 

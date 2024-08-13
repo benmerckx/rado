@@ -96,6 +96,7 @@ export class Database<Meta extends QueryMeta = Either>
     return this.driver.exec(emitter.sql)
   }
 
+  #transactionLock?: Promise<void>
   transaction<T>(
     this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
@@ -111,19 +112,26 @@ export class Database<Meta extends QueryMeta = Either>
     options?: TransactionOptions[Meta['dialect']]
   ): Deliver<Meta, T>
   transaction(run: Function, options = {}) {
-    return this.driver.transaction(inner => {
-      const tx = new Transaction<Meta>(inner, this.dialect, this.diff)
-      return run(tx)
-    }, options)
+    return this.driver.transaction(
+      inner => {
+        const tx = new Transaction<Meta>(inner, this.dialect, this.diff)
+        return run(tx)
+      },
+      {async: run.constructor.name === 'AsyncFunction', ...options}
+    )
   }
 }
 
+export interface TransactionUniversalOptions {
+  async?: boolean
+}
+
 export interface TransactionOptions {
-  universal: never
-  sqlite: {
+  universal: TransactionUniversalOptions
+  sqlite: TransactionUniversalOptions & {
     behavior?: 'deferred' | 'immediate' | 'exclusive'
   }
-  postgres: {
+  postgres: TransactionUniversalOptions & {
     isolationLevel?:
       | 'read uncommitted'
       | 'read committed'
@@ -132,7 +140,7 @@ export interface TransactionOptions {
     accessMode?: 'read only' | 'read write'
     deferrable?: boolean
   }
-  mysql: {
+  mysql: TransactionUniversalOptions & {
     isolationLevel?:
       | 'read uncommitted'
       | 'read committed'
