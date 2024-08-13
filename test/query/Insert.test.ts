@@ -11,7 +11,8 @@ suite(import.meta, test => {
     id: integer().primaryKey(),
     withDefault: integer().default(2),
     required: integer().notNull(),
-    nullable: integer()
+    nullable: integer(),
+    withRuntimeDefault: integer().$default(5)
   }
 
   const Node = table('Node', definition)
@@ -23,14 +24,14 @@ suite(import.meta, test => {
   test('insert into', () => {
     test.equal(
       emit(query),
-      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default)'
+      'insert into "Node"("id", "withDefault", "required", "nullable", "withRuntimeDefault") values (1, default, 3, default, 5)'
     )
   })
 
   test('returning', () => {
     test.equal(
       emit(query.returning(Node.id)),
-      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) returning "id"'
+      'insert into "Node"("id", "withDefault", "required", "nullable", "withRuntimeDefault") values (1, default, 3, default, 5) returning "id"'
     )
   })
 
@@ -42,7 +43,7 @@ suite(import.meta, test => {
           targetWhere: eq(Node.id, 1)
         })
       ),
-      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) on conflict ("id") where "id" = 1 do nothing'
+      'insert into "Node"("id", "withDefault", "required", "nullable", "withRuntimeDefault") values (1, default, 3, default, 5) on conflict ("id") where "id" = 1 do nothing'
     )
   })
 
@@ -54,7 +55,7 @@ suite(import.meta, test => {
           set: {required: 4}
         })
       ),
-      'insert into "Node"("id", "withDefault", "required", "nullable") values (1, 2, 3, default) on conflict ("id") do update set "required" = 4'
+      'insert into "Node"("id", "withDefault", "required", "nullable", "withRuntimeDefault") values (1, default, 3, default, 5) on conflict ("id") do update set "required" = 4'
     )
   })
 })

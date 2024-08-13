@@ -94,7 +94,7 @@ export abstract class Emitter {
         column.notNull && sql`not null`,
         column.isUnique && sql`unique`,
         column.autoIncrement && sql`autoincrement`,
-        column.defaultValue && sql`default ${column.defaultValue()}`,
+        column.defaultValue && sql`default ${column.defaultValue}`,
         column.references &&
           sql`references ${sql.chunk('emitReferences', [column.references()])}`,
         column.onUpdate && sql`on update ${column.onUpdate}`

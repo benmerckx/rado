@@ -164,10 +164,10 @@ export class InsertInto<
         return sql`(${sql.join(
           Object.entries(table.columns).map(([key, column]) => {
             const value = row[key]
-            const {defaultValue, mapToDriverValue} = getData(column)
+            const {$default, mapToDriverValue} = getData(column)
             if (value !== undefined)
               return input(mapToDriverValue?.(value) ?? value)
-            if (defaultValue) return defaultValue()
+            if ($default) return $default()
             return defaultKeyword
           }),
           sql`, `

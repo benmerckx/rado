@@ -12,7 +12,8 @@ export interface ColumnData {
   notNull?: boolean
   isUnique?: boolean
   autoIncrement?: boolean
-  defaultValue?(): Sql
+  $default?(): Sql
+  defaultValue?: Sql
   references?(): FieldData
   onUpdate?: Sql
   onDelete?: Sql
@@ -33,22 +34,29 @@ export class Column<Value = unknown> {
       notNull: true
     })
   }
-  default(
+  $defaultFn(value: () => Input<WithoutNull<Value>>) {
+    return this.$default(value)
+  }
+  $default(
     value: Input<WithoutNull<Value>> | (() => Input<WithoutNull<Value>>)
   ): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
-      defaultValue(): Sql {
+      $default(): Sql {
         return input(value instanceof Function ? value() : value)
       }
+    })
+  }
+  default(value: Input<WithoutNull<Value>>): Column<WithoutNull<Value>> {
+    return new Column({
+      ...getData(this),
+      defaultValue: input(value)
     })
   }
   defaultNow(): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
-      defaultValue(): Sql {
-        return sql.unsafe('now()')
-      }
+      defaultValue: sql.unsafe('now()')
     })
   }
   primaryKey(): Column<WithoutNull<Value>> {
