@@ -1,4 +1,4 @@
-import {type HasSql, getQuery} from '../Internal.ts'
+import {type HasSql, getQuery, getSql, hasSql} from '../Internal.ts'
 import type {Either} from '../MetaData.ts'
 import type {Query} from '../Query.ts'
 import {type Sql, sql} from '../Sql.ts'
@@ -84,9 +84,10 @@ export function inArray<T>(
   left: Input<T>,
   right: Query<T, any> | Input<Array<T>>
 ): Sql<boolean> {
-  if (Array.isArray(right)) {
-    if (right.length === 0) return sql`false`
-    return bool(sql`${input(left)} in (${sql.join(right.map(input), sql`, `)})`)
+  const value = (hasSql(right) ? getSql(right).getValue() : undefined) ?? right
+  if (Array.isArray(value)) {
+    if (value.length === 0) return sql`false`
+    return bool(sql`${input(left)} in (${sql.join(value.map(input), sql`, `)})`)
   }
   return bool(sql`${input(left)} in ${input(<Input>right)}`)
 }
@@ -95,10 +96,11 @@ export function notInArray<T>(
   left: Input<T>,
   right: Query<T, any> | Input<Array<T>>
 ): Sql<boolean> {
-  if (Array.isArray(right)) {
-    if (right.length === 0) return sql`true`
+  const value = (hasSql(right) ? getSql(right).getValue() : undefined) ?? right
+  if (Array.isArray(value)) {
+    if (value.length === 0) return sql`true`
     return bool(
-      sql`${input(left)} not in (${sql.join(right.map(input), sql`, `)})`
+      sql`${input(left)} not in (${sql.join(value.map(input), sql`, `)})`
     )
   }
   return bool(sql`${input(left)} not in ${input(<Input>right)}`)

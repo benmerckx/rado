@@ -74,6 +74,12 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return this.chunk('emitValue', value)
   }
 
+  getValue(): Value | undefined {
+    if (this.#chunks.length !== 1) return
+    const chunk = this.#chunks[0]
+    if (chunk?.type === 'emitValue') return <Value>chunk.inner
+  }
+
   inline(value: unknown): Sql<Value> {
     return this.chunk('emitInline', value)
   }
