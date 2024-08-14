@@ -128,8 +128,9 @@ export class Selection implements HasSql {
   ): Array<string> {
     const expr = getSql(input as HasSql)
     if (expr) {
-      const exprName = name ?? expr.alias
+      let exprName = name ?? expr.alias
       if (!exprName) throw new Error('Missing field name')
+      while (names.has(exprName)) exprName = `${exprName}_`
       return [exprName]
     }
     return Object.entries(input).flatMap(([name, value]) =>
