@@ -7,16 +7,6 @@ import type {FieldData} from './expr/Field.ts'
 type EmitMethods = {
   [K in keyof Emitter as K extends `emit${string}` ? K : never]: Emitter[K]
 }
-/*type SqlChunk = {
-  [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
-}[keyof EmitMethods]*/
-
-class Chunk<Type = keyof EmitMethods, Inner = unknown> {
-  constructor(
-    public type: Type,
-    public inner: Inner
-  ) {}
-}
 
 export type Decoder<T> =
   | ((value: unknown) => T)
@@ -29,8 +19,8 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
   readonly [internalSql] = this
 
-  #chunks: Array<Chunk>
-  constructor(chunks: Array<Chunk> = []) {
+  #chunks: Array<unknown>
+  constructor(chunks: Array<unknown> = []) {
     this.#chunks = chunks
   }
 
@@ -50,7 +40,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     type: Type,
     inner: Parameters<EmitMethods[Type]>[0]
   ): Sql<Value> {
-    this.#chunks.push(new Chunk(type, inner))
+    this.#chunks.push(type, inner)
     return this
   }
 
@@ -75,9 +65,9 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   getValue(): Value | undefined {
-    if (this.#chunks.length !== 1) return
-    const chunk = this.#chunks[0]
-    if (chunk?.type === 'emitValue') return <Value>chunk.inner
+    if (this.#chunks.length !== 2) return
+    const [type, inner] = this.#chunks
+    if (type === 'emitValue') return <Value>inner
   }
 
   inline(value: unknown): Sql<Value> {
@@ -85,9 +75,8 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   jsonPath(path: Array<string | number>): Sql<Value> {
-    const last = this.#chunks.at(-1)
-    if (last?.type === 'emitJsonPath')
-      (<Array<string | number>>last.inner).push(...path)
+    const [type, inner] = this.#chunks.slice(-2)
+    if (type === 'emitJsonPath') (<Array<string | number>>inner).push(...path)
     else this.chunk('emitJsonPath', path)
     return this
   }
@@ -101,28 +90,36 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   inlineValues(): Sql<Value> {
-    return new Sql(
-      this.#chunks.map(chunk => {
-        if (chunk.type !== 'emitValue') return chunk
-        return new Chunk('emitInline', chunk.inner as unknown)
-      })
-    )
+    const chunks = []
+    for (let i = 0; i < this.#chunks.length; i += 2) {
+      const type = this.#chunks[i]
+      if (type !== 'emitValue') chunks.push(type, this.#chunks[i + 1])
+      else chunks.push('emitInline', this.#chunks[i + 1])
+    }
+    return new Sql(chunks)
   }
 
   inlineFields(withTableName: boolean): Sql<Value> {
-    return new Sql(
-      this.#chunks.flatMap(chunk => {
-        if (chunk.type !== 'emitField') return [chunk]
-        const data = <FieldData>chunk.inner
+    const chunks = []
+    for (let i = 0; i < this.#chunks.length; i += 2) {
+      const type = this.#chunks[i]
+      if (type !== 'emitField') {
+        chunks.push(type, this.#chunks[i + 1])
+      } else {
+        const inner = <FieldData>this.#chunks[i + 1]
         if (withTableName)
-          return [
-            new Chunk('emitIdentifierOrSelf', data.targetName),
-            new Chunk('emitUnsafe', '.'),
-            new Chunk('emitIdentifier', data.fieldName)
-          ]
-        return [new Chunk('emitIdentifier', data.fieldName)]
-      })
-    )
+          chunks.push(
+            'emitIdentifierOrSelf',
+            inner.targetName,
+            'emitUnsafe',
+            '.',
+            'emitIdentifier',
+            inner.fieldName
+          )
+        else chunks.push('emitIdentifier', inner.fieldName)
+      }
+    }
+    return new Sql(chunks)
   }
 
   nameSelf(name: string): Sql {
@@ -130,7 +127,11 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   emitTo(emitter: Emitter): void {
-    for (const chunk of this.#chunks) emitter[chunk.type](<any>chunk.inner)
+    for (let i = 0; i < this.#chunks.length; i += 2) {
+      const type = this.#chunks[i]
+      const inner = this.#chunks[i + 1]
+      emitter[type as keyof EmitMethods](<any>inner)
+    }
   }
 }
 
