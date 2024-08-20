@@ -95,7 +95,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     })
   }
 
-  forSelection() {
+  forSelection(): Sql<Value> {
     if (this.#chunks.length === 1) {
       const first = this.#chunks[0]
       if (first.type === 'emitJsonPath')
