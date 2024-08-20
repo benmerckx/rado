@@ -3,6 +3,7 @@ import type {Emitter} from './Emitter.ts'
 import {type HasSql, getSql, internalSql} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import type {FieldData} from './expr/Field.ts'
+import type {JsonPath} from './expr/Json.ts'
 
 type EmitMethods = {
   [K in keyof Emitter as K extends `emit${string}` ? K : never]: Emitter[K]
@@ -84,11 +85,24 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return this.chunk('emitInline', value)
   }
 
-  jsonPath(path: Array<string | number>): Sql<Value> {
-    const last = this.#chunks.at(-1)
-    if (last?.type === 'emitJsonPath')
-      (<Array<string | number>>last.inner).push(...path)
-    else this.chunk('emitJsonPath', path)
+  jsonPath(path: JsonPath): Sql<Value> {
+    const inner = path.target.#chunks[0]
+    if (inner?.type !== 'emitJsonPath') return this.chunk('emitJsonPath', path)
+    const innerPath = inner.inner as JsonPath
+    return this.chunk('emitJsonPath', {
+      ...innerPath,
+      segments: [...innerPath.segments, ...path.segments]
+    })
+  }
+
+  forSelection() {
+    if (this.#chunks.length === 1) {
+      const first = this.#chunks[0]
+      if (first.type === 'emitJsonPath')
+        return sql
+          .jsonPath({...(first.inner as JsonPath), asSql: false})
+          .mapWith(this)
+    }
     return this
   }
 
@@ -178,6 +192,10 @@ export namespace sql {
 
   export function field<T>(field: FieldData): Sql<T> {
     return empty<T>().field(field)
+  }
+
+  export function jsonPath<T>(path: JsonPath): Sql<T> {
+    return empty<T>().jsonPath(path)
   }
 
   export function chunk<Type extends keyof EmitMethods>(

@@ -14,7 +14,7 @@ import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import type {IncludeData} from './expr/Include.ts'
-import {jsonAggregateArray, jsonArray} from './expr/Json.ts'
+import {type JsonPath, jsonAggregateArray, jsonArray} from './expr/Json.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Insert} from './query/Insert.ts'
 import type {SelectData} from './query/Select.ts'
@@ -46,7 +46,7 @@ export abstract class Emitter {
   abstract emitIdentifier(value: string): void
   abstract emitValue(value: unknown): void
   abstract emitInline(value: unknown): void
-  abstract emitJsonPath(value: Array<number | string>): void
+  abstract emitJsonPath(path: JsonPath): void
   abstract emitPlaceholder(value: string): void
 
   emitIdentifierOrSelf(value: string): void {

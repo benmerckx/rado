@@ -154,7 +154,7 @@ export class Selection implements HasSql {
           const field = getField(input)
           if (field.fieldName === exprName) return expr
         }
-        return sql`${expr} as ${sql.identifier(exprName)}`
+        return sql`${expr.forSelection()} as ${sql.identifier(exprName)}`
       }
       return expr
     }

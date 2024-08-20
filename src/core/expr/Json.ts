@@ -1,5 +1,5 @@
-import type {HasSql} from '../Internal.ts'
-import {sql} from '../Sql.ts'
+import {type HasSql, getSql} from '../Internal.ts'
+import {type Sql, sql} from '../Sql.ts'
 import {callFunction} from './Functions.ts'
 import type {Input} from './Input.ts'
 
@@ -21,12 +21,30 @@ export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
 
 const INDEX_PROPERTY = /^\d+$/
 
+export interface JsonPath {
+  target: Sql
+  segments: Array<number | string>
+  asSql: boolean
+}
+
 export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
   return new Proxy(<any>e, {
     get(target, prop) {
       if (typeof prop !== 'string') return Reflect.get(target, prop)
       const isNumber = INDEX_PROPERTY.test(prop)
-      return jsonExpr(sql`${target}`.jsonPath([isNumber ? Number(prop) : prop]))
+      return jsonExpr(
+        sql
+          .jsonPath({
+            target: getSql(target),
+            asSql: true,
+            segments: [isNumber ? Number(prop) : prop]
+          })
+          .mapWith({
+            mapFromDriverValue(value, specs) {
+              return specs.parsesJson ? value : JSON.parse(value as string)
+            }
+          })
+      )
     }
   })
 }

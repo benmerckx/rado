@@ -41,5 +41,11 @@ export const TableB = table(
 
 export const WithJson = table('WithJson', {
   id: id(),
-  data: json<{sub: {field: string}; arr: Array<number>}>()
+  data: json<{
+    str: string
+    sub: {
+      field: string
+    }
+    arr: Array<number>
+  }>()
 })

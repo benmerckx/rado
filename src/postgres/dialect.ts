@@ -2,6 +2,7 @@ import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
 import type {Runtime} from '../core/MetaData.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
+import type {JsonPath} from '../core/expr/Json.ts'
 
 const DOUBLE_QUOTE = '"'
 const ESCAPE_DOUBLE_QUOTE = '""'
@@ -18,11 +19,12 @@ export const postgresDialect: Dialect = new Dialect(
       this.sql += `$${++this.paramIndex}`
       this.params.push(new ValueParam(value))
     }
-    emitJsonPath(path: Array<number | string>) {
-      for (let i = 0; i < path.length; i++) {
-        const access = path[i]
-        if (i <= path.length - 2) this.sql += '->'
-        else if (i === path.length - 1) this.sql += '->>'
+    emitJsonPath({target, asSql, segments}: JsonPath) {
+      target.emitTo(this)
+      for (let i = 0; i < segments.length; i++) {
+        const access = segments[i]
+        if (i <= segments.length - 2) this.sql += '->'
+        else if (i === segments.length - 1) this.sql += asSql ? '->>' : '->'
         if (typeof access === 'number') this.sql += access
         else this.sql += this.quoteString(access)
       }

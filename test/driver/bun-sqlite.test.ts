@@ -7,7 +7,4 @@ async function createDb() {
   return connect(new Database(':memory:'))
 }
 
-if (isBun) {
-  await testDriver(import.meta, createDb)
-  //await testSqliteDiff(import.meta, createDb)
-}
+if (isBun) await testDriver(import.meta, createDb)

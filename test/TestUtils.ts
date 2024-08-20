@@ -3,6 +3,7 @@ import {Dialect} from '../src/core/Dialect.ts'
 import {Emitter} from '../src/core/Emitter.ts'
 import type {HasQuery, HasSql} from '../src/core/Internal.ts'
 import type {Runtime} from '../src/core/MetaData.ts'
+import type {JsonPath} from '../src/core/expr/Json.ts'
 
 const testDialect = new Dialect(
   class extends Emitter {
@@ -13,8 +14,9 @@ const testDialect = new Dialect(
     emitInline(v: unknown) {
       this.sql += JSON.stringify(v)
     }
-    emitJsonPath(path: Array<number | string>) {
-      this.sql += `->>${JSON.stringify(`$.${path.join('.')}`)}`
+    emitJsonPath(path: JsonPath) {
+      path.target.emitTo(this)
+      this.sql += `->>${JSON.stringify(`$.${path.segments.join('.')}`)}`
     }
     emitIdentifier(identifier: string) {
       this.sql += JSON.stringify(identifier)
@@ -30,3 +32,9 @@ export function emit(input: HasSql | HasQuery): string {
 }
 
 export const builder = new Builder({})
+
+export function defer(run: () => Promise<void>) {
+  return {
+    [Symbol.asyncDispose]: run
+  }
+}
