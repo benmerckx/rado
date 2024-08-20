@@ -46,7 +46,6 @@ class BunSqliteDriver implements SyncDriver {
   }
 
   prepare(sql: string) {
-    console.log(sql)
     return new PreparedStatement(this.client.prepare(sql))
   }
 

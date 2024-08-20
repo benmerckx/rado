@@ -32,9 +32,3 @@ export function emit(input: HasSql | HasQuery): string {
 }
 
 export const builder = new Builder({})
-
-export function defer(run: () => Promise<void>) {
-  return {
-    [Symbol.asyncDispose]: run
-  }
-}
