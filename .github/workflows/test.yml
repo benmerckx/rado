@@ -58,10 +58,10 @@ jobs:
       - run: bun test:bun
       - run: bun test:node
       - run: bun test:deno
-      - run: bunx jsr publish --dry-run
+      - run: bunx jsr publish --config jsr.json --dry-run
       - if: startsWith(github.ref, 'refs/tags/v')
         run: |
           npm config set //registry.npmjs.org/:_authToken ${{secrets.NPM_AUTH_TOKEN}}
           npm publish
       - if: startsWith(github.ref, 'refs/tags/v')
-        run: bunx jsr publish
+        run: bunx jsr publish --config jsr.json
