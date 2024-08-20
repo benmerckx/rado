@@ -12,7 +12,10 @@
     "declaration": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "types": ["bun-types", "@cloudflare/workers-types"]
+    "types": ["bun-types", "@cloudflare/workers-types"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src", "test"]
 }

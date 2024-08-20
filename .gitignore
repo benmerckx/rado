@@ -6,3 +6,4 @@
 /bin
 /*.cpuprofile
 /deno.lock
+.DS_Store
