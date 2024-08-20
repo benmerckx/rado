@@ -8,8 +8,6 @@
     ".": "./src/index.ts",
     "./sqlite": "./src/sqlite.ts",
     "./mysql": "./src/mysql.ts",
-    "./postgres": "./src/postgres.ts",
-    "./driver/pglite": "./src/driver/pglite.ts",
-    "./driver/sql.js": "./src/driver/sql.js.ts"
+    "./postgres": "./src/postgres.ts"
   }
 }
