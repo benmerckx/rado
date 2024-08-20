@@ -96,7 +96,6 @@ export class Database<Meta extends QueryMeta = Either>
     return this.driver.exec(emitter.sql)
   }
 
-  #transactionLock?: Promise<void>
   transaction<T>(
     this: Database<Sync>,
     run: (tx: Transaction<Meta>) => T,
