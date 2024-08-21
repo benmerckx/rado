@@ -1,7 +1,6 @@
+import {alias, eq, table} from '@/index.ts'
+import {integer, text} from '@/universal.ts'
 import {suite} from '@benmerckx/suite'
-import {alias, table} from '../../src/core/Table.ts'
-import {eq} from '../../src/core/expr/Conditions.ts'
-import {integer, text} from '../../src/universal.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

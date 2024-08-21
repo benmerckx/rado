@@ -1,9 +1,8 @@
+import type {Builder} from '@/core/Builder.ts'
+import type {IsPostgres} from '@/core/MetaData.ts'
+import {eq, table} from '@/index.ts'
+import {integer} from '@/sqlite/columns.ts'
 import {suite} from '@benmerckx/suite'
-import type {Builder} from '../../src/core/Builder.ts'
-import type {IsPostgres} from '../../src/core/MetaData.ts'
-import {table} from '../../src/core/Table.ts'
-import {eq} from '../../src/index.ts'
-import {integer} from '../../src/sqlite/columns.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

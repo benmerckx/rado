@@ -1,5 +1,5 @@
+import {sql} from '@/core/Sql.ts'
 import {suite} from '@benmerckx/suite'
-import {sql} from '../../src/core/Sql.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

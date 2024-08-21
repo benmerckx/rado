@@ -1,7 +1,7 @@
+import {table} from '@/index.ts'
+import {integer} from '@/sqlite/columns.ts'
+import {bm25, cast} from '@/sqlite/functions.ts'
 import {suite} from '@benmerckx/suite'
-import {table} from '../../src/core/Table.ts'
-import {integer} from '../../src/sqlite/columns.ts'
-import {bm25, cast} from '../../src/sqlite/functions.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

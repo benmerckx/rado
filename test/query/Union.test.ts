@@ -1,18 +1,18 @@
-import {suite} from '@benmerckx/suite'
-import type {Builder} from '../../src/core/Builder.ts'
-import type {IsPostgres} from '../../src/core/MetaData.ts'
-import {table} from '../../src/core/Table.ts'
+import type {IsPostgres} from '@/core/MetaData.ts'
 import {
+  type Builder,
   except,
   exceptAll,
   intersect,
   intersectAll,
   lt,
   sql,
+  table,
   union,
   unionAll
-} from '../../src/index.ts'
-import {integer} from '../../src/sqlite/columns.ts'
+} from '@/index.ts'
+import {integer} from '@/sqlite/columns.ts'
+import {suite} from '@benmerckx/suite'
 import {builder, emit} from '../TestUtils.ts'
 
 const pg = builder as Builder<IsPostgres>
