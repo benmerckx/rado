@@ -42,12 +42,6 @@ export const count: (x?: HasSql) => Sql<number> = Functions.count
 export const iif: <T>(x: Input<boolean>, y: Input<T>, z: Input<T>) => Sql<T> =
   Functions.iif
 
-/** Use the match operator for the FTS5 module */
-export const match: (
-  table: HasTable,
-  searchTerm: Input<string>
-) => Sql<boolean> = Functions.match
-
 /** Returns a real value reflecting the accuracy of the current match */
 export const bm25: (
   table: HasTable,
