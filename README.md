@@ -1,4 +1,5 @@
 [![npm](https://img.shields.io/npm/v/rado.svg)](https://npmjs.org/package/rado)
+[![jsr](https://jsr.io/badges/@rado/rado)](https://jsr.io/@rado/rado)
 
 # rado
 
