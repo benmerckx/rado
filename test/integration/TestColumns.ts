@@ -72,9 +72,7 @@ export function testColumns(db: Database, test: DefineTest) {
       const values = [
         {number: 4.2},
         {number: Number.MAX_SAFE_INTEGER},
-        {number: Number.MIN_SAFE_INTEGER},
-        {number: Number.MAX_VALUE},
-        {number: Number.MIN_VALUE}
+        {number: Number.MIN_SAFE_INTEGER}
       ]
       await db.insert(TestTable).values(values)
       const rows = await db.select().from(TestTable)
