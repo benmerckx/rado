@@ -96,12 +96,13 @@ export function testColumns(db: Database, test: DefineTest) {
 
   test('blob column', async () => {
     const encoder = new TextEncoder()
-    const TestTable = table('Test', {blob: column.blob()})
+    const decoder = new TextDecoder()
+    const TestTable = table('Test', {blob: column.blob().notNull()})
     await db.create(TestTable)
     try {
       await db.insert(TestTable).values({blob: encoder.encode('hello')})
       const row = await db.select().from(TestTable).get()
-      test.equal(row, {blob: encoder.encode('hello')})
+      test.equal(decoder.decode(row!.blob), 'hello')
     } finally {
       await db.drop(TestTable)
     }
