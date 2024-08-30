@@ -12,7 +12,7 @@ import {execTransaction} from '../sqlite/transactions.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
-    private stmt: Statement<Array<unknown>>,
+    private stmt: Statement,
     private isSelection: boolean
   ) {}
 
@@ -29,7 +29,8 @@ class PreparedStatement implements SyncStatement {
   }
 
   values(params: Array<unknown>) {
-    if (this.isSelection) return this.stmt.raw(true).all(...params)
+    if (this.isSelection)
+      return this.stmt.raw(true).all(...params) as Array<Array<unknown>>
     this.stmt.run(...params)
     return []
   }
