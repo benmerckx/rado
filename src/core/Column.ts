@@ -1,8 +1,8 @@
 import type {DriverSpecs} from './Driver.ts'
 import {getData, getField, internalData} from './Internal.ts'
-import {type Sql, sql} from './Sql.ts'
+import {sql, type Sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
-import {type Input, input} from './expr/Input.ts'
+import {input, type Input} from './expr/Input.ts'
 
 export interface ColumnData {
   type: Sql
@@ -107,7 +107,9 @@ export interface Columns {
 export const column: Columns = new Proxy(createColumn as any, {
   get(target: Record<string, Function>, method: string) {
     return (target[method] ??= (...args: Array<Input<unknown>>) => {
-      while (args.length > 0) if (args.at(-1) === undefined) args.pop()
+      while (args.length > 0)
+        if (args.at(-1) === undefined) args.pop()
+        else break
       if (args.length === 0) return sql.unsafe(method)
       return sql`${sql.unsafe(method)}(${sql.join(
         args.map(sql.inline),

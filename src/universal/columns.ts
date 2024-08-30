@@ -12,6 +12,11 @@ const blobType = sql.universal({
   default: sql`blob`
 })
 
+const numberType = sql.universal({
+  mysql: sql`decimal`,
+  default: sql`numeric`
+})
+
 export function id(name?: string): Column<number> {
   return column({
     name,
@@ -24,18 +29,26 @@ export function text(name?: string): Column<string | null> {
   return column({name, type: column.text()})
 }
 
+export function varchar(
+  name?: string,
+  options?: {length: number}
+): Column<string | null> {
+  return column({name, type: column.varchar(options?.length)})
+}
+
 export function integer(name?: string): Column<number | null> {
   return column({name, type: column.integer()})
+}
+
+export function numeric(name?: string): Column<number | null> {
+  return column({name, type: numberType, mapFromDriverValue: Number})
 }
 
 export function boolean(name?: string): Column<boolean | null> {
   return column({
     name,
     type: column.boolean(),
-    mapFromDriverValue(value: unknown): boolean {
-      if (typeof value === 'number') return value === 1
-      return Boolean(value)
-    }
+    mapFromDriverValue: Boolean
   })
 }
 
