@@ -13,7 +13,7 @@ const blobType = sql.universal({
 })
 
 const numberType = sql.universal({
-  mysql: sql`float`,
+  mysql: sql`double`,
   default: sql`numeric`
 })
 
