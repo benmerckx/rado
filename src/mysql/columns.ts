@@ -1,4 +1,4 @@
-import {type Column, JsonColumn, column} from '../core/Column.ts'
+import {JsonColumn, column, type Column} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
@@ -30,6 +30,10 @@ export function binary(
 
 export function boolean(name?: string): Column<boolean | null> {
   return column({name, type: column.boolean()})
+}
+
+export function blob(name?: string): Column<Uint8Array | null> {
+  return column({name, type: column.blob()})
 }
 
 export function char(

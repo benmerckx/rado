@@ -1,10 +1,15 @@
-import {type Column, JsonColumn, column} from '../core/Column.ts'
+import {JsonColumn, column, type Column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 const idType = sql.universal({
   sqlite: sql`integer`,
   postgres: sql`integer generated always as identity`,
   mysql: sql`int not null auto_increment`
+})
+
+const blobType = sql.universal({
+  postgres: sql`bytea`,
+  default: sql`blob`
 })
 
 export function id(name?: string): Column<number> {
@@ -45,4 +50,8 @@ export function json<T>(name?: string): JsonColumn<T> {
       return parsesJson ? value : JSON.parse(value as string)
     }
   })
+}
+
+export function blob(name?: string): Column<Uint8Array | null> {
+  return column({name, type: blobType})
 }

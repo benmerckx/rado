@@ -2,6 +2,7 @@ import {suite} from '@benmerckx/suite'
 import type {Database} from '../src/core/Database.ts'
 import {testBasic} from './integration/TestBasic.ts'
 import {testCTE} from './integration/TestCTE.ts'
+import {testColumns} from './integration/TestColumns.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
 import {testInclude} from './integration/TestInclude.ts'
 import {testJoins} from './integration/TestJoins.ts'
@@ -19,6 +20,7 @@ export async function testDriver(
   const db = await createDb()
   suite(meta, test => {
     testBasic(db, test)
+    testColumns(db, test)
     testSubquery(db, test)
     testPreparedQuery(db, test)
     testJoins(db, test)
