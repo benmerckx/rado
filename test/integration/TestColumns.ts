@@ -1,6 +1,6 @@
 import {table, type Database} from '@/index.ts'
 import * as column from '@/universal/columns.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 
 export function testColumns(db: Database, test: DefineTest) {
   test('id column', async () => {

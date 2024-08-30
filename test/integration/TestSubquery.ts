@@ -1,5 +1,5 @@
 import {exists, inArray, sql, type Database} from '@/index.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 
 export function testSubquery(db: Database, test: DefineTest) {
   test('subquery', async () => {

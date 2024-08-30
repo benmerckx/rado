@@ -26,7 +26,6 @@
   },
   "files": ["dist"],
   "devDependencies": {
-    "@benmerckx/suite": "^0.3.0",
     "@biomejs/biome": "^1.8.3",
     "@cloudflare/workers-types": "^4.20230628.0",
     "@electric-sql/pglite": "^0.1.5",
@@ -36,19 +35,17 @@
     "@types/glob": "^8.0.0",
     "@types/pg": "^8.11.5",
     "@types/sql.js": "^1.4.2",
-    "better-sqlite3": "^11.0.0",
-    "esbuild": "^0.18.11",
-    "glob": "^8.0.3",
+    "better-sqlite3": "^11.2.1",
+    "esbuild": "^0.23.1",
+    "glob": "^11.0.0",
     "madge": "^8.0.0",
-    "mysql2": "^3.9.7",
-    "pg": "^8.11.5",
-    "rimraf": "^4.1.2",
-    "sade": "^1.8.1",
+    "mysql2": "^3.11.0",
+    "pg": "^8.12.0",
     "speedscope": "^1.15.0",
-    "sql.js": "^1.8.0",
-    "sqlite3": "^5.1.6",
-    "tsx": "^4.7.2",
-    "typescript": "^5.4.5",
-    "uvu": "^0.5.6"
+    "sql.js": "^1.11.0",
+    "sqlite3": "^5.1.7",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "@alinea/suite": "^0.4.0"
   }
 }

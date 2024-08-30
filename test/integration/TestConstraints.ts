@@ -1,5 +1,5 @@
 import type {Database} from '@/index.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 import {TableA, TableB} from './schema.ts'
 
 export function testConstraints(db: Database, test: DefineTest) {

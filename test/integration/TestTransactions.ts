@@ -1,5 +1,5 @@
 import {count, type Database} from '@/index.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 import {txGenerator} from '../../src/universal.ts'
 import {Node} from './schema.ts'
 

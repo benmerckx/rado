@@ -1,4 +1,4 @@
-import {suite} from '@benmerckx/suite'
+import {suite} from '@alinea/suite'
 import type {Database} from '../src/core/Database.ts'
 import {testBasic} from './integration/TestBasic.ts'
 import {testCTE} from './integration/TestCTE.ts'

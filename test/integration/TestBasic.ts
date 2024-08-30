@@ -1,6 +1,6 @@
 import {eq, sql, type Database} from '@/index.ts'
 import {concat} from '@/universal.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 import {Node} from './schema.ts'
 
 export function testBasic(db: Database, test: DefineTest) {

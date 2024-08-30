@@ -1,6 +1,6 @@
 import {table, type Database} from '@/index.ts'
 import {id, text} from '@/universal.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 
 export function testMigration(db: Database, test: DefineTest) {
   test('migration', async () => {

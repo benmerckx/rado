@@ -1,7 +1,7 @@
 import * as e from '@/core/expr/Conditions.ts'
 import {jsonExpr} from '@/core/expr/Json.ts'
 import {sql} from '@/index.ts'
-import {suite} from '@benmerckx/suite'
+import {suite} from '@alinea/suite'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

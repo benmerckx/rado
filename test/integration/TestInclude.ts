@@ -1,6 +1,6 @@
 import {eq, include, table, type Database} from '@/index.ts'
 import {id, integer, lastInsertId, text} from '@/universal.ts'
-import type {DefineTest} from '@benmerckx/suite'
+import type {DefineTest} from '@alinea/suite'
 
 export function testInclude(db: Database, test: DefineTest) {
   test('include', async () => {

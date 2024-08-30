@@ -1,7 +1,7 @@
 import {sql, table} from '@/index.ts'
 import {QueryBuilder} from '@/postgres/builder.ts'
 import {integer} from '@/sqlite/columns.ts'
-import {suite} from '@benmerckx/suite'
+import {suite} from '@alinea/suite'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
