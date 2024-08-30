@@ -17,6 +17,11 @@ const numberType = sql.universal({
   default: sql`numeric`
 })
 
+const jsonbType = sql.universal({
+  mysql: sql`json`,
+  default: sql`jsonb`
+})
+
 export function id(name?: string): Column<number> {
   return column({
     name,
@@ -56,6 +61,19 @@ export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
     type: column.json(),
+    mapToDriverValue(value: T): string {
+      return JSON.stringify(value)
+    },
+    mapFromDriverValue(value: unknown, {parsesJson}) {
+      return parsesJson ? value : JSON.parse(value as string)
+    }
+  })
+}
+
+export function jsonb<T>(name?: string): JsonColumn<T> {
+  return new JsonColumn({
+    name,
+    type: jsonbType,
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     },
