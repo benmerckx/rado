@@ -65,13 +65,20 @@ export function testColumns(db: Database, test: DefineTest) {
     }
   })
 
-  test('numeric column', async () => {
-    const TestTable = table('Test', {numeric: column.numeric()})
+  test('number column', async () => {
+    const TestTable = table('Test', {number: column.number()})
     await db.create(TestTable)
     try {
-      await db.insert(TestTable).values({numeric: 4.2})
-      const row = await db.select().from(TestTable).get()
-      test.equal(row, {numeric: 4.2})
+      const values = [
+        {number: 4.2},
+        {number: Number.MAX_SAFE_INTEGER},
+        {number: Number.MIN_SAFE_INTEGER},
+        {number: Number.MAX_VALUE},
+        {number: Number.MIN_VALUE}
+      ]
+      await db.insert(TestTable).values(values)
+      const rows = await db.select().from(TestTable)
+      test.equal(rows, values)
     } finally {
       await db.drop(TestTable)
     }

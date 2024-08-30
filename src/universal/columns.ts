@@ -13,7 +13,7 @@ const blobType = sql.universal({
 })
 
 const numberType = sql.universal({
-  mysql: sql`decimal`,
+  mysql: sql`float`,
   default: sql`numeric`
 })
 
@@ -40,7 +40,7 @@ export function integer(name?: string): Column<number | null> {
   return column({name, type: column.integer()})
 }
 
-export function numeric(name?: string): Column<number | null> {
+export function number(name?: string): Column<number | null> {
   return column({name, type: numberType, mapFromDriverValue: Number})
 }
 
