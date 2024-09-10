@@ -1,27 +1,30 @@
-// @ts-ignore
-import type {Database as Client, Statement} from 'jsr:@db/sqlite'
-import {SyncDatabase, type TransactionOptions} from '../../core/Database.ts'
-import type {BatchQuery, SyncDriver, SyncStatement} from '../../core/Driver.ts'
-import {sqliteDialect} from '../../sqlite.ts'
-import {sqliteDiff} from '../../sqlite/diff.ts'
-import {execTransaction} from '../../sqlite/transactions.ts'
+import type {
+  Database as Client,
+  RestBindParameters,
+  Statement
+} from '@db/sqlite'
+import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import {sqliteDialect} from '../sqlite.ts'
+import {sqliteDiff} from '../sqlite/diff.ts'
+import {execTransaction} from '../sqlite/transactions.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement<unknown>) {}
+  constructor(private stmt: Statement) {}
 
-  all(params: Array<unknown>) {
+  all(params: RestBindParameters) {
     return <Array<object>>this.stmt.all(...params)
   }
 
-  run(params: Array<unknown>) {
+  run(params: RestBindParameters) {
     return this.stmt.run(...params)
   }
 
-  get(params: Array<unknown>) {
+  get(params: RestBindParameters) {
     return <object>this.stmt.get(...params)
   }
 
-  values(params: Array<unknown>) {
+  values(params: RestBindParameters) {
     return this.stmt.values(...params)
   }
 

@@ -1,13 +1,13 @@
-import {connect} from '../../src/driver/pg.ts'
 import {testDriver} from '../TestDriver.ts'
-import {isDeno} from '../TestRuntime.ts'
+import {isCi} from '../TestRuntime.ts'
 
-if (!isDeno && process.env.CI)
+if (isCi)
   await testDriver(import.meta, async () => {
+    const driver = await import('../../src/driver.ts')
     const {default: pg} = await import('pg')
     const client = new pg.Client({
       connectionString: 'postgres://postgres:postgres@0.0.0.0:5432/postgres'
     })
     await client.connect()
-    return connect(client)
+    return driver.pg(client)
   })

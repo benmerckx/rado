@@ -1,16 +1,16 @@
-import {connect} from '../../src/driver/mysql2.ts'
 import {testDriver} from '../TestDriver.ts'
-import {isDeno} from '../TestRuntime.ts'
+import {isCi} from '../TestRuntime.ts'
 
-if (!isDeno && process.env.CI)
+if (isCi)
   await testDriver(
     import.meta,
     async () => {
+      const driver = await import('../../src/driver.ts')
       const {default: mysql2} = await import('mysql2')
       const client = mysql2.createConnection(
         'mysql://root:mysql@0.0.0.0:3306/mysql'
       )
-      return connect(client)
+      return driver.mysql2(client)
     },
     false
   )
