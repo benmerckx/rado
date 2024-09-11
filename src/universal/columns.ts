@@ -1,4 +1,4 @@
-import {JsonColumn, column, type Column} from '../core/Column.ts'
+import {type Column, JsonColumn, column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 const idType = sql.universal({
@@ -84,5 +84,11 @@ export function jsonb<T>(name?: string): JsonColumn<T> {
 }
 
 export function blob(name?: string): Column<Uint8Array | null> {
-  return column({name, type: blobType})
+  return column({
+    name,
+    type: blobType,
+    mapFromDriverValue(value) {
+      return new Uint8Array(value as ArrayBufferLike)
+    }
+  })
 }

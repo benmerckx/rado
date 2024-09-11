@@ -95,7 +95,8 @@ const init = {
     supportsDiff: false,
     async client() {
       const {createSQLiteDB} = await import('@miniflare/shared')
-      return createSQLiteDB(':memory:')
+      const {D1Database, D1DatabaseAPI} = await import('@miniflare/d1')
+      return new D1Database(new D1DatabaseAPI(await createSQLiteDB(':memory:')))
     }
   }
 }

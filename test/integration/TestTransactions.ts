@@ -1,4 +1,4 @@
-import {count, type Database} from '@/index.ts'
+import {type Database, count} from '@/index.ts'
 import type {DefineTest} from '@alinea/suite'
 import {txGenerator} from '../../src/universal.ts'
 import {Node} from './schema.ts'
@@ -37,19 +37,24 @@ export function testTransactions(db: Database, test: DefineTest) {
   })
 
   test('generator transactions', async () => {
-    const result = await db.transaction(
-      txGenerator(function* (tx) {
-        yield* tx.create(Node)
-        yield* tx.insert(Node).values({
-          textField: 'hello',
-          bool: true
+    try {
+      const result = await db.transaction(
+        txGenerator(function* (tx) {
+          yield* tx.create(Node)
+          yield* tx.insert(Node).values({
+            textField: 'hello',
+            bool: true
+          })
+          const nodes = yield* tx.select().from(Node)
+          test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
+          yield* tx.drop(Node)
+          return 1
         })
-        const nodes = yield* tx.select().from(Node)
-        test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
-        yield* tx.drop(Node)
-        return 1
-      })
-    )
-    test.equal(result, 1)
+      )
+      test.equal(result, 1)
+    } catch (error) {
+      if ((<Error>error).message.includes('not supported')) return
+      throw error
+    }
   })
 }

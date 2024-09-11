@@ -1,4 +1,4 @@
-import {table, type Database} from '@/index.ts'
+import {type Database, table} from '@/index.ts'
 import * as column from '@/universal/columns.ts'
 import type {DefineTest} from '@alinea/suite'
 
