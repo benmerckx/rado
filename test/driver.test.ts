@@ -13,6 +13,9 @@ import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
 import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
 
+const mysqlConnection = 'mysql://root:mysql@localhost:3306/mysql'
+const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
+
 const init = {
   'better-sqlite3': {
     condition: isNode,
@@ -35,9 +38,7 @@ const init = {
     supportsDiff: false,
     async client() {
       const {default: mysql2} = await import('mysql2')
-      const client = mysql2.createConnection(
-        'mysql://root:mysql@0.0.0.0:3306/mysql'
-      )
+      const client = mysql2.createConnection(mysqlConnection)
       return client
     }
   },
@@ -55,7 +56,7 @@ const init = {
     async client() {
       const {default: pg} = await import('pg')
       const client = new pg.Client({
-        connectionString: 'postgres://postgres:postgres@0.0.0.0:5432/postgres'
+        connectionString: pgConnection
       })
       await client.connect()
       return client
@@ -68,6 +69,25 @@ const init = {
       const {default: init} = await import('sql.js')
       const {Database} = await init()
       return new Database()
+    }
+  },
+  '@vercel/postgres': {
+    condition: isCi,
+    supportsDiff: true,
+    async client() {
+      const {neonConfig} = await import('@neondatabase/serverless')
+      Object.assign(neonConfig, {
+        wsProxy: () => 'localhost:5488/v1',
+        useSecureWebSocket: false,
+        pipelineTLS: false,
+        pipelineConnect: false
+      })
+      const {createClient} = await import('@vercel/postgres')
+      const client = createClient({
+        connectionString: pgConnection
+      })
+      await client.connect()
+      return client
     }
   }
 }
