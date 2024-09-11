@@ -11,7 +11,7 @@
     "cycles": "madge --circular src/index.ts src/sqlite.ts src/mysql.ts src/postgres.ts",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
-    "test:deno": "deno test --no-check --allow-read"
+    "test:deno": "deno test --no-check -A --unstable-ffi"
   },
   "sideEffects": false,
   "exports": {
@@ -35,7 +35,7 @@
     "@types/glob": "^8.1.0",
     "@types/pg": "^8.11.8",
     "@types/sql.js": "^1.4.9",
-    "better-sqlite3": "^11.2.1",
+    "better-sqlite3": "^11.3.0",
     "esbuild": "^0.23.1",
     "glob": "^11.0.0",
     "madge": "^8.0.0",
@@ -45,7 +45,7 @@
     "sql.js": "^1.11.0",
     "sqlite3": "^5.1.7",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.4",
+    "typescript": "^5.6.2",
     "@alinea/suite": "^0.4.0"
   }
 }

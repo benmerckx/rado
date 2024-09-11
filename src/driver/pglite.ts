@@ -1,6 +1,6 @@
 import type {PGlite, Transaction} from '@electric-sql/pglite'
+import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {AsyncDriver, AsyncStatement, BatchQuery} from '../core/Driver.ts'
-import {AsyncDatabase, type TransactionOptions} from '../index.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
