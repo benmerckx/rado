@@ -37,24 +37,19 @@ export function testTransactions(db: Database, test: DefineTest) {
   })
 
   test('generator transactions', async () => {
-    try {
-      const result = await db.transaction(
-        txGenerator(function* (tx) {
-          yield* tx.create(Node)
-          yield* tx.insert(Node).values({
-            textField: 'hello',
-            bool: true
-          })
-          const nodes = yield* tx.select().from(Node)
-          test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
-          yield* tx.drop(Node)
-          return 1
+    const result = await db.transaction(
+      txGenerator(function* (tx) {
+        yield* tx.create(Node)
+        yield* tx.insert(Node).values({
+          textField: 'hello',
+          bool: true
         })
-      )
-      test.equal(result, 1)
-    } catch (error) {
-      if ((<Error>error).message.includes('not supported')) return
-      throw error
-    }
+        const nodes = yield* tx.select().from(Node)
+        test.equal(nodes, [{id: 1, textField: 'hello', bool: true}])
+        yield* tx.drop(Node)
+        return 1
+      })
+    )
+    test.equal(result, 1)
   })
 }
