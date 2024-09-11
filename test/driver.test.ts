@@ -20,6 +20,7 @@ const init = {
   'better-sqlite3': {
     condition: isNode,
     supportsDiff: true,
+    supportsTransactions: true,
     async client() {
       const {default: Database} = await import('better-sqlite3')
       return new Database(':memory:')
@@ -28,6 +29,7 @@ const init = {
   'bun:sqlite': {
     condition: isBun,
     supportsDiff: true,
+    supportsTransactions: true,
     async client() {
       const {Database} = await import('bun:sqlite')
       return new Database(':memory:')
@@ -36,6 +38,7 @@ const init = {
   mysql2: {
     condition: isCi,
     supportsDiff: false,
+    supportsTransactions: true,
     async client() {
       const {default: mysql2} = await import('mysql2')
       const client = mysql2.createConnection(mysqlConnection)
@@ -45,6 +48,7 @@ const init = {
   '@electric-sql/pglite': {
     condition: true,
     supportsDiff: true,
+    supportsTransactions: true,
     async client() {
       const {PGlite} = await import('@electric-sql/pglite')
       return new PGlite()
@@ -53,6 +57,7 @@ const init = {
   pg: {
     condition: isCi,
     supportsDiff: true,
+    supportsTransactions: true,
     async client() {
       const {default: pg} = await import('pg')
       const client = new pg.Client({
@@ -65,6 +70,7 @@ const init = {
   'sql.js': {
     condition: true,
     supportsDiff: true,
+    supportsTransactions: true,
     async client() {
       const {default: init} = await import('sql.js')
       const {Database} = await init()
@@ -74,6 +80,7 @@ const init = {
   '@vercel/postgres': {
     condition: isCi,
     supportsDiff: true,
+    supportsTransactions: true,
     async client() {
       const {neonConfig} = await import('@neondatabase/serverless')
       Object.assign(neonConfig, {
@@ -89,6 +96,16 @@ const init = {
       await client.connect()
       return client
     }
+  },
+  d1: {
+    condition: isNode,
+    supportsDiff: false,
+    supportsTransactions: false,
+    async client() {
+      const {createSQLiteDB} = await import('@miniflare/shared')
+      const {D1Database, D1DatabaseAPI} = await import('@miniflare/d1')
+      return new D1Database(new D1DatabaseAPI(await createSQLiteDB(':memory:')))
+    }
   }
 }
 
@@ -103,7 +120,7 @@ async function createTests() {
   )
   return (test: DefineTest) => {
     for (const [name, client] of clients) {
-      const {supportsDiff} = init[name]
+      const {supportsDiff, supportsTransactions} = init[name]
       const db = driver[name](client)
       const prefixed: Describe = (description, fn) =>
         test(`${name}: ${description}`, fn)
@@ -115,11 +132,11 @@ async function createTests() {
       testPreparedQuery(db, withName)
       testJoins(db, withName)
       testJson(db, withName)
-      testTransactions(db, withName)
       testConstraints(db, withName)
       testCTE(db, withName)
       testInclude(db, withName)
 
+      if (supportsTransactions) testTransactions(db, withName)
       if (supportsDiff) testMigration(db, withName)
     }
   }
