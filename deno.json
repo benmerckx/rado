@@ -1,6 +1,5 @@
 {
   "imports": {
-    "@/": "./src/",
-    "@db/sqlite": "jsr:@db/sqlite@^0.12.0"
+    "@/": "./src/"
   }
 }
