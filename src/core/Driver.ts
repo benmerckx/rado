@@ -9,7 +9,6 @@ export interface BatchQuery {
 }
 export interface DriverSpecs {
   parsesJson: boolean
-  parsesNestedJson?: boolean
 }
 export interface PrepareOptions {
   isSelection: boolean
