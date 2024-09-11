@@ -150,20 +150,20 @@ const PostTags = table({
 
 Currently supported drivers:
 
-| Driver           | import                           |
-| ---------------- | -------------------------------- |
-| `better-sqlite3` | `{'better-sqlite3' as connect}'` |
-| `bun-sqlite`     | `{'bun-sqlite' as connect}`      |
-| `mysql2`         | `{'mysql2' as connect}`          |
-| `pg`             | `{'pg' as connect}`              |
-| `pglite`         | `{'pglite' as connect}`          |
-| `sql.js`         | `{'sql.js' as connect}`          |
+| Driver                 | import                         |
+| ---------------------- | ------------------------------ |
+| `better-sqlite3`       | `'rado/driver/better-sqlite3'` |
+| `bun:sqlite`           | `'rado/driver/bun-sqlite'`     |
+| `mysql2`               | `'rado/driver/mysql2'`         |
+| `pg`                   | `'rado/driver/pg'`             |
+| `@electric-sql/pglite` | `'rado/driver/pglite'`         |
+| `sql.js`               | `'rado/driver/sql.js'`         |
 
 Pass an instance of the database to the `connect` function to get started:
 
 ```ts
 import Database from 'better-sqlite3'
-import {'better-sqlite3' as connect} from 'rado/driver'
+import {connect} from 'rado/driver/better-sqlite3'
 
 const db = connect(new Database('foobar.db'))
 ```
