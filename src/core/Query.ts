@@ -44,7 +44,7 @@ class Executable<Result, Meta extends QueryMeta>
   }
 
   // biome-ignore lint/suspicious/noThenProperty:
-  then<TResult1 = Array<Result>, TResult2 = never>(
+  async then<TResult1 = Array<Result>, TResult2 = never>(
     onfulfilled?:
       | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
       | undefined
@@ -54,8 +54,12 @@ class Executable<Result, Meta extends QueryMeta>
       | undefined
       | null
   ): Promise<TResult1 | TResult2> {
-    const result = this.#execute()
-    return Promise.resolve(result).then(onfulfilled, onrejected)
+    try {
+      const result = await this.#execute()
+      return onfulfilled ? onfulfilled(result) : result
+    } catch (error) {
+      return onrejected ? onrejected(error) : Promise.reject(error)
+    }
   }
 
   catch<TResult = never>(
