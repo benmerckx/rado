@@ -150,16 +150,23 @@ const PostTags = table({
 
 Currently supported drivers:
 
-| Driver                     | import                         |
+| `PostgreSQL              ` | `import                      ` |
+| -------------------------- | ------------------------------ |
+| `pg`                       | `'rado/driver/pg'`             |
+| `@electric-sql/pglite`     | `'rado/driver/pglite'`         |
+| `@neondatabase/serverless` | `'rado/driver/pg'`             |
+| `@vercel/postgres`         | `'rado/driver/pg'`             |
+
+| `SQLite                  ` | `import                      ` |
 | -------------------------- | ------------------------------ |
 | `better-sqlite3`           | `'rado/driver/better-sqlite3'` |
 | `bun:sqlite`               | `'rado/driver/bun-sqlite'`     |
-| `mysql2`                   | `'rado/driver/mysql2'`         |
-| `pg`                       | `'rado/driver/pg'`             |
-| `@neondatabase/serverless` | `'rado/driver/pg'`             |
-| `@vercel/postgres`         | `'rado/driver/pg'`             |
-| `@electric-sql/pglite`     | `'rado/driver/pglite'`         |
 | `sql.js`                   | `'rado/driver/sql.js'`         |
+| `Cloudflare D1`            | `'rado/driver/d1'`             |
+
+| `MySQL                   ` | `import                      ` |
+| -------------------------- | ------------------------------ |
+| `mysql2`                   | `'rado/driver/mysql2'`         |
 
 Pass an instance of the database to the `connect` function to get started:
 
