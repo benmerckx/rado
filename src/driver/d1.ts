@@ -33,11 +33,7 @@ class PreparedStatement implements AsyncStatement {
   }
 
   async values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
-    if (this.isSelection) {
-      const results = await this.stmt.bind(...params).raw()
-      console.log(results)
-      return results
-    }
+    if (this.isSelection) return this.stmt.bind(...params).raw()
     await this.stmt.bind(...params).run()
     return []
   }
