@@ -8,7 +8,7 @@ import {
   internalQuery,
   internalSelection
 } from '../Internal.ts'
-import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
+import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
 import {
   type Selection,
@@ -35,6 +35,7 @@ export interface InsertData<Meta extends QueryMeta>
   extends InsertIntoData<Meta> {
   returning?: Selection
   onConflict?: HasSql
+  onDuplicateKeyUpdate?: HasSql
 }
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
@@ -80,9 +81,13 @@ export interface OnConflict {
   targetWhere?: HasSql<boolean>
 }
 
-export interface OnConflictUpdate<Definition extends TableDefinition>
-  extends OnConflict {
+export interface OnConflictSet<Definition extends TableDefinition> {
   set: TableUpdate<Definition>
+}
+
+export interface OnConflictUpdate<Definition extends TableDefinition>
+  extends OnConflict,
+    OnConflictSet<Definition> {
   setWhere?: HasSql<boolean>
 }
 
@@ -91,7 +96,7 @@ class InsertCanConflict<
   Meta extends QueryMeta
 > extends InsertCanReturn<Definition, Meta> {
   onConflictDoNothing(
-    this: InsertCanConflict<Definition, IsPostgres>,
+    this: InsertCanConflict<Definition, IsPostgres | IsSqlite>,
     onConflict?: OnConflict
   ): InsertCanReturn<Definition, Meta> {
     return <InsertCanConflict<Definition, Meta>>(
@@ -100,10 +105,29 @@ class InsertCanConflict<
   }
 
   onConflictDoUpdate(
-    this: InsertCanConflict<Definition, IsPostgres>,
+    this: InsertCanConflict<Definition, IsPostgres | IsSqlite>,
     onConflict: OnConflictUpdate<Definition>
   ): InsertCanReturn<Definition, Meta> {
     return <InsertCanConflict<Definition, Meta>>this.#onConflict(onConflict)
+  }
+
+  onDuplicateKeyUpdate(
+    this: InsertCanConflict<Definition, IsMysql>,
+    update: OnConflictSet<Definition>
+  ): InsertCanReturn<Definition, Meta> {
+    return new InsertCanReturn({
+      ...getData(this as InsertCanConflict<Definition, Meta>),
+      onDuplicateKeyUpdate: this.#updateFields(update.set)
+    })
+  }
+
+  #updateFields(update: TableUpdate<Definition>) {
+    return sql.join(
+      Object.entries(update).map(
+        ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
+      ),
+      sql`, `
+    )
   }
 
   #onConflict({
@@ -112,14 +136,7 @@ class InsertCanConflict<
     set,
     setWhere
   }: Partial<OnConflictUpdate<Definition>>): InsertCanReturn<Definition, Meta> {
-    const update =
-      set &&
-      sql.join(
-        Object.entries(set).map(
-          ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
-        ),
-        sql`, `
-      )
+    const update = set && this.#updateFields(set)
     return new InsertCanReturn({
       ...getData(this),
       onConflict: sql.join([

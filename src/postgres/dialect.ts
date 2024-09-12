@@ -12,6 +12,7 @@ const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
 export const postgresDialect: Dialect = new Dialect(
+  'postgres',
   class extends Emitter {
     runtime: Runtime = 'postgres'
     paramIndex = 0

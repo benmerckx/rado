@@ -5,6 +5,7 @@ import {testBasic} from './integration/TestBasic.ts'
 import {testBatch} from './integration/TestBatch.ts'
 import {testCTE} from './integration/TestCTE.ts'
 import {testColumns} from './integration/TestColumns.ts'
+import {testConflicts} from './integration/TestConflicts.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
 import {testInclude} from './integration/TestInclude.ts'
 import {testJoins} from './integration/TestJoins.ts'
@@ -129,6 +130,7 @@ async function createTests() {
       testConstraints(db, withName)
       testCTE(db, withName)
       testInclude(db, withName)
+      testConflicts(db, withName)
 
       if (db.driver.supportsTransactions) testTransactions(db, withName)
       if (supportsDiff) testMigration(db, withName)

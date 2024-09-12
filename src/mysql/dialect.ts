@@ -12,6 +12,7 @@ const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
 export const mysqlDialect: Dialect = new Dialect(
+  'mysql',
   class extends Emitter {
     runtime: Runtime = 'mysql'
     paramIndex = 0

@@ -1,6 +1,5 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
-import type {Runtime} from '../core/MetaData.ts'
 import {NamedParam, ValueParam} from '../core/Param.ts'
 import type {JsonPath} from '../core/expr/Json.ts'
 
@@ -12,8 +11,8 @@ const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
 
 export const sqliteDialect: Dialect = new Dialect(
+  'sqlite',
   class extends Emitter {
-    runtime: Runtime = 'sqlite'
     processValue(value: unknown): unknown {
       return typeof value === 'boolean' ? (value ? 1 : 0) : value
     }

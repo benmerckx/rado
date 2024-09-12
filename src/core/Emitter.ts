@@ -22,8 +22,19 @@ import type {UnionData} from './query/Union.ts'
 import type {Update} from './query/Update.ts'
 
 export abstract class Emitter {
+  #runtime: Runtime
   sql = ''
   protected params: Array<Param> = []
+
+  abstract emitIdentifier(value: string): void
+  abstract emitValue(value: unknown): void
+  abstract emitInline(value: unknown): void
+  abstract emitJsonPath(path: JsonPath): void
+  abstract emitPlaceholder(value: string): void
+
+  constructor(runtime: Runtime) {
+    this.#runtime = runtime
+  }
 
   get hasParams(): boolean {
     return this.params.length > 0
@@ -41,13 +52,6 @@ export abstract class Emitter {
   processValue(value: unknown): unknown {
     return value
   }
-
-  abstract runtime: Runtime
-  abstract emitIdentifier(value: string): void
-  abstract emitValue(value: unknown): void
-  abstract emitInline(value: unknown): void
-  abstract emitJsonPath(path: JsonPath): void
-  abstract emitPlaceholder(value: string): void
 
   emitIdentifierOrSelf(value: string): void {
     if (value === Sql.SELF_TARGET) {
@@ -123,7 +127,15 @@ export abstract class Emitter {
   }
 
   emitInsert(insert: Insert<unknown>): void {
-    const {cte, into, values, select, onConflict, returning} = getData(insert)
+    const {
+      cte,
+      into,
+      values,
+      select,
+      onConflict,
+      onDuplicateKeyUpdate,
+      returning
+    } = getData(insert)
     if (cte) this.emitWith(cte)
     const table = getTable(into)
     const tableName = sql.identifier(table.name)
@@ -132,6 +144,7 @@ export abstract class Emitter {
         insertInto: sql`${tableName}(${table.listColumns()})`,
         ...(values ? {values} : {'': select}),
         onConflict,
+        onDuplicateKeyUpdate,
         returning
       })
       .inlineFields(false)
@@ -222,7 +235,7 @@ export abstract class Emitter {
   }
 
   emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
-    const sql = runtimes[this.runtime] ?? runtimes.default
+    const sql = runtimes[this.#runtime] ?? runtimes.default
     if (!sql) throw new Error('Unsupported runtime')
     sql.emitTo(this)
   }
