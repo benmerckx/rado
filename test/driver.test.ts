@@ -2,6 +2,7 @@ import * as driver from '@/driver.ts'
 import {type DefineTest, type Describe, suite} from '@alinea/suite'
 import {isBun, isCi, isNode} from './TestRuntime.ts'
 import {testBasic} from './integration/TestBasic.ts'
+import {testBatch} from './integration/TestBatch.ts'
 import {testCTE} from './integration/TestCTE.ts'
 import {testColumns} from './integration/TestColumns.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
@@ -127,6 +128,7 @@ async function createTests() {
       const withName = Object.assign(prefixed, test)
 
       testBasic(db, withName)
+      testBatch(db, withName)
       testColumns(db, withName)
       testSubquery(db, withName)
       testPreparedQuery(db, withName)
