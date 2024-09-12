@@ -61,10 +61,11 @@ export class D1Driver implements AsyncDriver {
   async close(): Promise<void> {}
 
   async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
-    const results = []
-    for (const {sql, params, isSelection} of queries)
-      results.push(await this.prepare(sql, {isSelection}).values(params))
-    return results
+    const stmts = queries.map(({sql, params}) =>
+      this.client.prepare(sql).bind(...params)
+    )
+    const rows = await this.client.batch(stmts)
+    return rows.map(row => row.results)
   }
 
   async transaction<T>(): Promise<T> {
