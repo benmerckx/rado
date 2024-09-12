@@ -60,6 +60,7 @@ Currently supported drivers:
 | `better-sqlite3`           | `'rado/driver/better-sqlite3'` |
 | `bun:sqlite`               | `'rado/driver/bun-sqlite'`     |
 | `sql.js`                   | `'rado/driver/sql.js'`         |
+| `@libsql/client`           | `'rado/driver/libsql`          |
 | `Cloudflare D1`            | `'rado/driver/d1'`             |
 
 | `MySQL                   ` | `import                      ` |

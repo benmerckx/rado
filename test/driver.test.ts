@@ -1,6 +1,6 @@
 import * as driver from '@/driver.ts'
 import {type DefineTest, type Describe, suite} from '@alinea/suite'
-import {isBun, isCi, isNode} from './TestRuntime.ts'
+import {isBun, isCi, isDeno, isNode} from './TestRuntime.ts'
 import {testBasic} from './integration/TestBasic.ts'
 import {testBatch} from './integration/TestBatch.ts'
 import {testCTE} from './integration/TestCTE.ts'
@@ -99,6 +99,16 @@ const init = {
       const {createSQLiteDB} = await import('@miniflare/shared')
       const {D1Database, D1DatabaseAPI} = await import('@miniflare/d1')
       return new D1Database(new D1DatabaseAPI(await createSQLiteDB(':memory:')))
+    }
+  },
+  '@libsql/client': {
+    condition: !isDeno,
+    supportsDiff: true,
+    async client() {
+      const {createClient} = await import('@libsql/client')
+      return createClient({
+        url: 'file::memory:?cache=shared'
+      })
     }
   }
 }

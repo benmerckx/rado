@@ -5,8 +5,8 @@ import {Node} from './schema.ts'
 
 export function testTransactions(db: Database, test: DefineTest) {
   test('transactions', async () => {
+    await db.create(Node)
     try {
-      await db.create(Node)
       await Promise.allSettled([
         db.transaction(async tx => {
           await tx.insert(Node).values({
@@ -27,8 +27,6 @@ export function testTransactions(db: Database, test: DefineTest) {
           tx.rollback()
         })
       ])
-    } catch (err) {
-      test.equal((<Error>err).message, 'Rollback')
       const nodes = await db.select().from(Node)
       test.equal(nodes, [])
     } finally {
