@@ -11,7 +11,7 @@
     "cycles": "madge --circular src/index.ts src/sqlite.ts src/mysql.ts src/postgres.ts",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
-    "test:deno": "DENO_NO_PACKAGE_JSON=true deno test --no-check -A --unstable-ffi"
+    "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi"
   },
   "sideEffects": false,
   "exports": {
