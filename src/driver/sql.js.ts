@@ -48,6 +48,7 @@ class PreparedStatement implements SyncStatement {
 
 class SqlJsDriver implements SyncDriver {
   parsesJson = false
+  supportsTransactions = true
 
   constructor(
     private client: Client,

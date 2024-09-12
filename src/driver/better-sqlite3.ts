@@ -40,6 +40,7 @@ class PreparedStatement implements SyncStatement {
 
 class BetterSqlite3Driver implements SyncDriver {
   parsesJson = false
+  supportsTransactions = true
 
   constructor(
     private client: Client,

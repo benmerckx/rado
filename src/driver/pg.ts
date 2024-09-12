@@ -60,6 +60,7 @@ class PreparedStatement implements AsyncStatement {
 
 export class PgDriver implements AsyncDriver {
   parsesJson = true
+  supportsTransactions = true
 
   constructor(
     private client: Queryable,
