@@ -1,10 +1,10 @@
 import type {IsMysql, IsPostgres} from '@/core/MetaData.ts'
 import {type Database, table} from '@/index.ts'
-import {text} from '@/universal.ts'
+import {varchar} from '@/universal.ts'
 import type {DefineTest} from '@alinea/suite'
 
 export const WithUnique = table('WithUnique', {
-  value: text().unique()
+  value: varchar(undefined, {length: 1}).primaryKey()
 })
 
 export function testConflicts(db: Database, test: DefineTest) {
