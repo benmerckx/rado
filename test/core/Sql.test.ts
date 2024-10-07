@@ -18,4 +18,10 @@ suite(import.meta, test => {
   test('inline value', () => {
     test.equal(emit(sql.empty().inline(1)), '1')
   })
+
+  test('unknown values', () => {
+    test.equal(emit(sql`${1}`), '1')
+    test.equal(emit(sql`${null}`), 'null')
+    test.equal(emit(sql`${'"'}`), JSON.stringify('"'))
+  })
 })
