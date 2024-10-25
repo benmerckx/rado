@@ -14,11 +14,13 @@ suite(import.meta, test => {
   })
 
   test('and', () => {
-    test.equal(emit(e.and(true, false, true)), '(true and false and true)')
+    test.equal(emit(e.and(sql`1`, sql`2`, sql`3`)), '(1 and 2 and 3)')
+    test.equal(emit(e.and(true, false, true)), 'false')
   })
 
   test('or', () => {
-    test.equal(emit(e.or(true, false, true)), '(true or false or true)')
+    test.equal(emit(e.or(sql`1`, sql`2`, sql`3`)), '(1 or 2 or 3)')
+    test.equal(emit(e.or(sql.value(true), false)), 'true')
   })
 
   test('not', () => {

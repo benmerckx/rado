@@ -54,13 +54,23 @@ export const arrayOverlaps: <T>(
   right: Input<Array<T>>
 ) => Sql<boolean> = binop('&&')
 
+function isTrue(input: undefined | Input<boolean>): input is Input<boolean> {
+  if (input === true) return true
+  return Boolean(
+    input &&
+      typeof input === 'object' &&
+      hasSql(input) &&
+      getSql(input).getValue() === true
+  )
+}
+
 export function and(
   ...conditions: Array<undefined | Input<boolean>>
 ): Sql<boolean> {
   const inputs = conditions
-    .filter((v): v is Input<boolean> => v !== undefined)
+    .filter(value => value !== undefined && !isTrue(value))
     .map(input)
-  if (inputs.length === 0) return bool(sql`true`)
+  if (inputs.length === 0) return bool(sql.value(true))
   if (inputs.length === 1) return bool(inputs[0])
   return bool(sql`(${sql.join(inputs, sql` and `)})`)
 }
@@ -68,10 +78,9 @@ export function and(
 export function or(
   ...conditions: Array<undefined | Input<boolean>>
 ): Sql<boolean> {
-  const inputs = conditions
-    .filter((v): v is Input<boolean> => v !== undefined)
-    .map(input)
-  if (inputs.length === 0) return bool(sql`true`)
+  if (conditions.some(isTrue)) return bool(sql.value(true))
+  const inputs = conditions.filter(value => value !== undefined).map(input)
+  if (inputs.length === 0) return bool(sql.value(true))
   if (inputs.length === 1) return bool(inputs[0])
   return bool(sql`(${sql.join(inputs, sql` or `)})`)
 }
