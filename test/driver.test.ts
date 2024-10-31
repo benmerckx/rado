@@ -21,7 +21,6 @@ const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
 const init = {
   'better-sqlite3': {
     condition: isNode,
-    supportsDiff: true,
     async client() {
       const {default: Database} = await import('better-sqlite3')
       return new Database(':memory:')
@@ -29,7 +28,6 @@ const init = {
   },
   'bun:sqlite': {
     condition: isBun,
-    supportsDiff: true,
     async client() {
       const {Database} = await import('bun:sqlite')
       return new Database(':memory:')
@@ -37,7 +35,6 @@ const init = {
   },
   mysql2: {
     condition: isCi,
-    supportsDiff: false,
     async client() {
       const {default: mysql2} = await import('mysql2')
       const client = mysql2.createConnection(mysqlConnection)
@@ -46,7 +43,6 @@ const init = {
   },
   '@electric-sql/pglite': {
     condition: true,
-    supportsDiff: true,
     async client() {
       const {PGlite} = await import('@electric-sql/pglite')
       return new PGlite()
@@ -54,7 +50,6 @@ const init = {
   },
   pg: {
     condition: isCi,
-    supportsDiff: true,
     async client() {
       const {default: pg} = await import('pg')
       const client = new pg.Client({
@@ -66,7 +61,6 @@ const init = {
   },
   'sql.js': {
     condition: true,
-    supportsDiff: true,
     async client() {
       const {default: init} = await import('sql.js')
       const {Database} = await init()
@@ -75,7 +69,6 @@ const init = {
   },
   '@vercel/postgres': {
     condition: isCi,
-    supportsDiff: true,
     async client() {
       const {neonConfig} = await import('@neondatabase/serverless')
       Object.assign(neonConfig, {
@@ -103,7 +96,6 @@ const init = {
   },
   '@libsql/client': {
     condition: !isDeno,
-    supportsDiff: true,
     async client() {
       const {createClient} = await import('@libsql/client')
       return createClient({
@@ -124,7 +116,6 @@ async function createTests() {
   )
   return (test: DefineTest) => {
     for (const [name, client] of clients) {
-      const {supportsDiff} = init[name]
       const db = driver[name](client)
       const prefixed: Describe = (description, fn) =>
         test(`${name}: ${description}`, fn)
@@ -141,9 +132,9 @@ async function createTests() {
       testCTE(db, withName)
       testInclude(db, withName)
       testConflicts(db, withName)
+      testMigration(db, withName)
 
       if (db.driver.supportsTransactions) testTransactions(db, withName)
-      if (supportsDiff) testMigration(db, withName)
     }
   }
 }
