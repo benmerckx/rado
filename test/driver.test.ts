@@ -42,7 +42,7 @@ const init = {
     }
   },
   '@electric-sql/pglite': {
-    condition: true,
+    condition: !isDeno,
     async client() {
       const {PGlite} = await import('@electric-sql/pglite')
       return new PGlite()
