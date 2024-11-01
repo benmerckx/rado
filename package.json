@@ -29,7 +29,7 @@
     "@alinea/suite": "^0.4.0",
     "@biomejs/biome": "^1.8.3",
     "@cloudflare/workers-types": "^4.20230628.0",
-    "@electric-sql/pglite": "^0.1.5",
+    "@electric-sql/pglite": "^0.2.12",
     "@libsql/client": "^0.10.0",
     "@miniflare/d1": "^2.14.2",
     "@miniflare/shared": "^2.14.2",

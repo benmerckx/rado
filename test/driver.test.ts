@@ -87,7 +87,6 @@ const init = {
   },
   d1: {
     condition: isNode,
-    supportsDiff: false,
     async client() {
       const {createSQLiteDB} = await import('@miniflare/shared')
       const {D1Database, D1DatabaseAPI} = await import('@miniflare/d1')
@@ -132,9 +131,9 @@ async function createTests() {
       testCTE(db, withName)
       testInclude(db, withName)
       testConflicts(db, withName)
+      if (!db.driver.supportsTransactions) continue
+      testTransactions(db, withName)
       testMigration(db, withName)
-
-      if (db.driver.supportsTransactions) testTransactions(db, withName)
     }
   }
 }

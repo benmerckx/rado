@@ -19,11 +19,28 @@ const Information = ns.table('columns', {
   table_schema: column.text().notNull()
 })
 
+const Statistics = ns.table('statistics', {
+  table_name: column.text().notNull(),
+  column_name: column.text().notNull(),
+  index_name: column.text().notNull(),
+  non_unique: column.integer().notNull(),
+  seq_in_index: column.integer().notNull(),
+  table_schema: column.text().notNull()
+})
+
+const TableConstraints = ns.table('table_constraints', {
+  constraint_name: column.text().notNull(),
+  table_name: column.text().notNull(),
+  constraint_type: column.text().notNull(),
+  table_schema: column.text().notNull()
+})
+
 const inline = (sql: HasSql) => mysqlDialect.inline(sql)
 
 export const mysqlDiff: Diff = (hasTable: Table) => {
   return txGenerator(function* (tx) {
     const tableApi = getTable(hasTable)
+    const stmts: Array<Sql> = []
 
     // Fetch current table column information from MySQL information_schema
     const columnInfo = yield* tx
@@ -37,8 +54,32 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
       .from(Information)
       .where(
         eq(Information.table_name, tableApi.name),
-        eq(Information.table_schema, sql.unsafe('DATABASE()'))
+        eq(Information.table_schema, sql`database()`)
       )
+
+    // Fetch current index information
+    const indexInfo = yield* tx
+      .select({
+        index_name: Statistics.index_name,
+        column_name: Statistics.column_name,
+        non_unique: Statistics.non_unique,
+        seq_in_index: Statistics.seq_in_index
+      })
+      .from(Statistics)
+      .where(
+        eq(Statistics.table_name, tableApi.name),
+        eq(Statistics.table_schema, sql`database()`)
+      )
+      .orderBy(Statistics.index_name, Statistics.seq_in_index)
+
+    // Group index columns
+    const indexMap = new Map<string, Array<string>>()
+    for (const index of indexInfo) {
+      if (!indexMap.has(index.index_name)) {
+        indexMap.set(index.index_name, [])
+      }
+      indexMap.get(index.index_name)!.push(index.column_name)
+    }
 
     // Map existing columns from database
     const localColumns = new Map(
@@ -76,8 +117,6 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
         return [columnApi.name ?? name, columnApi]
       })
     )
-
-    const stmts: Array<Sql> = []
 
     // Check if columns are identical
     const columnNames = new Set([
@@ -154,6 +193,68 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
               ]
             })
           )
+        }
+      }
+    }
+
+    // Handle indexes
+    const localIndexes = new Map(
+      Array.from(indexMap.entries())
+        .filter(([name]) => name !== 'PRIMARY')
+        .map(([name, columns]) => {
+          return [
+            name,
+            sql`index ${sql.identifier(name)} (${sql.join(columns.map(sql.identifier), sql`, `)})`
+          ]
+        })
+    )
+
+    const schemaIndexes = new Map(
+      Object.entries(tableApi.indexes()).map(([name, index]) => {
+        const indexApi = getData(index)
+        return [name, indexApi.toSql(tableApi.name, name, false)]
+      })
+    )
+
+    // Check if indexes are identical
+    const indexNames = new Set([
+      ...localIndexes.keys(),
+      ...schemaIndexes.keys()
+    ])
+
+    for (const indexName of indexNames) {
+      const localInstruction = localIndexes.get(indexName)
+      const schemaInstruction = schemaIndexes.get(indexName)
+
+      if (!schemaInstruction) {
+        // Drop index if it exists in database but not in schema
+        stmts.unshift(
+          sql.query({
+            alterTable: sql.identifier(tableApi.name),
+            dropIndex: sql.identifier(indexName)
+          })
+        )
+      } else if (!localInstruction) {
+        // Add index if it exists in schema but not in database
+        stmts.push(schemaInstruction)
+      } else if (inline(localInstruction) !== inline(schemaInstruction)) {
+        // Modify index if it exists in both but with different definitions
+        if (indexName === 'PRIMARY') {
+          stmts.unshift(
+            sql.query({
+              alterTable: sql.identifier(tableApi.name),
+              dropPrimaryKey: true
+            })
+          )
+          stmts.push(schemaInstruction)
+        } else {
+          stmts.unshift(
+            sql.query({
+              alterTable: sql.identifier(tableApi.name),
+              dropIndex: sql.identifier(indexName)
+            })
+          )
+          stmts.push(schemaInstruction)
         }
       }
     }
