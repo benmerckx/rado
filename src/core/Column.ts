@@ -1,8 +1,8 @@
 import type {DriverSpecs} from './Driver.ts'
 import {getData, getField, internalData} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
-import {input, type Input} from './expr/Input.ts'
+import {type Input, input} from './expr/Input.ts'
 
 export interface ColumnData {
   type: Sql
@@ -52,7 +52,7 @@ export class Column<Value = unknown> {
   default(value: Input<WithoutNull<Value>>): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
-      defaultValue: input(value)
+      defaultValue: input(value).inlineValues()
     })
   }
   defaultNow(): Column<WithoutNull<Value>> {

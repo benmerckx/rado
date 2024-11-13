@@ -27,9 +27,9 @@ const SqliteMaster = table('SqliteMaster', {
 
 const inline = (sql: HasSql) => sqliteDialect.inline(sql)
 
-export const sqliteDiff: Diff = (hasTable: Table) => {
+export const sqliteDiff: Diff = (targetTable: Table) => {
   return txGenerator(function* (tx) {
-    const tableApi = getTable(hasTable)
+    const tableApi = getTable(targetTable)
     const columnInfo = yield* tx
       .select(TableInfo)
       .from(sql`pragma_table_info(${sql.inline(tableApi.name)}) as "TableInfo"`)
@@ -175,21 +175,25 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
     function recreate() {
       const tempName = `new_${tableApi.name}`
       const tempTable = table(tempName, tableApi.columns)
-      const missingColumns = Array.from(columnNames).filter(
-        name => !localColumns.has(name)
+      const missingColumns = new Set(
+        Array.from(columnNames).filter(name => !localColumns.has(name))
       )
-      const selection: Record<string, HasSql> = {...hasTable}
-      for (const name of missingColumns) {
-        selection[name] =
-          getData(tableApi.columns[name]).defaultValue ?? sql`null`
-      }
+      const selection: Record<string, HasSql> = Object.fromEntries(
+        Object.entries(tableApi.columns).map(([name, column]) => {
+          const columnApi = getData(column)
+          const key = columnApi.name ?? name
+          if (missingColumns.has(key))
+            return [name, columnApi.defaultValue ?? sql`null`]
+          return [name, (<any>targetTable)[name]]
+        })
+      )
       return [
         // Create a new temporary table with the new definition
         tableApi.createTable(tempName),
 
         // Copy the data from the old table to the new table
         getQuery(
-          tx.insert(tempTable).select(tx.select(selection).from(hasTable))
+          tx.insert(tempTable).select(tx.select(selection).from(targetTable))
         ),
 
         // Drop the old table
