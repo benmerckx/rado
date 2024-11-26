@@ -1,4 +1,5 @@
 import * as e from '@/core/expr/Conditions.ts'
+import {Functions} from '@/core/expr/Functions.ts'
 import {jsonExpr} from '@/core/expr/Json.ts'
 import {sql} from '@/index.ts'
 import {suite} from '@alinea/suite'
@@ -118,5 +119,10 @@ suite(import.meta, test => {
     const a = obj.a
     const x = obj.a.x
     test.equal(emit(x), 'test->>"$.a.x"')
+  })
+
+  test('function', () => {
+    const patch = Functions.json_patch({a: 1}, {b: 1})
+    test.equal(emit(patch), '"json_patch"({"a":1}, {"b":1})')
   })
 })

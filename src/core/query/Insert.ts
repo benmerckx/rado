@@ -4,6 +4,7 @@ import {
   getData,
   getQuery,
   getTable,
+  hasSql,
   internalData,
   internalQuery,
   internalSelection
@@ -182,8 +183,11 @@ export class InsertInto<
           Object.entries(table.columns).map(([key, column]) => {
             const value = row[key]
             const {$default, mapToDriverValue} = getData(column)
-            if (value !== undefined)
+            if (value !== undefined) {
+              if (value && typeof value === 'object' && hasSql(value))
+                return value
               return input(mapToDriverValue?.(value) ?? value)
+            }
             if ($default) return $default()
             return defaultKeyword
           }),

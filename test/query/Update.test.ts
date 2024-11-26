@@ -1,7 +1,8 @@
 import {sql, table} from '@/index.ts'
 import {QueryBuilder} from '@/postgres/builder.ts'
-import {integer} from '@/sqlite/columns.ts'
+import {integer, json} from '@/sqlite/columns.ts'
 import {suite} from '@alinea/suite'
+import {Functions} from '../../src/core/expr/Functions.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
@@ -9,7 +10,8 @@ suite(import.meta, test => {
     id: integer().primaryKey(),
     withDefault: integer().default(2),
     required: integer().notNull(),
-    nullable: integer()
+    nullable: integer(),
+    data: json()
   }
 
   const Node = table('Node', definition)
@@ -23,6 +25,16 @@ suite(import.meta, test => {
     test.equal(
       emit(query),
       'update "Node" set "nullable" = null, "required" = 3, "withDefault" = "required" + 1'
+    )
+  })
+
+  test('update with function', () => {
+    const query = builder.update(Node).set({
+      data: Functions.json_patch(Node.data, {a: 1})
+    })
+    test.equal(
+      emit(query),
+      'update "Node" set "data" = "json_patch"("data", {"a":1})'
     )
   })
 
