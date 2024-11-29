@@ -43,6 +43,7 @@ type Join = InnerJoin | LeftJoin | RightJoin | FullJoin
 
 interface SelectQuery<Returning extends SelectionInput>
   extends Omit<TopLevel, 'select' | 'from'> {
+  with?: Record<string, SelectQuery<SelectionInput>>
   select: Returning
   from?: HasTarget | [HasTarget, ...Array<Join>]
   where?: Sql<boolean>
@@ -101,11 +102,5 @@ export function query<
   db: Builder<Meta>,
   query: QueryInput<Returning, Definition>
 ): Query<SelectionRow<Returning>, Meta> {
-  if ('select' in query || 'from' in query) {
-    return db.select(query.select as any).from(query.from!)
-  }
-  if ('insert' in query) {
-    return db.insert(query.insert).values(query.values as any)
-  }
-  throw new Error('Invalid query')
+  return undefined!
 }
