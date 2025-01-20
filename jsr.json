@@ -1,6 +1,6 @@
 {
   "name": "@rado/rado",
-  "version": "1.0.13",
+  "version": "1.0.15",
   "publish": {
     "include": ["README.md", "LICENSE", "src"]
   },
