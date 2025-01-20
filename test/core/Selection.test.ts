@@ -7,4 +7,13 @@ suite(import.meta, test => {
     const aliased = selection(sql.value(1).as('name'))
     test.equal(emit(aliased), '1 as "name"')
   })
+
+  test('empty object', () => {
+    const x = selection({
+      x: sql.value(1),
+      test: {},
+      y: sql.value(2)
+    })
+    test.equal(emit(x), '1 as "x", 2 as "y"')
+  })
 })
