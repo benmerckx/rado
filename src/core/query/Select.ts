@@ -26,7 +26,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
@@ -176,7 +176,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitSelect', getData(this))
+    return new Sql(emitter => emitter.emitSelect(getData(this)))
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {

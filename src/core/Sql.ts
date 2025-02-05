@@ -1,3 +1,4 @@
+import type {ColumnData} from './Column.ts'
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {type HasSql, getSql, hasSql, internalSql} from './Internal.ts'
@@ -5,23 +6,11 @@ import type {Runtime} from './MetaData.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {JsonPath} from './expr/Json.ts'
 
-type EmitMethods = {
-  [K in keyof Emitter as K extends `emit${string}` ? K : never]: Emitter[K]
-}
-/*type SqlChunk = {
-  [K in keyof EmitMethods]: Chunk<K, Parameters<EmitMethods[K]>[0]>
-}[keyof EmitMethods]*/
-
-class Chunk<Type = keyof EmitMethods, Inner = unknown> {
-  constructor(
-    public type: Type,
-    public inner: Inner
-  ) {}
-}
-
 export type Decoder<T> =
   | ((value: unknown) => T)
   | {mapFromDriverValue?(value: unknown, specs: DriverSpecs): T}
+
+const noop = () => {}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
   static SELF_TARGET = '$$self'
@@ -30,10 +19,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
   readonly [internalSql] = this
 
-  #chunks: Array<Chunk>
-  constructor(chunks: Array<Chunk> = []) {
-    this.#chunks = chunks
-  }
+  constructor(public emit: (emitter: Emitter) => void = noop) {}
 
   as(name: string): Sql<Value> {
     this.alias = name
@@ -47,104 +33,42 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return res
   }
 
-  chunk<Type extends keyof EmitMethods>(
-    type: Type,
-    inner: Parameters<EmitMethods[Type]>[0]
-  ): Sql<Value> {
-    this.#chunks.push(new Chunk(type, inner))
-    return this
+  inlineFields(withTableName: boolean): Sql<Value> {
+    return new Sql(emitter => {
+      const previous = emitter.inlineFields
+      emitter.inlineFields = !withTableName
+      this.emit(emitter)
+      emitter.inlineFields = previous
+    })
   }
 
-  unsafe(sql: string): Sql<Value> {
-    if (sql.length > 0) this.chunk('emitUnsafe', sql)
-    return this
+  inlineValues(): Sql<Value> {
+    return new Sql(emitter => {
+      const previous = emitter.inlineValues
+      emitter.inlineValues = true
+      this.emit(emitter)
+      emitter.inlineValues = previous
+    })
   }
 
-  field(field: FieldData): Sql<Value> {
-    return this.chunk('emitField', field)
-  }
-
-  add(sql: HasSql): Sql<Value> {
-    const inner = getSql(sql)
-    if (!(inner instanceof Sql)) throw new Error('Invalid SQL')
-    this.#chunks.push(...inner.#chunks)
-    return this
-  }
-
-  value(value: unknown): Sql<Value> {
-    return this.chunk('emitValue', value)
-  }
-
-  getValue(): Value | undefined {
-    if (this.#chunks.length !== 1) return
-    const chunk = this.#chunks[0]
-    if (chunk?.type === 'emitValue') return <Value>chunk.inner
-  }
-
-  inline(value: unknown): Sql<Value> {
-    return this.chunk('emitInline', value)
-  }
-
-  jsonPath(path: JsonPath): Sql<Value> {
-    const inner = path.target.#chunks[0]
-    if (inner?.type !== 'emitJsonPath') return this.chunk('emitJsonPath', path)
-    const innerPath = inner.inner as JsonPath
-    return this.chunk('emitJsonPath', {
-      ...innerPath,
-      segments: [...innerPath.segments, ...path.segments]
+  nameSelf(name: string): Sql<Value> {
+    return new Sql(emitter => {
+      emitter.emitSelf({name, inner: this})
     })
   }
 
   forSelection(): Sql<Value> {
-    if (this.#chunks.length === 1) {
-      const first = this.#chunks[0]
-      if (first.type === 'emitJsonPath')
-        return sql
-          .jsonPath({...(first.inner as JsonPath), asSql: false})
-          .mapWith(this)
-    }
     return this
   }
+}
 
-  placeholder(name: string): Sql<Value> {
-    return this.chunk('emitPlaceholder', name)
+class JsonPathSql<T> extends Sql<T> {
+  constructor(public path: JsonPath) {
+    super(emitter => emitter.emitJsonPath(path))
   }
 
-  identifier(identifier: string): Sql<Value> {
-    return this.chunk('emitIdentifierOrSelf', identifier)
-  }
-
-  inlineValues(): Sql<Value> {
-    return new Sql(
-      this.#chunks.map(chunk => {
-        if (chunk.type !== 'emitValue') return chunk
-        return new Chunk('emitInline', chunk.inner as unknown)
-      })
-    )
-  }
-
-  inlineFields(withTableName: boolean): Sql<Value> {
-    return new Sql(
-      this.#chunks.flatMap(chunk => {
-        if (chunk.type !== 'emitField') return [chunk]
-        const data = <FieldData>chunk.inner
-        if (withTableName)
-          return [
-            new Chunk('emitIdentifierOrSelf', data.targetName),
-            new Chunk('emitUnsafe', '.'),
-            new Chunk('emitIdentifier', data.fieldName)
-          ]
-        return [new Chunk('emitIdentifier', data.fieldName)]
-      })
-    )
-  }
-
-  nameSelf(name: string): Sql {
-    return sql.chunk('emitSelf', {name, inner: this})
-  }
-
-  emitTo(emitter: Emitter): void {
-    for (const chunk of this.#chunks) emitter[chunk.type](<any>chunk.inner)
+  forSelection() {
+    return sql.jsonPath({...this.path, asSql: false}).mapWith(this)
   }
 }
 
@@ -152,65 +76,67 @@ export function sql<T>(
   strings: TemplateStringsArray,
   ...inner: Array<HasSql | unknown>
 ): Sql<T> {
-  const sql = new Sql<T>()
-
-  for (let i = 0; i < strings.length; i++) {
-    sql.unsafe(strings[i]!)
-    if (i < inner.length) {
-      const insert = inner[i]
-      if (insert !== null && typeof insert === 'object' && hasSql(insert))
-        sql.add(insert)
-      else sql.value(insert)
+  return new Sql<T>(emitter => {
+    for (let i = 0; i < strings.length; i++) {
+      emitter.emitUnsafe(strings[i]!)
+      if (i < inner.length) {
+        const insert = inner[i]
+        if (insert !== null && typeof insert === 'object' && hasSql(insert))
+          getSql(insert).emit(emitter)
+        else emitter.emitValueOrInline(insert)
+      }
     }
-  }
-
-  return sql
+  })
 }
 
 export namespace sql {
   export function empty<T>(): Sql<T> {
-    return new Sql<T>()
+    return new Sql()
   }
 
   export function unsafe<T>(directSql: string | number): Sql<T> {
-    return empty<T>().unsafe(String(directSql))
+    return new Sql(emitter => emitter.emitUnsafe(String(directSql)))
   }
 
   export function value<T>(value: T): Sql<T> {
-    return empty<T>().value(value)
+    return new Sql(emitter => emitter.emitValueOrInline(value))
   }
 
   export function inline<T>(value: T): Sql<T> {
-    return empty<T>().inline(value)
+    return new Sql(emitter => emitter.emitInline(value))
   }
 
   export function placeholder<T>(name: string): Sql<T> {
-    return empty<T>().placeholder(name)
+    return new Sql(emitter => emitter.emitPlaceholder(name))
   }
 
   export function identifier<T>(identifier: string): Sql<T> {
-    return empty<T>().identifier(identifier)
+    return new Sql(emitter => emitter.emitIdentifierOrSelf(identifier))
   }
 
   export function field<T>(field: FieldData): Sql<T> {
-    return empty<T>().field(field)
+    return new Sql(emitter => emitter.emitField(field))
+  }
+
+  export function column(column: ColumnData): Sql {
+    return new Sql(emitter => emitter.emitColumn(column))
   }
 
   export function jsonPath<T>(path: JsonPath): Sql<T> {
-    return empty<T>().jsonPath(path)
-  }
-
-  export function chunk<Type extends keyof EmitMethods>(
-    type: Type,
-    inner: Parameters<EmitMethods[Type]>[0]
-  ): Sql {
-    return empty().chunk(type, inner)
+    if (path.target instanceof JsonPathSql) {
+      const inner = path.target.path
+      return new JsonPathSql({
+        ...inner,
+        segments: [...inner.segments, ...path.segments]
+      })
+    }
+    return new JsonPathSql(path)
   }
 
   export function universal<T>(
     runtimes: Partial<Record<Runtime | 'default', Sql<T>>>
   ): Sql<T> {
-    return empty<T>().chunk('emitUniversal', runtimes)
+    return new Sql(emitter => emitter.emitUniversal(runtimes))
   }
 
   type QueryChunk = HasSql | undefined
@@ -233,13 +159,11 @@ export namespace sql {
     separator: Sql = sql` `
   ): Sql<T> {
     const parts = items.filter(Boolean) as Array<Sql | HasSql>
-    const sql = new Sql<T>()
-
-    for (let i = 0; i < parts.length; i++) {
-      if (i > 0) sql.add(separator)
-      sql.add(parts[i]!)
-    }
-
-    return sql
+    return new Sql(emitter => {
+      for (let i = 0; i < parts.length; i++) {
+        if (i > 0) separator.emit(emitter)
+        getSql(parts[i]!).emit(emitter)
+      }
+    })
   }
 }

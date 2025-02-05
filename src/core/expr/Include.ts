@@ -8,7 +8,7 @@ import {
 } from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {MapRowContext, RowOfRecord} from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {Sql} from '../Sql.ts'
 import type {Select, SelectBase, SelectData} from '../query/Select.ts'
 
 export interface IncludeData<Meta extends QueryMeta = QueryMeta>
@@ -51,7 +51,9 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalSql](): Sql<Result> {
-    return sql.chunk('emitInclude', getData(this)).mapWith<Result>({
+    return new Sql(emitter =>
+      emitter.emitInclude(getData(this))
+    ).mapWith<Result>({
       mapFromDriverValue: this.#mapFromDriverValue
     })
   }

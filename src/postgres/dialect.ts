@@ -21,7 +21,7 @@ export const postgresDialect: Dialect = new Dialect(
       this.params.push(new ValueParam(value))
     }
     emitJsonPath({target, asSql, segments}: JsonPath) {
-      target.emitTo(this)
+      target.emit(this)
       for (let i = 0; i < segments.length; i++) {
         const access = segments[i]
         if (i <= segments.length - 2) this.sql += '->'

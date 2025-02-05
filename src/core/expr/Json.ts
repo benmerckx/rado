@@ -1,5 +1,5 @@
-import {getSql, type HasSql} from '../Internal.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type HasSql, getSql} from '../Internal.ts'
+import {type Sql, sql} from '../Sql.ts'
 import {callFunction} from './Functions.ts'
 import type {Input} from './Input.ts'
 
@@ -36,8 +36,8 @@ export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
         sql
           .jsonPath({
             target: getSql(target),
-            asSql: true,
-            segments: [isNumber ? Number(prop) : prop]
+            segments: [isNumber ? Number(prop) : prop],
+            asSql: true
           })
           .mapWith({
             mapFromDriverValue(value, specs) {

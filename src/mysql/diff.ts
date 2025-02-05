@@ -143,7 +143,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
         stmts.push(
           sql.query({
             alterTable,
-            addColumn: [column, sql.chunk('emitColumn', schemaInstruction)]
+            addColumn: [column, sql.column(schemaInstruction)]
           })
         )
       } else {

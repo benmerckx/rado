@@ -4,8 +4,8 @@ import {TableA, TableB} from './schema.ts'
 
 export function testConstraints(db: Database, test: DefineTest) {
   test('constraints', async () => {
+    await db.create(TableA, TableB)
     try {
-      await db.create(TableA, TableB)
       await db.insert(TableA).values({})
       await db.insert(TableB).values({
         isUnique: 1,

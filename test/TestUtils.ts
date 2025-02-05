@@ -14,7 +14,7 @@ const testDialect = new Dialect(
       this.sql += JSON.stringify(v)
     }
     emitJsonPath(path: JsonPath) {
-      path.target.emitTo(this)
+      path.target.emit(this)
       this.sql += `->>${JSON.stringify(`$.${path.segments.join('.')}`)}`
     }
     emitIdentifier(identifier: string) {

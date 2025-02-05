@@ -14,7 +14,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {Sql} from '../Sql.ts'
 import type {TableDefinition, TableRow} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
 
@@ -38,7 +38,7 @@ export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
     if (data.returning) this[internalSelection] = data.returning
   }
   get [internalQuery](): Sql {
-    return sql.chunk('emitDelete', this)
+    return new Sql(emitter => emitter.emitDelete(this))
   }
 }
 
