@@ -1,15 +1,14 @@
-import type {Builder} from './core/Builder.ts'
-import type {HasTarget} from './core/Internal.ts'
-import type {QueryMeta} from './core/MetaData.ts'
-import type {Query} from './core/Query.ts'
-import type {SelectionInput, SelectionRow} from './core/Selection.ts'
-import type {Sql} from './core/Sql.ts'
+import type {CTE} from '../Builder.ts'
+import type {HasSql, HasTarget} from '../Internal.ts'
+import type {SelectionInput} from '../Selection.ts'
+import type {Sql} from '../Sql.ts'
 import type {
   Table,
   TableDefinition,
   TableInsert,
   TableUpdate
-} from './core/Table.ts'
+} from '../Table.ts'
+import type {Input} from '../expr/Input.ts'
 
 interface TopLevel {
   select?: never
@@ -19,44 +18,59 @@ interface TopLevel {
   update?: never
 }
 
-interface InnerJoin {
+export interface InnerJoin {
   innerJoin: HasTarget
-  on: Sql<boolean>
+  on: HasSql<boolean>
 }
 
-interface LeftJoin {
+export interface LeftJoin {
   leftJoin: HasTarget
-  on: Sql<boolean>
+  on: HasSql<boolean>
 }
 
-interface RightJoin {
+export interface RightJoin {
   rightJoin: HasTarget
-  on: Sql<boolean>
+  on: HasSql<boolean>
 }
 
-interface FullJoin {
+export interface FullJoin {
   fullJoin: HasTarget
-  on: Sql<boolean>
+  on: HasSql<boolean>
 }
 
-type Join = InnerJoin | LeftJoin | RightJoin | FullJoin
+export type Join = InnerJoin | LeftJoin | RightJoin | FullJoin
 
-interface SelectQuery<Returning extends SelectionInput>
-  extends Omit<TopLevel, 'select' | 'from'> {
-  with?: Record<string, SelectQuery<SelectionInput>>
+export interface CTEBase {
+  with?: Array<CTE>
+  withRecursive?: Array<CTE>
+}
+
+interface SelectBase extends CTEBase, Omit<TopLevel, 'select' | 'from'> {
+  where?: HasSql<boolean>
+  distinct?: boolean
+  distinctOn?: Array<HasSql>
+  groupBy?: Array<HasSql>
+  orderBy?: Array<HasSql>
+  limit?: Input<number>
+  offset?: Input<number>
+  having?: HasSql<boolean> | (() => HasSql<boolean>)
+}
+
+interface SelectionQuery<Returning> extends SelectBase {
   select: Returning
-  from?: HasTarget | [HasTarget, ...Array<Join>]
-  where?: Sql<boolean>
+  from?: HasTarget | HasSql | [HasTarget, ...Array<Join>]
 }
 
-interface FromQuery<Returning extends SelectionInput>
-  extends Omit<TopLevel, 'select' | 'from'> {
+interface FromQuery<Returning> extends SelectBase {
   select?: Returning
-  from: HasTarget | [HasTarget, ...Array<Join>]
-  where?: Sql<boolean>
+  from: HasTarget | HasSql | [HasTarget, ...Array<Join>]
 }
 
-interface InsertQuery<
+export type SelectQuery<Returning> =
+  | SelectionQuery<Returning>
+  | FromQuery<Returning>
+
+export interface InsertQuery<
   Returning extends SelectionInput,
   Definition extends TableDefinition
 > extends Omit<TopLevel, 'insert'> {
@@ -65,7 +79,7 @@ interface InsertQuery<
   returning?: Returning
 }
 
-interface DeleteQuery<
+export interface DeleteQuery<
   Returning extends SelectionInput,
   Definition extends TableDefinition
 > extends Omit<TopLevel, 'delete'> {
@@ -74,7 +88,7 @@ interface DeleteQuery<
   returning?: Returning
 }
 
-interface UpdateQuery<
+export interface UpdateQuery<
   Returning extends SelectionInput,
   Definition extends TableDefinition
 > extends Omit<TopLevel, 'update'> {
@@ -84,8 +98,8 @@ interface UpdateQuery<
   returning?: Returning
 }
 
-type QueryInput<
-  Returning extends SelectionInput,
+export type Query<
+  Returning extends SelectionInput = SelectionInput,
   Definition extends TableDefinition = TableDefinition
 > =
   | SelectQuery<Returning>
@@ -94,7 +108,7 @@ type QueryInput<
   | DeleteQuery<Returning, Definition>
   | UpdateQuery<Returning, Definition>
 
-export function query<
+/*export function query<
   Returning extends SelectionInput,
   Definition extends TableDefinition,
   Meta extends QueryMeta
@@ -103,4 +117,4 @@ export function query<
   query: QueryInput<Returning, Definition>
 ): Query<SelectionRow<Returning>, Meta> {
   return undefined!
-}
+}*/

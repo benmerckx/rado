@@ -1,12 +1,5 @@
 import type {ColumnData} from './Column.ts'
-import {
-  type HasQuery,
-  type HasTarget,
-  getData,
-  getQuery,
-  getTable,
-  getTarget
-} from './Internal.ts'
+import {getData, getQuery, getTable, getTarget} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {Sql, sql} from './Sql.ts'
@@ -17,7 +10,7 @@ import type {IncludeData} from './expr/Include.ts'
 import {type JsonPath, jsonAggregateArray, jsonArray} from './expr/Json.ts'
 import type {Delete} from './query/Delete.ts'
 import type {Insert} from './query/Insert.ts'
-import type {SelectData} from './query/Select.ts'
+import type {CTEBase, SelectQuery} from './query/Query.ts'
 import type {UnionData} from './query/Union.ts'
 import type {Update} from './query/Update.ts'
 
@@ -151,20 +144,20 @@ export abstract class Emitter {
       .emitTo(this)
   }
 
-  emitSelect({
-    select,
-    cte,
-    from,
-    distinct,
-    distinctOn,
-    where,
-    groupBy,
-    orderBy,
-    having,
-    limit,
-    offset
-  }: SelectData): void {
-    if (cte) this.emitWith(cte)
+  emitSelect(query: SelectQuery<unknown>): void {
+    const {
+      select,
+      from,
+      distinct,
+      distinctOn,
+      where,
+      groupBy,
+      orderBy,
+      having,
+      limit,
+      offset
+    } = query
+    this.emitWith(query)
     const prefix = distinctOn
       ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
       : distinct && sql`distinct`
@@ -201,14 +194,14 @@ export abstract class Emitter {
       .emitTo(this)
   }
 
-  emitWith(cte: {
-    recursive: boolean
-    definitions: Array<HasQuery & HasTarget>
-  }): void {
+  emitWith(cte: CTEBase): void {
+    const isRecursive = cte.withRecursive
+    const definitions = isRecursive ? cte.withRecursive : cte.with
+    if (!definitions) return
     sql
       .query({
-        [cte.recursive ? 'withRecursive' : 'with']: sql.join(
-          cte.definitions.map(cte => {
+        [isRecursive ? 'withRecursive' : 'with']: sql.join(
+          definitions.map(cte => {
             const query = getQuery(cte)
             const target = getTarget(cte)
             return sql`${target} as (${query})`

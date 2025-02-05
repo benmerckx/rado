@@ -38,7 +38,7 @@ export declare class HasBatch {
 export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> {
+> extends HasTarget {
   get [internalTable](): TableApi<Definition, Name>
 }
 export declare class HasField {

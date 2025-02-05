@@ -9,7 +9,6 @@ import {
   type HasConstraint,
   type HasSql,
   type HasTable,
-  type HasTarget,
   getConstraint,
   getData,
   getTable,
@@ -142,7 +141,7 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = Record<never, Column>,
   Name extends string = string
-> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasTarget
+> = TableFields<Definition, Name> & HasTable<Definition, Name>
 
 export type TableFields<
   Definition extends TableDefinition,

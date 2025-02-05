@@ -215,7 +215,7 @@ export namespace sql {
 
   type QueryChunk = HasSql | undefined
   export function query(
-    ast: Record<string, boolean | QueryChunk | Array<QueryChunk>>
+    ast: Record<string, boolean | QueryChunk /*| Array<QueryChunk>*/>
   ): Sql {
     return join(
       Object.entries(ast).map(([key, value]) => {
