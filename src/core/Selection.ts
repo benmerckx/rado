@@ -142,7 +142,7 @@ export class Selection implements HasSql {
     input: SelectionInput,
     names: Set<string>,
     name?: string
-  ): Sql {
+  ): Array<Sql> {
     const expr = getSql(input as HasSql)
     if (expr) {
       let exprName = name ?? expr.alias
@@ -152,22 +152,19 @@ export class Selection implements HasSql {
         names.add(exprName)
         if (hasField(input)) {
           const field = getField(input)
-          if (field.fieldName === exprName) return expr
+          if (field.fieldName === exprName) return [expr]
         }
-        return sql`${expr.forSelection()} as ${sql.identifier(exprName)}`
+        return [sql`${expr.forSelection()} as ${sql.identifier(exprName)}`]
       }
-      return expr
+      return [expr]
     }
-    return sql.join(
-      Object.entries(input).map(([name, value]) =>
-        this.#selectionToSql(value, names, name)
-      ),
-      sql`, `
+    return Object.entries(input).flatMap(([name, value]) =>
+      this.#selectionToSql(value, names, name)
     )
   }
 
   get [internalSql](): Sql {
-    return this.#selectionToSql(this.input, new Set())
+    return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
   }
 
   join(right: HasTable, operator: JoinOperator): Selection {

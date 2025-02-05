@@ -1,6 +1,6 @@
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
-import {type HasSql, getSql, internalSql} from './Internal.ts'
+import {type HasSql, getSql, hasSql, internalSql} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {JsonPath} from './expr/Json.ts'
@@ -150,15 +150,17 @@ export class Sql<Value = unknown> implements HasSql<Value> {
 
 export function sql<T>(
   strings: TemplateStringsArray,
-  ...inner: Array<HasSql>
+  ...inner: Array<HasSql | unknown>
 ): Sql<T> {
   const sql = new Sql<T>()
 
   for (let i = 0; i < strings.length; i++) {
     sql.unsafe(strings[i]!)
     if (i < inner.length) {
-      const insert = inner[i]!
-      sql.add(insert)
+      const insert = inner[i]
+      if (insert !== null && typeof insert === 'object' && hasSql(insert))
+        sql.add(insert)
+      else sql.value(insert)
     }
   }
 

@@ -24,14 +24,19 @@ class PreparedStatement implements AsyncStatement {
     private name?: string
   ) {}
 
+  #transformParam = (param: unknown) => {
+    if (param instanceof Uint8Array) return Buffer.from(param)
+    return param
+  }
+
   all(params: Array<unknown>): Promise<Array<object>> {
     return this.client
-      .query(this.sql, params)
+      .query(this.sql, params.map(this.#transformParam))
       .then(res => res[0] as Array<object>)
   }
 
   async run(params: Array<unknown>) {
-    await this.client.query(this.sql, params)
+    await this.client.query(this.sql, params.map(this.#transformParam))
   }
 
   get(params: Array<unknown>): Promise<object> {
@@ -40,7 +45,11 @@ class PreparedStatement implements AsyncStatement {
 
   values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
     return this.client
-      .query({sql: this.sql, values: params, rowsAsArray: true})
+      .query({
+        sql: this.sql,
+        values: params.map(this.#transformParam),
+        rowsAsArray: true
+      })
       .then(res => res[0] as Array<Array<unknown>>)
   }
 
@@ -49,6 +58,7 @@ class PreparedStatement implements AsyncStatement {
 
 export class Mysql2Driver implements AsyncDriver {
   parsesJson = true
+  supportsTransactions = true
 
   constructor(
     private client: Queryable,

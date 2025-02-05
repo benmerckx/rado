@@ -27,9 +27,9 @@ const SqliteMaster = table('SqliteMaster', {
 
 const inline = (sql: HasSql) => sqliteDialect.inline(sql)
 
-export const sqliteDiff: Diff = (hasTable: Table) => {
+export const sqliteDiff: Diff = (targetTable: Table) => {
   return txGenerator(function* (tx) {
-    const tableApi = getTable(hasTable)
+    const tableApi = getTable(targetTable)
     const columnInfo = yield* tx
       .select(TableInfo)
       .from(sql`pragma_table_info(${sql.inline(tableApi.name)}) as "TableInfo"`)
@@ -72,7 +72,9 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
     )
 
     const localIndexes = new Map(
-      indexInfo.map(index => [index.name, index.sql])
+      indexInfo
+        .filter(index => !index.name.startsWith('sqlite_autoindex_'))
+        .map(index => [index.name, index.sql])
     )
     const schemaIndexes = new Map(
       Object.entries(tableApi.indexes()).map(([name, index]) => {
@@ -115,8 +117,32 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
       }
     }
 
+    // Check if the indexes are identical
+
+    const indexNames = new Set([
+      ...localIndexes.keys(),
+      ...schemaIndexes.keys()
+    ])
+
+    for (const indexName of indexNames) {
+      const localInstruction = localIndexes.get(indexName)
+      const schemaInstruction = schemaIndexes.get(indexName)
+      const dropLocal = sql.query({
+        dropIndex: sql.identifier(indexName)
+      })
+
+      if (!schemaInstruction) {
+        stmts.unshift(dropLocal)
+      } else if (schemaInstruction && !localInstruction) {
+        stmts.push(sql.unsafe(schemaInstruction))
+      } else if (schemaInstruction && localInstruction !== schemaInstruction) {
+        stmts.unshift(dropLocal)
+        stmts.push(sql.unsafe(schemaInstruction))
+      }
+    }
+
     // Check if the table definition is identical after applying the
-    // column changes, if not we might have different contraints
+    // changes, if not we might have different contraints
 
     try {
       yield* txGenerator(function* (sp) {
@@ -141,30 +167,6 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
       }
     }
 
-    // Check if the indexes are identical
-
-    const indexNames = new Set([
-      ...localIndexes.keys(),
-      ...schemaIndexes.keys()
-    ])
-
-    for (const indexName of indexNames) {
-      const localInstruction = localIndexes.get(indexName)
-      const schemaInstruction = schemaIndexes.get(indexName)
-      const dropLocal = sql.query({
-        dropIndex: sql.identifier(indexName),
-        on: sql.identifier(tableApi.name)
-      })
-      if (!schemaInstruction) {
-        stmts.unshift(dropLocal)
-      } else if (!localInstruction) {
-        stmts.push(sql.unsafe(schemaInstruction))
-      } else if (localInstruction !== schemaInstruction) {
-        stmts.unshift(dropLocal)
-        stmts.push(sql.unsafe(schemaInstruction))
-      }
-    }
-
     return stmts.map(inline)
 
     // Optimization:
@@ -173,21 +175,25 @@ export const sqliteDiff: Diff = (hasTable: Table) => {
     function recreate() {
       const tempName = `new_${tableApi.name}`
       const tempTable = table(tempName, tableApi.columns)
-      const missingColumns = Array.from(columnNames).filter(
-        name => !localColumns.has(name)
+      const missingColumns = new Set(
+        Array.from(columnNames).filter(name => !localColumns.has(name))
       )
-      const selection: Record<string, HasSql> = {...hasTable}
-      for (const name of missingColumns) {
-        selection[name] =
-          getData(tableApi.columns[name]).defaultValue ?? sql`null`
-      }
+      const selection: Record<string, HasSql> = Object.fromEntries(
+        Object.entries(tableApi.columns).map(([name, column]) => {
+          const columnApi = getData(column)
+          const key = columnApi.name ?? name
+          if (missingColumns.has(key))
+            return [name, columnApi.defaultValue ?? sql`null`]
+          return [name, (<any>targetTable)[name]]
+        })
+      )
       return [
         // Create a new temporary table with the new definition
         tableApi.createTable(tempName),
 
         // Copy the data from the old table to the new table
         getQuery(
-          tx.insert(tempTable).select(tx.select(selection).from(hasTable))
+          tx.insert(tempTable).select(tx.select(selection).from(targetTable))
         ),
 
         // Drop the old table

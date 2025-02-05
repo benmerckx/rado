@@ -31,6 +31,7 @@ class PreparedStatement implements SyncStatement {
 
 class BunSqliteDriver implements SyncDriver {
   parsesJson = false
+  supportsTransactions = true
 
   constructor(
     private client: Client,

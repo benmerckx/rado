@@ -3,6 +3,7 @@ import {
   type HasTable,
   getData,
   getTable,
+  hasSql,
   internalData,
   internalQuery,
   internalSelection
@@ -56,9 +57,11 @@ export class UpdateTable<
       Object.entries(values).map(([key, value]) => {
         const column = getTable(table).columns[key]
         const {mapToDriverValue} = getData(column)
-        return sql`${sql.identifier(key)} = ${input(
-          mapToDriverValue?.(value) ?? value
-        )}`
+        const expr =
+          value && typeof value === 'object' && hasSql(value)
+            ? value
+            : input(mapToDriverValue?.(value) ?? value)
+        return sql`${sql.identifier(key)} = ${expr}`
       }),
       sql`, `
     )

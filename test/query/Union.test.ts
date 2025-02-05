@@ -1,6 +1,5 @@
 import type {IsPostgres} from '@/core/MetaData.ts'
 import {
-  type Builder,
   except,
   exceptAll,
   intersect,
@@ -9,10 +8,11 @@ import {
   sql,
   table,
   union,
-  unionAll
+  unionAll,
+  type Builder
 } from '@/index.ts'
 import {integer} from '@/sqlite/columns.ts'
-import {suite} from '@benmerckx/suite'
+import {suite} from '@alinea/suite'
 import {builder, emit} from '../TestUtils.ts'
 
 const pg = builder as Builder<IsPostgres>

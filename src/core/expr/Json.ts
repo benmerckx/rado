@@ -1,5 +1,5 @@
-import {type HasSql, getSql} from '../Internal.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {getSql, type HasSql} from '../Internal.ts'
+import {sql, type Sql} from '../Sql.ts'
 import {callFunction} from './Functions.ts'
 import type {Input} from './Input.ts'
 
@@ -52,8 +52,9 @@ export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
 export function jsonAggregateArray(...args: Array<Input<unknown>>) {
   return callFunction(
     sql.universal({
+      // Once sqlite 3.45+ is more commonplace we can use jsonb_group_array
       sqlite: sql`json_group_array`,
-      postgres: sql`json_agg`,
+      postgres: sql`jsonb_agg`,
       mysql: sql`json_arrayagg`
     }),
     args
@@ -63,7 +64,7 @@ export function jsonAggregateArray(...args: Array<Input<unknown>>) {
 export function jsonArray(...args: Array<Input<unknown>>) {
   return callFunction(
     sql.universal({
-      postgres: sql`json_build_array`,
+      postgres: sql`jsonb_build_array`,
       default: sql`json_array`
     }),
     args

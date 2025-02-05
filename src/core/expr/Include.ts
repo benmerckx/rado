@@ -29,8 +29,12 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
   #mapFromDriverValue = (value: any, specs: DriverSpecs): any => {
     const {select, first} = getData(this)
     const parsed = specs.parsesJson ? value : JSON.parse(value)
-    if (first)
-      return parsed ? select!.mapRow({values: parsed, index: 0, specs}) : null
+    if (first) {
+      const result = parsed
+        ? select!.mapRow({values: parsed, index: 0, specs})
+        : null
+      return result
+    }
     if (!parsed) return []
     const rows: Array<Array<unknown>> = parsed
     const ctx: MapRowContext = {
