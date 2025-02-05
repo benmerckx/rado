@@ -17,7 +17,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {Sql, sql} from '../Sql.ts'
 import type {
   TableDefinition,
   TableInsert,
@@ -53,7 +53,7 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitInsert', this)
+    return new Sql(emitter => emitter.emitInsert(this))
   }
 }
 

@@ -23,13 +23,13 @@ export class Dialect {
   emit = (input: HasSql | HasQuery): Emitter => {
     const sql = hasQuery(input) ? getQuery(input) : getSql(input)
     const emitter = new this.#createEmitter(this.runtime)
-    sql.emitTo(emitter)
+    sql.emit(emitter)
     return emitter
   }
   inline = (input: HasSql | HasQuery): string => {
     const sql = hasQuery(input) ? getQuery(input) : getSql(input)
     const emitter = new this.#createEmitter(this.runtime)
-    sql.inlineValues().emitTo(emitter)
+    sql.inlineValues().emit(emitter)
     return emitter.sql
   }
 }

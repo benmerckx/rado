@@ -21,7 +21,7 @@ export const mysqlDialect: Dialect = new Dialect(
       this.params.push(new ValueParam(value))
     }
     emitJsonPath({target, asSql, segments}: JsonPath) {
-      target.emitTo(this)
+      target.emit(this)
       this.sql += asSql ? '->>' : '->'
       this.sql += this.quoteString(
         `$${segments

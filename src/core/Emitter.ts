@@ -65,7 +65,7 @@ export abstract class Emitter {
   selfName?: string
   emitSelf({name, inner}: {name: string; inner: Sql}): void {
     this.selfName = name
-    inner.emitTo(this)
+    inner.emit(this)
     this.selfName = undefined
   }
 
@@ -73,10 +73,18 @@ export abstract class Emitter {
     this.sql += value
   }
 
+  inlineFields = false
   emitField({targetName, fieldName}: FieldData): void {
+    if (this.inlineFields) return this.emitIdentifier(fieldName)
     this.emitIdentifierOrSelf(targetName)
     this.emitUnsafe('.')
     this.emitIdentifier(fieldName)
+  }
+
+  inlineValues = false
+  emitValueOrInline(value: unknown): void {
+    if (this.inlineValues) this.emitInline(value)
+    else this.emitValue(value)
   }
 
   emitCreateTable(tableApi: TableApi): void {
@@ -87,10 +95,13 @@ export abstract class Emitter {
         tableApi.target(),
         sql`(${tableApi.createDefinition()})`
       ])
-      .emitTo(this)
+      .emit(this)
   }
 
   emitColumn(column: ColumnData): void {
+    const references =
+      column.references &&
+      sql`references ${new Sql(emitter => emitter.emitReferences([column.references!()]))}`
     sql
       .join([
         column.type,
@@ -99,18 +110,17 @@ export abstract class Emitter {
         column.isUnique && sql`unique`,
         column.autoIncrement && sql`autoincrement`,
         column.defaultValue && sql`default ${column.defaultValue}`,
-        column.references &&
-          sql`references ${sql.chunk('emitReferences', [column.references()])}`,
+        references,
         column.onUpdate && sql`on update ${column.onUpdate}`
       ])
-      .emitTo(this)
+      .emit(this)
   }
 
   emitReferences(fields: Array<FieldData>): void {
     callFunction(
       sql.identifier(fields[0].targetName),
       fields.map(field => sql.identifier(field.fieldName))
-    ).emitTo(this)
+    ).emit(this)
   }
 
   emitDelete(deleteOp: Delete<unknown>): void {
@@ -123,7 +133,7 @@ export abstract class Emitter {
         where,
         returning
       })
-      .emitTo(this)
+      .emit(this)
   }
 
   emitInsert(insert: Insert<unknown>): void {
@@ -148,7 +158,7 @@ export abstract class Emitter {
         returning
       })
       .inlineFields(false)
-      .emitTo(this)
+      .emit(this)
   }
 
   emitSelect({
@@ -179,11 +189,11 @@ export abstract class Emitter {
         limit,
         offset
       })
-      .emitTo(this)
+      .emit(this)
   }
 
   emitUnion({left, operator, right}: UnionData): void {
-    sql.join([getQuery(left), operator, getQuery(right)]).emitTo(this)
+    sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
   }
 
   emitUpdate(update: Update<unknown>): void {
@@ -198,7 +208,7 @@ export abstract class Emitter {
         returning
       })
       .inlineFields(false)
-      .emitTo(this)
+      .emit(this)
   }
 
   emitWith(cte: {
@@ -216,13 +226,13 @@ export abstract class Emitter {
           sql`, `
         )
       })
-      .add(sql` `)
-      .emitTo(this)
+      .emit(this)
+    sql` `.emit(this)
   }
 
   emitInclude(data: IncludeData) {
     const wrapQuery = Boolean(data.limit || data.offset || data.orderBy)
-    const innerQuery = sql.chunk('emitSelect', data)
+    const innerQuery = new Sql(emitter => emitter.emitSelect(data))
     const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
     if (!data.select) throw new Error('No selection defined')
     const fields = data.select.fieldNames()
@@ -231,12 +241,12 @@ export abstract class Emitter {
     )
     sql`(select ${
       data.first ? subject : jsonAggregateArray(subject)
-    } from (${inner}) as _)`.emitTo(this)
+    } from (${inner}) as _)`.emit(this)
   }
 
   emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
     const sql = runtimes[this.#runtime] ?? runtimes.default
     if (!sql) throw new Error('Unsupported runtime')
-    sql.emitTo(this)
+    sql.emit(this)
   }
 }

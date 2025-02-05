@@ -26,7 +26,8 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noConstructorReturn": "off"
+        "noConstructorReturn": "off",
+        "noVoidTypeReturn": "off"
       },
       "style": {
         "noNonNullAssertion": "off",

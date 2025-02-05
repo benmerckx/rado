@@ -16,7 +16,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
+import {Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
 import {input} from '../expr/Input.ts'
@@ -43,7 +43,7 @@ export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitUpdate', this)
+    return new Sql(emitter => emitter.emitUpdate(this))
   }
 }
 
