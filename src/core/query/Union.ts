@@ -179,3 +179,7 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
 ): Union<Result, Meta> {
   return left.exceptAll(right)
 }
+
+export function unionQuery(query: UnionQuery) {
+  return sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
+}

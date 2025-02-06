@@ -9,6 +9,7 @@ import type {
   TableUpdate
 } from '../Table.ts'
 import type {Input} from '../expr/Input.ts'
+import type {OnConflict, OnConflictSet, OnConflictUpdate} from './Insert.ts'
 
 interface TopLevel {
   select?: never
@@ -17,6 +18,10 @@ interface TopLevel {
   delete?: never
   update?: never
 }
+type IsSelect = Omit<TopLevel, 'select' | 'from'>
+type IsInsert = Omit<TopLevel, 'insert' | 'from' | 'select'>
+type IsDelete = Omit<TopLevel, 'delete'>
+type IsUpdate = Omit<TopLevel, 'update'>
 
 export interface InnerJoin {
   innerJoin: HasTarget
@@ -45,7 +50,7 @@ export interface QueryBase {
   withRecursive?: Array<CTE>
 }
 
-interface SelectBase extends QueryBase, Omit<TopLevel, 'select' | 'from'> {
+interface SelectBase extends QueryBase, IsSelect {
   where?: HasSql<boolean>
   distinct?: boolean
   distinctOn?: Array<HasSql>
@@ -66,24 +71,28 @@ interface FromQuery<Returning> extends SelectBase {
   from: HasTarget | HasSql | [HasTarget, ...Array<Join>]
 }
 
-export type SelectQuery<Returning> =
+export type SelectQuery<Returning = SelectionInput> =
   | SelectionQuery<Returning>
   | FromQuery<Returning>
 
 export interface InsertQuery<
-  Returning extends SelectionInput,
-  Definition extends TableDefinition
-> extends Omit<TopLevel, 'insert'> {
+  Returning = SelectionInput,
+  Definition extends TableDefinition = TableDefinition
+> extends Omit<Partial<SelectionQuery<Returning>>, 'insert'>,
+    IsInsert {
   insert: Table<Definition>
-  values: TableInsert<Definition> | Array<TableInsert<Definition>>
+  values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
+  onConflict?: OnConflictUpdate<Definition>
+  onDuplicateKeyUpdate?: OnConflictSet<Definition>
+  onConflictDoNothing?: true | OnConflict
 }
 
 export interface DeleteQuery<
-  Returning,
+  Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
 > extends QueryBase,
-    Omit<TopLevel, 'delete'> {
+    IsDelete {
   delete: Table<Definition>
   where?: HasSql<boolean>
   returning?: Returning
@@ -92,7 +101,7 @@ export interface DeleteQuery<
 export interface UpdateQuery<
   Returning extends SelectionInput,
   Definition extends TableDefinition
-> extends Omit<TopLevel, 'update'> {
+> extends IsUpdate {
   update: Table<Definition>
   set: TableUpdate<Definition>
   where?: Sql<boolean>

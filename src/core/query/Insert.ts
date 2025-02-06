@@ -1,8 +1,6 @@
 import {
   type HasSql,
-  type HasTable,
   getData,
-  getQuery,
   getTable,
   hasSql,
   internalData,
@@ -17,43 +15,36 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {Sql, sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {
+  TableApi,
   TableDefinition,
   TableInsert,
   TableRow,
   TableUpdate
 } from '../Table.ts'
 import {type Input, input} from '../expr/Input.ts'
-
-interface InsertIntoData<Meta extends QueryMeta> extends QueryData<Meta> {
-  into: HasTable
-  values?: HasSql
-  select?: HasSql
-}
-
-export interface InsertData<Meta extends QueryMeta>
-  extends InsertIntoData<Meta> {
-  returning?: Selection
-  onConflict?: HasSql
-  onDuplicateKeyUpdate?: HasSql
-}
+import {withCTE} from './CTE.ts'
+import type {InsertQuery} from './Query.ts'
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
   Meta
 > {
-  readonly [internalData]: InsertData<Meta>
-  declare readonly [internalSelection]?: Selection
+  readonly [internalData]: QueryData<Meta> & InsertQuery
 
-  constructor(data: InsertData<Meta>) {
+  constructor(data: QueryData<Meta> & InsertQuery) {
     super(data)
     this[internalData] = data
-    if (data.returning) this[internalSelection] = data.returning
   }
 
   get [internalQuery](): Sql {
-    return new Sql(emitter => emitter.emitInsert(this))
+    return insertQuery(getData(this))
+  }
+
+  get [internalSelection](): Selection | undefined {
+    const {returning} = getData(this)
+    return returning && selection(returning)
   }
 }
 
@@ -69,10 +60,9 @@ class InsertCanReturn<
     returning: Input
   ): Insert<SelectionRow<Input>, Meta>
   returning(returning?: SelectionInput) {
-    const data = getData(this)
     return new Insert({
-      ...data,
-      returning: returning ? selection(returning) : selection.table(data.into)
+      ...getData(this),
+      returning
     })
   }
 }
@@ -96,61 +86,63 @@ class InsertCanConflict<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > extends InsertCanReturn<Definition, Meta> {
-  onConflictDoNothing(
-    this: InsertCanConflict<Definition, IsPostgres | IsSqlite>,
-    onConflict?: OnConflict
-  ): InsertCanReturn<Definition, Meta> {
-    return <InsertCanConflict<Definition, Meta>>(
-      this.#onConflict(onConflict ?? {})
-    )
-  }
-
-  onConflictDoUpdate(
-    this: InsertCanConflict<Definition, IsPostgres | IsSqlite>,
-    onConflict: OnConflictUpdate<Definition>
-  ): InsertCanReturn<Definition, Meta> {
-    return <InsertCanConflict<Definition, Meta>>this.#onConflict(onConflict)
-  }
-
-  onDuplicateKeyUpdate(
-    this: InsertCanConflict<Definition, IsMysql>,
-    update: OnConflictSet<Definition>
+  onConflictDoNothing<Meta extends IsPostgres | IsSqlite>(
+    this: InsertCanConflict<Definition, Meta>,
+    onConflictDoNothing?: OnConflict
   ): InsertCanReturn<Definition, Meta> {
     return new InsertCanReturn({
-      ...getData(this as InsertCanConflict<Definition, Meta>),
-      onDuplicateKeyUpdate: this.#updateFields(update.set)
+      ...getData(this),
+      onConflictDoNothing
     })
   }
 
-  #updateFields(update: TableUpdate<Definition>) {
-    return sql.join(
-      Object.entries(update).map(
-        ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
-      ),
-      sql`, `
-    )
-  }
-
-  #onConflict({
-    target,
-    targetWhere,
-    set,
-    setWhere
-  }: Partial<OnConflictUpdate<Definition>>): InsertCanReturn<Definition, Meta> {
-    const update = set && this.#updateFields(set)
+  onConflictDoUpdate<Meta extends IsPostgres | IsSqlite>(
+    this: InsertCanConflict<Definition, Meta>,
+    onConflict: OnConflictUpdate<Definition>
+  ): InsertCanReturn<Definition, Meta> {
     return new InsertCanReturn({
       ...getData(this),
-      onConflict: sql.join([
-        target &&
-          sql`(${Array.isArray(target) ? sql.join(target, sql`, `) : target})`,
-        targetWhere && sql`where ${targetWhere}`,
-        update
-          ? sql.join([
-              sql`do update set ${update}`,
-              setWhere && sql`where ${setWhere}`
-            ])
-          : sql`do nothing`
-      ])
+      onConflict
+    })
+  }
+
+  onDuplicateKeyUpdate<Meta extends IsMysql>(
+    this: InsertCanConflict<Definition, Meta>,
+    onDuplicateKeyUpdate: OnConflictSet<Definition>
+  ): InsertCanReturn<Definition, Meta> {
+    return new InsertCanReturn({
+      ...getData(this),
+      onDuplicateKeyUpdate
+    })
+  }
+}
+
+export class InsertInto<
+  Definition extends TableDefinition,
+  Meta extends QueryMeta
+> {
+  [internalData]: QueryData<Meta> & InsertQuery
+  constructor(data: QueryData<Meta> & InsertQuery) {
+    this[internalData] = data
+  }
+
+  values(value: TableInsert<Definition>): InsertCanConflict<Definition, Meta>
+  values(
+    values: Array<TableInsert<Definition>>
+  ): InsertCanConflict<Definition, Meta>
+  values(values: TableInsert<Definition> | Array<TableInsert<Definition>>) {
+    return new InsertCanConflict({
+      ...getData(this),
+      values
+    })
+  }
+
+  select(
+    query: Query<TableRow<Definition>, Meta>
+  ): InsertCanConflict<Definition, Meta> {
+    return new InsertCanConflict({
+      ...getData(this),
+      ...getData(query)
     })
   }
 }
@@ -160,51 +152,91 @@ const defaultKeyword = sql.universal({
   default: sql`default`
 })
 
-export class InsertInto<
-  Definition extends TableDefinition,
-  Meta extends QueryMeta
-> {
-  [internalData]: InsertData<Meta>
-  constructor(data: InsertData<Meta>) {
-    this[internalData] = data
-  }
+function formatValues(
+  table: TableApi,
+  rows: Array<TableInsert<TableDefinition>>
+): Sql {
+  return sql.join(
+    rows.map((row: Record<string, Input>) => {
+      return sql`(${sql.join(
+        Object.entries(table.columns).map(([key, column]) => {
+          const value = row[key]
+          const {$default, mapToDriverValue} = getData(column)
+          if (value !== undefined) {
+            if (value && typeof value === 'object' && hasSql(value))
+              return value
+            return input(mapToDriverValue?.(value) ?? value)
+          }
+          if ($default) return $default()
+          return defaultKeyword
+        }),
+        sql`, `
+      )})`
+    }),
+    sql`, `
+  )
+}
 
-  values(value: TableInsert<Definition>): InsertCanConflict<Definition, Meta>
-  values(
-    values: Array<TableInsert<Definition>>
-  ): InsertCanConflict<Definition, Meta>
-  values(insert: TableInsert<Definition> | Array<TableInsert<Definition>>) {
-    const {into} = getData(this)
-    const rows = Array.isArray(insert) ? insert : [insert]
-    const table = getTable(into)
-    const values = sql.join(
-      rows.map((row: Record<string, Input>) => {
-        return sql`(${sql.join(
-          Object.entries(table.columns).map(([key, column]) => {
-            const value = row[key]
-            const {$default, mapToDriverValue} = getData(column)
-            if (value !== undefined) {
-              if (value && typeof value === 'object' && hasSql(value))
-                return value
-              return input(mapToDriverValue?.(value) ?? value)
-            }
-            if ($default) return $default()
-            return defaultKeyword
-          }),
-          sql`, `
-        )})`
-      }),
-      sql`, `
-    )
-    return new InsertCanConflict<Definition, Meta>({...getData(this), values})
-  }
+function formatUpdates(update: TableUpdate<TableDefinition>): Sql {
+  return sql.join(
+    Object.entries(update).map(
+      ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
+    ),
+    sql`, `
+  )
+}
 
-  select(
-    query: Query<TableRow<Definition>, Meta>
-  ): InsertCanConflict<Definition, Meta> {
-    return new InsertCanConflict({
-      ...getData(this),
-      select: getQuery(query)
+function formatConflict({
+  target,
+  targetWhere,
+  set,
+  setWhere
+}: Partial<OnConflictUpdate<TableDefinition>>): Sql {
+  const update = set && formatUpdates(set)
+  return sql.join([
+    target &&
+      sql`(${Array.isArray(target) ? sql.join(target, sql`, `) : target})`,
+    targetWhere && sql`where ${targetWhere}`,
+    update
+      ? sql.join([
+          sql`do update set ${update}`,
+          setWhere && sql`where ${setWhere}`
+        ])
+      : sql`do nothing`
+  ])
+}
+
+function formatConflicts(query: InsertQuery): Sql {
+  const {onConflict, onConflictDoNothing, onDuplicateKeyUpdate} = query
+  if (onDuplicateKeyUpdate)
+    return sql.query({
+      onDuplicateKeyUpdate: formatUpdates(onDuplicateKeyUpdate.set)
     })
-  }
+  if (onConflict) return formatConflict(onConflict)
+  if (onConflictDoNothing)
+    return formatConflict(
+      onConflictDoNothing === true ? {} : onConflictDoNothing
+    )
+  return sql``
+}
+
+export function insertQuery(query: InsertQuery): Sql {
+  const {insert, values, select, returning} = query
+  const table = getTable(insert)
+  const tableName = sql.identifier(table.name)
+  const toInsert = values
+    ? formatValues(table, Array.isArray(values) ? values : [values])
+    : formatSelect(query)
+  const conflicts = formatConflicts(query)
+  return withCTE(
+    query,
+    sql
+      .join([
+        sql.query({insertInto: sql`${tableName}(${table.listColumns()})`}),
+        toInsert,
+        conflicts,
+        returning && sql.query({returning: selection(returning)})
+      ])
+      .inlineFields(false)
+  )
 }

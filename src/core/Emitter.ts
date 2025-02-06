@@ -1,12 +1,5 @@
 import type {ColumnData} from './Column.ts'
-import {
-  type HasQuery,
-  type HasTarget,
-  getData,
-  getQuery,
-  getTable,
-  getTarget
-} from './Internal.ts'
+import {getData, getQuery, getTable, getTarget} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {Sql, sql} from './Sql.ts'
@@ -15,8 +8,7 @@ import type {FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import type {IncludeData} from './expr/Include.ts'
 import {type JsonPath, jsonAggregateArray, jsonArray} from './expr/Json.ts'
-import type {Delete} from './query/Delete.ts'
-import type {Insert} from './query/Insert.ts'
+import type {QueryBase} from './query/Query.ts'
 import type {SelectData} from './query/Select.ts'
 import type {UnionData} from './query/Union.ts'
 import type {Update} from './query/Update.ts'
@@ -123,44 +115,6 @@ export abstract class Emitter {
     ).emit(this)
   }
 
-  emitDelete(deleteOp: Delete<unknown>): void {
-    const {cte, from, where, returning} = getData(deleteOp)
-    if (cte) this.emitWith(cte)
-    const table = getTable(from)
-    sql
-      .query({
-        deleteFrom: sql.identifier(table.name),
-        where,
-        returning
-      })
-      .emit(this)
-  }
-
-  emitInsert(insert: Insert<unknown>): void {
-    const {
-      cte,
-      into,
-      values,
-      select,
-      onConflict,
-      onDuplicateKeyUpdate,
-      returning
-    } = getData(insert)
-    if (cte) this.emitWith(cte)
-    const table = getTable(into)
-    const tableName = sql.identifier(table.name)
-    sql
-      .query({
-        insertInto: sql`${tableName}(${table.listColumns()})`,
-        ...(values ? {values} : {'': select}),
-        onConflict,
-        onDuplicateKeyUpdate,
-        returning
-      })
-      .inlineFields(false)
-      .emit(this)
-  }
-
   emitSelect({
     select,
     cte,
@@ -211,14 +165,14 @@ export abstract class Emitter {
       .emit(this)
   }
 
-  emitWith(cte: {
-    recursive: boolean
-    definitions: Array<HasQuery & HasTarget>
-  }): void {
+  emitWith(query: QueryBase): void {
+    const isRecursive = query.withRecursive
+    const definitions = isRecursive ? query.withRecursive! : query.with
+    if (!definitions) return
     sql
       .query({
-        [cte.recursive ? 'withRecursive' : 'with']: sql.join(
-          cte.definitions.map(cte => {
+        [isRecursive ? 'withRecursive' : 'with']: sql.join(
+          definitions.map(cte => {
             const query = getQuery(cte)
             const target = getTarget(cte)
             return sql`${target} as (${query})`
