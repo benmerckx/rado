@@ -1,6 +1,5 @@
 import {
   type HasSql,
-  type HasTable,
   getData,
   internalData,
   internalQuery,
@@ -17,28 +16,24 @@ import {
 import {Sql} from '../Sql.ts'
 import type {TableDefinition, TableRow} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
+import type {DeleteQuery} from './Query.ts'
 
-export interface DeleteData<Meta extends QueryMeta = QueryMeta>
-  extends QueryData<Meta> {
-  from: HasTable
-  where?: HasSql
-  returning?: Selection
-}
+export class Delete<
+  Returning,
+  Meta extends QueryMeta = QueryMeta
+> extends Query<Returning, Meta> {
+  readonly [internalData]: QueryData<Meta> & DeleteQuery<Returning>
 
-export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
-  Result,
-  Meta
-> {
-  readonly [internalData]: DeleteData<Meta>
-  declare readonly [internalSelection]?: Selection
-
-  constructor(data: DeleteData<Meta>) {
+  constructor(data: QueryData<Meta> & DeleteQuery<Returning>) {
     super(data)
     this[internalData] = data
-    if (data.returning) this[internalSelection] = data.returning
   }
   get [internalQuery](): Sql {
     return new Sql(emitter => emitter.emitDelete(this))
+  }
+  get [internalSelection](): Selection | undefined {
+    const {returning} = getData(this)
+    return returning && selection(returning)
   }
 }
 
@@ -58,11 +53,11 @@ export class DeleteFrom<
     this: DeleteFrom<Definition, IsPostgres | IsSqlite>,
     returning: Input
   ): Delete<SelectionRow<Input>, Meta>
-  returning(returning?: SelectionInput) {
+  returning<Returning>(returning?: Returning) {
     const data = getData(this)
     return new Delete({
       ...data,
-      returning: returning ? selection(returning) : selection.table(data.from)
+      returning
     })
   }
 }

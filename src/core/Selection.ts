@@ -95,7 +95,7 @@ export class Selection implements HasSql {
 
   constructor(
     public input: SelectionInput,
-    public nullable: Set<string>
+    public nullable: Set<string> = new Set()
   ) {
     const root = this.#defineColumn(nullable, input)
     this.mapRow = root.result.bind(root)
@@ -213,11 +213,13 @@ export class JoinSelection extends Selection {
   }
 }
 
-export function selection(
-  input: SelectionInput,
-  nullable: Array<string> = []
-): Selection {
-  return new Selection(input, new Set(nullable))
+const selected = new WeakMap<SelectionInput, Selection>()
+
+export function selection(input: SelectionInput): Selection {
+  if (selected.has(input)) return selected.get(input)!
+  const selection = new Selection(input)
+  selected.set(input, selection)
+  return selection
 }
 
 export namespace selection {
