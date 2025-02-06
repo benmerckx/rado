@@ -1,7 +1,7 @@
 import type {ColumnData} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
-import {type Sql, sql} from '../core/Sql.ts'
+import {Sql, sql} from '../core/Sql.ts'
 import {type Table, table} from '../core/Table.ts'
 import {
   and,
@@ -54,6 +54,9 @@ const AttrDef = table('pg_attrdef', {
 })
 
 const inline = (sql: HasSql) => postgresDialect.inline(sql)
+function columnSql(column: ColumnData) {
+  return new Sql(emitter => emitter.emitColumn(column))
+}
 
 const columnType = sql<string>`pg_catalog.format_type(${Attr.typId}, ${Attr.typMod})`
 const columnDefaultValue = when<string | null>(
@@ -174,7 +177,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
         stmts.push(
           sql.query({
             alterTable,
-            addColumn: [column, sql.chunk('emitColumn', schemaInstruction)]
+            addColumn: [column, columnSql(schemaInstruction)]
           })
         )
       } else {

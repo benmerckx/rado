@@ -47,7 +47,7 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
         return [
           column.name,
           inline(
-            sql.chunk('emitColumn', {
+            sql.column({
               type: sql.unsafe(column.type.toLowerCase()),
               notNull: column.notnull,
               primary: hasSinglePrimaryKey && column.pk === 1,
@@ -64,10 +64,7 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
-        return [
-          columnApi.name ?? name,
-          inline(sql.chunk('emitColumn', columnApi))
-        ]
+        return [columnApi.name ?? name, inline(sql.column(columnApi))]
       })
     )
 

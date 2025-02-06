@@ -66,7 +66,7 @@ export class TableApi<
     const columnData = this.columns[name]
     const column = getData(columnData)
     const columnName = sql.identifier(column.name ?? name)
-    return sql`${columnName} ${sql.chunk('emitColumn', column)}`
+    return sql`${columnName} ${sql.column(column)}`
   }
 
   createDefinition(): Sql {

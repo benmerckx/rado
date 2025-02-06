@@ -130,7 +130,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery](): Sql {
-    return sql.chunk('emitUnion', getData(this))
+    return new Sql(emitter => emitter.emitUnion(getData(this)))
   }
 }
 
