@@ -43,13 +43,14 @@ export interface FullJoin {
 }
 
 export type Join = InnerJoin | LeftJoin | RightJoin | FullJoin
+export type JoinOp = 'leftJoin' | 'rightJoin' | 'innerJoin' | 'fullJoin'
 
 export interface QueryBase {
   with?: Array<CTE>
   withRecursive?: Array<CTE>
 }
 
-interface SelectBase extends QueryBase, IsSelect {
+interface SelectBase<Returning> extends QueryBase {
   where?: HasSql<boolean>
   distinct?: boolean
   distinctOn?: Array<HasSql>
@@ -57,15 +58,17 @@ interface SelectBase extends QueryBase, IsSelect {
   orderBy?: Array<HasSql>
   limit?: Input<number>
   offset?: Input<number>
-  having?: HasSql<boolean> | (() => HasSql<boolean>)
+  having?: HasSql<boolean> | ((input: Returning) => HasSql<boolean>)
 }
 
-interface SelectionQuery<Returning> extends SelectBase {
+export interface SelectionQuery<Returning = SelectionInput>
+  extends SelectBase<Returning> {
   select: Returning
   from?: HasTarget | HasSql | [HasTarget, ...Array<Join>]
 }
 
-interface FromQuery<Returning> extends SelectBase {
+export interface FromQuery<Returning = SelectionInput>
+  extends SelectBase<Returning> {
   select?: Returning
   from: HasTarget | HasSql | [HasTarget, ...Array<Join>]
 }

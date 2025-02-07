@@ -25,7 +25,8 @@ import type {
 } from '../Table.ts'
 import {type Input, input} from '../expr/Input.ts'
 import {withCTE} from './CTE.ts'
-import type {InsertQuery} from './Query.ts'
+import type {InsertQuery, SelectQuery} from './Query.ts'
+import {selectQuery} from './Select.ts'
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Result,
@@ -223,11 +224,12 @@ function formatConflicts(query: InsertQuery): Sql {
 
 export function insertQuery(query: InsertQuery): Sql {
   const {insert, values, select, returning} = query
+  if (!values && !select) throw new TypeError('No values defined')
   const table = getTable(insert)
   const tableName = sql.identifier(table.name)
   const toInsert = values
     ? formatValues(table, Array.isArray(values) ? values : [values])
-    : formatSelect(query)
+    : selectQuery(<SelectQuery>query)
   const conflicts = formatConflicts(query)
   return withCTE(
     query,

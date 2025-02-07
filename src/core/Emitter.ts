@@ -1,9 +1,8 @@
 import type {ColumnData} from './Column.ts'
-import {getData, getQuery, getTable, getTarget} from './Internal.ts'
+import {getQuery, getTarget} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {Sql, sql} from './Sql.ts'
-import type {TableApi} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import type {IncludeData} from './expr/Include.ts'
@@ -11,7 +10,6 @@ import {type JsonPath, jsonAggregateArray, jsonArray} from './expr/Json.ts'
 import type {QueryBase} from './query/Query.ts'
 import type {SelectData} from './query/Select.ts'
 import type {UnionData} from './query/Union.ts'
-import type {Update} from './query/Update.ts'
 
 export abstract class Emitter {
   #runtime: Runtime
@@ -79,17 +77,6 @@ export abstract class Emitter {
     else this.emitValue(value)
   }
 
-  emitCreateTable(tableApi: TableApi): void {
-    sql
-      .join([
-        sql`create table`,
-        //ifNotExists ? sql`if not exists` : undefined,
-        tableApi.target(),
-        sql`(${tableApi.createDefinition()})`
-      ])
-      .emit(this)
-  }
-
   emitColumn(column: ColumnData): void {
     const references =
       column.references &&
@@ -148,21 +135,6 @@ export abstract class Emitter {
 
   emitUnion({left, operator, right}: UnionData): void {
     sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
-  }
-
-  emitUpdate(update: Update<unknown>): void {
-    const {cte, table, set, where, returning} = getData(update)
-    const tableApi = getTable(table)
-    if (cte) this.emitWith(cte)
-    sql
-      .query({
-        update: sql.identifier(tableApi.name),
-        set,
-        where,
-        returning
-      })
-      .inlineFields(false)
-      .emit(this)
   }
 
   emitWith(query: QueryBase): void {
