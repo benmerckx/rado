@@ -10,10 +10,11 @@ import {
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Query.ts'
-import {type SelectionInput, selection} from './Selection.ts'
+import type {SelectionInput} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {DeleteFrom} from './query/Delete.ts'
 import {InsertInto} from './query/Insert.ts'
+import type {QueryBase} from './query/Query.ts'
 import type {
   SelectBase,
   WithSelection,
@@ -24,20 +25,20 @@ import type {UnionBase} from './query/Union.ts'
 import {UpdateTable} from './query/Update.ts'
 
 class BuilderBase<Meta extends QueryMeta> {
-  readonly [internalData]: QueryData<Meta>
+  readonly [internalData]: QueryData<Meta> & QueryBase
 
-  constructor(data: QueryData<Meta> = {}) {
+  constructor(data: QueryData<Meta> & QueryBase = {}) {
     this[internalData] = data
   }
 
   select(): WithoutSelection<Meta>
   select<Input extends SelectionInput>(
-    selection: Input
+    select: Input
   ): WithSelection<Input, Meta>
-  select(input?: SelectionInput): any {
+  select(select?: SelectionInput): any {
     return new Select<unknown, Meta>({
       ...getData(this),
-      select: input && selection(input)
+      select: select!
     })
   }
 
@@ -45,10 +46,10 @@ class BuilderBase<Meta extends QueryMeta> {
   selectDistinct<Input extends SelectionInput>(
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinct(input?: SelectionInput): any {
+  selectDistinct(select?: SelectionInput): any {
     return new Select({
       ...getData(this),
-      select: input && selection(input),
+      select: select!,
       distinct: true
     })
   }
@@ -62,10 +63,10 @@ class BuilderBase<Meta extends QueryMeta> {
     columns: Array<HasSql>,
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinctOn(columns: any, input?: any): any {
+  selectDistinctOn(columns: any, select?: any): any {
     return new Select({
       ...getData(this),
-      select: input && selection(input),
+      select: select!,
       distinctOn: columns
     })
   }
@@ -73,19 +74,19 @@ class BuilderBase<Meta extends QueryMeta> {
   update<Definition extends TableDefinition>(
     table: Table<Definition>
   ): UpdateTable<Definition, Meta> {
-    return new UpdateTable<Definition, Meta>({...getData(this), table})
+    return new UpdateTable<Definition, Meta>({...getData(this), update: table})
   }
 
   insert<Definition extends TableDefinition>(
     into: Table<Definition>
   ): InsertInto<Definition, Meta> {
-    return new InsertInto<Definition, Meta>({...getData(this), into})
+    return new InsertInto<Definition, Meta>({...getData(this), insert: into})
   }
 
   delete<Definition extends TableDefinition>(
     from: Table<Definition>
   ): DeleteFrom<Definition, Meta> {
-    return new DeleteFrom<Definition, Meta>({...getData(this), from})
+    return new DeleteFrom<Definition, Meta>({...getData(this), delete: from})
   }
 }
 
@@ -110,14 +111,14 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   with(...definitions: Array<CTE>): BuilderBase<Meta> {
     return new BuilderBase({
       ...getData(this),
-      cte: {recursive: false, definitions}
+      with: definitions
     })
   }
 
   withRecursive(...definitions: Array<CTE>): BuilderBase<Meta> {
     return new BuilderBase({
       ...getData(this),
-      cte: {recursive: true, definitions}
+      withRecursive: definitions
     })
   }
 }

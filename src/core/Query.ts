@@ -2,7 +2,6 @@ import {
   type HasQuery,
   type HasResolver,
   type HasSql,
-  type HasTarget,
   getData,
   getResolver,
   hasSelection,
@@ -15,7 +14,6 @@ import type {Sql} from './Sql.ts'
 
 export class QueryData<Meta extends QueryMeta> {
   resolver?: Resolver<Meta>
-  cte?: {recursive: boolean; definitions: Array<HasQuery & HasTarget>}
 }
 
 type Exec = () => any

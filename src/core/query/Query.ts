@@ -18,7 +18,7 @@ interface TopLevel {
   update?: never
 }
 type IsSelect = Omit<TopLevel, 'select' | 'from'>
-type IsInsert = Omit<TopLevel, 'insert' | 'from' | 'select'>
+type IsInsert = Omit<TopLevel, 'insert' | 'select' | 'from'>
 type IsDelete = Omit<TopLevel, 'delete'>
 type IsUpdate = Omit<TopLevel, 'update'>
 
@@ -50,15 +50,18 @@ export interface QueryBase {
   withRecursive?: Array<CTE>
 }
 
-interface SelectBase<Returning> extends QueryBase {
+interface SelectBase<Returning> {
   where?: HasSql<boolean>
   distinct?: boolean
   distinctOn?: Array<HasSql>
   groupBy?: Array<HasSql>
+  having?: HasSql<boolean> | ((input: Returning) => HasSql<boolean>)
+}
+
+interface SelectModifiers extends QueryBase {
   orderBy?: Array<HasSql>
   limit?: Input<number>
   offset?: Input<number>
-  having?: HasSql<boolean> | ((input: Returning) => HasSql<boolean>)
 }
 
 export interface SelectionQuery<Returning = SelectionInput>
@@ -73,14 +76,42 @@ export interface FromQuery<Returning = SelectionInput>
   from: HasTarget | HasSql | [HasTarget, ...Array<Join>]
 }
 
-export type SelectQuery<Returning = SelectionInput> =
+export type Union<Returning = SelectionInput> =
+  | {union: SelectQuery<Returning>}
+  | {unionAll: SelectQuery<Returning>}
+  | {intersect: SelectQuery<Returning>}
+  | {intersectAll: SelectQuery<Returning>}
+  | {except: SelectQuery<Returning>}
+  | {exceptAll: SelectQuery<Returning>}
+
+export type UnionOp =
+  | 'union'
+  | 'unionAll'
+  | 'intersect'
+  | 'intersectAll'
+  | 'except'
+  | 'exceptAll'
+
+export type CompoundSelect<Returning = SelectionInput> = [
+  SelectQuery<Returning>,
+  ...Array<Union<Returning>>
+]
+
+export interface UnionQuery<Returning = SelectionInput>
+  extends SelectModifiers {
+  select: CompoundSelect<Returning>
+}
+
+export type SelectQuery<Returning = SelectionInput> = (
   | SelectionQuery<Returning>
   | FromQuery<Returning>
+) &
+  SelectModifiers
 
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends Partial<SelectionQuery<Returning>> {
+> extends Partial<SelectionQuery<Returning> & SelectModifiers> {
   insert: Table<Definition>
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
@@ -92,8 +123,7 @@ export interface InsertQuery<
 export interface DeleteQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends QueryBase,
-    IsDelete {
+> extends QueryBase {
   delete: Table<Definition>
   where?: HasSql<boolean>
   returning?: Returning
@@ -102,10 +132,9 @@ export interface DeleteQuery<
 export interface UpdateQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends QueryBase,
-    IsUpdate {
+> extends QueryBase {
   update: Table<Definition>
-  set: TableUpdate<Definition>
+  set?: TableUpdate<Definition>
   where?: HasSql<boolean>
   returning?: Returning
 }

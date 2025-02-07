@@ -1,136 +1,116 @@
 import {
-  type HasQuery,
   type HasSelection,
-  type HasSql,
   type HasTarget,
   getData,
+  getSelection,
   internalData,
   internalQuery,
   internalSelection
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
 import {Query, type QueryData} from '../Query.ts'
-import type {Selection, SelectionRow} from '../Selection.ts'
+import {type Selection, type SelectionRow, selection} from '../Selection.ts'
 import {Sql, sql} from '../Sql.ts'
+import {input} from '../expr/Input.ts'
+import {withCTE} from './CTE.ts'
+import type {CompoundSelect, SelectQuery, UnionOp, UnionQuery} from './Query.ts'
+import {selectQuery} from './Select.ts'
 
-export interface UnionBaseData<Meta extends QueryMeta> extends QueryData<Meta> {
-  select?: Selection
-}
+type UnionTarget<Input, Meta extends QueryMeta> =
+  | UnionBase<Input, Meta>
+  | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
-export abstract class UnionBase<
-  Input,
-  Meta extends QueryMeta = QueryMeta
-> extends Query<SelectionRow<Input>, Meta> {
-  readonly [internalData]!: UnionBaseData<Meta>
+export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
+  extends Query<SelectionRow<Input>, Meta>
+  implements HasSelection
+{
+  readonly [internalData]: QueryData<Meta>
+  abstract [internalSelection]: Selection
+
+  constructor(data: QueryData<Meta> & {compound: CompoundSelect}) {
+    super(data)
+    this[internalData] = data
+  }
 
   #makeSelf(): Input & HasTarget {
-    const {select} = getData(this)
-    return select!.makeVirtual(Sql.SELF_TARGET)
+    const selected = getSelection(this)
+    return selected.makeVirtual(Sql.SELF_TARGET)
   }
 
-  union(
-    right:
-      | UnionBase<Input, Meta>
-      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
-  ): Union<Input, Meta> {
-    return new Union<Input, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`union`,
-      right: typeof right === 'function' ? right(this.#makeSelf()) : right
+  #getSelect(base: UnionBase<any>): CompoundSelect {
+    const data = getData(base)
+    if (!('compound' in data)) throw new Error('No compound defined')
+    return data.compound as CompoundSelect
+  }
+
+  #compound(op: UnionOp, target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    const left = this.#getSelect(this)
+    const right = this.#getSelect(
+      typeof target === 'function' ? target(this.#makeSelf()) : target
+    )
+    const [on, ...rest] = right
+    const select = [...left, {[op]: on}, ...rest] as CompoundSelect
+    return new Union({
+      ...self,
+      select
     })
   }
 
-  unionAll(
-    right:
-      | UnionBase<Input, Meta>
-      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
-  ): Union<Input, Meta> {
-    return new Union<Input, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`union all`,
-      right: typeof right === 'function' ? right(this.#makeSelf()) : right
-    })
+  union(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('union', target)
   }
 
-  intersect(
-    right:
-      | UnionBase<Input, Meta>
-      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
-  ): Union<Input, Meta> {
-    return new Union<Input, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`intersect`,
-      right: typeof right === 'function' ? right(this.#makeSelf()) : right
-    })
+  unionAll(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('unionAll', target)
   }
 
-  intersectAll(
-    this: UnionBase<Input, IsPostgres | IsMysql>,
-    right:
-      | UnionBase<Input, Meta>
-      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
-  ): Union<Input, Meta> {
-    return new Union<Input, Meta>({
-      ...getData(this as UnionBase<Input, Meta>),
-      left: this,
-      operator: sql`intersect all`,
-      right: typeof right === 'function' ? right(this.#makeSelf()) : right
-    })
+  intersect(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('intersect', target)
   }
 
-  except(
-    right:
-      | UnionBase<Input, Meta>
-      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
+  intersectAll<Meta extends IsPostgres | IsMysql>(
+    this: UnionBase<Input, Meta>,
+    target: UnionTarget<Input, Meta>
   ): Union<Input, Meta> {
-    return new Union<Input, Meta>({
-      ...getData(this),
-      left: this,
-      operator: sql`except`,
-      right: typeof right === 'function' ? right(this.#makeSelf()) : right
-    })
+    return this.#compound('intersectAll', target)
   }
 
-  exceptAll(
-    this: UnionBase<Input, IsPostgres | IsMysql>,
-    right:
-      | UnionBase<Input, Meta>
-      | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
-  ): Union<Input, Meta> {
-    return new Union<Input, Meta>({
-      ...getData(this as UnionBase<Input, Meta>),
-      left: this,
-      operator: sql`except all`,
-      right: typeof right === 'function' ? right(this.#makeSelf()) : right
-    })
+  except(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('except', target)
   }
-}
 
-export interface UnionData<Meta extends QueryMeta = QueryMeta>
-  extends UnionBaseData<Meta> {
-  left: HasQuery
-  operator: HasSql
-  right: HasQuery
+  exceptAll<Meta extends IsPostgres | IsMysql>(
+    this: UnionBase<Input, Meta>,
+    target: UnionTarget<Input, Meta>
+  ): Union<Input, Meta> {
+    return this.#compound('exceptAll', target)
+  }
 }
 
 export class Union<Result, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Result, Meta>
   implements HasSelection
 {
-  readonly [internalData]: UnionData<Meta>
-  readonly [internalSelection]: Selection
+  readonly [internalData]: QueryData<Meta> & UnionQuery
 
-  constructor(data: UnionData<Meta>) {
-    super(data)
+  constructor(data: QueryData<Meta> & UnionQuery) {
+    super({
+      ...data,
+      compound: data.select
+    })
     this[internalData] = data
-    this[internalSelection] = data.select!
   }
 
   get [internalQuery](): Sql {
-    return new Sql(emitter => emitter.emitUnion(getData(this)))
+    return unionQuery(getData(this))
+  }
+
+  get [internalSelection](): Selection {
+    const {
+      select: [first]
+    } = getData(this)
+    if (!first.select) throw new Error('No selection defined')
+    return selection(first.select)
   }
 }
 
@@ -180,6 +160,25 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
   return left.exceptAll(right)
 }
 
-export function unionQuery(query: UnionQuery) {
-  return sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
+export function unionQuery(query: UnionQuery): Sql {
+  const {select, orderBy, limit, offset} = query
+  return withCTE(
+    query,
+    sql.join(
+      select
+        .map((segment, i) => {
+          if (i === 0) return selectQuery(segment as SelectQuery)
+          const op = Object.keys(segment)[0] as UnionOp
+          const query = (<Record<UnionOp, SelectQuery>>segment)[op]
+          return sql.query({[op]: selectQuery(query)})
+        })
+        .concat(
+          sql.query({
+            orderBy: orderBy && sql.join(orderBy, sql`, `),
+            limit: limit !== undefined && input(limit),
+            offset: offset !== undefined && input(offset)
+          })
+        )
+    )
+  )
 }

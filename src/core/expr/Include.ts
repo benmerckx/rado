@@ -25,7 +25,7 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
   #mapFromDriverValue = (value: any, specs: DriverSpecs): any => {
     const {select, first} = getData(this)
     const parsed = specs.parsesJson ? value : JSON.parse(value)
-    if (!select) throw new TypeError('Include has no select')
+    if (!select) throw new Error('Include has no select')
     const selected = selection(select)
     if (first) {
       const result = parsed
@@ -77,7 +77,7 @@ export function includeQuery(query: IncludeQuery) {
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query)
   const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
-  if (!select) throw new TypeError('No selection defined')
+  if (!select) throw new Error('No selection defined')
   const fields = selection(select).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)

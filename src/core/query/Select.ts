@@ -26,7 +26,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {Sql, sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
@@ -43,7 +43,10 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
   constructor(data: QueryData<Meta> & SelectQuery) {
-    super(data)
+    super({
+      ...data,
+      compound: [data]
+    })
     this[internalData] = data
   }
 
@@ -147,7 +150,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery](): Sql {
-    return new Sql(emitter => emitter.emitSelect(getData(this)))
+    return selectQuery(getData(this))
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
@@ -159,7 +162,6 @@ export type SubQuery<Input> = Input & HasTarget
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Input, Meta>,
-    HasSelection,
     HasSql<SelectionRow<Input>> {
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
@@ -307,11 +309,11 @@ export function selectQuery(query: SelectQuery): Sql {
       from: formatFrom(from),
       where,
       groupBy: groupBy && sql.join(groupBy, sql`, `),
-      orderBy: orderBy && sql.join(orderBy, sql`, `),
       having:
         typeof having === 'function'
           ? having(selected as SelectionInput)
           : having,
+      orderBy: orderBy && sql.join(orderBy, sql`, `),
       limit: limit !== undefined && input(limit),
       offset: offset !== undefined && input(offset)
     })

@@ -79,6 +79,7 @@ export class UpdateTable<
 export function updateQuery(query: UpdateQuery): Sql {
   const {update: table, set: values, where, returning} = query
   const tableApi = getTable(table)
+  if (!values) throw new Error('Update values are required')
   const set = sql.join(
     Object.entries(values).map(([key, value]) => {
       const column = getTable(table).columns[key]

@@ -224,7 +224,7 @@ function formatConflicts(query: InsertQuery): Sql {
 
 export function insertQuery(query: InsertQuery): Sql {
   const {insert, values, select, returning} = query
-  if (!values && !select) throw new TypeError('No values defined')
+  if (!values && !select) throw new Error('No values defined')
   const table = getTable(insert)
   const tableName = sql.identifier(table.name)
   const toInsert = values
