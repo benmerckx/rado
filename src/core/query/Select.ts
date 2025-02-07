@@ -33,7 +33,7 @@ import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
 import {type Input as UserInput, input} from '../expr/Input.ts'
 import {withCTE} from './CTE.ts'
-import type {Join, JoinOp, SelectQuery} from './Query.ts'
+import type {CompoundSelect, Join, JoinOp, SelectQuery} from './Query.ts'
 import {UnionBase} from './Union.ts'
 
 export class Select<Input, Meta extends QueryMeta = QueryMeta>
@@ -43,11 +43,10 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
   constructor(data: QueryData<Meta> & SelectQuery) {
-    super({
-      ...data,
-      compound: [data]
-    })
-    this[internalData] = data
+    const compound: CompoundSelect = [data]
+    const withCompound = {...data, compound}
+    super(withCompound)
+    this[internalData] = withCompound
   }
 
   as(alias: string): SubQuery<Input> {
@@ -61,13 +60,12 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
 
   from(target: HasTarget | HasSql): Select<Input, Meta> {
     const {select: current} = getData(this)
-    const from = hasTarget(target) ? getTarget(target) : getSql(target)
     const isTable = hasTable(target)
     const selected = current ?? (isTable ? target : sql`*`)
     return new Select({
       ...getData(this),
       select: selected,
-      from
+      from: target
     })
   }
 
@@ -306,7 +304,7 @@ export function selectQuery(query: SelectQuery): Sql {
     query,
     sql.query({
       select,
-      from: formatFrom(from),
+      from: from && formatFrom(from),
       where,
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having:

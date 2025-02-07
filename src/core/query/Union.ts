@@ -94,11 +94,10 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   readonly [internalData]: QueryData<Meta> & UnionQuery
 
   constructor(data: QueryData<Meta> & UnionQuery) {
-    super({
-      ...data,
-      compound: data.select
-    })
-    this[internalData] = data
+    const compound = data.select
+    const withCompound = {...data, compound}
+    super(withCompound)
+    this[internalData] = withCompound
   }
 
   get [internalQuery](): Sql {
@@ -162,23 +161,21 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
 
 export function unionQuery(query: UnionQuery): Sql {
   const {select, orderBy, limit, offset} = query
+  const segments = sql.join(
+    select.map((segment, i) => {
+      if (i === 0) return selectQuery(segment as SelectQuery)
+      const op = Object.keys(segment)[0] as UnionOp
+      const query = (<Record<UnionOp, SelectQuery>>segment)[op]
+      return sql.query({[op]: selectQuery(query)})
+    })
+  )
   return withCTE(
     query,
-    sql.join(
-      select
-        .map((segment, i) => {
-          if (i === 0) return selectQuery(segment as SelectQuery)
-          const op = Object.keys(segment)[0] as UnionOp
-          const query = (<Record<UnionOp, SelectQuery>>segment)[op]
-          return sql.query({[op]: selectQuery(query)})
-        })
-        .concat(
-          sql.query({
-            orderBy: orderBy && sql.join(orderBy, sql`, `),
-            limit: limit !== undefined && input(limit),
-            offset: offset !== undefined && input(offset)
-          })
-        )
-    )
+    sql.query({
+      '': segments,
+      orderBy: orderBy && sql.join(orderBy, sql`, `),
+      limit: limit !== undefined && input(limit),
+      offset: offset !== undefined && input(offset)
+    })
   )
 }
