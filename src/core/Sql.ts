@@ -162,7 +162,7 @@ export namespace sql {
     return new Sql(emitter => {
       for (let i = 0; i < parts.length; i++) {
         if (i > 0) separator.emit(emitter)
-        getSql(parts[i]!).emit(emitter)
+        getSql(parts[i]).emit(emitter)
       }
     })
   }

@@ -1,7 +1,6 @@
 import type {CTE} from '../Builder.ts'
 import type {HasSql, HasTarget} from '../Internal.ts'
 import type {SelectionInput} from '../Selection.ts'
-import type {Sql} from '../Sql.ts'
 import type {
   Table,
   TableDefinition,
@@ -99,12 +98,13 @@ export interface DeleteQuery<
 }
 
 export interface UpdateQuery<
-  Returning extends SelectionInput,
-  Definition extends TableDefinition
-> extends IsUpdate {
+  Returning = SelectionInput,
+  Definition extends TableDefinition = TableDefinition
+> extends QueryBase,
+    IsUpdate {
   update: Table<Definition>
   set: TableUpdate<Definition>
-  where?: Sql<boolean>
+  where?: HasSql<boolean>
   returning?: Returning
 }
 

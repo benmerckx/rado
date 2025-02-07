@@ -60,9 +60,10 @@ class InsertCanReturn<
     returning: Input
   ): Insert<SelectionRow<Input>, Meta>
   returning(returning?: SelectionInput) {
+    const data = getData(this)
     return new Insert({
-      ...getData(this),
-      returning
+      ...data,
+      returning: returning ?? data.insert
     })
   }
 }
