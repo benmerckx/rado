@@ -80,8 +80,7 @@ export type SelectQuery<Returning = SelectionInput> =
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends Omit<Partial<SelectionQuery<Returning>>, 'insert'>,
-    IsInsert {
+> extends Partial<SelectionQuery<Returning>> {
   insert: Table<Definition>
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
@@ -115,19 +114,8 @@ export type Query<
   Returning extends SelectionInput = SelectionInput,
   Definition extends TableDefinition = TableDefinition
 > =
-  | SelectQuery<Returning>
-  | FromQuery<Returning>
-  | InsertQuery<Returning, Definition>
-  | DeleteQuery<Returning, Definition>
-  | UpdateQuery<Returning, Definition>
-
-/*export function query<
-  Returning extends SelectionInput,
-  Definition extends TableDefinition,
-  Meta extends QueryMeta
->(
-  db: Builder<Meta>,
-  query: QueryInput<Returning, Definition>
-): Query<SelectionRow<Returning>, Meta> {
-  return undefined!
-}*/
+  | (SelectQuery<Returning> & IsSelect)
+  | (FromQuery<Returning> & IsSelect)
+  | (InsertQuery<Returning, Definition> & IsInsert)
+  | (DeleteQuery<Returning, Definition> & IsDelete)
+  | (UpdateQuery<Returning, Definition> & IsUpdate)

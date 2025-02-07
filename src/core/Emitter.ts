@@ -1,15 +1,10 @@
 import type {ColumnData} from './Column.ts'
-import {getQuery, getTarget} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {Sql, sql} from './Sql.ts'
 import type {FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
-import type {IncludeData} from './expr/Include.ts'
-import {type JsonPath, jsonAggregateArray, jsonArray} from './expr/Json.ts'
-import type {QueryBase} from './query/Query.ts'
-import type {SelectData} from './query/Select.ts'
-import type {UnionData} from './query/Union.ts'
+import type {JsonPath} from './expr/Json.ts'
 
 export abstract class Emitter {
   #runtime: Runtime
@@ -52,7 +47,7 @@ export abstract class Emitter {
     }
   }
 
-  selfName?: string
+  selfName: string | undefined
   emitSelf({name, inner}: {name: string; inner: Sql}): void {
     this.selfName = name
     inner.emit(this)
@@ -100,74 +95,6 @@ export abstract class Emitter {
       sql.identifier(fields[0].targetName),
       fields.map(field => sql.identifier(field.fieldName))
     ).emit(this)
-  }
-
-  emitSelect({
-    select,
-    cte,
-    from,
-    distinct,
-    distinctOn,
-    where,
-    groupBy,
-    orderBy,
-    having,
-    limit,
-    offset
-  }: SelectData): void {
-    if (cte) this.emitWith(cte)
-    const prefix = distinctOn
-      ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
-      : distinct && sql`distinct`
-    sql
-      .query({
-        select: sql.join([prefix, select]),
-        from,
-        where,
-        groupBy,
-        orderBy,
-        having,
-        limit,
-        offset
-      })
-      .emit(this)
-  }
-
-  emitUnion({left, operator, right}: UnionData): void {
-    sql.join([getQuery(left), operator, getQuery(right)]).emit(this)
-  }
-
-  emitWith(query: QueryBase): void {
-    const isRecursive = query.withRecursive
-    const definitions = isRecursive ? query.withRecursive! : query.with
-    if (!definitions) return
-    sql
-      .query({
-        [isRecursive ? 'withRecursive' : 'with']: sql.join(
-          definitions.map(cte => {
-            const query = getQuery(cte)
-            const target = getTarget(cte)
-            return sql`${target} as (${query})`
-          }),
-          sql`, `
-        )
-      })
-      .emit(this)
-    sql` `.emit(this)
-  }
-
-  emitInclude(data: IncludeData) {
-    const wrapQuery = Boolean(data.limit || data.offset || data.orderBy)
-    const innerQuery = new Sql(emitter => emitter.emitSelect(data))
-    const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
-    if (!data.select) throw new Error('No selection defined')
-    const fields = data.select.fieldNames()
-    const subject = jsonArray(
-      ...fields.map(name => sql`_.${sql.identifier(name)}`)
-    )
-    sql`(select ${
-      data.first ? subject : jsonAggregateArray(subject)
-    } from (${inner}) as _)`.emit(this)
   }
 
   emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
