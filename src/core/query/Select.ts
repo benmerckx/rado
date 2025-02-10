@@ -72,8 +72,9 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   #fromTarget(): [HasTarget, ...Array<Join>] {
     const {from} = getData(this)
     if (!from) throw new Error('No target defined')
+    if (Array.isArray(from)) return from
     if (!hasTarget(from)) throw new Error('No target defined')
-    return Array.isArray(from) ? (from as any) : [from]
+    return [from]
   }
 
   #join(join: Join): Select<Input, Meta> {
