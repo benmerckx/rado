@@ -77,7 +77,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     const [on, ...rest] = right
     const select = [...left, {[op]: on}, ...rest] as CompoundSelect
     return new Union({
-      ...self,
+      ...this,
       select
     })
   }
