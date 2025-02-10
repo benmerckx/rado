@@ -7,7 +7,7 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {Query, type QueryData} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Query.ts'
 import {
   type Selection,
   type SelectionInput,
@@ -23,7 +23,7 @@ import type {DeleteQuery} from './Query.ts'
 export class Delete<
   Returning,
   Meta extends QueryMeta = QueryMeta
-> extends Query<Returning, Meta> {
+> extends SingleQuery<Returning, Meta> {
   readonly [internalData]: QueryData<Meta> & DeleteQuery
   declare readonly [internalSelection]?: Selection
 

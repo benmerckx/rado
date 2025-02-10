@@ -8,7 +8,7 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {Query, type QueryData} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Query.ts'
 import {
   type Selection,
   type SelectionInput,
@@ -22,10 +22,10 @@ import {input} from '../expr/Input.ts'
 import {withCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 
-export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
+export class Update<
   Result,
-  Meta
-> {
+  Meta extends QueryMeta = QueryMeta
+> extends SingleQuery<Result, Meta> {
   readonly [internalData]: QueryData<Meta> & UpdateQuery
   declare readonly [internalSelection]?: Selection
 

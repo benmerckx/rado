@@ -74,7 +74,7 @@ class Executable<Result, Meta extends QueryMeta>
   }
 }
 
-export class QueryBatch<Results, Meta extends QueryMeta> extends Executable<
+export class BatchQuery<Results, Meta extends QueryMeta> extends Executable<
   Results,
   Meta
 > {
@@ -85,10 +85,10 @@ export class QueryBatch<Results, Meta extends QueryMeta> extends Executable<
   }
 }
 
-export abstract class Query<Result, Meta extends QueryMeta> extends Executable<
+export abstract class SingleQuery<
   Result,
-  Meta
-> {
+  Meta extends QueryMeta
+> extends Executable<Result, Meta> {
   readonly [internalData]: QueryData<Meta>
   abstract [internalQuery]: Sql
 

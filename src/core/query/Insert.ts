@@ -8,7 +8,7 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {Query, type QueryData} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Query.ts'
 import {
   type Selection,
   type SelectionInput,
@@ -28,10 +28,10 @@ import {withCTE} from './CTE.ts'
 import type {InsertQuery, SelectQuery} from './Query.ts'
 import {selectQuery} from './Select.ts'
 
-export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
+export class Insert<
   Result,
-  Meta
-> {
+  Meta extends QueryMeta = QueryMeta
+> extends SingleQuery<Result, Meta> {
   readonly [internalData]: QueryData<Meta> & InsertQuery
   declare readonly [internalSelection]?: Selection
 
@@ -137,7 +137,7 @@ export class InsertInto<
   }
 
   select(
-    query: Query<TableRow<Definition>, Meta>
+    query: SingleQuery<TableRow<Definition>, Meta>
   ): InsertCanConflict<Definition, Meta> {
     return new InsertCanConflict({
       ...getData(this),

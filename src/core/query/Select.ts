@@ -16,7 +16,7 @@ import {
   internalTarget
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
-import {Query, type QueryData} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Query.ts'
 import {
   type IsNullable,
   type MakeNullable,
@@ -47,7 +47,7 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
 export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends Query<SelectionRow<Input>, Meta>
+  extends SingleQuery<SelectionRow<Input>, Meta>
   implements HasSelection
 {
   readonly [internalData]: QueryData<Meta>
