@@ -1,3 +1,4 @@
+import {formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
 import {schema} from '../core/Schema.ts'
@@ -143,7 +144,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
         stmts.push(
           sql.query({
             alterTable,
-            addColumn: [column, sql.column(schemaInstruction)]
+            addColumn: [column, formatColumn(schemaInstruction)]
           })
         )
       } else {

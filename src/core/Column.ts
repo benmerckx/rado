@@ -2,6 +2,7 @@ import type {DriverSpecs} from './Driver.ts'
 import {getData, getField, internalData} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
+import {callFunction} from './expr/Functions.ts'
 import {type Input, input} from './expr/Input.ts'
 
 export interface ColumnData {
@@ -118,3 +119,26 @@ export const column: Columns = new Proxy(createColumn as any, {
     })
   }
 })
+
+function formatReferences(fields: Array<FieldData>): Sql {
+  return callFunction(
+    sql.identifier(fields[0].targetName),
+    fields.map(field => sql.identifier(field.fieldName))
+  )
+}
+
+export function formatColumn(column: ColumnData): Sql {
+  const references =
+    column.references &&
+    sql`references ${formatReferences([column.references!()])}`
+  return sql.join([
+    column.type,
+    column.primary && sql`primary key`,
+    column.notNull && sql`not null`,
+    column.isUnique && sql`unique`,
+    column.autoIncrement && sql`autoincrement`,
+    column.defaultValue && sql`default ${column.defaultValue}`,
+    references,
+    column.onUpdate && sql`on update ${column.onUpdate}`
+  ])
+}

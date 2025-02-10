@@ -17,11 +17,11 @@ import {InsertInto} from './query/Insert.ts'
 import type {QueryBase} from './query/Query.ts'
 import type {
   SelectBase,
+  UnionBase,
   WithSelection,
   WithoutSelection
 } from './query/Select.ts'
 import {Select} from './query/Select.ts'
-import type {UnionBase} from './query/Union.ts'
 import {UpdateTable} from './query/Update.ts'
 
 class BuilderBase<Meta extends QueryMeta> {

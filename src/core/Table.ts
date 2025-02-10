@@ -1,4 +1,9 @@
-import type {Column, JsonColumn, RequiredColumn} from './Column.ts'
+import {
+  type Column,
+  type JsonColumn,
+  type RequiredColumn,
+  formatColumn
+} from './Column.ts'
 import type {
   ForeignKeyConstraint,
   PrimaryKeyConstraint,
@@ -67,7 +72,7 @@ export class TableApi<
     const columnData = this.columns[name]
     const column = getData(columnData)
     const columnName = sql.identifier(column.name ?? name)
-    return sql`${columnName} ${sql.column(column)}`
+    return sql`${columnName} ${formatColumn(column)}`
   }
 
   createDefinition(): Sql {

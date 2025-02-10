@@ -1,4 +1,3 @@
-import type {ColumnData} from './Column.ts'
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {type HasSql, getSql, hasSql, internalSql} from './Internal.ts'
@@ -34,27 +33,15 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   inlineFields(withTableName: boolean): Sql<Value> {
-    return new Sql(emitter => {
-      const previous = emitter.inlineFields
-      emitter.inlineFields = !withTableName
-      this.emit(emitter)
-      emitter.inlineFields = previous
-    })
+    return new Sql(emitter => emitter.inlineFields(this, withTableName))
   }
 
   inlineValues(): Sql<Value> {
-    return new Sql(emitter => {
-      const previous = emitter.inlineValues
-      emitter.inlineValues = true
-      this.emit(emitter)
-      emitter.inlineValues = previous
-    })
+    return new Sql(emitter => emitter.inlineValues(this))
   }
 
   nameSelf(name: string): Sql<Value> {
-    return new Sql(emitter => {
-      emitter.emitSelf({name, inner: this})
-    })
+    return new Sql(emitter => emitter.emitSelf(this, name))
   }
 
   forSelection(): Sql<Value> {
@@ -116,10 +103,6 @@ export namespace sql {
 
   export function field<T>(field: FieldData): Sql<T> {
     return new Sql(emitter => emitter.emitField(field))
-  }
-
-  export function column(column: ColumnData): Sql {
-    return new Sql(emitter => emitter.emitColumn(column))
   }
 
   export function jsonPath<T>(path: JsonPath): Sql<T> {

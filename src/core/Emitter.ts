@@ -1,9 +1,7 @@
-import type {ColumnData} from './Column.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
-import {Sql, sql} from './Sql.ts'
+import {Sql} from './Sql.ts'
 import type {FieldData} from './expr/Field.ts'
-import {callFunction} from './expr/Functions.ts'
 import type {JsonPath} from './expr/Json.ts'
 
 export abstract class Emitter {
@@ -40,61 +38,50 @@ export abstract class Emitter {
 
   emitIdentifierOrSelf(value: string): void {
     if (value === Sql.SELF_TARGET) {
-      if (!this.selfName) throw new Error('Self target not defined')
-      this.emitIdentifier(this.selfName)
+      if (!this.#selfName) throw new Error('Self target not defined')
+      this.emitIdentifier(this.#selfName)
     } else {
       this.emitIdentifier(value)
     }
-  }
-
-  selfName: string | undefined
-  emitSelf({name, inner}: {name: string; inner: Sql}): void {
-    this.selfName = name
-    inner.emit(this)
-    this.selfName = undefined
   }
 
   emitUnsafe(value: string): void {
     this.sql += value
   }
 
-  inlineFields = false
+  #selfName: string | undefined
+  emitSelf(inner: Sql, name: string): void {
+    this.#selfName = name
+    inner.emit(this)
+    this.#selfName = undefined
+  }
+
+  #inlineFields = false
+  inlineFields(inner: Sql, withTableName: boolean): void {
+    const previous = this.#inlineFields
+    this.#inlineFields = !withTableName
+    inner.emit(this)
+    this.#inlineFields = previous
+  }
+
+  #inlineValues = false
+  inlineValues(inner: Sql): void {
+    const previous = this.#inlineValues
+    this.#inlineValues = true
+    inner.emit(this)
+    this.#inlineValues = previous
+  }
+
   emitField({targetName, fieldName}: FieldData): void {
-    if (this.inlineFields) return this.emitIdentifier(fieldName)
+    if (this.#inlineFields) return this.emitIdentifier(fieldName)
     this.emitIdentifierOrSelf(targetName)
     this.emitUnsafe('.')
     this.emitIdentifier(fieldName)
   }
 
-  inlineValues = false
   emitValueOrInline(value: unknown): void {
-    if (this.inlineValues) this.emitInline(value)
+    if (this.#inlineValues) this.emitInline(value)
     else this.emitValue(value)
-  }
-
-  emitColumn(column: ColumnData): void {
-    const references =
-      column.references &&
-      sql`references ${new Sql(emitter => emitter.emitReferences([column.references!()]))}`
-    sql
-      .join([
-        column.type,
-        column.primary && sql`primary key`,
-        column.notNull && sql`not null`,
-        column.isUnique && sql`unique`,
-        column.autoIncrement && sql`autoincrement`,
-        column.defaultValue && sql`default ${column.defaultValue}`,
-        references,
-        column.onUpdate && sql`on update ${column.onUpdate}`
-      ])
-      .emit(this)
-  }
-
-  emitReferences(fields: Array<FieldData>): void {
-    callFunction(
-      sql.identifier(fields[0].targetName),
-      fields.map(field => sql.identifier(field.fieldName))
-    ).emit(this)
   }
 
   emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
