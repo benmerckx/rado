@@ -27,19 +27,16 @@ export class Update<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Meta
 > {
   readonly [internalData]: QueryData<Meta> & UpdateQuery
+  declare readonly [internalSelection]?: Selection
 
   constructor(data: QueryData<Meta> & UpdateQuery) {
     super(data)
     this[internalData] = data
+    if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
   get [internalQuery](): Sql {
     return updateQuery(getData(this))
-  }
-
-  get [internalSelection](): Selection | undefined {
-    const {returning} = getData(this)
-    return returning && selection(returning)
   }
 }
 

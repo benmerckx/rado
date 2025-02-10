@@ -25,17 +25,16 @@ export class Delete<
   Meta extends QueryMeta = QueryMeta
 > extends Query<Returning, Meta> {
   readonly [internalData]: QueryData<Meta> & DeleteQuery
+  declare readonly [internalSelection]?: Selection
 
   constructor(data: QueryData<Meta> & DeleteQuery) {
     super(data)
     this[internalData] = data
+    if (data.returning) this[internalSelection] = selection(data.returning)
   }
+
   get [internalQuery](): Sql {
     return deleteQuery(getData(this))
-  }
-  get [internalSelection](): Selection | undefined {
-    const {returning} = getData(this)
-    return returning && selection(returning)
   }
 }
 

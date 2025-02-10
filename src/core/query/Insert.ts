@@ -33,19 +33,16 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta> extends Query<
   Meta
 > {
   readonly [internalData]: QueryData<Meta> & InsertQuery
+  declare readonly [internalSelection]?: Selection
 
   constructor(data: QueryData<Meta> & InsertQuery) {
     super(data)
     this[internalData] = data
+    if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
   get [internalQuery](): Sql {
     return insertQuery(getData(this))
-  }
-
-  get [internalSelection](): Selection | undefined {
-    const {returning} = getData(this)
-    return returning && selection(returning)
   }
 }
 
@@ -195,20 +192,22 @@ function formatConflict({
   setWhere
 }: Partial<OnConflictUpdate<TableDefinition>>): Sql {
   const update = set && formatUpdates(set)
-  return sql.join([
-    target &&
-      sql`(${Array.isArray(target) ? sql.join(target, sql`, `) : target})`,
-    targetWhere && sql`where ${targetWhere}`,
-    update
-      ? sql.join([
-          sql`do update set ${update}`,
-          setWhere && sql`where ${setWhere}`
-        ])
-      : sql`do nothing`
-  ])
+  return sql.query({
+    onConflict: sql.join([
+      target &&
+        sql`(${Array.isArray(target) ? sql.join(target, sql`, `) : target})`,
+      targetWhere && sql`where ${targetWhere}`,
+      update
+        ? sql.join([
+            sql`do update set ${update}`,
+            setWhere && sql`where ${setWhere}`
+          ])
+        : sql`do nothing`
+    ])
+  })
 }
 
-function formatConflicts(query: InsertQuery): Sql {
+function formatConflicts(query: InsertQuery): Sql | undefined {
   const {onConflict, onConflictDoNothing, onDuplicateKeyUpdate} = query
   if (onDuplicateKeyUpdate)
     return sql.query({
@@ -219,7 +218,7 @@ function formatConflicts(query: InsertQuery): Sql {
     return formatConflict(
       onConflictDoNothing === true ? {} : onConflictDoNothing
     )
-  return sql``
+  return undefined
 }
 
 export function insertQuery(query: InsertQuery): Sql {
@@ -228,7 +227,9 @@ export function insertQuery(query: InsertQuery): Sql {
   const table = getTable(insert)
   const tableName = sql.identifier(table.name)
   const toInsert = values
-    ? formatValues(table, Array.isArray(values) ? values : [values])
+    ? sql.query({
+        values: formatValues(table, Array.isArray(values) ? values : [values])
+      })
     : selectQuery(<SelectQuery>query)
   const conflicts = formatConflicts(query)
   return withCTE(
