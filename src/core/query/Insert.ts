@@ -29,9 +29,9 @@ import type {InsertQuery, SelectQuery} from './Query.ts'
 import {selectQuery} from './Select.ts'
 
 export class Insert<
-  Result,
+  Returning,
   Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Result, Meta> {
+> extends SingleQuery<Returning, Meta> {
   readonly [internalData]: QueryData<Meta> & InsertQuery
   declare readonly [internalSelection]?: Selection
 

@@ -9,12 +9,19 @@ import {
   internalQuery
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
-import type {QueryData} from './Query.ts'
+import type {QueryData, SingleQuery} from './Query.ts'
 import type {SelectionInput} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
-import {DeleteFrom} from './query/Delete.ts'
-import {InsertInto} from './query/Insert.ts'
-import type {QueryBase} from './query/Query.ts'
+import {Delete, DeleteFrom} from './query/Delete.ts'
+import {Insert, InsertInto} from './query/Insert.ts'
+import type {
+  DeleteQuery,
+  InsertQuery,
+  Query,
+  QueryBase,
+  SelectQuery,
+  UpdateQuery
+} from './query/Query.ts'
 import type {
   SelectBase,
   UnionBase,
@@ -22,13 +29,31 @@ import type {
   WithoutSelection
 } from './query/Select.ts'
 import {Select} from './query/Select.ts'
-import {UpdateTable} from './query/Update.ts'
+import {Update, UpdateTable} from './query/Update.ts'
 
 class BuilderBase<Meta extends QueryMeta> {
   readonly [internalData]: QueryData<Meta> & QueryBase
 
   constructor(data: QueryData<Meta> & QueryBase = {}) {
     this[internalData] = data
+  }
+
+  query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    query: Query<Returning, Definition>
+  ): SingleQuery<Returning, Meta> {
+    if ('delete' in query)
+      return new Delete({...getData(this), ...(query as DeleteQuery)})
+    if ('insert' in query)
+      return new Insert({
+        ...getData(this),
+        ...(query as InsertQuery)
+      })
+    if ('update' in query)
+      return new Update({...getData(this), ...(query as UpdateQuery)})
+    return new Select({
+      ...getData(this),
+      ...(query as SelectQuery)
+    })
   }
 
   select(): WithoutSelection<Meta>
