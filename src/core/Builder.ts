@@ -16,6 +16,7 @@ import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
 import type {
   DeleteQuery,
+  FromQuery,
   InsertQuery,
   Query,
   QueryBase,
@@ -38,6 +39,21 @@ class BuilderBase<Meta extends QueryMeta> {
     this[internalData] = data
   }
 
+  query<Returning extends SelectionInput>(
+    select: SelectQuery<Returning>
+  ): SingleQuery<Returning, Meta>
+  query<Returning extends SelectionInput>(
+    from: FromQuery<Returning>
+  ): SingleQuery<Returning, Meta>
+  query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    insert: InsertQuery<Returning, Definition>
+  ): SingleQuery<Returning, Meta>
+  query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    remove: DeleteQuery<Returning, Definition>
+  ): SingleQuery<Returning, Meta>
+  query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    update: UpdateQuery<Returning, Definition>
+  ): SingleQuery<Returning, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     query: Query<Returning, Definition>
   ): SingleQuery<Returning, Meta> {

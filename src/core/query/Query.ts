@@ -10,18 +10,6 @@ import type {
 import type {Input} from '../expr/Input.ts'
 import type {OnConflict, OnConflictSet, OnConflictUpdate} from './Insert.ts'
 
-interface TopLevel {
-  select?: never
-  from?: never
-  insert?: never
-  delete?: never
-  update?: never
-}
-type IsSelect = Omit<TopLevel, 'select' | 'from'>
-type IsInsert = Omit<TopLevel, 'insert' | 'select' | 'from'>
-type IsDelete = Omit<TopLevel, 'delete'>
-type IsUpdate = Omit<TopLevel, 'update'>
-
 export interface InnerJoin {
   innerJoin: HasTarget
   on: HasSql<boolean>
@@ -143,8 +131,8 @@ export type Query<
   Returning extends SelectionInput = SelectionInput,
   Definition extends TableDefinition = TableDefinition
 > =
-  | (SelectQuery<Returning> & IsSelect)
-  | (FromQuery<Returning> & IsSelect)
-  | (InsertQuery<Returning, Definition> & IsInsert)
-  | (DeleteQuery<Returning, Definition> & IsDelete)
-  | (UpdateQuery<Returning, Definition> & IsUpdate)
+  | SelectQuery<Returning>
+  | FromQuery<Returning>
+  | InsertQuery<Returning, Definition>
+  | DeleteQuery<Returning, Definition>
+  | UpdateQuery<Returning, Definition>
