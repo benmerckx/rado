@@ -2,10 +2,15 @@ import type {DriverSpecs} from '../Driver.ts'
 import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Query.ts'
-import {type MapRowContext, type RowOfRecord, selection} from '../Selection.ts'
+import type {MapRowContext, RowOfRecord} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {SelectQuery} from '../query/Query.ts'
-import {type Select, type SelectBase, selectQuery} from '../query/Select.ts'
+import {
+  type Select,
+  type SelectBase,
+  querySelection,
+  selectQuery
+} from '../query/Select.ts'
 import {jsonAggregateArray, jsonArray} from './Json.ts'
 
 export type IncludeQuery = SelectQuery & {
@@ -23,11 +28,10 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   #mapFromDriverValue = (value: any, specs: DriverSpecs): any => {
-    const {select, first} = getData(this)
+    const query = getData(this)
     const parsed = specs.parsesJson ? value : JSON.parse(value)
-    if (!select) throw new Error('Include has no select')
-    const selected = selection(select)
-    if (first) {
+    const selected = querySelection(query)
+    if (query.first) {
       const result = parsed
         ? selected.mapRow({values: parsed, index: 0, specs})
         : null
@@ -77,8 +81,7 @@ export function includeQuery(query: IncludeQuery): Sql {
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query)
   const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
-  if (!select) throw new Error('No selection defined')
-  const fields = selection(select).fieldNames()
+  const fields = querySelection(query).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)
   )

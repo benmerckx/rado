@@ -21,7 +21,6 @@ import {
   type IsNullable,
   type MakeNullable,
   type Selection,
-  type SelectionInput,
   type SelectionRecord,
   type SelectionRow,
   selection
@@ -135,15 +134,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  from(target: HasTarget | HasSql): Select<Input, Meta> {
-    const {select: current} = getData(this)
-    const isTable = hasTable(target)
-    const selected = current ?? (isTable ? target : sql`*`)
-    return new Select({
-      ...getData(this),
-      select: selected,
-      from: target
-    })
+  from(from: HasTarget | HasSql): Select<Input, Meta> {
+    return new Select({...getData(this), from})
   }
 
   #fromTarget(): [HasTarget, ...Array<Join>] {
@@ -155,14 +147,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   #join(join: Join): Select<Input, Meta> {
-    const {select} = getData(this)
-    const {op, target} = joinOp(join)
-    const current = select ? selection(select) : undefined
-    return new Select({
-      ...getData(this),
-      select: hasTable(target) ? current?.join(target, op) : current,
-      from: [...this.#fromTarget(), join]
-    })
+    return new Select({...getData(this), from: [...this.#fromTarget(), join]})
   }
 
   leftJoin(leftJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
@@ -186,26 +171,17 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   groupBy(...groupBy: Array<HasSql>): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      groupBy
-    })
+    return new Select({...getData(this), groupBy})
   }
 
   having(
     having: HasSql<boolean> | ((self: Input) => HasSql<boolean>)
   ): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      having: having as any
-    })
+    return new Select({...getData(this), having: having as any})
   }
 
   orderBy(...orderBy: Array<HasSql>): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      orderBy
-    })
+    return new Select({...getData(this), orderBy})
   }
 
   limit(limit: UserInput<number>): Select<Input, Meta> {
@@ -213,16 +189,11 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   offset(offset: UserInput<number>): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      offset
-    })
+    return new Select({...getData(this), offset})
   }
 
   get [internalSelection](): Selection {
-    const {select} = getData(this)
-    if (!select) throw new Error('No selection defined')
-    return selection(select)
+    return querySelection(getData(this))
   }
 
   get [internalQuery](): Sql {
@@ -339,6 +310,21 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
   fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
 }
 
+export function querySelection({select, from}: SelectQuery): Selection {
+  if (select) return selection(select)
+  if (!from) throw new Error('No selection defined')
+  if (Array.isArray(from)) {
+    const [target, ...joins] = from
+    let result = selection(target)
+    for (const join of joins) {
+      const {target, op} = joinOp(join)
+      result = result.join(target, op)
+    }
+    return result
+  }
+  return hasTable(from) ? selection(from) : selection(sql`*`)
+}
+
 function joinOp(join: Join) {
   const {on, ...rest} = join
   const op = Object.keys(rest)[0] as JoinOp
@@ -362,7 +348,6 @@ function formatFrom(from: SelectQuery['from']): Sql {
 
 export function selectQuery(query: SelectQuery): Sql {
   const {
-    select: selected,
     from,
     where,
     groupBy,
@@ -376,17 +361,15 @@ export function selectQuery(query: SelectQuery): Sql {
   const prefix = distinctOn
     ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
     : distinct && sql`distinct`
-  const select = selected ? sql.join([prefix, selection(selected)]) : sql`*`
+  const selected = querySelection(query)
+  const select = sql.join([prefix, selected])
 
   return sql.query(formatCTE(query), {
     select,
     from: from && formatFrom(from),
     where,
     groupBy: groupBy && sql.join(groupBy, sql`, `),
-    having:
-      typeof having === 'function'
-        ? having(selected as SelectionInput)
-        : having,
+    having: typeof having === 'function' ? having(selected.input) : having,
     orderBy: orderBy && sql.join(orderBy, sql`, `),
     limit: limit !== undefined && input(limit),
     offset: offset !== undefined && input(offset)

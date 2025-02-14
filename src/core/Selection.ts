@@ -24,6 +24,7 @@ export type MakeNullable<T> = Expand<{[K in keyof T]: T[K] & IsNullable}>
 export type SelectionInput =
   | HasSql
   | HasTable
+  | HasTarget
   | SelectionRecord
   | Include<unknown>
 export type RowOfRecord<Input> = Expand<{
@@ -168,7 +169,7 @@ export class Selection implements HasSql {
     return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
   }
 
-  join(right: HasTable, operator: JoinOp): Selection {
+  join(right: HasTarget, operator: JoinOp): Selection {
     return this
   }
 }
@@ -178,8 +179,9 @@ export class TableSelection extends Selection {
     super(table, new Set())
   }
 
-  join(right: HasTable, operator: JoinOp): Selection {
+  join(right: HasTarget, operator: JoinOp): Selection {
     const leftTable = getTable(this.table)
+    if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
@@ -201,7 +203,8 @@ export class JoinSelection extends Selection {
     )
   }
 
-  join(right: HasTable, operator: JoinOp): Selection {
+  join(right: HasTarget, operator: JoinOp): Selection {
+    if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
