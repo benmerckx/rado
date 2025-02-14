@@ -1,4 +1,3 @@
-import type {CTE} from '../Builder.ts'
 import type {HasSql, HasTarget} from '../Internal.ts'
 import type {SelectionInput} from '../Selection.ts'
 import type {
@@ -8,6 +7,7 @@ import type {
   TableUpdate
 } from '../Table.ts'
 import type {Input} from '../expr/Input.ts'
+import type {CTE} from './CTE.ts'
 import type {OnConflict, OnConflictSet, OnConflictUpdate} from './Insert.ts'
 
 export interface InnerJoin {

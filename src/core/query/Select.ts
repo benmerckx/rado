@@ -16,7 +16,7 @@ import {
   internalTarget
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
-import {type QueryData, SingleQuery} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
   type IsNullable,
   type MakeNullable,

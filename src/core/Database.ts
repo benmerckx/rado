@@ -20,7 +20,7 @@ import type {
   QueryMeta,
   Sync
 } from './MetaData.ts'
-import {BatchQuery} from './Query.ts'
+import {BatchQuery} from './Queries.ts'
 import {Resolver} from './Resolver.ts'
 import {sql} from './Sql.ts'
 import type {Table} from './Table.ts'

@@ -1,6 +1,6 @@
 import {type HasSql, getQuery, hasSql} from '../Internal.ts'
 import type {Either} from '../MetaData.ts'
-import type {SingleQuery} from '../Query.ts'
+import type {SingleQuery} from '../Queries.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {type Input, input} from './Input.ts'
 

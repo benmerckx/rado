@@ -1,7 +1,7 @@
 import type {DriverSpecs} from '../Driver.ts'
 import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
-import type {QueryData} from '../Query.ts'
+import type {QueryData} from '../Queries.ts'
 import type {MapRowContext, RowOfRecord} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {SelectQuery} from '../query/Query.ts'

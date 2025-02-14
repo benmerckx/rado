@@ -1,15 +1,9 @@
-import {
-  type HasQuery,
-  type HasSql,
-  type HasTarget,
-  getData,
-  internalData
-} from './Internal.ts'
+import {type HasSql, getData, internalData} from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
-import type {QueryData, SingleQuery} from './Query.ts'
+import type {QueryData, SingleQuery} from './Queries.ts'
 import type {SelectionInput, SelectionRow} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
-import {createCTE} from './query/CTE.ts'
+import {type CTE, createCTE} from './query/CTE.ts'
 import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
 import type {
@@ -120,8 +114,6 @@ class BuilderBase<Meta extends QueryMeta> {
     return new DeleteFrom<Definition, Meta>({...getData(this), delete: from})
   }
 }
-
-export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   $with(cteName: string): {

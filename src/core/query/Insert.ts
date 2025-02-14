@@ -8,7 +8,7 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {type QueryData, SingleQuery} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
   type Selection,
   type SelectionInput,
