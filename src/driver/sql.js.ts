@@ -1,6 +1,6 @@
 import type {BindParams, Database as Client} from 'sql.js'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {BatchQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
@@ -67,7 +67,7 @@ class SqlJsDriver implements SyncDriver {
     return new PreparedStatement(this.client, this.client.prepare(sql))
   }
 
-  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
+  batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
     return this.transaction(
       tx => queries.map(({sql, params}) => tx.prepare(sql).values(params)),
       {}

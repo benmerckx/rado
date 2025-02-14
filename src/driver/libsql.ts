@@ -3,7 +3,7 @@ import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
-  BatchQuery,
+  BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
@@ -60,7 +60,7 @@ export class LibSQLClient implements AsyncDriver {
     if ('close' in this.client) return this.client.close()
   }
 
-  async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
+  async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
     const stmts = queries.map(({sql, params}) => {
       return {sql, args: params as Array<InValue>}
     })

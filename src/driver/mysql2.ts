@@ -8,7 +8,7 @@ import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
-  BatchQuery,
+  BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
@@ -77,7 +77,7 @@ export class Mysql2Driver implements AsyncDriver {
     if ('end' in this.client) return this.client.end()
   }
 
-  async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
+  async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
     const transact = async (tx: AsyncDriver) => {
       const results = []
       for (const {sql, params} of queries)
