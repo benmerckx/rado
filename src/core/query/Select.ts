@@ -32,7 +32,7 @@ import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
 import {type Input as UserInput, input} from '../expr/Input.ts'
-import {withCTE} from './CTE.ts'
+import {formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
   Join,
@@ -378,22 +378,19 @@ export function selectQuery(query: SelectQuery): Sql {
     : distinct && sql`distinct`
   const select = selected ? sql.join([prefix, selection(selected)]) : sql`*`
 
-  return withCTE(
-    query,
-    sql.query({
-      select,
-      from: from && formatFrom(from),
-      where,
-      groupBy: groupBy && sql.join(groupBy, sql`, `),
-      having:
-        typeof having === 'function'
-          ? having(selected as SelectionInput)
-          : having,
-      orderBy: orderBy && sql.join(orderBy, sql`, `),
-      limit: limit !== undefined && input(limit),
-      offset: offset !== undefined && input(offset)
-    })
-  )
+  return sql.query(formatCTE(query), {
+    select,
+    from: from && formatFrom(from),
+    where,
+    groupBy: groupBy && sql.join(groupBy, sql`, `),
+    having:
+      typeof having === 'function'
+        ? having(selected as SelectionInput)
+        : having,
+    orderBy: orderBy && sql.join(orderBy, sql`, `),
+    limit: limit !== undefined && input(limit),
+    offset: offset !== undefined && input(offset)
+  })
 }
 
 export class Union<Result, Meta extends QueryMeta = QueryMeta>
@@ -478,13 +475,9 @@ export function unionQuery(query: UnionQuery): Sql {
       return sql.query({[op]: selectQuery(query)})
     })
   )
-  return withCTE(
-    query,
-    sql.query({
-      '': segments,
-      orderBy: orderBy && sql.join(orderBy, sql`, `),
-      limit: limit !== undefined && input(limit),
-      offset: offset !== undefined && input(offset)
-    })
-  )
+  return sql.query(formatCTE(query), segments, {
+    orderBy: orderBy && sql.join(orderBy, sql`, `),
+    limit: limit !== undefined && input(limit),
+    offset: offset !== undefined && input(offset)
+  })
 }

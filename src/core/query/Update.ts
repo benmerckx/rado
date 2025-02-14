@@ -19,7 +19,7 @@ import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
 import {input} from '../expr/Input.ts'
-import {withCTE} from './CTE.ts'
+import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 
 export class Update<
@@ -89,15 +89,12 @@ export function updateQuery(query: UpdateQuery): Sql {
     }),
     sql`, `
   )
-  return withCTE(
-    query,
-    sql
-      .query({
-        update: sql.identifier(tableApi.name),
-        set,
-        where,
-        returning: returning && selection(returning)
-      })
-      .inlineFields(false)
-  )
+  return sql
+    .query(formatCTE(query), {
+      update: sql.identifier(tableApi.name),
+      set,
+      where,
+      returning: returning && selection(returning)
+    })
+    .inlineFields(false)
 }

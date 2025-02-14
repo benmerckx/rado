@@ -24,7 +24,7 @@ import type {
   TableUpdate
 } from '../Table.ts'
 import {type Input, input} from '../expr/Input.ts'
-import {withCTE} from './CTE.ts'
+import {formatCTE} from './CTE.ts'
 import type {InsertQuery, SelectQuery} from './Query.ts'
 import {selectQuery} from './Select.ts'
 
@@ -232,15 +232,13 @@ export function insertQuery(query: InsertQuery): Sql {
       })
     : selectQuery(<SelectQuery>query)
   const conflicts = formatConflicts(query)
-  return withCTE(
-    query,
-    sql
-      .join([
-        sql.query({insertInto: sql`${tableName}(${table.listColumns()})`}),
-        toInsert,
-        conflicts,
-        returning && sql.query({returning: selection(returning)})
-      ])
-      .inlineFields(false)
-  )
+  return sql
+    .query(
+      formatCTE(query),
+      {insertInto: sql`${tableName}(${table.listColumns()})`},
+      toInsert,
+      conflicts,
+      returning && sql.query({returning: selection(returning)})
+    )
+    .inlineFields(false)
 }

@@ -11,21 +11,18 @@ export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 // CTE constructors
 
-export function withCTE(query: QueryBase, addTo: Sql): Sql {
+export function formatCTE(query: QueryBase): Sql | undefined {
   const isRecursive = query.withRecursive
   const definitions = isRecursive ? query.withRecursive! : query.with
-  if (!definitions) return addTo
-  return sql.join([
-    sql.query({
-      [isRecursive ? 'withRecursive' : 'with']: sql.join(
-        definitions.map(cte => {
-          const query = getQuery(cte)
-          const target = getTarget(cte)
-          return sql`${target} as (${query})`
-        }),
-        sql`, `
-      )
-    }),
-    addTo
-  ])
+  if (!definitions) return
+  return sql.query({
+    [isRecursive ? 'withRecursive' : 'with']: sql.join(
+      definitions.map(cte => {
+        const query = getQuery(cte)
+        const target = getTarget(cte)
+        return sql`${target} as (${query})`
+      }),
+      sql`, `
+    )
+  })
 }

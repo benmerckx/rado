@@ -17,7 +17,7 @@ import {
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
-import {withCTE} from './CTE.ts'
+import {formatCTE} from './CTE.ts'
 import type {DeleteQuery} from './Query.ts'
 
 export class Delete<
@@ -66,12 +66,9 @@ export class DeleteFrom<
 export function deleteQuery(query: DeleteQuery): Sql {
   const {delete: from, where, returning} = query
   const table = getTable(from)
-  return withCTE(
-    query,
-    sql.query({
-      deleteFrom: sql.identifier(table.name),
-      where,
-      returning: returning && selection(returning)
-    })
-  )
+  return sql.query(formatCTE(query), {
+    deleteFrom: sql.identifier(table.name),
+    where,
+    returning: returning && selection(returning)
+  })
 }
