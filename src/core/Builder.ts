@@ -3,15 +3,13 @@ import {
   type HasSql,
   type HasTarget,
   getData,
-  getQuery,
-  getSelection,
-  internalData,
-  internalQuery
+  internalData
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Query.ts'
-import type {SelectionInput} from './Selection.ts'
+import type {SelectionInput, SelectionRow} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
+import {createCTE} from './query/CTE.ts'
 import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
 import type {
@@ -41,35 +39,27 @@ class BuilderBase<Meta extends QueryMeta> {
 
   query<Returning extends SelectionInput>(
     select: SelectQuery<Returning>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   query<Returning extends SelectionInput>(
     from: FromQuery<Returning>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     insert: InsertQuery<Returning, Definition>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     remove: DeleteQuery<Returning, Definition>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     update: UpdateQuery<Returning, Definition>
-  ): SingleQuery<Returning, Meta>
-  query<Returning extends SelectionInput, Definition extends TableDefinition>(
-    query: Query<Returning, Definition>
-  ): SingleQuery<Returning, Meta> {
-    if ('delete' in query)
-      return new Delete({...getData(this), ...(query as DeleteQuery)})
-    if ('insert' in query)
-      return new Insert({
-        ...getData(this),
-        ...(query as InsertQuery)
-      })
-    if ('update' in query)
-      return new Update({...getData(this), ...(query as UpdateQuery)})
-    return new Select({
-      ...getData(this),
-      ...(query as SelectQuery)
-    })
+  ): SingleQuery<SelectionRow<Returning>, Meta>
+  query<Returning extends SelectionInput>(
+    query: Query<Returning>
+  ): SingleQuery<SelectionRow<Returning>, Meta> {
+    const data = {...getData(this), ...query}
+    if ('delete' in query) return new Delete(data as DeleteQuery)
+    if ('insert' in query) return new Insert(data as InsertQuery)
+    if ('update' in query) return new Update(data as UpdateQuery)
+    return new Select(data as SelectQuery)
   }
 
   select(): WithoutSelection<Meta>
@@ -141,25 +131,16 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
       as<Input extends SelectionInput>(
         query: SelectBase<Input, Meta>
       ): CTE<Input> {
-        const fields = getSelection(query).makeVirtual(cteName)
-        return Object.assign(<any>fields, {
-          [internalQuery]: getQuery(query).nameSelf(cteName)
-        })
+        return createCTE(cteName, query)
       }
     }
   }
 
   with(...definitions: Array<CTE>): BuilderBase<Meta> {
-    return new BuilderBase({
-      ...getData(this),
-      with: definitions
-    })
+    return new BuilderBase({...getData(this), with: definitions})
   }
 
   withRecursive(...definitions: Array<CTE>): BuilderBase<Meta> {
-    return new BuilderBase({
-      ...getData(this),
-      withRecursive: definitions
-    })
+    return new BuilderBase({...getData(this), withRecursive: definitions})
   }
 }

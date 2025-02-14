@@ -127,12 +127,8 @@ export interface UpdateQuery<
   returning?: Returning
 }
 
-export type Query<
-  Returning extends SelectionInput = SelectionInput,
-  Definition extends TableDefinition = TableDefinition
-> =
+export type Query<Returning extends SelectionInput = SelectionInput> =
   | SelectQuery<Returning>
-  | FromQuery<Returning>
-  | InsertQuery<Returning, Definition>
-  | DeleteQuery<Returning, Definition>
-  | UpdateQuery<Returning, Definition>
+  | InsertQuery<Returning>
+  | DeleteQuery<Returning>
+  | UpdateQuery<Returning>

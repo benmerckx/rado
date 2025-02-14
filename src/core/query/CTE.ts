@@ -2,14 +2,26 @@ import {
   type HasQuery,
   type HasTarget,
   getQuery,
-  getTarget
+  getSelection,
+  getTarget,
+  internalQuery
 } from '../Internal.ts'
+import type {SelectionInput} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {QueryBase} from './Query.ts'
+import type {SelectBase} from './Select.ts'
 
 export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
-// CTE constructors
+export function createCTE<Input extends SelectionInput>(
+  cteName: string,
+  query: SelectBase<Input>
+): CTE<Input> {
+  const fields = getSelection(query).makeVirtual(cteName)
+  return Object.assign(<any>fields, {
+    [internalQuery]: getQuery(query).nameSelf(cteName)
+  })
+}
 
 export function formatCTE(query: QueryBase): Sql | undefined {
   const isRecursive = query.withRecursive

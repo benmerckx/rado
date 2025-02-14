@@ -66,10 +66,7 @@ export class UpdateTable<
   ): Update<SelectionRow<Input>, Meta>
   returning(returning?: SelectionInput) {
     const data = getData(this)
-    return new Update({
-      ...data,
-      returning: returning ?? data.update
-    })
+    return new Update({...data, returning: returning ?? data.update})
   }
 }
 
