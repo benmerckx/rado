@@ -4,7 +4,7 @@
     "": {
       "name": "rado",
       "devDependencies": {
-        "@alinea/suite": "^0.4.0",
+        "@alinea/suite": "^0.6.0",
         "@biomejs/biome": "^1.8.3",
         "@cloudflare/workers-types": "^4.20230628.0",
         "@electric-sql/pglite": "^0.2.12",
@@ -33,7 +33,7 @@
     },
   },
   "packages": {
-    "@alinea/suite": ["@alinea/suite@0.4.0", "", {}, "sha512-4kwLqPYnMwGXZ6CZWkFFqu1kC0kRIz5AHlsJwQpSjFu6ETDWvC83WlZ25FGaPP3KRX9CShmBXplAcOcHGxrX9A=="],
+    "@alinea/suite": ["@alinea/suite@0.6.0", "", {}, "sha512-xh6tIjoUM1A+VabymBrzAemiy7LMrNedeA0HaoPu6xtMAtVg3CNCQxU0Jb2Zxj+3WCTlnd3fWTCcngs4EePL+A=="],
 
     "@babel/helper-string-parser": ["@babel/helper-string-parser@7.24.8", "", {}, "sha512-pO9KhhRcuUyGnJWwyEgnRJTSIZHiT+vMD0kPeD+so0l7mxkMT19g3pjY9GTnHySck/hDzq+dtW/4VgnMkippsQ=="],
 
