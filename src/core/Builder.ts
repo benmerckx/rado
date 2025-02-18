@@ -13,6 +13,7 @@ import type {
   Query,
   QueryBase,
   SelectQuery,
+  SelectionQuery,
   UpdateQuery
 } from './query/Query.ts'
 import type {
@@ -32,9 +33,9 @@ class BuilderBase<Meta extends QueryMeta> {
   }
 
   query<Returning extends SelectionInput>(
-    select: SelectQuery<Returning>
+    select: SelectionQuery<Returning>
   ): SingleQuery<SelectionRow<Returning>, Meta>
-  query<Returning extends SelectionInput>(
+  query<Returning>(
     from: FromQuery<Returning>
   ): SingleQuery<SelectionRow<Returning>, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(

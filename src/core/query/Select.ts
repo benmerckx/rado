@@ -21,6 +21,7 @@ import {
   type IsNullable,
   type MakeNullable,
   type Selection,
+  type SelectionInput,
   type SelectionRecord,
   type SelectionRow,
   selection
@@ -311,7 +312,7 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
 }
 
 export function querySelection({select, from}: SelectQuery): Selection {
-  if (select) return selection(select)
+  if (select) return selection(select as SelectionInput)
   if (!from) throw new Error('No selection defined')
   if (Array.isArray(from)) {
     const [target, ...joins] = from

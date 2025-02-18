@@ -77,7 +77,7 @@ export namespace include {
 }
 
 export function includeQuery(query: IncludeQuery): Sql {
-  const {first, select, limit, offset, orderBy} = query
+  const {first, limit, offset, orderBy} = query
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query)
   const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "noEmit": true,
     "module": "NodeNext",
     "target": "ESNext",
     "allowImportingTsExtensions": true,
@@ -7,9 +8,6 @@
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "outDir": "dist",
-    "emitDeclarationOnly": true,
-    "declaration": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "types": ["bun-types", "@cloudflare/workers-types"],
@@ -17,5 +15,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "test"]
+  "include": ["."]
 }

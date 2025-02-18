@@ -52,17 +52,25 @@ interface SelectModifiers extends QueryBase {
   offset?: Input<number>
 }
 
-export interface SelectionQuery<Returning = SelectionInput>
+export type FromGuard = HasTarget | HasSql | [HasTarget, ...Array<Join>]
+
+interface SelectionBase<Returning = SelectionInput>
   extends SelectBase<Returning> {
   select: Returning
-  from?: HasTarget | HasSql | [HasTarget, ...Array<Join>]
+  from?: FromGuard
 }
 
-export interface FromQuery<Returning = SelectionInput>
-  extends SelectBase<Returning> {
-  select?: Returning
-  from: HasTarget | HasSql | [HasTarget, ...Array<Join>]
+export interface SelectionQuery<Returning = SelectionInput>
+  extends SelectionBase<Returning>,
+    SelectModifiers {}
+
+interface FromBase<Returning = FromGuard> extends SelectBase<Returning> {
+  from: Returning
 }
+
+export interface FromQuery<Returning>
+  extends FromBase<Returning>,
+    SelectModifiers {}
 
 export type Union<Returning = SelectionInput> =
   | {union: SelectQuery<Returning>}
@@ -90,11 +98,10 @@ export interface UnionQuery<Returning = SelectionInput>
   select: CompoundSelect<Returning>
 }
 
-export type SelectQuery<Returning = SelectionInput> = (
+export interface SelectQuery<Returning = SelectionInput>
+  extends SelectionQuery<Returning> {} /*=
   | SelectionQuery<Returning>
-  | FromQuery<Returning>
-) &
-  SelectModifiers
+  | FromQuery<Returning>*/
 
 export interface InsertQuery<
   Returning = SelectionInput,

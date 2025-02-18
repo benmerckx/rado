@@ -1,4 +1,4 @@
-import {alias, eq, selectQuery, table} from '@/index.ts'
+import {alias, eq, table} from '@/index.ts'
 import {integer, text} from '@/universal.ts'
 import {suite} from '@alinea/suite'
 import {builder, emit} from '../TestUtils.ts'
@@ -13,7 +13,7 @@ suite(import.meta, test => {
     const expected = 'select "Node"."id", "Node"."field1" from "Node"'
     const query = builder.select().from(Node)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: Node})
+    const direct = builder.query({from: Node})
     test.equal(emit(direct), expected)
   })
 
@@ -21,7 +21,7 @@ suite(import.meta, test => {
     const expected = 'select distinct "Node"."id", "Node"."field1" from "Node"'
     const query = builder.selectDistinct().from(Node)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: Node, distinct: true})
+    const direct = builder.query({from: Node, distinct: true})
     test.equal(emit(direct), expected)
   })
 
@@ -29,7 +29,7 @@ suite(import.meta, test => {
     const expected = 'select "Node"."id" from "Node"'
     const query = builder.select(Node.id).from(Node)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: Node, select: Node.id})
+    const direct = builder.query({from: Node, select: Node.id})
     test.equal(emit(direct), expected)
   })
 
@@ -39,7 +39,7 @@ suite(import.meta, test => {
     const right = alias(Node, 'right')
     const query = builder.select().from(Node).leftJoin(right, eq(right.id, 1))
     test.equal(emit(query), expected)
-    const direct = selectQuery({
+    const direct = builder.query({
       from: [Node, {leftJoin: right, on: eq(right.id, 1)}]
     })
     test.equal(emit(direct), expected)
@@ -51,7 +51,7 @@ suite(import.meta, test => {
     const right = alias(Node, 'right')
     const query = builder.select().from(Node).fullJoin(right, eq(right.id, 1))
     test.equal(emit(query), expected)
-    const direct = selectQuery({
+    const direct = builder.query({
       from: [Node, {fullJoin: right, on: eq(right.id, 1)}]
     })
     test.equal(emit(direct), expected)
@@ -62,7 +62,7 @@ suite(import.meta, test => {
       'select "Node"."id", "Node"."field1" from "Node" order by "Node"."id"'
     const query = builder.select().from(Node).orderBy(Node.id)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: Node, orderBy: [Node.id]})
+    const direct = builder.query({from: Node, orderBy: [Node.id]})
     test.equal(emit(direct), expected)
   })
 
@@ -71,7 +71,7 @@ suite(import.meta, test => {
       'select "Node"."id", "Node"."field1" from "Node" group by "Node"."id"'
     const query = builder.select().from(Node).groupBy(Node.id)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: Node, groupBy: [Node.id]})
+    const direct = builder.query({from: Node, groupBy: [Node.id]})
     test.equal(emit(direct), expected)
   })
 
@@ -80,7 +80,7 @@ suite(import.meta, test => {
       'select "Node"."id", "Node"."field1" from "Node" limit 10 offset 5'
     const query = builder.select().from(Node).limit(10).offset(5)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: Node, limit: 10, offset: 5})
+    const direct = builder.query({from: Node, limit: 10, offset: 5})
     test.equal(emit(direct), expected)
   })
 
@@ -90,7 +90,7 @@ suite(import.meta, test => {
       .select({result: {id: Node.id, field1: Node.field1}})
       .from(Node)
     test.equal(emit(query), expected)
-    const direct = selectQuery({
+    const direct = builder.query({
       from: Node,
       select: {result: {id: Node.id, field1: Node.field1}}
     })
@@ -103,7 +103,7 @@ suite(import.meta, test => {
     const sub = builder.select(Node.id).from(Node).as('sub')
     const query = builder.select(sub).from(sub)
     test.equal(emit(query), expected)
-    const direct = selectQuery({from: sub, select: sub})
+    const direct = builder.query({from: sub, select: sub})
     test.equal(emit(direct), expected)
   })
 
@@ -121,7 +121,7 @@ suite(import.meta, test => {
       .from(cte)
       .limit(10)
     test.equal(emit(query), expected)
-    const direct = selectQuery({
+    const direct = builder.query({
       with: [cte, cte2],
       from: cte,
       select: {nodeId: cte.id, cte2Id: cte2},
