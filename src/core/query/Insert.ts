@@ -61,11 +61,11 @@ class InsertCanReturn<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > extends Insert<void, Meta> {
-  returning(
-    this: InsertCanReturn<Definition, IsPostgres | IsSqlite>
+  returning<Meta extends IsPostgres | IsSqlite>(
+    this: InsertCanReturn<Definition, Meta>
   ): Insert<TableRow<Definition>, Meta>
-  returning<Input extends SelectionInput>(
-    this: InsertCanReturn<Definition, IsPostgres | IsSqlite>,
+  returning<Input extends SelectionInput, Meta extends IsPostgres | IsSqlite>(
+    this: InsertCanReturn<Definition, Meta>,
     returning: Input
   ): Insert<SelectionRow<Input>, Meta>
   returning(returning?: SelectionInput) {

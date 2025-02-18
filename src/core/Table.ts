@@ -129,7 +129,7 @@ export class TableApi<
   }
 
   drop(): Sql {
-    return sql`drop table ${this.target()}`
+    return sql`drop table if exists ${this.target()}`
   }
 
   indexes(): Record<string, Index> {

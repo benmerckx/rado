@@ -71,6 +71,11 @@ export class Database<Meta extends QueryMeta = Either>
     )
   }
 
+  run(input: HasSql): Deliver<Meta, void> {
+    const emitter = this.dialect.emit(input)
+    return this.driver.exec(emitter.sql) as Deliver<Meta, void>
+  }
+
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
     const computeDiff = this.diff
     return this.transaction<void>(

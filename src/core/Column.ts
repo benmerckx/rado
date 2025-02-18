@@ -61,8 +61,8 @@ export class Column<Value = unknown> {
       defaultValue: sql.unsafe('now()')
     })
   }
-  primaryKey(): Column<WithoutNull<Value>> {
-    return new Column({...getData(this), primary: true})
+  primaryKey(options?: {autoIncrement: boolean}): Column<WithoutNull<Value>> {
+    return new Column({...getData(this), ...options, primary: true})
   }
   unique(name?: string): Column<Value> {
     return new Column({...getData(this), isUnique: true})
