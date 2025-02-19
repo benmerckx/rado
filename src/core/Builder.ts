@@ -49,9 +49,7 @@ class BuilderBase<Meta extends QueryMeta> {
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     update: UpdateQuery<Returning, Definition>
   ): SingleQuery<SelectionRow<Returning>, Meta>
-  query<Returning extends SelectionInput | FromGuard>(
-    query: Query<Returning>
-  ): SingleQuery<SelectionRow<Returning>, Meta> {
+  query(query: Query): SingleQuery<unknown, Meta> {
     const data = {...getData(this), ...query}
     if ('delete' in query) return new Delete(data as DeleteQuery)
     if ('insert' in query) return new Insert(data as InsertQuery)
