@@ -1,4 +1,3 @@
-import type {ColumnData} from './Column.ts'
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {type HasSql, getSql, hasSql, internalSql} from './Internal.ts'
@@ -34,27 +33,15 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 
   inlineFields(withTableName: boolean): Sql<Value> {
-    return new Sql(emitter => {
-      const previous = emitter.inlineFields
-      emitter.inlineFields = !withTableName
-      this.emit(emitter)
-      emitter.inlineFields = previous
-    })
+    return new Sql(emitter => emitter.inlineFields(this, withTableName))
   }
 
   inlineValues(): Sql<Value> {
-    return new Sql(emitter => {
-      const previous = emitter.inlineValues
-      emitter.inlineValues = true
-      this.emit(emitter)
-      emitter.inlineValues = previous
-    })
+    return new Sql(emitter => emitter.inlineValues(this))
   }
 
   nameSelf(name: string): Sql<Value> {
-    return new Sql(emitter => {
-      emitter.emitSelf({name, inner: this})
-    })
+    return new Sql(emitter => emitter.emitSelf(this, name))
   }
 
   forSelection(): Sql<Value> {
@@ -118,10 +105,6 @@ export namespace sql {
     return new Sql(emitter => emitter.emitField(field))
   }
 
-  export function column(column: ColumnData): Sql {
-    return new Sql(emitter => emitter.emitColumn(column))
-  }
-
   export function jsonPath<T>(path: JsonPath): Sql<T> {
     if (path.target instanceof JsonPathSql) {
       const inner = path.target.path
@@ -141,15 +124,20 @@ export namespace sql {
 
   type QueryChunk = HasSql | undefined
   export function query(
-    ast: Record<string, boolean | QueryChunk | Array<QueryChunk>>
+    ...chunks: Array<
+      QueryChunk | Record<string, boolean | QueryChunk | Array<QueryChunk>>
+    >
   ): Sql {
     return join(
-      Object.entries(ast).map(([key, value]) => {
-        const statement = key.replace(/([A-Z])/g, ' $1').toLocaleLowerCase()
-        if (value === true) return sql.unsafe(statement)
-        if (Array.isArray(value)) value = join(value)
-        if (!key) return value
-        return value && sql`${sql.unsafe(statement)} ${value}`
+      chunks.filter(Boolean).flatMap(chunk => {
+        if (hasSql(chunk!)) return chunk
+        return Object.entries(chunk!).map(([key, value]) => {
+          const statement = key.replace(/([A-Z])/g, ' $1').toLowerCase()
+          if (value === true) return sql.unsafe(statement)
+          if (Array.isArray(value)) value = join(value)
+          if (!key) return value
+          return value && sql`${sql.unsafe(statement)} ${value}`
+        })
       })
     )
   }
@@ -162,7 +150,7 @@ export namespace sql {
     return new Sql(emitter => {
       for (let i = 0; i < parts.length; i++) {
         if (i > 0) separator.emit(emitter)
-        getSql(parts[i]!).emit(emitter)
+        getSql(parts[i]).emit(emitter)
       }
     })
   }

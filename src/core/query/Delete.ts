@@ -1,44 +1,40 @@
 import {
   type HasSql,
-  type HasTable,
   getData,
+  getTable,
   internalData,
   internalQuery,
   internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {Query, type QueryData} from '../Query.ts'
+import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
   type Selection,
   type SelectionInput,
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {Sql} from '../Sql.ts'
+import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
+import {formatCTE} from './CTE.ts'
+import type {DeleteQuery} from './Query.ts'
 
-export interface DeleteData<Meta extends QueryMeta = QueryMeta>
-  extends QueryData<Meta> {
-  from: HasTable
-  where?: HasSql
-  returning?: Selection
-}
-
-export class Delete<Result, Meta extends QueryMeta = QueryMeta> extends Query<
-  Result,
-  Meta
-> {
-  readonly [internalData]: DeleteData<Meta>
+export class Delete<
+  Returning,
+  Meta extends QueryMeta = QueryMeta
+> extends SingleQuery<Returning, Meta> {
+  readonly [internalData]: QueryData<Meta> & DeleteQuery
   declare readonly [internalSelection]?: Selection
 
-  constructor(data: DeleteData<Meta>) {
+  constructor(data: QueryData<Meta> & DeleteQuery) {
     super(data)
     this[internalData] = data
-    if (data.returning) this[internalSelection] = data.returning
+    if (data.returning) this[internalSelection] = selection(data.returning)
   }
+
   get [internalQuery](): Sql {
-    return new Sql(emitter => emitter.emitDelete(this))
+    return deleteQuery(getData(this))
   }
 }
 
@@ -62,7 +58,17 @@ export class DeleteFrom<
     const data = getData(this)
     return new Delete({
       ...data,
-      returning: returning ? selection(returning) : selection.table(data.from)
+      returning
     })
   }
+}
+
+export function deleteQuery(query: DeleteQuery): Sql {
+  const {delete: from, where, returning} = query
+  const table = getTable(from)
+  return sql.query(formatCTE(query), {
+    deleteFrom: sql.identifier(table.name),
+    where,
+    returning: returning && selection(returning)
+  })
 }

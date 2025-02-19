@@ -1,12 +1,12 @@
 import {
+  type HasConstraint,
+  type HasData,
   getData,
   getField,
   internalConstraint,
-  internalData,
-  type HasConstraint,
-  type HasData
+  internalData
 } from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 
 export interface UniqueConstraintData {

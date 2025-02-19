@@ -7,7 +7,7 @@ export {
   intersectAll,
   union,
   unionAll
-} from './core/query/Union.ts'
+} from './core/query/Select.ts'
 export {schema as mysqlSchema} from './core/Schema.ts'
 export {alias, table as mysqlTable} from './core/Table.ts'
 export * from './mysql/builder.ts'

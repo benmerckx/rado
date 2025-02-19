@@ -1,7 +1,7 @@
 import type {Database as Client, Statement} from 'better-sqlite3'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
-  BatchQuery,
+  BatchedQuery,
   PrepareOptions,
   SyncDriver,
   SyncStatement
@@ -59,7 +59,7 @@ class BetterSqlite3Driver implements SyncDriver {
     return new PreparedStatement(this.client.prepare(sql), options.isSelection)
   }
 
-  batch(queries: Array<BatchQuery>): Array<Array<unknown>> {
+  batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
     return this.transaction(
       tx =>
         queries.map(({sql, params, isSelection}) =>

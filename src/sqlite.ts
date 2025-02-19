@@ -5,7 +5,7 @@ export {
   intersect,
   union,
   unionAll
-} from './core/query/Union.ts'
+} from './core/query/Select.ts'
 export {alias, table as sqliteTable} from './core/Table.ts'
 export * from './sqlite/builder.ts'
 export * from './sqlite/columns.ts'

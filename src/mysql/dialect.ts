@@ -15,10 +15,13 @@ export const mysqlDialect: Dialect = new Dialect(
   'mysql',
   class extends Emitter {
     runtime: Runtime = 'mysql'
-    paramIndex = 0
     emitValue(value: unknown) {
-      this.sql += '?'
       this.params.push(new ValueParam(value))
+      this.sql += '?'
+    }
+    emitPlaceholder(name: string) {
+      this.params.push(new NamedParam(name))
+      this.sql += '?'
     }
     emitJsonPath({target, asSql, segments}: JsonPath) {
       target.emit(this)
@@ -36,10 +39,6 @@ export const mysqlDialect: Dialect = new Dialect(
       if (typeof value === 'string')
         return (this.sql += this.quoteString(value))
       this.sql += this.quoteString(JSON.stringify(value))
-    }
-    emitPlaceholder(name: string) {
-      this.sql += '?'
-      this.params.push(new NamedParam(name))
     }
     quoteString(input: string): string {
       return (

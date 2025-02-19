@@ -39,10 +39,13 @@ suite(import.meta, test => {
   })
 
   test('returning', () => {
-    const query = new QueryBuilder()
-      .update(Node)
-      .set({required: 3})
-      .returning(Node.id)
+    const db = new QueryBuilder()
+    const query = db.update(Node).set({required: 3}).returning(Node.id)
     test.equal(emit(query), 'update "Node" set "required" = 3 returning "id"')
+
+    db.$query({
+      insert: Node,
+      returning: Node.id
+    })
   })
 })

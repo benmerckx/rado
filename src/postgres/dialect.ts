@@ -15,10 +15,13 @@ export const postgresDialect: Dialect = new Dialect(
   'postgres',
   class extends Emitter {
     runtime: Runtime = 'postgres'
-    paramIndex = 0
     emitValue(value: unknown) {
-      this.sql += `$${++this.paramIndex}`
       this.params.push(new ValueParam(value))
+      this.sql += `$${this.params.length}`
+    }
+    emitPlaceholder(name: string) {
+      this.params.push(new NamedParam(name))
+      this.sql += `$${this.params.length}`
     }
     emitJsonPath({target, asSql, segments}: JsonPath) {
       target.emit(this)
@@ -37,10 +40,6 @@ export const postgresDialect: Dialect = new Dialect(
       if (typeof value === 'string')
         return (this.sql += this.quoteString(value))
       this.sql += this.quoteString(JSON.stringify(value))
-    }
-    emitPlaceholder(name: string) {
-      this.sql += `$${++this.paramIndex}`
-      this.params.push(new NamedParam(name))
     }
     quoteString(input: string): string {
       return (
