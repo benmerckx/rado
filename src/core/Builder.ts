@@ -8,7 +8,9 @@ import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
 import type {
   DeleteQuery,
+  FromGuard,
   FromQuery,
+  FromResult,
   InsertQuery,
   Query,
   QueryBase,
@@ -35,9 +37,9 @@ class BuilderBase<Meta extends QueryMeta> {
   query<Returning extends SelectionInput>(
     select: SelectionQuery<Returning>
   ): SingleQuery<SelectionRow<Returning>, Meta>
-  query<Returning>(
-    from: FromQuery<Returning>
-  ): SingleQuery<SelectionRow<Returning>, Meta>
+  query<const From extends FromGuard>(
+    from: FromQuery<From>
+  ): SingleQuery<FromResult<From>, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     insert: InsertQuery<Returning, Definition>
   ): SingleQuery<SelectionRow<Returning>, Meta>
@@ -47,7 +49,7 @@ class BuilderBase<Meta extends QueryMeta> {
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     update: UpdateQuery<Returning, Definition>
   ): SingleQuery<SelectionRow<Returning>, Meta>
-  query<Returning extends SelectionInput>(
+  query<Returning extends SelectionInput | FromGuard>(
     query: Query<Returning>
   ): SingleQuery<SelectionRow<Returning>, Meta> {
     const data = {...getData(this), ...query}

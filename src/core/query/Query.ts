@@ -1,36 +1,42 @@
 import type {HasSql, HasTarget} from '../Internal.ts'
-import type {SelectionInput} from '../Selection.ts'
+import type {MakeNullable, SelectionInput, SelectionRow} from '../Selection.ts'
 import type {
   Table,
   TableDefinition,
+  TableFields,
   TableInsert,
   TableUpdate
 } from '../Table.ts'
+import type {Expand} from '../Types.ts'
 import type {Input} from '../expr/Input.ts'
 import type {CTE} from './CTE.ts'
 import type {OnConflict, OnConflictSet, OnConflictUpdate} from './Insert.ts'
 
-export interface InnerJoin {
-  innerJoin: HasTarget
+export interface InnerJoin<Target> {
+  innerJoin: Target
   on: HasSql<boolean>
 }
 
-export interface LeftJoin {
-  leftJoin: HasTarget
+export interface LeftJoin<Target> {
+  leftJoin: Target
   on: HasSql<boolean>
 }
 
-export interface RightJoin {
-  rightJoin: HasTarget
+export interface RightJoin<Target> {
+  rightJoin: Target
   on: HasSql<boolean>
 }
 
-export interface FullJoin {
-  fullJoin: HasTarget
+export interface FullJoin<Target> {
+  fullJoin: Target
   on: HasSql<boolean>
 }
 
-export type Join = InnerJoin | LeftJoin | RightJoin | FullJoin
+export type Join<Target = HasTarget> =
+  | InnerJoin<Target>
+  | LeftJoin<Target>
+  | RightJoin<Target>
+  | FullJoin<Target>
 export type JoinOp = 'leftJoin' | 'rightJoin' | 'innerJoin' | 'fullJoin'
 
 export interface QueryBase {
@@ -64,13 +70,37 @@ export interface SelectionQuery<Returning = SelectionInput>
   extends SelectionBase<Returning>,
     SelectModifiers {}
 
-interface FromBase<Returning = FromGuard> extends SelectBase<Returning> {
-  from: Returning
+interface FromBase<Target = FromGuard> extends SelectBase<undefined> {
+  from: Target
 }
 
-export interface FromQuery<Returning>
-  extends FromBase<Returning>,
-    SelectModifiers {}
+export interface FromQuery<Target> extends FromBase<Target>, SelectModifiers {}
+
+type FoldJoins<T extends Array<unknown>, Result> = T extends [
+  infer Join,
+  ...infer Joins
+]
+  ? FoldJoins<
+      Joins,
+      Join extends LeftJoin<Table<infer Definition, infer Name>>
+        ? Result & MakeNullable<Record<Name, TableFields<Definition>>>
+        : Join extends RightJoin<Table<infer Definition, infer Name>>
+          ? MakeNullable<Result> & Record<Name, TableFields<Definition>>
+          : Join extends InnerJoin<Table<infer Definition, infer Name>>
+            ? Result & Record<Name, TableFields<Definition>>
+            : Join extends FullJoin<Table<infer Definition, infer Name>>
+              ? MakeNullable<Result> &
+                  MakeNullable<Record<Name, TableFields<Definition>>>
+              : Result
+    >
+  : Result
+
+export type FromResult<Target> = Target extends [
+  Table<infer Definition, infer Name>,
+  ...infer Joins
+]
+  ? Expand<FoldJoins<Joins, Record<Name, TableFields<Definition>>>>
+  : SelectionRow<Target>
 
 export type Union<Returning = SelectionInput> =
   | {union: SelectQuery<Returning>}
@@ -134,8 +164,9 @@ export interface UpdateQuery<
   returning?: Returning
 }
 
-export type Query<Returning extends SelectionInput = SelectionInput> =
-  | SelectQuery<Returning>
+export type Query<Returning = SelectionInput> =
+  | SelectionQuery<Returning>
+  | FromQuery<Returning>
   | InsertQuery<Returning>
   | DeleteQuery<Returning>
   | UpdateQuery<Returning>
