@@ -1,3 +1,4 @@
+import {formatColumn} from '../core/Column.ts'
 import {Rollback} from '../core/Database.ts'
 import type {Diff} from '../core/Diff.ts'
 import {type HasSql, getData, getQuery, getTable} from '../core/Internal.ts'
@@ -47,7 +48,7 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
         return [
           column.name,
           inline(
-            sql.column({
+            formatColumn({
               type: sql.unsafe(column.type.toLowerCase()),
               notNull: column.notnull,
               primary: hasSinglePrimaryKey && column.pk === 1,
@@ -64,7 +65,7 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
-        return [columnApi.name ?? name, inline(sql.column(columnApi))]
+        return [columnApi.name ?? name, inline(formatColumn(columnApi))]
       })
     )
 

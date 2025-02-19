@@ -1,5 +1,5 @@
 import type {Dialect} from './Dialect.ts'
-import type {BatchQuery, Driver, DriverSpecs, Statement} from './Driver.ts'
+import type {BatchedQuery, Driver, DriverSpecs, Statement} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {
   type HasQuery,
@@ -51,7 +51,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
 
 type RowMapper = ((ctx: MapRowContext) => unknown) | undefined
 
-interface QueryWithMapRow extends BatchQuery {
+interface QueryWithMapRow extends BatchedQuery {
   mapRow: RowMapper
 }
 

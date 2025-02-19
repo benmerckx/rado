@@ -1,5 +1,5 @@
-import {getData, internalData, type HasData, type HasSql} from './Internal.ts'
-import {sql, type Sql} from './Sql.ts'
+import {type HasData, type HasSql, getData, internalData} from './Internal.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Field} from './expr/Field.ts'
 
 class IndexData {

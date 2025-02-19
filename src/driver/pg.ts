@@ -3,7 +3,7 @@ import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
-  BatchQuery,
+  BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
@@ -80,7 +80,7 @@ export class PgDriver implements AsyncDriver {
     if ('release' in this.client) return this.client.release()
   }
 
-  async batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>> {
+  async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
     return this.transaction(async tx => {
       const results = []
       for (const {sql, params} of queries)

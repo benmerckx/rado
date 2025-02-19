@@ -17,8 +17,12 @@ export const sqliteDialect: Dialect = new Dialect(
       return typeof value === 'boolean' ? (value ? 1 : 0) : value
     }
     emitValue(value: unknown) {
-      this.sql += '?'
       this.params.push(new ValueParam(value))
+      this.sql += '?'
+    }
+    emitPlaceholder(name: string) {
+      this.params.push(new NamedParam(name))
+      this.sql += '?'
     }
     emitJsonPath({target, asSql, segments}: JsonPath) {
       target.emit(this)
@@ -36,10 +40,6 @@ export const sqliteDialect: Dialect = new Dialect(
         return (this.sql += this.quoteString(value))
       if (typeof value === 'boolean') return (this.sql += value ? '1' : '0')
       this.sql += `json(${this.quoteString(JSON.stringify(value))})`
-    }
-    emitPlaceholder(name: string) {
-      this.sql += '?'
-      this.params.push(new NamedParam(name))
     }
     emitIdentifier(identifier: string) {
       this.sql +=

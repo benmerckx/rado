@@ -7,14 +7,15 @@ import {
   getSql,
   getTable,
   hasField,
+  hasTable,
   internalSql
 } from './Internal.ts'
-import type {JoinOperator} from './Join.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
 import {virtual} from './Virtual.ts'
 import type {Include} from './expr/Include.ts'
+import type {JoinOp} from './query/Query.ts'
 
 declare const nullable: unique symbol
 export interface SelectionRecord extends Record<string, SelectionInput> {}
@@ -23,6 +24,7 @@ export type MakeNullable<T> = Expand<{[K in keyof T]: T[K] & IsNullable}>
 export type SelectionInput =
   | HasSql
   | HasTable
+  | HasTarget
   | SelectionRecord
   | Include<unknown>
 export type RowOfRecord<Input> = Expand<{
@@ -95,7 +97,7 @@ export class Selection implements HasSql {
 
   constructor(
     public input: SelectionInput,
-    public nullable: Set<string>
+    public nullable: Set<string> = new Set()
   ) {
     const root = this.#defineColumn(nullable, input)
     this.mapRow = root.result.bind(root)
@@ -167,7 +169,7 @@ export class Selection implements HasSql {
     return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
   }
 
-  join(right: HasTable, operator: JoinOperator): Selection {
+  join(right: HasTarget, operator: JoinOp): Selection {
     return this
   }
 }
@@ -177,13 +179,14 @@ export class TableSelection extends Selection {
     super(table, new Set())
   }
 
-  join(right: HasTable, operator: JoinOperator): Selection {
+  join(right: HasTarget, operator: JoinOp): Selection {
     const leftTable = getTable(this.table)
+    if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)
-    if (operator === 'right' || operator === 'full')
+    if (operator === 'rightJoin' || operator === 'fullJoin')
       nullable.add(leftTable.aliased)
-    if (operator === 'left' || operator === 'full')
+    if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
     return new JoinSelection([this.table, right], nullable)
   }
@@ -200,28 +203,28 @@ export class JoinSelection extends Selection {
     )
   }
 
-  join(right: HasTable, operator: JoinOperator): Selection {
+  join(right: HasTarget, operator: JoinOp): Selection {
+    if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)
-    if (operator === 'right' || operator === 'full')
+    if (operator === 'rightJoin' || operator === 'fullJoin')
       this.tables
         .map(table => getTable(table).aliased)
         .forEach(nullable.add, nullable)
-    if (operator === 'left' || operator === 'full')
+    if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
     return new JoinSelection([...this.tables, right], nullable)
   }
 }
 
-export function selection(
-  input: SelectionInput,
-  nullable: Array<string> = []
-): Selection {
-  return new Selection(input, new Set(nullable))
-}
+const selected = new WeakMap<SelectionInput, Selection>()
 
-export namespace selection {
-  export function table(table: HasTable): TableSelection {
-    return new TableSelection(table)
-  }
+export function selection(input: SelectionInput): Selection {
+  if (input instanceof Selection) return input
+  if (selected.has(input)) return selected.get(input)!
+  const selection = hasTable(input)
+    ? new TableSelection(input)
+    : new Selection(input)
+  selected.set(input, selection)
+  return selection
 }

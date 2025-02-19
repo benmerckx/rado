@@ -1,6 +1,6 @@
 import {type HasSql, getQuery, hasSql} from '../Internal.ts'
 import type {Either} from '../MetaData.ts'
-import type {Query} from '../Query.ts'
+import type {SingleQuery} from '../Queries.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {type Input, input} from './Input.ts'
 
@@ -82,7 +82,7 @@ export function not(condition: Input<boolean>): Sql<boolean> {
 
 export function inArray<T>(
   left: Input<T>,
-  right: Query<T, any> | Input<Array<T>>
+  right: SingleQuery<T, any> | Input<Array<T>>
 ): Sql<boolean> {
   const value = hasSql(right) ? undefined : right
   if (Array.isArray(value)) {
@@ -94,7 +94,7 @@ export function inArray<T>(
 
 export function notInArray<T>(
   left: Input<T>,
-  right: Query<T, any> | Input<Array<T>>
+  right: SingleQuery<T, any> | Input<Array<T>>
 ): Sql<boolean> {
   const value = hasSql(right) ? undefined : right
   if (Array.isArray(value)) {
@@ -175,6 +175,6 @@ export function when<Out, In = boolean>(
   ])
 }
 
-export function exists(query: Query<any, Either>): Sql<boolean> {
+export function exists(query: SingleQuery<any, Either>): Sql<boolean> {
   return bool(sql`exists (${getQuery(query)})`)
 }

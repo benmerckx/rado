@@ -1,7 +1,6 @@
 import {
   type HasSelection,
   type HasSql,
-  type HasTable,
   type HasTarget,
   getData,
   getQuery,
@@ -16,12 +15,13 @@ import {
   internalSql,
   internalTarget
 } from '../Internal.ts'
-import type {JoinOperator} from '../Join.ts'
-import type {QueryMeta} from '../MetaData.ts'
+import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
+import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
   type IsNullable,
   type MakeNullable,
   type Selection,
+  type SelectionInput,
   type SelectionRecord,
   type SelectionRow,
   selection
@@ -32,32 +32,98 @@ import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field} from '../expr/Field.ts'
 import {type Input as UserInput, input} from '../expr/Input.ts'
-import {UnionBase, type UnionBaseData} from './Union.ts'
+import {formatCTE} from './CTE.ts'
+import type {
+  CompoundSelect,
+  Join,
+  JoinOp,
+  SelectQuery,
+  UnionOp,
+  UnionQuery
+} from './Query.ts'
 
-export type SelectionType = 'selection' | 'allFrom' | 'joinTables'
+type UnionTarget<Input, Meta extends QueryMeta> =
+  | UnionBase<Input, Meta>
+  | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
-export interface SelectData<Meta extends QueryMeta = QueryMeta>
-  extends UnionBaseData<Meta> {
-  distinct?: boolean
-  distinctOn?: Array<HasSql>
-  from?: HasSql
-  where?: HasSql
-  groupBy?: HasSql
-  having?: HasSql
-  orderBy?: HasSql
-  limit?: HasSql
-  offset?: HasSql
+export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<SelectionRow<Input>, Meta>
+  implements HasSelection
+{
+  readonly [internalData]: QueryData<Meta>
+  abstract [internalSelection]: Selection
+
+  constructor(data: QueryData<Meta> & {compound: CompoundSelect}) {
+    super(data)
+    this[internalData] = data
+  }
+
+  #makeSelf(): Input & HasTarget {
+    const selected = getSelection(this)
+    return selected.makeVirtual(Sql.SELF_TARGET)
+  }
+
+  #getSelect(base: UnionBase<any>): CompoundSelect {
+    const data = getData(base)
+    if (!('compound' in data)) throw new Error('No compound defined')
+    return data.compound as CompoundSelect
+  }
+
+  #compound(op: UnionOp, target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    const left = this.#getSelect(this)
+    const right = this.#getSelect(
+      typeof target === 'function' ? target(this.#makeSelf()) : target
+    )
+    const [on, ...rest] = right
+    const select = [...left, {[op]: on}, ...rest] as CompoundSelect
+    return new Union({
+      ...this,
+      select
+    })
+  }
+
+  union(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('union', target)
+  }
+
+  unionAll(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('unionAll', target)
+  }
+
+  intersect(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('intersect', target)
+  }
+
+  intersectAll<Meta extends IsPostgres | IsMysql>(
+    this: UnionBase<Input, Meta>,
+    target: UnionTarget<Input, Meta>
+  ): Union<Input, Meta> {
+    return this.#compound('intersectAll', target)
+  }
+
+  except(target: UnionTarget<Input, Meta>): Union<Input, Meta> {
+    return this.#compound('except', target)
+  }
+
+  exceptAll<Meta extends IsPostgres | IsMysql>(
+    this: UnionBase<Input, Meta>,
+    target: UnionTarget<Input, Meta>
+  ): Union<Input, Meta> {
+    return this.#compound('exceptAll', target)
+  }
 }
 
 export class Select<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Input, Meta>
   implements HasSelection, SelectBase<Input, Meta>
 {
-  readonly [internalData]: SelectData<Meta>
+  readonly [internalData]: QueryData<Meta> & SelectQuery
 
-  constructor(data: SelectData<Meta>) {
-    super(data)
-    this[internalData] = data
+  constructor(data: QueryData<Meta> & SelectQuery) {
+    const compound: CompoundSelect = [data]
+    const withCompound = {...data, compound}
+    super(withCompound)
+    this[internalData] = withCompound
   }
 
   as(alias: string): SubQuery<Input> {
@@ -69,114 +135,70 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     })
   }
 
-  from(target: HasTarget | HasSql): Select<Input, Meta> {
-    const {select: current} = getData(this)
-    const from = hasTarget(target) ? getTarget(target) : getSql(target)
-    const isTable = hasTable(target)
-    const selected =
-      current ?? (isTable ? selection.table(<any>target) : selection(sql`*`))
-    return new Select({
-      ...getData(this),
-      select: selected,
-      from
-    })
+  from(from: HasTarget | HasSql): Select<Input, Meta> {
+    return new Select({...getData(this), from})
   }
 
-  #join(
-    operator: JoinOperator,
-    right: HasTable | HasTarget,
-    on: HasSql<boolean>
-  ): Select<Input, Meta> {
-    const {from, select: current} = getData(this)
-    return new Select({
-      ...getData(this),
-      select: hasTable(right) ? current?.join(right, operator) : current,
-      from: sql.join([
-        from,
-        sql.unsafe(`${operator} join`),
-        getTarget(<HasTarget>right),
-        sql`on ${on}`
-      ])
-    })
+  #fromTarget(): [HasTarget, ...Array<Join>] {
+    const {from} = getData(this)
+    if (!from) throw new Error('No target defined')
+    if (Array.isArray(from)) return from
+    if (!hasTarget(from)) throw new Error('No target defined')
+    return [from]
   }
 
-  leftJoin(
-    right: HasTable | HasTarget,
-    on: HasSql<boolean>
-  ): Select<Input, Meta> {
-    return this.#join('left', right, on)
+  #join(join: Join): Select<Input, Meta> {
+    return new Select({...getData(this), from: [...this.#fromTarget(), join]})
   }
 
-  rightJoin(
-    right: HasTable | HasTarget,
-    on: HasSql<boolean>
-  ): Select<Input, Meta> {
-    return this.#join('right', right, on)
+  leftJoin(leftJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+    return this.#join({leftJoin, on})
   }
 
-  innerJoin(
-    right: HasTable | HasTarget,
-    on: HasSql<boolean>
-  ): Select<Input, Meta> {
-    return this.#join('inner', right, on)
+  rightJoin(rightJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+    return this.#join({rightJoin, on})
   }
 
-  fullJoin(
-    right: HasTable | HasTarget,
-    on: HasSql<boolean>
-  ): Select<Input, Meta> {
-    return this.#join('full', right, on)
+  innerJoin(innerJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+    return this.#join({innerJoin, on})
+  }
+
+  fullJoin(fullJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+    return this.#join({fullJoin, on})
   }
 
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta> {
     return new Select({...getData(this), where: and(...where)})
   }
 
-  groupBy(...exprs: Array<HasSql>): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      groupBy: sql.join(exprs, sql.unsafe(', '))
-    })
+  groupBy(...groupBy: Array<HasSql>): Select<Input, Meta> {
+    return new Select({...getData(this), groupBy})
   }
 
   having(
     having: HasSql<boolean> | ((self: Input) => HasSql<boolean>)
   ): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      having:
-        typeof having === 'function'
-          ? having(<Input>getSelection(this).input)
-          : having
-    })
+    return new Select({...getData(this), having: having as any})
   }
 
-  orderBy(...exprs: Array<HasSql>): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      orderBy: sql.join(exprs, sql.unsafe(', '))
-    })
+  orderBy(...orderBy: Array<HasSql>): Select<Input, Meta> {
+    return new Select({...getData(this), orderBy})
   }
 
   limit(limit: UserInput<number>): Select<Input, Meta> {
-    return new Select({...getData(this), limit: input(limit)})
+    return new Select({...getData(this), limit})
   }
 
   offset(offset: UserInput<number>): Select<Input, Meta> {
-    return new Select({
-      ...getData(this),
-      offset: input(offset)
-    })
+    return new Select({...getData(this), offset})
   }
 
   get [internalSelection](): Selection {
-    const {select} = getData(this)
-    if (!select) throw new Error('No selection defined')
-    return select
+    return querySelection(getData(this))
   }
 
   get [internalQuery](): Sql {
-    return new Sql(emitter => emitter.emitSelect(getData(this)))
+    return selectQuery(getData(this))
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
@@ -188,7 +210,6 @@ export type SubQuery<Input> = Input & HasTarget
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Input, Meta>,
-    HasSelection,
     HasSql<SelectionRow<Input>> {
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
@@ -288,4 +309,159 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+}
+
+export function querySelection({select, from}: SelectQuery): Selection {
+  if (select) return selection(select as SelectionInput)
+  if (!from) throw new Error('No selection defined')
+  if (Array.isArray(from)) {
+    const [target, ...joins] = from
+    let result = selection(target)
+    for (const join of joins) {
+      const {target, op} = joinOp(join)
+      result = result.join(target, op)
+    }
+    return result
+  }
+  return hasTable(from) ? selection(from) : selection(sql`*`)
+}
+
+function joinOp(join: Join) {
+  const {on, ...rest} = join
+  const op = Object.keys(rest)[0] as JoinOp
+  const target = (<Record<string, HasTarget>>rest)[op]
+  return {target, op, on}
+}
+
+function formatFrom(from: SelectQuery['from']): Sql {
+  if (!from) throw new Error('No target defined')
+  if (Array.isArray(from)) {
+    return sql.join(
+      from.map(join => {
+        if (hasTarget(join)) return getTarget(join)
+        const {target, op, on} = joinOp(join)
+        return sql.query({[op]: getTarget(target), on})
+      })
+    )
+  }
+  return hasTarget(from) ? getTarget(from) : getSql(from)
+}
+
+export function selectQuery(query: SelectQuery): Sql {
+  const {
+    from,
+    where,
+    groupBy,
+    orderBy,
+    having,
+    limit,
+    offset,
+    distinct,
+    distinctOn
+  } = query
+  const prefix = distinctOn
+    ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
+    : distinct && sql`distinct`
+  const selected = querySelection(query)
+  const select = sql.join([prefix, selected])
+
+  return sql.query(formatCTE(query), {
+    select,
+    from: from && formatFrom(from),
+    where,
+    groupBy: groupBy && sql.join(groupBy, sql`, `),
+    having: typeof having === 'function' ? having(selected.input) : having,
+    orderBy: orderBy && sql.join(orderBy, sql`, `),
+    limit: limit !== undefined && input(limit),
+    offset: offset !== undefined && input(offset)
+  })
+}
+
+export class Union<Result, Meta extends QueryMeta = QueryMeta>
+  extends UnionBase<Result, Meta>
+  implements HasSelection
+{
+  readonly [internalData]: QueryData<Meta> & UnionQuery
+
+  constructor(data: QueryData<Meta> & UnionQuery) {
+    const compound = data.select
+    const withCompound = {...data, compound}
+    super(withCompound)
+    this[internalData] = withCompound
+  }
+
+  get [internalQuery](): Sql {
+    return unionQuery(getData(this))
+  }
+
+  get [internalSelection](): Selection {
+    const {
+      select: [first]
+    } = getData(this)
+    if (!first.select) throw new Error('No selection defined')
+    return selection(first.select)
+  }
+}
+
+export function union<Result, Meta extends QueryMeta>(
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
+): Union<Result, Meta> {
+  return [right, ...rest].reduce(
+    (acc, query) => acc.union(query),
+    left
+  ) as Union<Result, Meta>
+}
+
+export function unionAll<Result, Meta extends QueryMeta>(
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.unionAll(right)
+}
+
+export function intersect<Result, Meta extends QueryMeta>(
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.intersect(right)
+}
+
+export function intersectAll<Result, Meta extends IsPostgres | IsMysql>(
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.intersectAll(right)
+}
+
+export function except<Result, Meta extends QueryMeta>(
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.except(right)
+}
+
+export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
+  left: UnionBase<Result, Meta>,
+  right: UnionBase<Result, Meta>
+): Union<Result, Meta> {
+  return left.exceptAll(right)
+}
+
+export function unionQuery(query: UnionQuery): Sql {
+  const {select, orderBy, limit, offset} = query
+  const segments = sql.join(
+    select.map((segment, i) => {
+      if (i === 0) return selectQuery(segment as SelectQuery)
+      const op = Object.keys(segment)[0] as UnionOp
+      const query = (<Record<UnionOp, SelectQuery>>segment)[op]
+      return sql.query({[op]: selectQuery(query)})
+    })
+  )
+  return sql.query(formatCTE(query), segments, {
+    orderBy: orderBy && sql.join(orderBy, sql`, `),
+    limit: limit !== undefined && input(limit),
+    offset: offset !== undefined && input(offset)
+  })
 }

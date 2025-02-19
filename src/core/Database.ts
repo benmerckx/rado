@@ -20,7 +20,7 @@ import type {
   QueryMeta,
   Sync
 } from './MetaData.ts'
-import {QueryBatch} from './Query.ts'
+import {BatchQuery} from './Queries.ts'
 import {Resolver} from './Resolver.ts'
 import {sql} from './Sql.ts'
 import type {Table} from './Table.ts'
@@ -57,15 +57,15 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  create(...tables: Array<HasTable>): QueryBatch<unknown, Meta> {
-    return new QueryBatch(
+  create(...tables: Array<HasTable>): BatchQuery<unknown, Meta> {
+    return new BatchQuery(
       getResolver(this),
       tables.flatMap(table => getTable(table).create())
     )
   }
 
-  drop(...tables: Array<HasTable>): QueryBatch<unknown, Meta> {
-    return new QueryBatch(
+  drop(...tables: Array<HasTable>): BatchQuery<unknown, Meta> {
+    return new BatchQuery(
       getResolver(this),
       tables.map(table => getTable(table).drop())
     )
@@ -90,8 +90,8 @@ export class Database<Meta extends QueryMeta = Either>
 
   batch<Queries extends Array<HasSql | HasQuery>>(
     queries: Queries
-  ): QueryBatch<unknown, Meta> {
-    return new QueryBatch(getResolver(this), queries)
+  ): BatchQuery<unknown, Meta> {
+    return new BatchQuery(getResolver(this), queries)
   }
 
   execute(input: HasSql): Deliver<Meta, void>

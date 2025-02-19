@@ -2,7 +2,7 @@ import type {TransactionUniversalOptions} from './Database.ts'
 
 export type Driver = SyncDriver | AsyncDriver
 export type Statement = SyncStatement | AsyncStatement
-export interface BatchQuery {
+export interface BatchedQuery {
   sql: string
   params: Array<unknown>
   isSelection: boolean
@@ -24,7 +24,7 @@ export interface SyncDriver extends DriverSpecs {
     run: (inner: SyncDriver) => T,
     options: TransactionUniversalOptions
   ): T
-  batch(queries: Array<BatchQuery>): Array<Array<unknown>>
+  batch(queries: Array<BatchedQuery>): Array<Array<unknown>>
 }
 export interface SyncStatement {
   all(params: Array<unknown>): Array<object>
@@ -41,7 +41,7 @@ export interface AsyncDriver extends DriverSpecs {
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionUniversalOptions
   ): Promise<T>
-  batch(queries: Array<BatchQuery>): Promise<Array<Array<unknown>>>
+  batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>>
 }
 export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<object>>

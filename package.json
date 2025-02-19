@@ -7,7 +7,7 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json && bun build.ts",
     "size": "esbuild src/index.ts --bundle --minify --format=esm --outdir=dist",
     "profile": "PROFILE=true bun build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
-    "prepublishOnly": "rm -rf dist && bun run build",
+    "prepublishOnly": "bun run build",
     "cycles": "madge --circular src/index.ts src/sqlite.ts src/mysql.ts src/postgres.ts",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
@@ -26,7 +26,7 @@
   },
   "files": ["dist"],
   "devDependencies": {
-    "@alinea/suite": "^0.6.0",
+    "@alinea/suite": "^0.6.1",
     "@biomejs/biome": "^1.8.3",
     "@cloudflare/workers-types": "^4.20230628.0",
     "@electric-sql/pglite": "^0.2.12",

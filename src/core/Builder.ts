@@ -1,43 +1,70 @@
-import {
-  type HasQuery,
-  type HasSql,
-  type HasTarget,
-  getData,
-  getQuery,
-  getSelection,
-  internalData,
-  internalQuery
-} from './Internal.ts'
+import {type HasSql, getData, internalData} from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
-import type {QueryData} from './Query.ts'
-import {type SelectionInput, selection} from './Selection.ts'
+import type {QueryData, SingleQuery} from './Queries.ts'
+import type {SelectionInput, SelectionRow} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
-import {DeleteFrom} from './query/Delete.ts'
-import {InsertInto} from './query/Insert.ts'
+import {type CTE, createCTE} from './query/CTE.ts'
+import {Delete, DeleteFrom} from './query/Delete.ts'
+import {Insert, InsertInto} from './query/Insert.ts'
+import type {
+  DeleteQuery,
+  FromGuard,
+  FromQuery,
+  FromRow,
+  InsertQuery,
+  Query,
+  QueryBase,
+  SelectQuery,
+  SelectionQuery,
+  UpdateQuery
+} from './query/Query.ts'
 import type {
   SelectBase,
+  UnionBase,
   WithSelection,
   WithoutSelection
 } from './query/Select.ts'
 import {Select} from './query/Select.ts'
-import type {UnionBase} from './query/Union.ts'
-import {UpdateTable} from './query/Update.ts'
+import {Update, UpdateTable} from './query/Update.ts'
 
 class BuilderBase<Meta extends QueryMeta> {
-  readonly [internalData]: QueryData<Meta>
+  readonly [internalData]: QueryData<Meta> & QueryBase
 
-  constructor(data: QueryData<Meta> = {}) {
+  constructor(data: QueryData<Meta> & QueryBase = {}) {
     this[internalData] = data
+  }
+
+  $query<Returning extends SelectionInput>(
+    select: SelectionQuery<Returning>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
+  $query<const From extends FromGuard>(
+    from: FromQuery<From>
+  ): SingleQuery<FromRow<From>, Meta>
+  $query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    insert: InsertQuery<Returning, Definition>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
+  $query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    remove: DeleteQuery<Returning, Definition>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
+  $query<Returning extends SelectionInput, Definition extends TableDefinition>(
+    update: UpdateQuery<Returning, Definition>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
+  $query(query: Query): SingleQuery<unknown, Meta> {
+    const data = {...getData(this), ...query}
+    if ('delete' in query) return new Delete(data as DeleteQuery)
+    if ('insert' in query) return new Insert(data as InsertQuery)
+    if ('update' in query) return new Update(data as UpdateQuery)
+    return new Select(data as SelectQuery)
   }
 
   select(): WithoutSelection<Meta>
   select<Input extends SelectionInput>(
-    selection: Input
+    select: Input
   ): WithSelection<Input, Meta>
-  select(input?: SelectionInput): any {
+  select(select?: SelectionInput): any {
     return new Select<unknown, Meta>({
       ...getData(this),
-      select: input && selection(input)
+      select: select!
     })
   }
 
@@ -45,10 +72,10 @@ class BuilderBase<Meta extends QueryMeta> {
   selectDistinct<Input extends SelectionInput>(
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinct(input?: SelectionInput): any {
+  selectDistinct(select?: SelectionInput): any {
     return new Select({
       ...getData(this),
-      select: input && selection(input),
+      select: select!,
       distinct: true
     })
   }
@@ -62,10 +89,10 @@ class BuilderBase<Meta extends QueryMeta> {
     columns: Array<HasSql>,
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinctOn(columns: any, input?: any): any {
+  selectDistinctOn(columns: any, select?: any): any {
     return new Select({
       ...getData(this),
-      select: input && selection(input),
+      select: select!,
       distinctOn: columns
     })
   }
@@ -73,23 +100,21 @@ class BuilderBase<Meta extends QueryMeta> {
   update<Definition extends TableDefinition>(
     table: Table<Definition>
   ): UpdateTable<Definition, Meta> {
-    return new UpdateTable<Definition, Meta>({...getData(this), table})
+    return new UpdateTable<Definition, Meta>({...getData(this), update: table})
   }
 
   insert<Definition extends TableDefinition>(
     into: Table<Definition>
   ): InsertInto<Definition, Meta> {
-    return new InsertInto<Definition, Meta>({...getData(this), into})
+    return new InsertInto<Definition, Meta>({...getData(this), insert: into})
   }
 
   delete<Definition extends TableDefinition>(
     from: Table<Definition>
   ): DeleteFrom<Definition, Meta> {
-    return new DeleteFrom<Definition, Meta>({...getData(this), from})
+    return new DeleteFrom<Definition, Meta>({...getData(this), delete: from})
   }
 }
-
-export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   $with(cteName: string): {
@@ -99,25 +124,16 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
       as<Input extends SelectionInput>(
         query: SelectBase<Input, Meta>
       ): CTE<Input> {
-        const fields = getSelection(query).makeVirtual(cteName)
-        return Object.assign(<any>fields, {
-          [internalQuery]: getQuery(query).nameSelf(cteName)
-        })
+        return createCTE(cteName, query)
       }
     }
   }
 
   with(...definitions: Array<CTE>): BuilderBase<Meta> {
-    return new BuilderBase({
-      ...getData(this),
-      cte: {recursive: false, definitions}
-    })
+    return new BuilderBase({...getData(this), with: definitions})
   }
 
   withRecursive(...definitions: Array<CTE>): BuilderBase<Meta> {
-    return new BuilderBase({
-      ...getData(this),
-      cte: {recursive: true, definitions}
-    })
+    return new BuilderBase({...getData(this), withRecursive: definitions})
   }
 }
