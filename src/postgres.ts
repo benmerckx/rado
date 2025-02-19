@@ -1,3 +1,4 @@
+export {foreignKey, primaryKey, unique} from './core/Constraint.ts'
 export {index, uniqueIndex} from './core/Index.ts'
 export {
   except,
