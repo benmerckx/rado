@@ -10,7 +10,7 @@ import type {
   DeleteQuery,
   FromGuard,
   FromQuery,
-  FromResult,
+  FromRow,
   InsertQuery,
   Query,
   QueryBase,
@@ -39,7 +39,7 @@ class BuilderBase<Meta extends QueryMeta> {
   ): SingleQuery<SelectionRow<Returning>, Meta>
   query<const From extends FromGuard>(
     from: FromQuery<From>
-  ): SingleQuery<FromResult<From>, Meta>
+  ): SingleQuery<FromRow<From>, Meta>
   query<Returning extends SelectionInput, Definition extends TableDefinition>(
     insert: InsertQuery<Returning, Definition>
   ): SingleQuery<SelectionRow<Returning>, Meta>

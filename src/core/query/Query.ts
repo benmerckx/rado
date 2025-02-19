@@ -95,7 +95,7 @@ type FoldJoins<T extends Array<unknown>, Result> = T extends [
     >
   : Result
 
-export type FromResult<Target> = Target extends [
+export type FromRow<Target> = Target extends [
   Table<infer Definition, infer Name>,
   ...infer Joins
 ]
