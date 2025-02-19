@@ -99,7 +99,9 @@ export type FromRow<Target> = Target extends [
   Table<infer Definition, infer Name>,
   ...infer Joins
 ]
-  ? Expand<FoldJoins<Joins, Record<Name, TableFields<Definition>>>>
+  ? Joins['length'] extends 0
+    ? TableFields<Definition>
+    : Expand<FoldJoins<Joins, Record<Name, TableFields<Definition>>>>
   : SelectionRow<Target>
 
 export type Union<Returning = SelectionInput> =

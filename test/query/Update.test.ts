@@ -43,7 +43,7 @@ suite(import.meta, test => {
     const query = db.update(Node).set({required: 3}).returning(Node.id)
     test.equal(emit(query), 'update "Node" set "required" = 3 returning "id"')
 
-    db.query({
+    db.$query({
       insert: Node,
       returning: Node.id
     })
