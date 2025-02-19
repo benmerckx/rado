@@ -1,4 +1,10 @@
-import {JsonColumn, column, type Column} from '../core/Column.ts'
+import {
+  type Column,
+  type ColumnArguments,
+  JsonColumn,
+  column,
+  columnConfig
+} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntervalFields =
@@ -102,9 +108,9 @@ export function oid(name?: string): Column<number | null> {
 }
 
 export function interval(
-  name?: string,
-  options?: {fields?: IntervalFields; precision?: Precision}
+  ...args: ColumnArguments<{fields?: IntervalFields; precision?: Precision}>
 ): Column<string | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[options?.fields ? `interval ${options.fields}` : 'interval'](
@@ -164,9 +170,9 @@ export function macaddr8(name?: string): Column<string | null> {
 }
 
 export function numeric(
-  name?: string,
-  options?: {precision?: number; scale?: number}
+  ...args: ColumnArguments<{precision?: number; scale?: number}>
 ): Column<number | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.numeric(options?.precision, options?.scale)
@@ -192,9 +198,9 @@ export function smallserial(name?: string): Column<number | null> {
 }
 
 export function time(
-  name: string | undefined,
-  options?: {precision?: Precision; withTimeZone?: boolean}
+  ...args: ColumnArguments<{precision?: Precision; withTimeZone?: boolean}>
 ): Column<string | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[options?.withTimeZone ? 'time with time zone' : 'time'](
@@ -204,17 +210,23 @@ export function time(
 }
 
 export function timestamp(
-  name: string | undefined,
-  options?: {precision?: Precision; withTimeZone?: boolean}
+  ...args: ColumnArguments<{precision?: Precision; withTimeZone?: boolean}>
 ): Column<Date | null>
 export function timestamp(
-  name?: string,
-  options?: {mode: 'string'; precision?: Precision; withTimeZone?: boolean}
+  ...args: ColumnArguments<{
+    mode: 'string'
+    precision?: Precision
+    withTimeZone?: boolean
+  }>
 ): Column<string | null>
 export function timestamp(
-  name?: string,
-  options?: {mode?: 'string'; precision?: Precision; withTimeZone?: boolean}
+  ...args: ColumnArguments<{
+    mode?: 'string'
+    precision?: Precision
+    withTimeZone?: boolean
+  }>
 ) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[
@@ -234,9 +246,9 @@ export function uuid(name?: string): Column<string | null> {
 }
 
 export function varchar(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length: number}>
 ): Column<string | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.varchar(options?.length)

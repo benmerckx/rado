@@ -22,8 +22,10 @@ import type {
 } from './MetaData.ts'
 import {BatchQuery} from './Queries.ts'
 import {Resolver} from './Resolver.ts'
-import {sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
+import {count} from './expr/Aggregate.ts'
+import type {Select} from './query/Select.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -76,6 +78,19 @@ export class Database<Meta extends QueryMeta = Either>
     return this.driver.exec(emitter.sql) as Deliver<Meta, void>
   }
 
+  get<Result>(input: HasSql<Result>): Deliver<Meta, Result> {
+    const emitter = this.dialect.emit(input)
+    return this.driver.prepare(emitter.sql).get([]) as Deliver<Meta, Result>
+  }
+
+  all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {
+    const emitter = this.dialect.emit(input)
+    return this.driver.prepare(emitter.sql).all([]) as Deliver<
+      Meta,
+      Array<Result>
+    >
+  }
+
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
     const computeDiff = this.diff
     return this.transaction<void>(
@@ -123,6 +138,16 @@ export class Database<Meta extends QueryMeta = Either>
       },
       {async: run.constructor.name === 'AsyncFunction', ...options}
     )
+  }
+
+  $count(
+    source: Table | HasSql,
+    condition?: HasSql<boolean>
+  ): Select<Sql<number>, Meta> {
+    return this.select(count())
+      .from(source as HasSql)
+      .where(condition)
+      .$first()
   }
 }
 

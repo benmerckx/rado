@@ -7,6 +7,7 @@ import {
   getSelection,
   getSql,
   getTarget,
+  hasSql,
   hasTable,
   hasTarget,
   internalData,
@@ -56,6 +57,15 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   constructor(data: QueryData<Meta> & {compound: CompoundSelect}) {
     super(data)
     this[internalData] = data
+  }
+
+  as<Name extends string>(alias: Name): SubQuery<Input, Name> {
+    const fields = getSelection(this).makeVirtual(alias)
+    return Object.assign(<any>fields, {
+      [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
+        alias
+      )}`.inlineFields(true)
+    })
   }
 
   #makeSelf(): Input & HasTarget {
@@ -126,20 +136,11 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     this[internalData] = withCompound
   }
 
-  as(alias: string): SubQuery<Input> {
-    const fields = getSelection(this).makeVirtual(alias)
-    return Object.assign(<any>fields, {
-      [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
-        alias
-      )}`.inlineFields(true)
-    })
-  }
-
-  from(from: HasTarget | HasSql): Select<Input, Meta> {
+  from(from: HasTarget | Sql): Select<Input, Meta> {
     return new Select({...getData(this), from})
   }
 
-  #fromTarget(): [HasTarget, ...Array<Join>] {
+  #fromTarget(): [HasTarget | Sql, ...Array<Join<HasTarget | Sql>>] {
     const {from} = getData(this)
     if (!from) throw new Error('No target defined')
     if (Array.isArray(from)) return from
@@ -147,23 +148,35 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return [from]
   }
 
-  #join(join: Join): Select<Input, Meta> {
+  #join(join: Join<HasTarget | Sql>): Select<Input, Meta> {
     return new Select({...getData(this), from: [...this.#fromTarget(), join]})
   }
 
-  leftJoin(leftJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+  leftJoin(
+    leftJoin: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join({leftJoin, on})
   }
 
-  rightJoin(rightJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+  rightJoin(
+    rightJoin: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join({rightJoin, on})
   }
 
-  innerJoin(innerJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+  innerJoin(
+    innerJoin: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join({innerJoin, on})
   }
 
-  fullJoin(fullJoin: HasTarget, on: HasSql<boolean>): Select<Input, Meta> {
+  fullJoin(
+    fullJoin: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
     return this.#join({fullJoin, on})
   }
 
@@ -193,6 +206,14 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return new Select({...getData(this), offset})
   }
 
+  $dynamic(): this {
+    return this
+  }
+
+  $first(): Select<Input, Meta> {
+    return new Select({...getData(this), first: true})
+  }
+
   get [internalSelection](): Selection {
     return querySelection(getData(this))
   }
@@ -206,7 +227,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 }
 
-export type SubQuery<Input> = Input & HasTarget
+export type SubQuery<Input, Name extends string = string> = Input &
+  HasTarget<Name>
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Input, Meta>,
@@ -217,7 +239,8 @@ export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   orderBy(...exprs: Array<HasSql>): Select<Input, Meta>
   limit(limit: UserInput<number>): Select<Input, Meta>
   offset(offset: UserInput<number>): Select<Input, Meta>
-  as(name: string): SubQuery<Input>
+  as<Name extends string>(name: Name): SubQuery<Input, Name>
+  $dynamic(): this
 }
 
 export interface WithoutSelection<Meta extends QueryMeta> {
@@ -238,7 +261,7 @@ export interface WithSelection<Input, Meta extends QueryMeta>
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
   from(from: SubQuery<unknown>): SelectionFrom<Input, Meta>
-  from(target: HasSql): Select<Input, Meta>
+  from(from: HasSql): Select<Input, Meta>
 }
 
 export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
@@ -250,6 +273,10 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
     Expand<Tables & MakeNullable<Record<Name, TableFields<Definition>>>>,
     Meta
   >
+  leftJoin<Input, Name extends string>(
+    right: SubQuery<Input, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<Expand<Tables & MakeNullable<Record<Name, Input>>>, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -257,10 +284,18 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
     Expand<MakeNullable<Tables> & Record<Name, TableFields<Definition>>>,
     Meta
   >
+  rightJoin<Input, Name extends string>(
+    right: SubQuery<Input, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<Expand<MakeNullable<Tables> & Record<Name, Input>>, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
+  innerJoin<Input, Name extends string>(
+    right: SubQuery<Input, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -268,6 +303,13 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
     Expand<
       MakeNullable<Tables> & MakeNullable<Record<Name, TableFields<Definition>>>
     >,
+    Meta
+  >
+  fullJoin<Input, Name extends string>(
+    right: SubQuery<Input, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<
+    Expand<MakeNullable<Tables> & MakeNullable<Record<Name, Input>>>,
     Meta
   >
 }
@@ -339,6 +381,7 @@ function formatFrom(from: SelectQuery['from']): Sql {
     return sql.join(
       from.map(join => {
         if (hasTarget(join)) return getTarget(join)
+        if (hasSql(join)) return getSql(join)
         const {target, op, on} = joinOp(join)
         return sql.query({[op]: getTarget(target), on})
       })
@@ -401,6 +444,18 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     if (!first.select) throw new Error('No selection defined')
     return selection(first.select)
   }
+
+  orderBy(...orderBy: Array<HasSql>): Union<Result, Meta> {
+    return new Union({...getData(this), orderBy})
+  }
+
+  limit(limit: UserInput<number>): Union<Result, Meta> {
+    return new Union({...getData(this), limit})
+  }
+
+  offset(offset: UserInput<number>): Union<Result, Meta> {
+    return new Union({...getData(this), offset})
+  }
 }
 
 export function union<Result, Meta extends QueryMeta>(
@@ -416,37 +471,57 @@ export function union<Result, Meta extends QueryMeta>(
 
 export function unionAll<Result, Meta extends QueryMeta>(
   left: UnionBase<Result, Meta>,
-  right: UnionBase<Result, Meta>
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return left.unionAll(right)
+  return [right, ...rest].reduce(
+    (acc, query) => acc.unionAll(query),
+    left
+  ) as Union<Result, Meta>
 }
 
 export function intersect<Result, Meta extends QueryMeta>(
   left: UnionBase<Result, Meta>,
-  right: UnionBase<Result, Meta>
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return left.intersect(right)
+  return [right, ...rest].reduce(
+    (acc, query) => acc.intersect(query),
+    left
+  ) as Union<Result, Meta>
 }
 
 export function intersectAll<Result, Meta extends IsPostgres | IsMysql>(
   left: UnionBase<Result, Meta>,
-  right: UnionBase<Result, Meta>
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return left.intersectAll(right)
+  return [right, ...rest].reduce(
+    (acc, query) => acc.intersectAll(query),
+    left
+  ) as Union<Result, Meta>
 }
 
 export function except<Result, Meta extends QueryMeta>(
   left: UnionBase<Result, Meta>,
-  right: UnionBase<Result, Meta>
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return left.except(right)
+  return [right, ...rest].reduce(
+    (acc, query) => acc.except(query),
+    left
+  ) as Union<Result, Meta>
 }
 
 export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
   left: UnionBase<Result, Meta>,
-  right: UnionBase<Result, Meta>
+  right: UnionBase<Result, Meta>,
+  ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return left.exceptAll(right)
+  return [right, ...rest].reduce(
+    (acc, query) => acc.exceptAll(query),
+    left
+  ) as Union<Result, Meta>
 }
 
 export function unionQuery(query: UnionQuery): Sql {

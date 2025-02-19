@@ -18,7 +18,7 @@ import {
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
-import {input} from '../expr/Input.ts'
+import {type Input, input} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 
@@ -37,6 +37,18 @@ export class Update<
 
   get [internalQuery](): Sql {
     return updateQuery(getData(this))
+  }
+
+  limit(limit: Input<number>): Update<Result, Meta> {
+    return new Update({...getData(this), limit})
+  }
+
+  offset(offset: Input<number>): Update<Result, Meta> {
+    return new Update({...getData(this), offset})
+  }
+
+  orderBy(...orderBy: Array<HasSql>): Update<Result, Meta> {
+    return new Update({...getData(this), orderBy})
   }
 }
 

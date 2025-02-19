@@ -12,9 +12,9 @@ import type {
 import {Index} from './Index.ts'
 import {
   type HasConstraint,
+  type HasData,
   type HasSql,
   type HasTable,
-  type HasTarget,
   getConstraint,
   getData,
   getTable,
@@ -81,12 +81,12 @@ export class TableApi<
     )
     const createConstraints = entries(this.config ?? {})
       .filter(([, constraint]) => hasConstraint(constraint))
-      .map(
-        ([name, constraint]) =>
-          sql`constraint ${sql.identifier(name)} ${getConstraint(
-            constraint as HasConstraint
-          )}`
-      )
+      .map(([key, constraint]) => {
+        const {name} = getData(constraint as HasData<{name?: string}>)
+        return sql`constraint ${sql.identifier(name ?? key)} ${getConstraint(
+          constraint as HasConstraint
+        )}`
+      })
     return sql.join(createColumns.concat(createConstraints), sql`, `)
   }
 
@@ -147,7 +147,7 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = Record<never, Column>,
   Name extends string = string
-> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasTarget
+> = TableFields<Definition, Name> & HasTable<Definition, Name>
 
 export type TableFields<
   Definition extends TableDefinition,
@@ -230,5 +230,13 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     [internalTable]: api,
     [internalTarget]: api.target(),
     ...api.fields()
+  }
+}
+
+export function tableCreator(
+  nameTable: (name: string) => string
+): typeof table {
+  return (name, columns, config, schemaName) => {
+    return table(<any>nameTable(name), columns, config, schemaName)
   }
 }

@@ -14,6 +14,7 @@ import type {Sql} from './Sql.ts'
 
 export class QueryData<Meta extends QueryMeta> {
   resolver?: Resolver<Meta>
+  first?: boolean
 }
 
 type Exec = () => any

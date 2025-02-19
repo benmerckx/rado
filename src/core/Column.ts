@@ -120,6 +120,17 @@ export const column: Columns = new Proxy(createColumn as any, {
   }
 })
 
+export type ColumnArguments<Options> =
+  | [name?: string]
+  | [options: Options]
+  | [name: string, options: Options]
+
+export function columnConfig<Options>(args: ColumnArguments<Options>) {
+  if (typeof args[0] === 'string')
+    return {name: args[0] as string, options: args[1]}
+  return {name: undefined, options: args[0] as Options}
+}
+
 function formatReferences(fields: Array<FieldData>): Sql {
   return callFunction(
     sql.identifier(fields[0].targetName),

@@ -1,4 +1,10 @@
-import {type Column, JsonColumn, column} from '../core/Column.ts'
+import {
+  type Column,
+  type ColumnArguments,
+  JsonColumn,
+  column,
+  columnConfig
+} from '../core/Column.ts'
 
 export function boolean(name?: string): Column<boolean | null> {
   return column({
@@ -15,17 +21,15 @@ export function boolean(name?: string): Column<boolean | null> {
 
 export function integer(name?: string): Column<number | null>
 export function integer(
-  name: string,
-  options: {mode: 'boolean'}
+  ...args: ColumnArguments<{mode: 'boolean'}>
 ): Column<boolean | null>
 export function integer(
-  name: string,
-  options: {mode: 'timestamp'}
+  ...args: ColumnArguments<{mode: 'timestamp'}>
 ): Column<Date | null>
 export function integer(
-  name?: string,
-  options?: {mode: 'boolean' | 'timestamp'}
+  ...args: ColumnArguments<{mode: 'boolean' | 'timestamp'}>
 ): Column<number | Date | boolean | null> {
+  const {name, options} = columnConfig(args)
   if (options?.mode === 'timestamp')
     return column({
       name,
@@ -45,13 +49,27 @@ export function integer(
 
 export const int = integer
 
-export function blob<T>(
-  name?: string,
-  options?: {mode: 'json'}
-): Column<T | null>
 export function blob(name?: string): Column<Uint8Array | null>
-export function blob(name?: string, options?: {mode: 'json'}) {
+export function blob(
+  ...args: ColumnArguments<{mode: 'bigint'}>
+): Column<BigInt | null>
+export function blob<T>(
+  ...args: ColumnArguments<{mode: 'json'}>
+): Column<T | null>
+export function blob(...args: ColumnArguments<{mode: 'json' | 'bigint'}>) {
+  const {name, options} = columnConfig(args)
   if (options?.mode === 'json') return json(name)
+  if (options?.mode === 'bigint')
+    return column({
+      name,
+      type: column.blob(),
+      mapFromDriverValue(value: string) {
+        return BigInt(value)
+      },
+      mapToDriverValue(value: BigInt) {
+        return value.toString()
+      }
+    })
   return column({name, type: column.blob()})
 }
 

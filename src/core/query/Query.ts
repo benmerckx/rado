@@ -1,5 +1,6 @@
 import type {HasSql, HasTarget} from '../Internal.ts'
 import type {MakeNullable, SelectionInput, SelectionRow} from '../Selection.ts'
+import type {Sql} from '../Sql.ts'
 import type {
   Table,
   TableDefinition,
@@ -32,7 +33,7 @@ export interface FullJoin<Target> {
   on: HasSql<boolean>
 }
 
-export type Join<Target = HasTarget> =
+export type Join<Target = HasTarget | Sql> =
   | InnerJoin<Target>
   | LeftJoin<Target>
   | RightJoin<Target>
@@ -52,13 +53,15 @@ interface SelectBase<Returning> {
   having?: HasSql<boolean> | ((input: Returning) => HasSql<boolean>)
 }
 
-interface SelectModifiers extends QueryBase {
+interface ResultModifiers extends QueryBase {
   orderBy?: Array<HasSql>
   limit?: Input<number>
   offset?: Input<number>
 }
 
-export type FromGuard = HasTarget | HasSql | [HasTarget, ...Array<Join>]
+export type FromGuard<Target = HasTarget | Sql> =
+  | Target
+  | [Target, ...Array<Join<Target>>]
 
 interface SelectionBase<Returning = SelectionInput>
   extends SelectBase<Returning> {
@@ -68,13 +71,13 @@ interface SelectionBase<Returning = SelectionInput>
 
 export interface SelectionQuery<Returning = SelectionInput>
   extends SelectionBase<Returning>,
-    SelectModifiers {}
+    ResultModifiers {}
 
 interface FromBase<Target = FromGuard> extends SelectBase<undefined> {
   from: Target
 }
 
-export interface FromQuery<Target> extends FromBase<Target>, SelectModifiers {}
+export interface FromQuery<Target> extends FromBase<Target>, ResultModifiers {}
 
 type FoldJoins<T extends Array<unknown>, Result> = T extends [
   infer Join,
@@ -126,7 +129,7 @@ export type CompoundSelect<Returning = SelectionInput> = [
 ]
 
 export interface UnionQuery<Returning = SelectionInput>
-  extends SelectModifiers {
+  extends ResultModifiers {
   select: CompoundSelect<Returning>
 }
 
@@ -138,7 +141,7 @@ export interface SelectQuery<Returning = SelectionInput>
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends Partial<SelectionQuery<Returning> & SelectModifiers> {
+> extends Partial<SelectionQuery<Returning> & ResultModifiers> {
   insert: Table<Definition>
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
@@ -150,7 +153,7 @@ export interface InsertQuery<
 export interface DeleteQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends QueryBase {
+> extends ResultModifiers {
   delete: Table<Definition>
   where?: HasSql<boolean>
   returning?: Returning
@@ -159,7 +162,7 @@ export interface DeleteQuery<
 export interface UpdateQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends QueryBase {
+> extends ResultModifiers {
   update: Table<Definition>
   set?: TableUpdate<Definition>
   where?: HasSql<boolean>

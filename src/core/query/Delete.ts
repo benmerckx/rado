@@ -17,6 +17,7 @@ import {
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
+import type {Input} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {DeleteQuery} from './Query.ts'
 
@@ -35,6 +36,18 @@ export class Delete<
 
   get [internalQuery](): Sql {
     return deleteQuery(getData(this))
+  }
+
+  limit(limit: Input<number>): Delete<Returning, Meta> {
+    return new Delete({...getData(this), limit})
+  }
+
+  offset(offset: Input<number>): Delete<Returning, Meta> {
+    return new Delete({...getData(this), offset})
+  }
+
+  orderBy(...orderBy: Array<HasSql>): Delete<Returning, Meta> {
+    return new Delete({...getData(this), orderBy})
   }
 }
 

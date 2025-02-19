@@ -38,6 +38,7 @@ import {
   numeric,
   primaryKey,
   sqliteTable,
+  sqliteTableCreator,
   text,
   union,
   unionAll,
@@ -262,8 +263,8 @@ test('table config: foreign keys name', async () => {
       state: text('state')
     },
     t => ({
-      f: foreignKey(t.id),
-      f1: foreignKey(t.id)
+      f: foreignKey({columns: [t.id]}),
+      f1: foreignKey({columns: [t.id]})
     })
   )
 
@@ -1110,10 +1111,6 @@ test('prepared statement with placeholder in .offset', async ctx => {
 test('prepared statement built using $dynamic', async ctx => {
   const {db} = ctx.sqlite
 
-  function withLimitOffset(qb: any) {
-    return qb.limit(sql.placeholder('limit')).offset(sql.placeholder('offset'))
-  }
-
   await db
     .insert(usersTable)
     .values([{name: 'John'}, {name: 'John1'}])
@@ -1124,8 +1121,9 @@ test('prepared statement built using $dynamic', async ctx => {
       name: usersTable.name
     })
     .from(usersTable)
-    .$dynamic()
-  withLimitOffset(stmt).prepare('stmt_limit')
+    .limit(sql.placeholder('limit'))
+    .offset(sql.placeholder('offset'))
+    .prepare('stmt_limit')
 
   const result = await stmt.all({limit: 1, offset: 1})
 
@@ -1300,9 +1298,7 @@ test('insert via db.run + select via db.get', async ctx => {
 test('insert via db.get w/ query builder', async ctx => {
   const {db} = ctx.sqlite
 
-  const inserted = await db.get<
-    Pick<typeof usersTable.$inferSelect, 'id' | 'name'>
-  >(
+  const inserted = await db.get(
     db
       .insert(usersTable)
       .values({name: 'John'})
@@ -1399,7 +1395,7 @@ test('with ... select', async ctx => {
         gt(
           regionalSales.totalSales,
           db
-            .select({sales: sql`sum(${regionalSales.totalSales})/10`})
+            .select(sql`sum(${regionalSales.totalSales})/10`)
             .from(regionalSales)
         )
       )
@@ -1415,10 +1411,7 @@ test('with ... select', async ctx => {
     })
     .from(orders)
     .where(
-      inArray(
-        orders.region,
-        db.select({region: topRegions.region}).from(topRegions)
-      )
+      inArray(orders.region, db.select(topRegions.region).from(topRegions))
     )
     .groupBy(orders.region, orders.product)
     .orderBy(orders.region, orders.product)
@@ -1638,18 +1631,19 @@ test('having', async ctx => {
     ])
     .run()
 
+  const name = sql<string>`upper(${citiesTable.name})`.as('upper_name')
   const result = await db
     .select({
       id: citiesTable.id,
-      name: sql<string>`upper(${citiesTable.name})`.as('upper_name'),
+      name,
       usersCount: sql<number>`count(${users2Table.id})`.as('users_count')
     })
     .from(citiesTable)
     .leftJoin(users2Table, eq(users2Table.cityId, citiesTable.id))
-    .where(({name}) => sql`length(${name}) >= 3`)
+    .where(sql`length(${name}) >= 3`)
     .groupBy(citiesTable.id)
     .having(({usersCount}) => sql`${usersCount} > 0`)
-    .orderBy(({name}) => name)
+    .orderBy(name)
     .all()
 
   expect(result).toEqual([
@@ -1720,17 +1714,18 @@ test('select from raw sql with joins', async ctx => {
 
 test('join on aliased sql from select', async ctx => {
   const {db} = ctx.sqlite
-
+  const cols = {
+    userId: sql<number>`users.id`.as('userId'),
+    name: sql<string>`users.name`.as('userName'),
+    userCity: sql<string>`users.city`,
+    cityId: sql<number>`cities.id`.as('cityId'),
+    cityName: sql<string>`cities.name`.as('cityName')
+  }
   const result = await db
-    .select({
-      userId: sql<number>`users.id`.as('userId'),
-      name: sql<string>`users.name`.as('userName'),
-      userCity: sql<string>`users.city`,
-      cityId: sql<number>`cities.id`.as('cityId'),
-      cityName: sql<string>`cities.name`.as('cityName')
-    })
+    .select(cols)
     .from(sql`(select 1 as id, 'John' as name, 'New York' as city) as users`)
-    .leftJoin(sql`(select 1 as id, 'Paris' as name) as cities`, cols =>
+    .leftJoin(
+      sql`(select 1 as id, 'Paris' as name) as cities`,
       eq(cols.cityId, cols.userId)
     )
     .all()
@@ -1768,17 +1763,18 @@ test('join on aliased sql from with clause', async ctx => {
       .from(sql`(select 1 as id, 'Paris' as name) as cities`)
   )
 
+  const cols = {
+    userId: users.id,
+    name: users.name,
+    userCity: users.city,
+    cityId: cities.id,
+    cityName: cities.name
+  }
   const result = await db
     .with(users, cities)
-    .select({
-      userId: users.id,
-      name: users.name,
-      userCity: users.city,
-      cityId: cities.id,
-      cityName: cities.name
-    })
+    .select(cols)
     .from(users)
-    .leftJoin(cities, cols => eq(cols.cityId, cols.userId))
+    .leftJoin(cities, eq(cols.cityId, cols.userId))
     .all()
 
   expect(result).toEqual([
@@ -1866,13 +1862,13 @@ test('transaction', async ctx => {
   await db.transaction(async tx => {
     await tx
       .update(users)
-      .set({balance: user.balance - product.price})
-      .where(eq(users.id, user.id))
+      .set({balance: user!.balance - product!.price})
+      .where(eq(users.id, user!.id))
       .run()
     await tx
       .update(products)
-      .set({stock: product.stock - 1})
-      .where(eq(products.id, product.id))
+      .set({stock: product!.stock - 1})
+      .where(eq(products.id, product!.id))
       .run()
   })
 

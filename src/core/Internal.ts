@@ -26,8 +26,9 @@ export declare class HasSql<Value = unknown> {
 export declare class HasSelection {
   get [internalSelection](): Selection
 }
-export declare class HasTarget {
+export declare class HasTarget<Name extends string = string> {
   get [internalTarget](): Sql
+  private declare brand: [Name]
 }
 export declare class HasQuery {
   get [internalQuery](): Sql
@@ -38,7 +39,7 @@ export declare class HasBatch {
 export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> {
+> extends HasTarget<Name> {
   get [internalTable](): TableApi<Definition, Name>
 }
 export declare class HasField {

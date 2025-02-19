@@ -1,11 +1,13 @@
 import {
   type HasSql,
   getData,
+  getQuery,
   getTable,
   hasSql,
   internalData,
   internalQuery,
-  internalSelection
+  internalSelection,
+  internalSql
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {type QueryData, SingleQuery} from '../Queries.ts'
@@ -28,10 +30,10 @@ import {formatCTE} from './CTE.ts'
 import type {InsertQuery, SelectQuery} from './Query.ts'
 import {selectQuery} from './Select.ts'
 
-export class Insert<
-  Returning,
-  Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Returning, Meta> {
+export class Insert<Result, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<Result, Meta>
+  implements HasSql<Result>
+{
   readonly [internalData]: QueryData<Meta> & InsertQuery
   declare readonly [internalSelection]?: Selection
 
@@ -39,6 +41,10 @@ export class Insert<
     super(data)
     this[internalData] = data
     if (data.returning) this[internalSelection] = selection(data.returning)
+  }
+
+  get [internalSql](): Sql<Result> {
+    return getQuery(this) as Sql<Result>
   }
 
   get [internalQuery](): Sql {
@@ -78,7 +84,7 @@ export interface OnConflictSet<Definition extends TableDefinition> {
 export interface OnConflictUpdate<Definition extends TableDefinition>
   extends OnConflict,
     OnConflictSet<Definition> {
-  setWhere?: HasSql<boolean>
+  where?: HasSql<boolean>
 }
 
 class InsertCanConflict<
@@ -189,7 +195,7 @@ function formatConflict({
   target,
   targetWhere,
   set,
-  setWhere
+  where: setWhere
 }: Partial<OnConflictUpdate<TableDefinition>>): Sql {
   const update = set && formatUpdates(set)
   return sql.query({
