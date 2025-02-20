@@ -180,6 +180,13 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join({fullJoin, on})
   }
 
+  crossJoin(
+    crossJoin: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
+    return this.#join({crossJoin, on})
+  }
+
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta> {
     return new Select({...getData(this), where: and(...where)})
   }
@@ -346,6 +353,11 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  crossJoin<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
+  crossJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>

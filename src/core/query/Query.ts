@@ -32,12 +32,24 @@ export interface FullJoin<Target> {
   on: HasSql<boolean>
 }
 
+export interface CrossJoin<Target> {
+  crossJoin: Target
+  on: HasSql<boolean>
+}
+
 export type Join<Target = HasTarget | Sql> =
   | InnerJoin<Target>
   | LeftJoin<Target>
   | RightJoin<Target>
   | FullJoin<Target>
-export type JoinOp = 'leftJoin' | 'rightJoin' | 'innerJoin' | 'fullJoin'
+  | CrossJoin<Target>
+
+export type JoinOp =
+  | 'leftJoin'
+  | 'rightJoin'
+  | 'innerJoin'
+  | 'fullJoin'
+  | 'crossJoin'
 
 export interface QueryBase {
   with?: Array<CTE>
