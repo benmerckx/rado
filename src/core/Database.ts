@@ -25,7 +25,7 @@ import {Resolver} from './Resolver.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
 import {count} from './expr/Aggregate.ts'
-import type {Select} from './query/Select.ts'
+import type {SelectFirst} from './query/Select.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -143,7 +143,7 @@ export class Database<Meta extends QueryMeta = Either>
   $count(
     source: Table | HasSql,
     condition?: HasSql<boolean>
-  ): Select<Sql<number>, Meta> {
+  ): SelectFirst<Sql<number>, Meta> {
     return this.select(count())
       .from(source as HasSql)
       .where(condition)

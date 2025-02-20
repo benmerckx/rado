@@ -47,8 +47,33 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
+export class SelectFirst<
+  Input,
+  Meta extends QueryMeta = QueryMeta
+> extends SingleQuery<SelectionRow<Input>, Meta> {
+  readonly [internalData]: QueryData<Meta> & SelectQuery
+
+  constructor(data: QueryData<Meta> & SelectQuery) {
+    const inner = {...data, first: true}
+    super(inner)
+    this[internalData] = inner
+  }
+
+  get [internalSelection](): Selection {
+    return querySelection(getData(this))
+  }
+
+  get [internalQuery](): Sql {
+    return selectQuery(getData(this))
+  }
+
+  get [internalSql](): Sql<SelectionRow<Input>> {
+    return sql`(${getQuery(this)})`
+  }
+}
+
 export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<SelectionRow<Input>, Meta>
+  extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasSelection
 {
   readonly [internalData]: QueryData<Meta>
@@ -217,8 +242,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this
   }
 
-  $first(): Select<Input, Meta> {
-    return new Select({...getData(this), first: true})
+  $first(): SelectFirst<Input, Meta> {
+    return new SelectFirst(getData(this))
   }
 
   get [internalSelection](): Selection {

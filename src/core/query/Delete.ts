@@ -62,11 +62,11 @@ export class DeleteFrom<
   }
   returning(
     this: DeleteFrom<Definition, IsPostgres | IsSqlite>
-  ): Delete<TableRow<Definition>, Meta>
+  ): Delete<Array<TableRow<Definition>>, Meta>
   returning<Input extends SelectionInput>(
     this: DeleteFrom<Definition, IsPostgres | IsSqlite>,
     returning: Input
-  ): Delete<SelectionRow<Input>, Meta>
+  ): Delete<Array<SelectionRow<Input>>, Meta>
   returning(returning?: SelectionInput) {
     const data = getData(this)
     return new Delete({

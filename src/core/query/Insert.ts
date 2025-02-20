@@ -65,11 +65,11 @@ class InsertCanReturn<
 > extends Insert<void, Meta> {
   returning<Meta extends IsPostgres | IsSqlite>(
     this: InsertCanReturn<Definition, Meta>
-  ): Insert<TableRow<Definition>, Meta>
+  ): Insert<Array<TableRow<Definition>>, Meta>
   returning<Input extends SelectionInput, Meta extends IsPostgres | IsSqlite>(
     this: InsertCanReturn<Definition, Meta>,
     returning: Input
-  ): Insert<SelectionRow<Input>, Meta>
+  ): Insert<Array<SelectionRow<Input>>, Meta>
   returning(returning?: SelectionInput) {
     const data = getData(this)
     return new Insert({
@@ -138,7 +138,7 @@ export class InsertInto<
   }
 
   select(
-    query: SingleQuery<TableRow<Definition>, Meta>
+    query: SingleQuery<Array<TableRow<Definition>>, Meta>
   ): InsertCanConflict<Definition, Meta> {
     return new InsertCanConflict({
       ...getData(this),

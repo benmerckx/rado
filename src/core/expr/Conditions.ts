@@ -82,7 +82,7 @@ export function not(condition: Input<boolean>): Sql<boolean> {
 
 export function inArray<T>(
   left: Input<T>,
-  right: SingleQuery<T, any> | Input<Array<T>>
+  right: SingleQuery<Array<T>, any> | Input<Array<T>>
 ): Sql<boolean> {
   const value = hasSql(right) ? undefined : right
   if (Array.isArray(value)) {

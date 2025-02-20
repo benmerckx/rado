@@ -25,7 +25,7 @@ import type {UpdateQuery} from './Query.ts'
 export class Update<
   Result,
   Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Result, Meta> {
+> extends SingleQuery<Array<Result>, Meta> {
   readonly [internalData]: QueryData<Meta> & UpdateQuery
   declare readonly [internalSelection]?: Selection
 

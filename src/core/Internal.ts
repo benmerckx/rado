@@ -28,7 +28,7 @@ export declare class HasSelection {
 }
 export declare class HasTarget<Name extends string = string> {
   get [internalTarget](): Sql
-  private declare brand: [Name]
+  private declare brand?: [Name]
 }
 export declare class HasQuery {
   get [internalQuery](): Sql
