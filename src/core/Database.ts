@@ -78,9 +78,13 @@ export class Database<Meta extends QueryMeta = Either>
     return this.driver.exec(emitter.sql) as Deliver<Meta, void>
   }
 
-  get<Result>(input: HasSql<Result>): Deliver<Meta, Result> {
+  get<Result extends Array<unknown>>(
+    input: HasQuery<Result>
+  ): Deliver<Meta, Result[number]>
+  get<Result>(input: HasSql<Result>): Deliver<Meta, Result>
+  get(input: HasSql | HasQuery) {
     const emitter = this.dialect.emit(input)
-    return this.driver.prepare(emitter.sql).get([]) as Deliver<Meta, Result>
+    return this.driver.prepare(emitter.sql).get([])
   }
 
   all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {

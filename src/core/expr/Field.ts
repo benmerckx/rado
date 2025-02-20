@@ -1,6 +1,7 @@
 import type {DriverSpecs} from '../Driver.ts'
-import {internalField, internalSql, type HasSql} from '../Internal.ts'
-import {sql, type Sql} from '../Sql.ts'
+import {type HasSql, internalField, internalSql} from '../Internal.ts'
+import type {SelectionRecord} from '../Selection.ts'
+import {type Sql, sql} from '../Sql.ts'
 
 export interface FieldData {
   targetName: string
@@ -26,3 +27,9 @@ export class Field<Value = unknown, Table extends string = string>
     this[internalSql] = expr
   }
 }
+
+export type StripFieldMeta<Input> = Input extends HasSql<infer Value>
+  ? HasSql<Value>
+  : Input extends SelectionRecord
+    ? {[Key in keyof Input]: StripFieldMeta<Input[Key]>}
+    : Input

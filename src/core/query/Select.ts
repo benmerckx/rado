@@ -1,4 +1,5 @@
 import {
+  type HasQuery,
   type HasSelection,
   type HasSql,
   type HasTarget,
@@ -31,7 +32,7 @@ import {Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
-import type {Field} from '../expr/Field.ts'
+import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import {type Input as UserInput, input} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
@@ -47,10 +48,10 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
-export class SelectFirst<
-  Input,
-  Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<SelectionRow<Input>, Meta> {
+export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<SelectionRow<Input>, Meta>
+  implements HasQuery<SelectionRow<Input>>
+{
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
   constructor(data: QueryData<Meta> & SelectQuery) {
@@ -63,8 +64,8 @@ export class SelectFirst<
     return querySelection(getData(this))
   }
 
-  get [internalQuery](): Sql {
-    return selectQuery(getData(this))
+  get [internalQuery](): Sql<SelectionRow<Input>> {
+    return selectQuery(getData(this)) as Sql<SelectionRow<Input>>
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
@@ -149,8 +150,11 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
 }
 
 export class Select<Input, Meta extends QueryMeta = QueryMeta>
-  extends UnionBase<Input, Meta>
-  implements HasSelection, SelectBase<Input, Meta>
+  extends UnionBase<StripFieldMeta<Input>, Meta>
+  implements
+    HasSelection,
+    SelectBase<Input, Meta>,
+    HasQuery<Array<SelectionRow<Input>>>
 {
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
@@ -250,8 +254,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(getData(this))
   }
 
-  get [internalQuery](): Sql {
-    return selectQuery(getData(this))
+  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
+    return selectQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
@@ -263,7 +267,7 @@ export type SubQuery<Input, Name extends string = string> = Input &
   HasTarget<Name>
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends UnionBase<Input, Meta>,
+  extends UnionBase<StripFieldMeta<Input>, Meta>,
     HasSql<SelectionRow<Input>> {
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
@@ -271,7 +275,6 @@ export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   orderBy(...exprs: Array<HasSql>): Select<Input, Meta>
   limit(limit: UserInput<number>): Select<Input, Meta>
   offset(offset: UserInput<number>): Select<Input, Meta>
-  as<Name extends string>(name: Name): SubQuery<Input, Name>
   $dynamic(): this
 }
 

@@ -30,8 +30,8 @@ export declare class HasTarget<Name extends string = string> {
   get [internalTarget](): Sql
   private declare brand?: [Name]
 }
-export declare class HasQuery {
-  get [internalQuery](): Sql
+export declare class HasQuery<Result = unknown> {
+  get [internalQuery](): Sql<Result>
 }
 export declare class HasBatch {
   get [internalBatch](): Array<Sql>

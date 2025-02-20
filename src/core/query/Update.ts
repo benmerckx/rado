@@ -1,4 +1,5 @@
 import {
+  type HasQuery,
   type HasSql,
   getData,
   getTable,
@@ -22,10 +23,10 @@ import {type Input, input} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 
-export class Update<
-  Result,
-  Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Array<Result>, Meta> {
+export class Update<Result, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<Array<Result>, Meta>
+  implements HasQuery<Result>
+{
   readonly [internalData]: QueryData<Meta> & UpdateQuery
   declare readonly [internalSelection]?: Selection
 
@@ -35,8 +36,8 @@ export class Update<
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql {
-    return updateQuery(getData(this))
+  get [internalQuery](): Sql<Result> {
+    return updateQuery(getData(this)) as Sql<Result>
   }
 
   limit(limit: Input<number>): Update<Result, Meta> {

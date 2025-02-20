@@ -160,8 +160,16 @@ export interface PreparedQuery<
   Inputs extends Record<string, unknown>,
   Meta extends QueryMeta
 > extends PreparedStatement<Meta> {
-  all(inputs?: Inputs): Deliver<Meta, Array<Result>>
+  all<Result extends Array<unknown>>(
+    this: PreparedQuery<Result, Inputs, Meta>,
+    inputs?: Inputs
+  ): Deliver<Meta, Result>
   get(inputs?: Inputs): Deliver<Meta, Result>
+  get<Result extends Array<unknown>>(
+    this: PreparedQuery<Result, Inputs, Meta>,
+    inputs?: Inputs
+  ): Deliver<Meta, Result[number] | null>
   run(inputs?: Inputs): Deliver<Meta, void>
-  execute(inputs?: Inputs): Promise<Array<Result>>
+  execute(inputs?: Inputs): Promise<Result>
+  free(): void
 }

@@ -1,13 +1,11 @@
 import {
-  type HasSql,
+  type HasQuery,
   getData,
-  getQuery,
   getTable,
   hasSql,
   internalData,
   internalQuery,
-  internalSelection,
-  internalSql
+  internalSelection
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {type QueryData, SingleQuery} from '../Queries.ts'
@@ -39,7 +37,7 @@ import {selectQuery} from './Select.ts'
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Result, Meta>
-  implements HasSql<Result>
+  implements HasQuery<Result>
 {
   readonly [internalData]: QueryData<Meta> & InsertQuery
   declare readonly [internalSelection]?: Selection
@@ -50,12 +48,8 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta>
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalSql](): Sql<Result> {
-    return getQuery(this) as Sql<Result>
-  }
-
-  get [internalQuery](): Sql {
-    return insertQuery(getData(this))
+  get [internalQuery](): Sql<Result> {
+    return insertQuery(getData(this)) as Sql<Result>
   }
 }
 

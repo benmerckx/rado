@@ -1,4 +1,5 @@
 import {
+  type HasQuery,
   type HasSql,
   getData,
   getTable,
@@ -21,10 +22,10 @@ import type {Input} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {DeleteQuery} from './Query.ts'
 
-export class Delete<
-  Returning,
-  Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Returning, Meta> {
+export class Delete<Result, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<Result, Meta>
+  implements HasQuery<Result>
+{
   readonly [internalData]: QueryData<Meta> & DeleteQuery
   declare readonly [internalSelection]?: Selection
 
@@ -34,19 +35,19 @@ export class Delete<
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql {
-    return deleteQuery(getData(this))
+  get [internalQuery](): Sql<Result> {
+    return deleteQuery(getData(this)) as Sql<Result>
   }
 
-  limit(limit: Input<number>): Delete<Returning, Meta> {
+  limit(limit: Input<number>): Delete<Result, Meta> {
     return new Delete({...getData(this), limit})
   }
 
-  offset(offset: Input<number>): Delete<Returning, Meta> {
+  offset(offset: Input<number>): Delete<Result, Meta> {
     return new Delete({...getData(this), offset})
   }
 
-  orderBy(...orderBy: Array<HasSql>): Delete<Returning, Meta> {
+  orderBy(...orderBy: Array<HasSql>): Delete<Result, Meta> {
     return new Delete({...getData(this), orderBy})
   }
 }
