@@ -27,22 +27,25 @@ export function integer(
   ...args: ColumnArguments<{mode: 'timestamp'}>
 ): Column<Date | null>
 export function integer(
-  ...args: ColumnArguments<{mode: 'boolean' | 'timestamp'}>
+  ...args: ColumnArguments<{mode: 'timestamp_ms'}>
+): Column<Date | null>
+export function integer(
+  ...args: ColumnArguments<{mode: 'boolean' | 'timestamp' | 'timestamp_ms'}>
 ): Column<number | Date | boolean | null> {
   const {name, options} = columnConfig(args)
-  if (options?.mode === 'timestamp')
+  if (options?.mode === 'timestamp' || options?.mode === 'timestamp_ms') {
+    const scale = options.mode === 'timestamp' ? 1000 : 1
     return column({
       name,
       type: column.integer(),
-      mapFromDriverValue(value: string) {
-        return new Date(`${value}+0000`)
+      mapFromDriverValue(value: number) {
+        return new Date(value * scale)
       },
       mapToDriverValue(value: Date) {
-        return value instanceof Date
-          ? value.toISOString().slice(0, -1).replace('T', ' ')
-          : value
+        return Math.floor(value.getTime() / scale)
       }
     })
+  }
   if (options?.mode === 'boolean') return boolean()
   return column({name, type: column.integer()})
 }

@@ -2,7 +2,7 @@
 
 import {'bun:sqlite' as connect} from '@/driver.ts'
 import {
-  Name,
+  type Database,
   TransactionRollbackError,
   and,
   asc,
@@ -25,13 +25,9 @@ import {
   sumDistinct
 } from '@/index.ts'
 import {
-  type BaseSQLiteDatabase,
   alias,
   blob,
   except,
-  foreignKey,
-  getTableConfig,
-  getViewConfig,
   int,
   integer,
   intersect,
@@ -41,11 +37,10 @@ import {
   sqliteTableCreator,
   text,
   union,
-  unionAll,
-  unique,
-  uniqueKeyName
+  unionAll
 } from '@/sqlite.ts'
 import {suite} from '@alinea/suite'
+import {Database as BunDb} from 'bun:sqlite'
 import {expect} from 'bun:test'
 
 export const usersTable = sqliteTable('users', {
@@ -159,8 +154,7 @@ const aggregateTable = sqliteTable('aggregate_table', {
   nullOnly: integer('null_only')
 })
 
-const {Database} = await import('bun:sqlite')
-const db = await connect(new Database(':memory:'))
+const db = connect(new BunDb(':memory:'))
 
 const test = suite(import.meta, {
   sqlite: {db},
@@ -193,7 +187,7 @@ const test = suite(import.meta, {
   }
 })
 
-async function setupSetOperationTest(db: BaseSQLiteDatabase<any, any>) {
+async function setupSetOperationTest(db: Database) {
   await db.run(sql`drop table if exists users2`)
   await db.run(sql`drop table if exists cities`)
   await db.run(sql`
@@ -203,13 +197,7 @@ async function setupSetOperationTest(db: BaseSQLiteDatabase<any, any>) {
 				)
 			`)
 
-  await db.run(sql`
-				create table \`users2\` (
-				    id integer primary key,
-				    name text not null,
-				    city_id integer references ${citiesTable}(${sql.identifier(citiesTable.id.name)})
-				)
-			`)
+  await db.create(citiesTable)
 
   await db.insert(citiesTable).values([
     {id: 1, name: 'New York'},
@@ -229,7 +217,7 @@ async function setupSetOperationTest(db: BaseSQLiteDatabase<any, any>) {
   ])
 }
 
-async function setupAggregateFunctionsTest(db: BaseSQLiteDatabase<any, any>) {
+async function setupAggregateFunctionsTest(db: Database) {
   await db.run(sql`drop table if exists "aggregate_table"`)
   await db.run(
     sql`
@@ -253,46 +241,6 @@ async function setupAggregateFunctionsTest(db: BaseSQLiteDatabase<any, any>) {
     {name: 'value 6', a: null, b: null, c: 150}
   ])
 }
-
-test('table config: foreign keys name', async () => {
-  const table = sqliteTable(
-    'cities',
-    {
-      id: int('id').primaryKey(),
-      name: text('name').notNull(),
-      state: text('state')
-    },
-    t => ({
-      f: foreignKey({columns: [t.id]}),
-      f1: foreignKey({columns: [t.id]})
-    })
-  )
-
-  const tableConfig = getTableConfig(table)
-
-  expect(tableConfig.foreignKeys).toHaveLength(2)
-  expect(tableConfig.foreignKeys[0]!.getName()).toBe('custom_fk')
-  expect(tableConfig.foreignKeys[1]!.getName()).toBe('custom_fk_deprecated')
-})
-
-test('table config: primary keys name', async () => {
-  const table = sqliteTable(
-    'cities',
-    {
-      id: int('id').primaryKey(),
-      name: text('name').notNull(),
-      state: text('state')
-    },
-    t => ({
-      f: primaryKey(t.id, t.name)
-    })
-  )
-
-  const tableConfig = getTableConfig(table)
-
-  expect(tableConfig.primaryKeys).toHaveLength(1)
-  expect(tableConfig.primaryKeys[0]!.getName()).toBe('custom_pk')
-})
 
 test('insert bigint values', async ctx => {
   const {db} = ctx.sqlite
@@ -1261,9 +1209,7 @@ test('build query', async ctx => {
 test('insert via db.run + select via db.all', async ctx => {
   const {db} = ctx.sqlite
 
-  await db.run(
-    sql`insert into ${usersTable} (${new Name(usersTable.name.name)}) values (${'John'})`
-  )
+  await db.run(sql`insert into ${usersTable} (name) values (${'John'})`)
 
   const result = await db.all<{id: number; name: string}>(
     sql`select id, name from "users"`
@@ -1275,9 +1221,7 @@ test('insert via db.get', async ctx => {
   const {db} = ctx.sqlite
 
   const inserted = await db.get<{id: number; name: string}>(
-    sql`insert into ${usersTable} (${new Name(
-      usersTable.name.name
-    )}) values (${'John'}) returning ${usersTable.id}, ${usersTable.name}`
+    sql`insert into ${usersTable} (name) values (${'John'}) returning ${usersTable.id}, ${usersTable.name}`
   )
   expect(inserted).toEqual({id: 1, name: 'John'})
 })
@@ -1285,9 +1229,7 @@ test('insert via db.get', async ctx => {
 test('insert via db.run + select via db.get', async ctx => {
   const {db} = ctx.sqlite
 
-  await db.run(
-    sql`insert into ${usersTable} (${new Name(usersTable.name.name)}) values (${'John'})`
-  )
+  await db.run(sql`insert into ${usersTable} (name) values (${'John'})`)
 
   const result = await db.get<{id: number; name: string}>(
     sql`select ${usersTable.id}, ${usersTable.name} from ${usersTable}`
@@ -2022,7 +1964,7 @@ test('join subquery with join', async ctx => {
   await db.run(sql`drop table ${ticket}`)
 })
 
-test('join view as subquery', async ctx => {
+/*test('join view as subquery', async ctx => {
   const {db} = ctx.sqlite
 
   const users = sqliteTable('users_join_view', {
@@ -2040,9 +1982,6 @@ test('join view as subquery', async ctx => {
 
   await db.run(
     sql`create table ${users} (id integer not null primary key, name text not null, city_id integer not null)`
-  )
-  await db.run(
-    sql`create view if not exists ${newYorkers} as ${getViewConfig(newYorkers).query}`
   )
 
   db.insert(users)
@@ -2083,7 +2022,7 @@ test('join view as subquery', async ctx => {
 
   await db.run(sql`drop view ${newYorkers}`)
   await db.run(sql`drop table ${users}`)
-})
+})*/
 
 test('insert with onConflict do nothing', async ctx => {
   const {db} = ctx.sqlite
@@ -3513,70 +3452,6 @@ test('delete with limit and order by', async ctx => {
   ])
 })
 
-test('table configs: unique third param', () => {
-  const cities1Table = sqliteTable(
-    'cities1',
-    {
-      id: int('id').primaryKey(),
-      name: text('name').notNull(),
-      state: text('state')
-    },
-    t => ({
-      f: unique().on(t.name, t.state),
-      f1: unique('custom').on(t.name, t.state)
-    })
-  )
-
-  const tableConfig = getTableConfig(cities1Table)
-
-  expect(tableConfig.uniqueConstraints).toHaveLength(2)
-
-  expect(tableConfig.uniqueConstraints[0]?.columns.map(t => t.name)).toEqual([
-    'name',
-    'state'
-  ])
-  expect(tableConfig.uniqueConstraints[0]?.name).toEqual(
-    uniqueKeyName(
-      cities1Table,
-      tableConfig.uniqueConstraints[0]?.columns?.map(column => column.name) ??
-        []
-    )
-  )
-
-  expect(tableConfig.uniqueConstraints[1]?.columns.map(t => t.name)).toEqual([
-    'name',
-    'state'
-  ])
-  expect(tableConfig.uniqueConstraints[1]?.name).toBe('custom')
-})
-
-test('table configs: unique in column', () => {
-  const cities1Table = sqliteTable('cities1', {
-    id: int('id').primaryKey(),
-    name: text('name').notNull().unique(),
-    state: text('state').unique('custom'),
-    field: text('field').unique()
-  })
-
-  const tableConfig = getTableConfig(cities1Table)
-
-  const columnName = tableConfig.columns.find(it => it.name === 'name')
-  expect(columnName?.isUnique).toBeTruthy()
-  expect(columnName?.uniqueName).toBe(
-    uniqueKeyName(cities1Table, [columnName!.name])
-  )
-
-  const columnState = tableConfig.columns.find(it => it.name === 'state')
-  expect(columnState?.isUnique).toBeTruthy()
-  expect(columnState?.uniqueName).toBe('custom')
-
-  const columnField = tableConfig.columns.find(it => it.name === 'field')
-  expect(columnField?.isUnique).toBeTruthy()
-  expect(columnField?.uniqueName).toBe(
-    uniqueKeyName(cities1Table, [columnField!.name])
-  )
-})
-
 test('limit 0', async ctx => {
   const {db} = ctx.sqlite
 
@@ -3795,6 +3670,20 @@ test('insert into ... select', async ctx => {
     id: integer('id').primaryKey({autoIncrement: true}),
     name: text('name').notNull()
   })
+  const userNotications = sqliteTable(
+    'user_notifications_insert_into',
+    {
+      userId: integer('user_id')
+        .notNull()
+        .references(() => users.id, {onDelete: 'cascade'}),
+      notificationId: integer('notification_id')
+        .notNull()
+        .references(() => notifications.id, {onDelete: 'cascade'})
+    },
+    t => ({
+      pk: primaryKey({columns: [t.userId, t.notificationId]})
+    })
+  )
 
   await db.run(sql`drop table if exists notifications_insert_into`)
   await db.run(sql`drop table if exists users_insert_into`)

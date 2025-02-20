@@ -11,7 +11,6 @@ import type {
 import type {Expand} from '../Types.ts'
 import type {Input} from '../expr/Input.ts'
 import type {CTE} from './CTE.ts'
-import type {OnConflict, OnConflictSet, OnConflictUpdate} from './Insert.ts'
 
 export interface InnerJoin<Target> {
   innerJoin: Target
@@ -138,6 +137,26 @@ export interface SelectQuery<Returning = SelectionInput>
   | SelectionQuery<Returning>
   | FromQuery<Returning>*/
 
+export interface OnConflict {
+  target: HasSql | Array<HasSql>
+  targetWhere?: HasSql<boolean>
+}
+
+export interface OnConflictSet<Definition extends TableDefinition> {
+  set: TableUpdate<Definition>
+}
+
+export interface OnConflictUpdate<Definition extends TableDefinition>
+  extends OnConflict,
+    OnConflictSet<Definition> {
+  where?: HasSql<boolean>
+}
+
+export type Conflict<Definition extends TableDefinition = TableDefinition> =
+  | {conflictDoNothing: true | OnConflict}
+  | {conflictDoUpdate: OnConflictUpdate<Definition>}
+  | {duplicateKeyUpdate: OnConflictSet<Definition>}
+
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
@@ -145,9 +164,7 @@ export interface InsertQuery<
   insert: Table<Definition>
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
-  onConflict?: OnConflictUpdate<Definition>
-  onDuplicateKeyUpdate?: OnConflictSet<Definition>
-  onConflictDoNothing?: true | OnConflict
+  on?: Array<Conflict<Definition>>
 }
 
 export interface DeleteQuery<
