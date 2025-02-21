@@ -13,15 +13,18 @@ import {Index} from './Index.ts'
 import {
   type HasConstraint,
   type HasData,
+  type HasSelection,
   type HasSql,
   type HasTable,
   getConstraint,
   getData,
   getTable,
   hasConstraint,
+  internalSelection,
   internalTable,
   internalTarget
 } from './Internal.ts'
+import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
@@ -147,7 +150,7 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = Record<never, Column>,
   Name extends string = string
-> = TableFields<Definition, Name> & HasTable<Definition, Name>
+> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasSelection
 
 export type TableFields<
   Definition extends TableDefinition,
@@ -209,10 +212,12 @@ export function table<Definition extends TableDefinition, Name extends string>(
     schemaName,
     columns
   })
+  const fields = api.fields()
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
-    ...api.fields()
+    [internalSelection]: selection(fields),
+    ...fields
   }
   if (config) api.config = config(table)
   return table
@@ -226,9 +231,11 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     ...getTable(table),
     alias
   })
+  const fields = api.fields()
   return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
+    [internalSelection]: selection(fields),
     ...api.fields()
   }
 }

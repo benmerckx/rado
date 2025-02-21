@@ -101,9 +101,10 @@ export abstract class SingleQuery<
   #exec(method: 'all' | 'get' | 'run' | undefined, db?: HasResolver) {
     const data = getData(this)
     const resolver = db ? getResolver(db) : data.resolver
+    if (!resolver) throw new Error('Query has no resolver')
     const isSelection = hasSelection(this)
     const isFirst = data.first
-    const prepared = resolver!.prepare(this, '')
+    const prepared = resolver.prepare(this, '')
     const resultType =
       method ?? (isSelection ? (isFirst ? 'get' : 'all') : 'run')
     try {

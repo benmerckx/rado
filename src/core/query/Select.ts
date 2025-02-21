@@ -8,8 +8,8 @@ import {
   getSelection,
   getSql,
   getTarget,
+  hasSelection,
   hasSql,
-  hasTable,
   hasTarget,
   internalData,
   internalQuery,
@@ -33,7 +33,7 @@ import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
-import {type Input as UserInput, input} from '../expr/Input.ts'
+import type {Input as UserInput} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
@@ -43,6 +43,7 @@ import type {
   UnionOp,
   UnionQuery
 } from './Query.ts'
+import {formatModifiers} from './Shared.ts'
 
 type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
@@ -88,6 +89,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {
     const fields = getSelection(this).makeVirtual(alias)
     return Object.assign(<any>fields, {
+      [internalSelection]: selection(fields),
       [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
         alias
       )}`.inlineFields(true)
@@ -96,7 +98,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
 
   #makeSelf(): Input & HasTarget {
     const selected = getSelection(this)
-    return selected.makeVirtual(Sql.SELF_TARGET)
+    return selected.makeVirtual<Input>(Sql.SELF_TARGET)
   }
 
   #getSelect(base: UnionBase<any>): CompoundSelect {
@@ -113,7 +115,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     const [on, ...rest] = right
     const select = [...left, {[op]: on}, ...rest] as CompoundSelect
     return new Union({
-      ...this,
+      ...getData(this),
       select
     })
   }
@@ -173,7 +175,6 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     const {from} = getData(this)
     if (!from) throw new Error('No target defined')
     if (Array.isArray(from)) return from
-    if (!hasTarget(from)) throw new Error('No target defined')
     return [from]
   }
 
@@ -264,7 +265,8 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
 }
 
 export type SubQuery<Input, Name extends string = string> = Input &
-  HasTarget<Name>
+  HasTarget<Name> &
+  HasSelection
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<StripFieldMeta<Input>, Meta>,
@@ -398,20 +400,18 @@ export function querySelection({select, from}: SelectQuery): Selection {
   if (!from) throw new Error('No selection defined')
   if (Array.isArray(from)) {
     const [target, ...joins] = from
-    let result = selection(target)
-    for (const join of joins) {
+    return joins.reduce((result, join) => {
       const {target, op} = joinOp(join)
-      result = result.join(target, op)
-    }
-    return result
+      return result.join(target, op)
+    }, selection(target))
   }
-  return hasTable(from) ? selection(from) : selection(sql`*`)
+  return hasSelection(from) ? getSelection(from) : selection(sql`*`)
 }
 
 function joinOp(join: Join) {
   const {on, ...rest} = join
   const op = Object.keys(rest)[0] as JoinOp
-  const target = (<Record<string, HasTarget>>rest)[op]
+  const target = (<Record<string, HasTarget | Sql>>rest)[op]
   return {target, op, on}
 }
 
@@ -423,7 +423,10 @@ function formatFrom(from: SelectQuery['from']): Sql {
         if (hasTarget(join)) return getTarget(join)
         if (hasSql(join)) return getSql(join)
         const {target, op, on} = joinOp(join)
-        return sql.query({[op]: getTarget(target), on})
+        return sql.query({
+          [op]: hasTarget(target) ? getTarget(target) : getSql(target),
+          on
+        })
       })
     )
   }
@@ -431,33 +434,24 @@ function formatFrom(from: SelectQuery['from']): Sql {
 }
 
 export function selectQuery(query: SelectQuery): Sql {
-  const {
-    from,
-    where,
-    groupBy,
-    orderBy,
-    having,
-    limit,
-    offset,
-    distinct,
-    distinctOn
-  } = query
+  const {from, where, groupBy, having, distinct, distinctOn} = query
   const prefix = distinctOn
     ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
     : distinct && sql`distinct`
   const selected = querySelection(query)
   const select = sql.join([prefix, selected])
 
-  return sql.query(formatCTE(query), {
-    select,
-    from: from && formatFrom(from),
-    where,
-    groupBy: groupBy && sql.join(groupBy, sql`, `),
-    having: typeof having === 'function' ? having(selected.input) : having,
-    orderBy: orderBy && sql.join(orderBy, sql`, `),
-    limit: limit !== undefined && input(limit),
-    offset: offset !== undefined && input(offset)
-  })
+  return sql.query(
+    formatCTE(query),
+    {
+      select,
+      from: from && formatFrom(from),
+      where,
+      groupBy: groupBy && sql.join(groupBy, sql`, `),
+      having: typeof having === 'function' ? having(selected.input) : having
+    },
+    formatModifiers(query)
+  )
 }
 
 export class Union<Result, Meta extends QueryMeta = QueryMeta>
@@ -481,8 +475,7 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
     const {
       select: [first]
     } = getData(this)
-    if (!first.select) throw new Error('No selection defined')
-    return selection(first.select)
+    return querySelection(first)
   }
 
   orderBy(...orderBy: Array<HasSql>): Union<Result, Meta> {
@@ -565,18 +558,22 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
 }
 
 export function unionQuery(query: UnionQuery): Sql {
-  const {select, orderBy, limit, offset} = query
+  const {select} = query
+  let fields: Array<string>
   const segments = sql.join(
     select.map((segment, i) => {
-      if (i === 0) return selectQuery(segment as SelectQuery)
+      if (i === 0) {
+        fields = querySelection(segment as SelectQuery).fieldNames()
+        return selectQuery(segment as SelectQuery)
+      }
       const op = Object.keys(segment)[0] as UnionOp
       const query = (<Record<UnionOp, SelectQuery>>segment)[op]
+      const names = querySelection(query).fieldNames()
+      for (let i = 0; i < fields.length; i++)
+        if (fields[i] !== names[i])
+          throw new Error('Union segments must have the same fields')
       return sql.query({[op]: selectQuery(query)})
     })
   )
-  return sql.query(formatCTE(query), segments, {
-    orderBy: orderBy && sql.join(orderBy, sql`, `),
-    limit: limit !== undefined && input(limit),
-    offset: offset !== undefined && input(offset)
-  })
+  return sql.query(formatCTE(query), segments, formatModifiers(query))
 }

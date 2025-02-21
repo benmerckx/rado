@@ -64,7 +64,7 @@ interface SelectBase<Returning> {
   having?: HasSql<boolean> | ((input: Returning) => HasSql<boolean>)
 }
 
-interface ResultModifiers extends QueryBase {
+export interface ResultModifiers {
   orderBy?: Array<HasSql>
   limit?: Input<number>
   offset?: Input<number>
@@ -82,13 +82,17 @@ interface SelectionBase<Returning = SelectionInput>
 
 export interface SelectionQuery<Returning = SelectionInput>
   extends SelectionBase<Returning>,
+    QueryBase,
     ResultModifiers {}
 
 interface FromBase<Target = FromGuard> extends SelectBase<undefined> {
   from: Target
 }
 
-export interface FromQuery<Target> extends FromBase<Target>, ResultModifiers {}
+export interface FromQuery<Target>
+  extends FromBase<Target>,
+    QueryBase,
+    ResultModifiers {}
 
 type FoldJoins<T extends Array<unknown>, Result> = T extends [
   infer Join,
@@ -140,7 +144,8 @@ export type CompoundSelect<Returning = SelectionInput> = [
 ]
 
 export interface UnionQuery<Returning = SelectionInput>
-  extends ResultModifiers {
+  extends QueryBase,
+    ResultModifiers {
   select: CompoundSelect<Returning>
 }
 
@@ -172,7 +177,9 @@ export type Conflict<Definition extends TableDefinition = TableDefinition> =
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends Partial<SelectionQuery<Returning> & ResultModifiers> {
+> extends Partial<SelectionQuery<Returning>>,
+    QueryBase,
+    ResultModifiers {
   insert: Table<Definition>
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
@@ -182,7 +189,8 @@ export interface InsertQuery<
 export interface DeleteQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends ResultModifiers {
+> extends QueryBase,
+    ResultModifiers {
   delete: Table<Definition>
   where?: HasSql<boolean>
   returning?: Returning
@@ -191,7 +199,8 @@ export interface DeleteQuery<
 export interface UpdateQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends ResultModifiers {
+> extends QueryBase,
+    ResultModifiers {
   update: Table<Definition>
   set?: TableUpdate<Definition>
   where?: HasSql<boolean>

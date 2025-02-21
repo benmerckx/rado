@@ -1,11 +1,18 @@
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
-import {type HasSql, getSql, hasSql, internalSql} from './Internal.ts'
+import {
+  type HasSql,
+  getSql,
+  getTarget,
+  hasSql,
+  hasTarget,
+  internalSql
+} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {JsonPath} from './expr/Json.ts'
 
-export type Decoder<T> =
+export type Decoder<T = unknown> =
   | ((value: unknown) => T)
   | {mapFromDriverValue?(value: unknown, specs: DriverSpecs): T}
 
@@ -68,8 +75,9 @@ export function sql<T>(
       emitter.emitUnsafe(strings[i]!)
       if (i < inner.length) {
         const insert = inner[i]
-        if (insert !== null && typeof insert === 'object' && hasSql(insert))
-          getSql(insert).emit(emitter)
+        const isObject = insert !== null && typeof insert === 'object'
+        if (isObject && hasSql(insert)) getSql(insert).emit(emitter)
+        else if (isObject && hasTarget(insert)) getTarget(insert).emit(emitter)
         else emitter.emitValueOrInline(insert)
       }
     }
@@ -117,7 +125,7 @@ export namespace sql {
   }
 
   export function universal<T>(
-    runtimes: Partial<Record<Runtime | 'default', Sql<T>>>
+    runtimes: Partial<Record<Runtime | 'default', HasSql<T>>>
   ): Sql<T> {
     return new Sql(emitter => emitter.emitUniversal(runtimes))
   }

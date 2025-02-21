@@ -2,7 +2,6 @@ import {
   type HasQuery,
   getData,
   getTable,
-  hasSql,
   internalData,
   internalQuery,
   internalSelection
@@ -34,6 +33,7 @@ import type {
   SelectQuery
 } from './Query.ts'
 import {selectQuery} from './Select.ts'
+import {formatModifiers, mapToColumn} from './Shared.ts'
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Result, Meta>
@@ -141,10 +141,12 @@ export class InsertInto<
   }
 }
 
-const defaultKeyword = sql.universal({
-  sqlite: sql`null`,
-  default: sql`default`
-})
+function formatDefaultValue(value: Sql): Sql {
+  return sql.universal({
+    sqlite: value,
+    default: sql`default`
+  })
+}
 
 function formatValues(
   table: TableApi,
@@ -154,15 +156,14 @@ function formatValues(
     rows.map((row: Record<string, Input>) => {
       return sql`(${sql.join(
         Object.entries(table.columns).map(([key, column]) => {
-          const value = row[key]
-          const {$default, mapToDriverValue} = getData(column)
-          if (value !== undefined) {
-            if (value && typeof value === 'object' && hasSql(value))
-              return value
-            return input(mapToDriverValue?.(value) ?? value)
-          }
+          const expr = row[key]
+          const columnApi = getData(column)
+          const {$onUpdate, $default, defaultValue} = columnApi
+          if (expr !== undefined) return mapToColumn(columnApi, expr)
           if ($default) return $default()
-          return defaultKeyword
+          if (defaultValue) return formatDefaultValue(defaultValue)
+          if ($onUpdate) return $onUpdate()
+          return sql`null`
         }),
         sql`, `
       )})`
@@ -230,14 +231,15 @@ export function insertQuery(query: InsertQuery): Sql {
         values: formatValues(table, Array.isArray(values) ? values : [values])
       })
     : selectQuery(<SelectQuery>query)
-  const conflicts = formatConflicts(query.on ?? [])
+  const conflicts = query.on ? formatConflicts(query.on) : undefined
   return sql
     .query(
       formatCTE(query),
-      {insertInto: sql`${tableName}(${table.listColumns()})`},
+      {insertInto: sql`${tableName} (${table.listColumns()})`},
       toInsert,
       conflicts,
-      returning && sql.query({returning: selection(returning)})
+      returning && sql.query({returning: selection(returning)}),
+      formatModifiers(query)
     )
     .inlineFields(false)
 }

@@ -21,6 +21,7 @@ import {and} from '../expr/Conditions.ts'
 import type {Input} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {DeleteQuery} from './Query.ts'
+import {formatModifiers} from './Shared.ts'
 
 export class Delete<Result, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Result, Meta>
@@ -72,7 +73,7 @@ export class DeleteFrom<
     const data = getData(this)
     return new Delete({
       ...data,
-      returning
+      returning: returning ?? data.delete
     })
   }
 }
@@ -80,9 +81,13 @@ export class DeleteFrom<
 export function deleteQuery(query: DeleteQuery): Sql {
   const {delete: from, where, returning} = query
   const table = getTable(from)
-  return sql.query(formatCTE(query), {
-    deleteFrom: sql.identifier(table.name),
-    where,
-    returning: returning && selection(returning)
-  })
+  return sql.query(
+    formatCTE(query),
+    {
+      deleteFrom: sql.identifier(table.name),
+      where,
+      returning: returning && selection(returning)
+    },
+    formatModifiers(query)
+  )
 }

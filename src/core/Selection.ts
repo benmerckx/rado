@@ -59,6 +59,7 @@ class SqlColumn implements Column {
 
   result(ctx: MapRowContext) {
     const value = ctx.values[ctx.index++]
+    if (value === null) return null
     if (!this.sql.mapFromDriverValue) return value
     return this.sql.mapFromDriverValue(value, ctx.specs)
   }
@@ -104,7 +105,7 @@ export class Selection implements HasSql {
   }
 
   makeVirtual<Input>(name: string): Input & HasTarget {
-    return virtual<Input>(name, <Input>this.input)
+    return virtual(name, <Input>this.input)
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
@@ -169,7 +170,7 @@ export class Selection implements HasSql {
     return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
   }
 
-  join(right: HasTarget, operator: JoinOp): Selection {
+  join(right: HasTarget | Sql, operator: JoinOp): Selection {
     return this
   }
 }
@@ -179,7 +180,7 @@ export class TableSelection extends Selection {
     super(table, new Set())
   }
 
-  join(right: HasTarget, operator: JoinOp): Selection {
+  join(right: HasTarget | Sql, operator: JoinOp): Selection {
     const leftTable = getTable(this.table)
     if (!hasTable(right)) return this
     const rightTable = getTable(right)
@@ -203,7 +204,7 @@ export class JoinSelection extends Selection {
     )
   }
 
-  join(right: HasTarget, operator: JoinOp): Selection {
+  join(right: HasTarget | Sql, operator: JoinOp): Selection {
     if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)

@@ -74,8 +74,8 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   run(input: HasSql): Deliver<Meta, void> {
-    const emitter = this.dialect.emit(input)
-    return this.driver.exec(emitter.sql) as Deliver<Meta, void>
+    const sql = this.dialect.inline(input)
+    return this.driver.exec(sql) as Deliver<Meta, void>
   }
 
   get<Result extends Array<unknown>>(
@@ -84,12 +84,12 @@ export class Database<Meta extends QueryMeta = Either>
   get<Result>(input: HasSql<Result>): Deliver<Meta, Result>
   get(input: HasSql | HasQuery) {
     const emitter = this.dialect.emit(input)
-    return this.driver.prepare(emitter.sql).get([])
+    return this.driver.prepare(emitter.sql).get(emitter.bind())
   }
 
   all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {
     const emitter = this.dialect.emit(input)
-    return this.driver.prepare(emitter.sql).all([]) as Deliver<
+    return this.driver.prepare(emitter.sql).all(emitter.bind()) as Deliver<
       Meta,
       Array<Result>
     >
