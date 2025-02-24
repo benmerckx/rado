@@ -132,7 +132,10 @@ export type ColumnArguments<Options> =
   | [options: Options]
   | [name: string, options: Options]
 
-export function columnConfig<Options>(args: ColumnArguments<Options>) {
+export function columnConfig<Options>(args: ColumnArguments<Options>): {
+  name: string | undefined
+  options: Options | undefined
+} {
   if (typeof args[0] === 'string')
     return {name: args[0] as string, options: args[1]}
   return {name: undefined, options: args[0] as Options}
