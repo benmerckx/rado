@@ -1,7 +1,6 @@
-import type {ColumnData} from '../Column.ts'
-import {getSql, hasSql} from '../Internal.ts'
+import {getSql} from '../Internal.ts'
 import {type Sql, sql} from '../Sql.ts'
-import {type Input, input} from '../expr/Input.ts'
+import {input} from '../expr/Input.ts'
 import type {ResultModifiers} from './Query.ts'
 
 export function formatModifiers(modifiers: ResultModifiers): Sql | undefined {
@@ -21,15 +20,4 @@ export function formatModifiers(modifiers: ResultModifiers): Sql | undefined {
     limit: limit !== undefined && input(limit),
     offset: offset !== undefined && input(offset)
   })
-}
-
-export function mapToColumn<T>(
-  {mapToDriverValue}: ColumnData,
-  expr: Input<T>
-): Sql<T> {
-  const isObject = expr && typeof expr === 'object'
-  if (isObject && hasSql(expr)) return getSql(expr)
-  return input(
-    expr !== null && mapToDriverValue ? mapToDriverValue(expr) : expr
-  ) as Sql<T>
 }

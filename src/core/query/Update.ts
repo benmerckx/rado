@@ -18,10 +18,10 @@ import {
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
-import type {Input} from '../expr/Input.ts'
+import {type Input, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
-import {formatModifiers, mapToColumn} from './Shared.ts'
+import {formatModifiers} from './Shared.ts'
 
 export class Update<Result, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<Result>, Meta>

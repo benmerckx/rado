@@ -3,8 +3,7 @@ import {getData, getField, internalData} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
-import {type Input, input} from './expr/Input.ts'
-import {mapToColumn} from './query/Shared.ts'
+import {type Input, input, mapToColumn} from './expr/Input.ts'
 
 export interface ColumnData {
   type: Sql

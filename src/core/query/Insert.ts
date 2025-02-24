@@ -22,7 +22,7 @@ import type {
   TableRow,
   TableUpdate
 } from '../Table.ts'
-import {type Input, input} from '../expr/Input.ts'
+import {type Input, input, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   Conflict,
@@ -33,7 +33,7 @@ import type {
   SelectQuery
 } from './Query.ts'
 import {selectQuery} from './Select.ts'
-import {formatModifiers, mapToColumn} from './Shared.ts'
+import {formatModifiers} from './Shared.ts'
 
 export class Insert<Result, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Result, Meta>
