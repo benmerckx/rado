@@ -34,7 +34,7 @@ import type {Expand} from '../Types.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
-import {formatCTE} from './CTE.ts'
+import {type CTE, formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
   Join,
@@ -289,6 +289,7 @@ export interface WithoutSelection<Meta extends QueryMeta> {
     Record<Name, TableFields<Definition>>
   >
   from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
+  from<Input>(from: CTE<Input>): SelectionFrom<Input, Meta>
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
@@ -297,6 +298,7 @@ export interface WithSelection<Input, Meta extends QueryMeta>
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
+  from(from: HasTarget): SelectionFrom<Input, Meta>
   from(from: SubQuery<unknown>): SelectionFrom<Input, Meta>
   from(from: HasSql): Select<Input, Meta>
 }

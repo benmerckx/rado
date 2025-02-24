@@ -17,6 +17,9 @@ export function lastInsertId(): Sql<number> {
 export function concat(...slices: Array<Input<string | null>>): Sql<string> {
   return sql.universal({
     mysql: Functions.concat(...slices),
-    default: sql.join(slices.map(input), sql` || `)
+    default: sql.join(
+      slices.map(slice => input(slice)),
+      sql` || `
+    )
   })
 }

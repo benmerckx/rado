@@ -41,6 +41,7 @@ import {
   unionAll
 } from '@/sqlite.ts'
 import {suite} from '@alinea/suite'
+
 import {Database as BunDb} from 'bun:sqlite'
 import {expect} from 'bun:test'
 
@@ -1310,7 +1311,7 @@ test('with ... select', async ctx => {
     ])
     .run()
 
-  const regionalSales = await db.$with('regional_sales').as(
+  const regionalSales = db.$with('regional_sales').as(
     db
       .select({
         region: orders.region,

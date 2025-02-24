@@ -38,7 +38,8 @@ export function integer(
     return column({
       name,
       type: column.integer(),
-      mapFromDriverValue(value: number) {
+      mapFromDriverValue(value: number | null) {
+        if (value === null) return null
         return new Date(value * scale)
       },
       mapToDriverValue(value: Date) {

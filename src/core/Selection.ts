@@ -59,7 +59,6 @@ class SqlColumn implements Column {
 
   result(ctx: MapRowContext) {
     const value = ctx.values[ctx.index++]
-    if (value === null) return null
     if (!this.sql.mapFromDriverValue) return value
     return this.sql.mapFromDriverValue(value, ctx.specs)
   }

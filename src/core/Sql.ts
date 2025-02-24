@@ -35,7 +35,9 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   mapWith<T = Value>(decoder: Decoder<T>): Sql<T> {
     const res: Sql<T> = <any>this
     res.mapFromDriverValue =
-      typeof decoder === 'function' ? decoder : decoder.mapFromDriverValue
+      typeof decoder === 'function'
+        ? input => (input === null ? null! : decoder(input))
+        : decoder.mapFromDriverValue
     return res
   }
 

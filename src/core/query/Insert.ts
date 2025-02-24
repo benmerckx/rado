@@ -148,6 +148,8 @@ function formatDefaultValue(value: Sql): Sql {
   })
 }
 
+const defaultKeyword = formatDefaultValue(sql`null`)
+
 function formatValues(
   table: TableApi,
   rows: Array<TableInsert<TableDefinition>>
@@ -163,7 +165,7 @@ function formatValues(
           if ($default) return $default()
           if (defaultValue) return formatDefaultValue(defaultValue)
           if ($onUpdate) return $onUpdate()
-          return sql`null`
+          return defaultKeyword
         }),
         sql`, `
       )})`
