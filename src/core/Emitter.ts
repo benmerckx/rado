@@ -1,3 +1,4 @@
+import {type HasSql, getSql} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {Sql} from './Sql.ts'
@@ -84,9 +85,9 @@ export abstract class Emitter {
     else this.emitValue(value)
   }
 
-  emitUniversal(runtimes: Partial<Record<Runtime | 'default', Sql>>) {
+  emitUniversal(runtimes: Partial<Record<Runtime | 'default', HasSql>>) {
     const sql = runtimes[this.#runtime] ?? runtimes.default
     if (!sql) throw new Error('Unsupported runtime')
-    sql.emit(this)
+    getSql(sql).emit(this)
   }
 }

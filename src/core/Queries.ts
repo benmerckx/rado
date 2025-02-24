@@ -14,12 +14,13 @@ import type {Sql} from './Sql.ts'
 
 export class QueryData<Meta extends QueryMeta> {
   resolver?: Resolver<Meta>
+  first?: boolean
 }
 
-type Exec = () => any
+type Exec = Function
 
 class Executable<Result, Meta extends QueryMeta>
-  implements PromiseLike<Array<Result>>
+  implements PromiseLike<Result>
 {
   private declare brand: [Meta]
 
@@ -28,13 +29,13 @@ class Executable<Result, Meta extends QueryMeta>
     this.#execute = exec
   }
 
-  *[Symbol.iterator](): Generator<Promise<unknown>, Array<Result>, unknown> {
+  *[Symbol.iterator](): Generator<Promise<unknown>, Result, unknown> {
     const interim = this.#execute()
     const isAsync = interim instanceof Promise
-    if (!isAsync) return interim as Array<Result>
+    if (!isAsync) return interim as Result
     let result: unknown
     yield interim.then(v => (result = v))
-    return result as Array<Result>
+    return result as Result
   }
 
   run(): Deliver<Meta, void> {
@@ -42,9 +43,9 @@ class Executable<Result, Meta extends QueryMeta>
   }
 
   // biome-ignore lint/suspicious/noThenProperty:
-  async then<TResult1 = Array<Result>, TResult2 = never>(
+  async then<TResult1 = Result, TResult2 = never>(
     onfulfilled?:
-      | ((value: Array<Result>) => TResult1 | PromiseLike<TResult1>)
+      | ((value: Result) => TResult1 | PromiseLike<TResult1>)
       | undefined
       | null,
     onrejected?:
@@ -65,17 +66,17 @@ class Executable<Result, Meta extends QueryMeta>
       | ((reason: unknown) => TResult | PromiseLike<TResult>)
       | undefined
       | null
-  ): Promise<Array<Result> | TResult> {
+  ): Promise<Result | TResult> {
     return this.then().catch(onrejected)
   }
 
-  finally(onfinally?: (() => void) | undefined | null): Promise<Array<Result>> {
+  finally(onfinally?: (() => void) | undefined | null): Promise<Result> {
     return this.then().finally(onfinally)
   }
 }
 
 export class BatchQuery<Results, Meta extends QueryMeta> extends Executable<
-  Results,
+  Array<Results>,
   Meta
 > {
   constructor(queryResolver: Resolver, queries: Array<HasSql | HasQuery>) {
@@ -100,9 +101,12 @@ export abstract class SingleQuery<
   #exec(method: 'all' | 'get' | 'run' | undefined, db?: HasResolver) {
     const data = getData(this)
     const resolver = db ? getResolver(db) : data.resolver
+    if (!resolver) throw new Error('Query has no resolver')
     const isSelection = hasSelection(this)
-    const prepared = resolver!.prepare(this, '')
-    const resultType = method ?? (isSelection ? 'all' : 'run')
+    const isFirst = data.first
+    const prepared = resolver.prepare(this, '')
+    const resultType =
+      method ?? (isSelection ? (isFirst ? 'get' : 'all') : 'run')
     try {
       const result = prepared[resultType]()
       if (result instanceof Promise)
@@ -117,11 +121,19 @@ export abstract class SingleQuery<
     }
   }
 
-  all(db?: HasResolver): Deliver<Meta, Array<Result>> {
-    return this.#exec('all', db) as Deliver<Meta, Array<Result>>
+  all<Result extends Array<unknown>>(
+    this: SingleQuery<Result, Meta>,
+    db?: HasResolver
+  ): Deliver<Meta, Result> {
+    return this.#exec('all', db) as Deliver<Meta, Result>
   }
 
-  get(db?: HasResolver): Deliver<Meta, Result | null> {
+  get<Result extends Array<unknown>>(
+    this: SingleQuery<Result, Meta>,
+    db?: HasResolver
+  ): Deliver<Meta, Result[number] | null>
+  get(db?: HasResolver): Deliver<Meta, Result | null>
+  get(db?: HasResolver) {
     return this.#exec('get', db) as Deliver<Meta, Result | null>
   }
 
@@ -149,8 +161,16 @@ export interface PreparedQuery<
   Inputs extends Record<string, unknown>,
   Meta extends QueryMeta
 > extends PreparedStatement<Meta> {
-  all(inputs?: Inputs): Deliver<Meta, Array<Result>>
+  all<Result extends Array<unknown>>(
+    this: PreparedQuery<Result, Inputs, Meta>,
+    inputs?: Inputs
+  ): Deliver<Meta, Result>
   get(inputs?: Inputs): Deliver<Meta, Result>
+  get<Result extends Array<unknown>>(
+    this: PreparedQuery<Result, Inputs, Meta>,
+    inputs?: Inputs
+  ): Deliver<Meta, Result[number] | null>
   run(inputs?: Inputs): Deliver<Meta, void>
-  execute(inputs?: Inputs): Promise<Array<Result>>
+  execute(inputs?: Inputs): Promise<Result>
+  free(): void
 }

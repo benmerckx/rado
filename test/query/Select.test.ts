@@ -59,7 +59,7 @@ suite(import.meta, test => {
 
   test('order by', () => {
     const expected =
-      'select "Node"."id", "Node"."field1" from "Node" order by "Node"."id"'
+      'select "Node"."id", "Node"."field1" from "Node" order by "id"'
     const query = builder.select().from(Node).orderBy(Node.id)
     test.equal(emit(query), expected)
     const direct = builder.$query({from: Node, orderBy: [Node.id]})

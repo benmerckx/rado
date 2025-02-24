@@ -3,7 +3,7 @@ import {getData, getField, internalData} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
-import {type Input, input} from './expr/Input.ts'
+import {type Input, input, mapToColumn} from './expr/Input.ts'
 
 export interface ColumnData {
   type: Sql
@@ -13,13 +13,12 @@ export interface ColumnData {
   notNull?: boolean
   isUnique?: boolean
   autoIncrement?: boolean
-  $default?(): Sql
   defaultValue?: Sql
   references?(): FieldData
-  onUpdate?: Sql
-  onDelete?: Sql
   mapFromDriverValue?(value: unknown, specs: DriverSpecs): unknown
   mapToDriverValue?(value: unknown): unknown
+  $default?(): Sql
+  $onUpdate?(): Sql
 }
 
 type WithoutNull<Value> = Exclude<Value, null>
@@ -45,15 +44,23 @@ export class Column<Value = unknown> {
   ): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
-      $default(): Sql {
-        return input(value instanceof Function ? value() : value)
-      }
+      $default: () =>
+        mapToColumn(getData(this), value instanceof Function ? value() : value)
+    })
+  }
+  $onUpdateFn(fn: () => Input<Value>): Column<Value> {
+    return this.$onUpdate(fn)
+  }
+  $onUpdate(fn: () => Input<Value>): Column<Value> {
+    return new Column({
+      ...getData(this),
+      $onUpdate: () => mapToColumn(getData(this), fn())
     })
   }
   default(value: Input<WithoutNull<Value>>): Column<WithoutNull<Value>> {
     return new Column({
       ...getData(this),
-      defaultValue: input(value).inlineValues()
+      defaultValue: input(value)
     })
   }
   defaultNow(): Column<WithoutNull<Value>> {
@@ -62,8 +69,8 @@ export class Column<Value = unknown> {
       defaultValue: sql.unsafe('now()')
     })
   }
-  primaryKey(): Column<WithoutNull<Value>> {
-    return new Column({...getData(this), primary: true})
+  primaryKey(options?: {autoIncrement: boolean}): Column<WithoutNull<Value>> {
+    return new Column({...getData(this), ...options, primary: true})
   }
   unique(name?: string): Column<Value> {
     return new Column({...getData(this), isUnique: true})
@@ -120,6 +127,20 @@ export const column: Columns = new Proxy(createColumn as any, {
   }
 })
 
+export type ColumnArguments<Options> =
+  | [name?: string]
+  | [options: Options]
+  | [name: string, options: Options]
+
+export function columnConfig<Options>(args: ColumnArguments<Options>): {
+  name: string | undefined
+  options: Options | undefined
+} {
+  if (typeof args[0] === 'string')
+    return {name: args[0] as string, options: args[1]}
+  return {name: undefined, options: args[0] as Options}
+}
+
 function formatReferences(fields: Array<FieldData>): Sql {
   return callFunction(
     sql.identifier(fields[0].targetName),
@@ -131,14 +152,17 @@ export function formatColumn(column: ColumnData): Sql {
   const references =
     column.references &&
     sql`references ${formatReferences([column.references!()])}`
-  return sql.join([
+  return sql.query(
     column.type,
-    column.primary && sql`primary key`,
-    column.notNull && sql`not null`,
-    column.isUnique && sql`unique`,
-    column.autoIncrement && sql`autoincrement`,
-    column.defaultValue && sql`default ${column.defaultValue}`,
-    references,
-    column.onUpdate && sql`on update ${column.onUpdate}`
-  ])
+    {
+      primaryKey: column.primary,
+      notNull: column.notNull,
+      unique: column.isUnique,
+      autoincrement: column.autoIncrement
+    },
+    column.defaultValue !== undefined
+      ? sql`default (${column.defaultValue})`.inlineValues()
+      : undefined,
+    references
+  )
 }

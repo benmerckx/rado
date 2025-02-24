@@ -10,7 +10,9 @@ function bool(impl: Sql): Sql<boolean> {
 
 function binop(operator: string) {
   return (left: Input, right: Input): Sql<boolean> =>
-    bool(sql`${input(left)} ${sql.unsafe(operator)} ${input(right)}`)
+    bool(
+      sql`${input(left, right)} ${sql.unsafe(operator)} ${input(right, left)}`
+    )
 }
 
 export const eq: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
@@ -59,7 +61,7 @@ export function and(
 ): Sql<boolean> {
   const inputs = conditions
     .filter((v): v is Input<boolean> => v !== undefined)
-    .map(input)
+    .map(i => input(i))
   if (inputs.length === 0) return bool(sql`true`)
   if (inputs.length === 1) return bool(inputs[0])
   return bool(sql`(${sql.join(inputs, sql` and `)})`)
@@ -70,7 +72,7 @@ export function or(
 ): Sql<boolean> {
   const inputs = conditions
     .filter((v): v is Input<boolean> => v !== undefined)
-    .map(input)
+    .map(i => input(i))
   if (inputs.length === 0) return bool(sql`true`)
   if (inputs.length === 1) return bool(inputs[0])
   return bool(sql`(${sql.join(inputs, sql` or `)})`)
@@ -82,12 +84,17 @@ export function not(condition: Input<boolean>): Sql<boolean> {
 
 export function inArray<T>(
   left: Input<T>,
-  right: SingleQuery<T, any> | Input<Array<T>>
+  right: SingleQuery<Array<T>, any> | Input<Array<T>>
 ): Sql<boolean> {
   const value = hasSql(right) ? undefined : right
   if (Array.isArray(value)) {
     if (value.length === 0) return sql`false`
-    return bool(sql`${input(left)} in (${sql.join(value.map(input), sql`, `)})`)
+    return bool(
+      sql`${input(left)} in (${sql.join(
+        value.map(i => input(i)),
+        sql`, `
+      )})`
+    )
   }
   return bool(sql`${input(left)} in ${input(<Input>right)}`)
 }
@@ -100,7 +107,10 @@ export function notInArray<T>(
   if (Array.isArray(value)) {
     if (value.length === 0) return sql`true`
     return bool(
-      sql`${input(left)} not in (${sql.join(value.map(input), sql`, `)})`
+      sql`${input(left)} not in (${sql.join(
+        value.map(i => input(i)),
+        sql`, `
+      )})`
     )
   }
   return bool(sql`${input(left)} not in ${input(<Input>right)}`)

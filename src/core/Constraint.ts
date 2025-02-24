@@ -9,7 +9,11 @@ import {
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 
-export interface UniqueConstraintData {
+export interface ConstraintData {
+  name?: string
+}
+
+export interface UniqueConstraintData extends ConstraintData {
   fields: Array<FieldData>
   nullsNotDistinct?: boolean
 }
@@ -48,11 +52,11 @@ export class UniqueConstraint<TableName extends string = string>
   }
 }
 
-export function unique(): UniqueConstraint {
-  return new UniqueConstraint({fields: []})
+export function unique(name?: string): UniqueConstraint {
+  return new UniqueConstraint({name, fields: []})
 }
 
-export interface PrimaryKeyConstraintData {
+export interface PrimaryKeyConstraintData extends ConstraintData {
   fields: Array<FieldData>
 }
 
@@ -75,13 +79,25 @@ export class PrimaryKeyConstraint<TableName extends string = string>
   }
 }
 
+export function primaryKey<TableName extends string = string>(options: {
+  name?: string
+  columns: Array<Field<unknown, TableName>>
+}): PrimaryKeyConstraint<TableName>
 export function primaryKey<TableName extends string = string>(
   ...fields: Array<Field<unknown, TableName>>
+): PrimaryKeyConstraint<TableName>
+export function primaryKey<TableName extends string = string>(
+  ...args: Array<any>
 ): PrimaryKeyConstraint<TableName> {
-  return new PrimaryKeyConstraint({fields: fields.map(getField)})
+  if (args.length === 1 && 'columns' in args[0])
+    return new PrimaryKeyConstraint({
+      name: args[0].name,
+      fields: args[0].columns.map(getField)
+    })
+  return new PrimaryKeyConstraint({fields: args.map(getField)})
 }
 
-export interface ForeignKeyConstraintData {
+export interface ForeignKeyConstraintData extends ConstraintData {
   fields: Array<FieldData>
   references: Array<FieldData>
 }
@@ -117,11 +133,24 @@ export class ForeignKeyConstraint<TableName extends string = string>
   }
 }
 
+export function foreignKey<TableName extends string = string>(options: {
+  name?: string
+  columns: Array<Field<unknown, TableName>>
+}): ForeignKeyConstraint<TableName>
 export function foreignKey<TableName extends string = string>(
   ...fields: Array<Field<unknown, TableName>>
+): ForeignKeyConstraint<TableName>
+export function foreignKey<TableName extends string = string>(
+  ...args: Array<any>
 ): ForeignKeyConstraint<TableName> {
+  if (args.length === 1 && 'columns' in args[0])
+    return new ForeignKeyConstraint({
+      name: args[0].name,
+      fields: args[0].columns.map(getField),
+      references: []
+    })
   return new ForeignKeyConstraint({
-    fields: fields.map(getField),
+    fields: args.map(getField),
     references: []
   })
 }

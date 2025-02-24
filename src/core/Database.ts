@@ -22,8 +22,10 @@ import type {
 } from './MetaData.ts'
 import {BatchQuery} from './Queries.ts'
 import {Resolver} from './Resolver.ts'
-import {sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
+import {count} from './expr/Aggregate.ts'
+import type {SelectFirst} from './query/Select.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -69,6 +71,28 @@ export class Database<Meta extends QueryMeta = Either>
       getResolver(this),
       tables.map(table => getTable(table).drop())
     )
+  }
+
+  run(input: HasSql): Deliver<Meta, void> {
+    const sql = this.dialect.inline(input)
+    return this.driver.exec(sql) as Deliver<Meta, void>
+  }
+
+  get<Result extends Array<unknown>>(
+    input: HasQuery<Result>
+  ): Deliver<Meta, Result[number]>
+  get<Result>(input: HasSql<Result>): Deliver<Meta, Result>
+  get(input: HasSql | HasQuery) {
+    const emitter = this.dialect.emit(input)
+    return this.driver.prepare(emitter.sql).get(emitter.bind())
+  }
+
+  all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {
+    const emitter = this.dialect.emit(input)
+    return this.driver.prepare(emitter.sql).all(emitter.bind()) as Deliver<
+      Meta,
+      Array<Result>
+    >
   }
 
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
@@ -118,6 +142,16 @@ export class Database<Meta extends QueryMeta = Either>
       },
       {async: run.constructor.name === 'AsyncFunction', ...options}
     )
+  }
+
+  $count(
+    source: Table | HasSql,
+    condition?: HasSql<boolean>
+  ): SelectFirst<Sql<number>, Meta> {
+    return this.select(count())
+      .from(source as HasSql)
+      .where(condition)
+      .$first()
   }
 }
 

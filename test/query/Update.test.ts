@@ -24,7 +24,7 @@ suite(import.meta, test => {
     })
     test.equal(
       emit(query),
-      'update "Node" set "nullable" = null, "required" = 3, "withDefault" = "required" + 1'
+      'update "Node" set "withDefault" = "required" + 1, "required" = 3, "nullable" = null'
     )
   })
 

@@ -1,8 +1,8 @@
 import {
+  type HasQuery,
   type HasSql,
   getData,
   getTable,
-  hasSql,
   internalData,
   internalQuery,
   internalSelection
@@ -18,14 +18,15 @@ import {
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
-import {input} from '../expr/Input.ts'
+import {type Input, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
+import {formatModifiers} from './Shared.ts'
 
-export class Update<
-  Result,
-  Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Result, Meta> {
+export class Update<Result, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<Array<Result>, Meta>
+  implements HasQuery<Result>
+{
   readonly [internalData]: QueryData<Meta> & UpdateQuery
   declare readonly [internalSelection]?: Selection
 
@@ -35,8 +36,20 @@ export class Update<
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql {
-    return updateQuery(getData(this))
+  get [internalQuery](): Sql<Result> {
+    return updateQuery(getData(this)) as Sql<Result>
+  }
+
+  limit(limit: Input<number>): Update<Result, Meta> {
+    return new Update({...getData(this), limit})
+  }
+
+  offset(offset: Input<number>): Update<Result, Meta> {
+    return new Update({...getData(this), offset})
+  }
+
+  orderBy(...orderBy: Array<HasSql>): Update<Result, Meta> {
+    return new Update({...getData(this), orderBy})
   }
 }
 
@@ -75,23 +88,31 @@ export function updateQuery(query: UpdateQuery): Sql {
   const tableApi = getTable(table)
   if (!values) throw new Error('Update values are required')
   const set = sql.join(
-    Object.entries(values).map(([key, value]) => {
-      const column = getTable(table).columns[key]
-      const {mapToDriverValue} = getData(column)
-      const expr =
-        value && typeof value === 'object' && hasSql(value)
-          ? value
-          : input(mapToDriverValue?.(value) ?? value)
-      return sql`${sql.identifier(key)} = ${expr}`
+    Object.entries(tableApi.columns).map(([key, column]) => {
+      const columnApi = getData(column)
+      const {name, $onUpdate} = columnApi
+      let expr: unknown
+      if (!(key in values)) {
+        if ($onUpdate) expr = $onUpdate()
+        else return
+      } else {
+        expr = mapToColumn(columnApi, values[key])
+      }
+      const fieldName = name ?? key
+      return sql`${sql.identifier(fieldName)} = ${expr}`
     }),
     sql`, `
   )
   return sql
-    .query(formatCTE(query), {
-      update: sql.identifier(tableApi.name),
-      set,
-      where,
-      returning: returning && selection(returning)
-    })
+    .query(
+      formatCTE(query),
+      {
+        update: sql.identifier(tableApi.name),
+        set,
+        where,
+        returning: returning && selection(returning)
+      },
+      formatModifiers(query)
+    )
     .inlineFields(false)
 }

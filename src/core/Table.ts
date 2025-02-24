@@ -12,16 +12,19 @@ import type {
 import {Index} from './Index.ts'
 import {
   type HasConstraint,
+  type HasData,
+  type HasSelection,
   type HasSql,
   type HasTable,
-  type HasTarget,
   getConstraint,
   getData,
   getTable,
   hasConstraint,
+  internalSelection,
   internalTable,
   internalTarget
 } from './Internal.ts'
+import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
@@ -81,12 +84,12 @@ export class TableApi<
     )
     const createConstraints = entries(this.config ?? {})
       .filter(([, constraint]) => hasConstraint(constraint))
-      .map(
-        ([name, constraint]) =>
-          sql`constraint ${sql.identifier(name)} ${getConstraint(
-            constraint as HasConstraint
-          )}`
-      )
+      .map(([key, constraint]) => {
+        const {name} = getData(constraint as HasData<{name?: string}>)
+        return sql`constraint ${sql.identifier(name ?? key)} ${getConstraint(
+          constraint as HasConstraint
+        )}`
+      })
     return sql.join(createColumns.concat(createConstraints), sql`, `)
   }
 
@@ -134,7 +137,7 @@ export class TableApi<
   }
 
   drop(): Sql {
-    return sql`drop table ${this.target()}`
+    return sql`drop table if exists ${this.target()}`
   }
 
   indexes(): Record<string, Index> {
@@ -147,7 +150,7 @@ export class TableApi<
 export type Table<
   Definition extends TableDefinition = Record<never, Column>,
   Name extends string = string
-> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasTarget
+> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasSelection
 
 export type TableFields<
   Definition extends TableDefinition,
@@ -209,10 +212,12 @@ export function table<Definition extends TableDefinition, Name extends string>(
     schemaName,
     columns
   })
+  const fields = api.fields()
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
-    ...api.fields()
+    [internalSelection]: selection(fields),
+    ...fields
   }
   if (config) api.config = config(table)
   return table
@@ -226,9 +231,19 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     ...getTable(table),
     alias
   })
+  const fields = api.fields()
   return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
+    [internalSelection]: selection(fields),
     ...api.fields()
+  }
+}
+
+export function tableCreator(
+  nameTable: (name: string) => string
+): typeof table {
+  return (name, columns, config, schemaName) => {
+    return table(<any>nameTable(name), columns, config, schemaName)
   }
 }

@@ -9,13 +9,13 @@ import {
 import type {SelectionInput} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {QueryBase} from './Query.ts'
-import type {SelectBase} from './Select.ts'
+import type {UnionBase} from './Select.ts'
 
 export type CTE<Input = unknown> = Input & HasTarget & HasQuery
 
 export function createCTE<Input extends SelectionInput>(
   cteName: string,
-  query: SelectBase<Input>
+  query: UnionBase<Input>
 ): CTE<Input> {
   const fields = getSelection(query).makeVirtual(cteName)
   return Object.assign(<any>fields, {

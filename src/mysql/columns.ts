@@ -1,19 +1,23 @@
-import {JsonColumn, column, type Column} from '../core/Column.ts'
+import {
+  type Column,
+  type ColumnArguments,
+  JsonColumn,
+  column,
+  columnConfig
+} from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export function bigint(
-  name: string | undefined,
-  options: {mode: 'number'; unsigned?: boolean}
+  ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
 ): Column<number | null>
 export function bigint(
-  name?: string,
-  options?: {unsigned?: boolean}
+  ...args: ColumnArguments<{unsigned?: boolean}>
 ): Column<bigint | null>
 export function bigint(
-  name?: string,
-  options?: {mode?: 'number'; unsigned?: boolean}
+  ...args: ColumnArguments<{mode?: 'number'; unsigned?: boolean}>
 ) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[options?.unsigned ? 'bigint unsigned' : 'bigint'](),
@@ -22,9 +26,9 @@ export function bigint(
 }
 
 export function binary(
-  name?: string,
-  options?: {length?: number}
+  ...args: ColumnArguments<{length?: number}>
 ): Column<Uint8Array | null> {
+  const {name, options} = columnConfig(args)
   return column({name, type: column.binary(options?.length)})
 }
 
@@ -37,21 +41,20 @@ export function blob(name?: string): Column<Uint8Array | null> {
 }
 
 export function char(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length?: number}>
 ): Column<string | null> {
+  const {name, options} = columnConfig(args)
   return column({name, type: column.char(options?.length)})
 }
 
 export function date(
-  name?: string,
-  options?: {mode: 'string'}
+  ...args: ColumnArguments<{mode: 'string'}>
 ): Column<string | null>
 export function date(
-  name: string | undefined,
-  options: {mode: 'date'}
+  ...args: ColumnArguments<{mode: 'date'}>
 ): Column<Date | null>
-export function date(name?: string, options?: {mode: 'date' | 'string'}) {
+export function date(...args: ColumnArguments<{mode: 'date' | 'string'}>) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.date(),
@@ -65,17 +68,15 @@ export function date(name?: string, options?: {mode: 'date' | 'string'}) {
 }
 
 export function datetime(
-  name?: string,
-  options?: {fsp?: Precision}
+  ...args: ColumnArguments<{fsp?: Precision}>
 ): Column<Date | null>
 export function datetime(
-  name: string | undefined,
-  options: {mode: 'string'; fsp?: Precision}
+  ...args: ColumnArguments<{mode: 'string'; fsp?: Precision}>
 ): Column<string | null>
 export function datetime(
-  name?: string,
-  options?: {mode?: 'string'; fsp?: Precision}
+  ...args: ColumnArguments<{mode?: 'string'; fsp?: Precision}>
 ) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.datetime(options?.fsp),
@@ -89,12 +90,12 @@ export function datetime(
 }
 
 export function decimal(
-  name: string | undefined,
-  options: {precision?: number; scale?: number}
+  ...args: ColumnArguments<{precision?: number; scale?: number}>
 ): Column<number | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
-    type: column.decimal(options.precision, options.scale)
+    type: column.decimal(options?.precision, options?.scale)
   })
 }
 
@@ -119,9 +120,9 @@ export function json<T>(name?: string): JsonColumn<T | null> {
 }
 
 export function mediumint(
-  name?: string,
-  options?: {unsigned?: boolean}
+  ...args: ColumnArguments<{unsigned?: boolean}>
 ): Column<number | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[options?.unsigned ? 'mediumint unsigned' : 'mediumint']()
@@ -137,9 +138,9 @@ export function serial(name?: string): Column<number | null> {
 }
 
 export function smallint(
-  name?: string,
-  options?: {unsigned?: boolean}
+  ...args: ColumnArguments<{unsigned?: boolean}>
 ): Column<number | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[options?.unsigned ? 'smallint unsigned' : 'smallint']()
@@ -163,24 +164,22 @@ export function longtext(name?: string): Column<string | null> {
 }
 
 export function time(
-  name?: string,
-  options?: {fsp?: Precision}
+  ...args: ColumnArguments<{fsp?: Precision}>
 ): Column<string | null> {
+  const {name, options} = columnConfig(args)
   return column({name, type: column.time(options?.fsp)})
 }
 
 export function timestamp(
-  name: string | undefined,
-  options?: {fsp?: Precision}
+  ...args: ColumnArguments<{fsp?: Precision}>
 ): Column<Date | null>
 export function timestamp(
-  name?: string,
-  options?: {mode: 'string'; fsp?: Precision}
+  ...args: ColumnArguments<{mode: 'string'; fsp?: Precision}>
 ): Column<string | null>
 export function timestamp(
-  name?: string,
-  options?: {mode?: 'string'; fsp?: Precision}
+  ...args: ColumnArguments<{mode?: 'string'; fsp?: Precision}>
 ) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.timestamp(options?.fsp),
@@ -196,9 +195,9 @@ export function timestamp(
 }
 
 export function tinyint(
-  name?: string,
-  options?: {unsigned?: boolean}
+  ...args: ColumnArguments<{unsigned?: boolean}>
 ): Column<number | null> {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column[options?.unsigned ? 'tinyint unsigned' : 'tinyint']()
@@ -206,16 +205,16 @@ export function tinyint(
 }
 
 export function varbinary(
-  name?: string,
-  options?: {length?: number}
+  ...args: ColumnArguments<{length?: number}>
 ): Column<Uint8Array | null> {
+  const {name, options} = columnConfig(args)
   return column({name, type: column.varbinary(options?.length)})
 }
 
 export function varchar(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length?: number}>
 ): Column<string | null> {
+  const {name, options} = columnConfig(args)
   return column({name, type: column.varchar(options?.length)})
 }
 

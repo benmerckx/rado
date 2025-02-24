@@ -19,7 +19,6 @@ import type {
   UpdateQuery
 } from './query/Query.ts'
 import type {
-  SelectBase,
   UnionBase,
   WithSelection,
   WithoutSelection
@@ -122,7 +121,7 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   } {
     return {
       as<Input extends SelectionInput>(
-        query: SelectBase<Input, Meta>
+        query: UnionBase<Input, Meta>
       ): CTE<Input> {
         return createCTE(cteName, query)
       }

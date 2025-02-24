@@ -21,3 +21,4 @@ export function getTableColumns<Definition extends TableDefinition>(
 ): TableFields<Definition> {
   return table
 }
+export {Rollback as TransactionRollbackError} from './core/Database.ts'
