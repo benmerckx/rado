@@ -1,6 +1,6 @@
-import {type Database, eq} from '@/index.ts'
+import {type Database, eq, table} from '@/index.ts'
 import type {DefineTest} from '@alinea/suite'
-import {concat} from '../../src/universal.ts'
+import {concat, integer} from '../../src/universal.ts'
 import {Node} from './schema.ts'
 
 export function testUpdate(db: Database, test: DefineTest) {
@@ -26,5 +26,25 @@ export function testUpdate(db: Database, test: DefineTest) {
     } finally {
       await db.drop(Node)
     }
+  })
+
+  // see benmerckx/rado#21
+  test('issue 21', async () => {
+    const UserT = table('app_user', {
+      id: integer('id').primaryKey().notNull(),
+      updatedAt: integer('updated_at').notNull()
+    })
+
+    await db.create(UserT)
+
+    const now = +new Date() / 1000
+
+    await db.insert(UserT).values({id: 1, updatedAt: now})
+
+    await db.update(UserT).set({updatedAt: now}).where(eq(UserT.id, 1))
+
+    const user = await db.select().from(UserT).get()
+
+    test.equal(user, {id: 1, updatedAt: now})
   })
 }

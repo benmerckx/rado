@@ -13,6 +13,7 @@ import {testMigration} from './integration/TestMigration.ts'
 import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
 import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
+import {testUpdate} from './integration/TestUpdate.ts'
 
 export async function testDriver(
   test: DefineTest<any>,
@@ -31,6 +32,7 @@ export async function testDriver(
   testCTE(db, test)
   testInclude(db, test)
   testConflicts(db, test)
+  testUpdate(db, test)
   if (!db.driver.supportsTransactions) return
   testTransactions(db, test)
   testMigration(db, test)
