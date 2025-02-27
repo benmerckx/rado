@@ -247,3 +247,13 @@ export function tableCreator(
     return table(<any>nameTable(name), columns, config, schemaName)
   }
 }
+
+export type InsertRow<T> = T extends Table<infer Definition>
+  ? TableInsert<Definition>
+  : never
+export type SelectRow<T> = T extends Table<infer Definition>
+  ? TableRow<Definition>
+  : never
+export type UpdateRow<T> = T extends Table<infer Definition>
+  ? TableUpdate<Definition>
+  : never
