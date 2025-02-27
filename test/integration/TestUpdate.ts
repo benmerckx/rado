@@ -1,6 +1,6 @@
 import {type Database, eq, table} from '@/index.ts'
+import {concat, integer} from '@/universal.ts'
 import type {DefineTest} from '@alinea/suite'
-import {concat, integer} from '../../src/universal.ts'
 import {Node} from './schema.ts'
 
 export function testUpdate(db: Database, test: DefineTest) {
@@ -37,14 +37,18 @@ export function testUpdate(db: Database, test: DefineTest) {
 
     await db.create(UserT)
 
-    const now = +new Date() / 1000
+    try {
+      const now = Math.trunc(+new Date() / 1000)
 
-    await db.insert(UserT).values({id: 1, updatedAt: now})
+      await db.insert(UserT).values({id: 1, updatedAt: now})
 
-    await db.update(UserT).set({updatedAt: now}).where(eq(UserT.id, 1))
+      await db.update(UserT).set({updatedAt: now}).where(eq(UserT.id, 1))
 
-    const user = await db.select().from(UserT).get()
+      const user = await db.select().from(UserT).get()
 
-    test.equal(user, {id: 1, updatedAt: now})
+      test.equal(user, {id: 1, updatedAt: now})
+    } finally {
+      await db.drop(UserT)
+    }
   })
 }
