@@ -2,7 +2,7 @@ import type {HasSql} from './core/Internal.ts'
 import type {Sql} from './core/Sql.ts'
 import type {Table, TableDefinition, TableFields} from './core/Table.ts'
 
-export {
+export type {
   InsertRow as InferInsertModel,
   SelectRow as InferSelectModel
 } from './core/Table.ts'
