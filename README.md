@@ -27,7 +27,7 @@ import {connect} from 'rado/driver/pg'
 import {Pool} from 'pg'
 
 // Define your schema
-const User = table({
+const User = table("user", {
   id: integer().primaryKey(),
   name: text().notNull(),
   email: text().unique()
@@ -165,7 +165,7 @@ Rado provides first-class support for JSON columns:
 ```typescript
 import {pgTable, serial, text, jsonb} from 'rado/postgres'
 
-const User = pgTable({
+const User = pgTable("user", {
   id: serial().primaryKey(),
   name: text(),
   metadata: jsonb<{subscribed: boolean}>()
