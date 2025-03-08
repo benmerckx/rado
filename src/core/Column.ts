@@ -1,11 +1,17 @@
 import type {DriverSpecs} from './Driver.ts'
-import {getData, getField, internalData} from './Internal.ts'
+import {
+  getData,
+  getField,
+  internalColumnArgs,
+  internalColumnKind,
+  internalData
+} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import {type Input, input, mapToColumn} from './expr/Input.ts'
 
-export interface ColumnData {
+export interface BaseColumnData {
   type: Sql
   name?: string
   json?: boolean
@@ -19,6 +25,26 @@ export interface ColumnData {
   mapToDriverValue?(value: unknown): unknown
   $default?(): Sql
   $onUpdate?(): Sql
+}
+
+export interface ColumnType<T = unknown> extends Sql<T> {
+  [internalColumnKind]: string
+  [internalColumnArgs]: unknown[]
+}
+
+export function ColumnType<T = unknown>(
+  kind: string,
+  args: unknown[],
+  sql: Sql<T>
+) {
+  return Object.assign(sql, {
+    [internalColumnKind]: kind,
+    [internalColumnArgs]: args
+  })
+}
+
+export interface ColumnData extends BaseColumnData {
+  type: ColumnType
 }
 
 type WithoutNull<Value> = Exclude<Value, null>
@@ -109,7 +135,7 @@ function createColumn(data: ColumnData): Column {
 
 export interface Columns {
   <T>(data: ColumnData): Column<T>
-  [key: string]: (...args: Array<Input<any>>) => Sql<any>
+  [key: string]: (...args: Array<Input<any>>) => ColumnType<any>
 }
 
 export const column: Columns = new Proxy(createColumn as any, {
@@ -118,11 +144,16 @@ export const column: Columns = new Proxy(createColumn as any, {
       while (args.length > 0)
         if (args.at(-1) === undefined) args.pop()
         else break
-      if (args.length === 0) return sql.unsafe(method)
-      return sql`${sql.unsafe(method)}(${sql.join(
-        args.map(sql.inline),
-        sql`, `
-      )})`
+      return ColumnType(
+        method,
+        args,
+        args.length === 0
+          ? sql.unsafe(method)
+          : sql`${sql.unsafe(method)}(${sql.join(
+              args.map(sql.inline),
+              sql`, `
+            )})`
+      )
     })
   }
 })
@@ -148,7 +179,7 @@ function formatReferences(fields: Array<FieldData>): Sql {
   )
 }
 
-export function formatColumn(column: ColumnData): Sql {
+export function formatColumn(column: BaseColumnData): Sql {
   const references =
     column.references &&
     sql`references ${formatReferences([column.references!()])}`
