@@ -1,7 +1,7 @@
 import {type Column, ColumnType, JsonColumn, column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
-const idType = ColumnType(
+const idType = new ColumnType(
   'id',
   [],
   sql.universal({
@@ -11,7 +11,7 @@ const idType = ColumnType(
   })
 )
 
-const blobType = ColumnType(
+const blobType = new ColumnType(
   'blob',
   [],
   sql.universal({
@@ -20,7 +20,7 @@ const blobType = ColumnType(
   })
 )
 
-const numberType = ColumnType(
+const numberType = new ColumnType(
   'number',
   [],
   sql.universal({
@@ -29,7 +29,7 @@ const numberType = ColumnType(
   })
 )
 
-const jsonbType = ColumnType(
+const jsonbType = new ColumnType(
   'json',
   [],
   sql.universal({

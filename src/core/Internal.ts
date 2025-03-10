@@ -17,9 +17,6 @@ export const internalResolver: unique symbol = Symbol()
 export const internalConstraint: unique symbol = Symbol()
 export const internalInclude: unique symbol = Symbol()
 
-export const internalColumnKind: unique symbol = Symbol()
-export const internalColumnArgs: unique symbol = Symbol()
-
 export declare class HasData<Data> {
   get [internalData](): Data
 }

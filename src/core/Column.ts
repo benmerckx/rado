@@ -1,10 +1,10 @@
 import type {DriverSpecs} from './Driver.ts'
 import {
+  type HasSql,
   getData,
   getField,
-  internalColumnArgs,
-  internalColumnKind,
-  internalData
+  internalData,
+  internalSql
 } from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
@@ -12,7 +12,7 @@ import {callFunction} from './expr/Functions.ts'
 import {type Input, input, mapToColumn} from './expr/Input.ts'
 
 export interface BaseColumnData {
-  type: Sql
+  type: HasSql
   name?: string
   json?: boolean
   primary?: boolean
@@ -27,24 +27,25 @@ export interface BaseColumnData {
   $onUpdate?(): Sql
 }
 
-export interface ColumnType<T = unknown> extends Sql<T> {
-  [internalColumnKind]: string
-  [internalColumnArgs]: unknown[]
-}
-
-export function ColumnType<T = unknown>(
-  kind: string,
-  args: unknown[],
-  sql: Sql<T>
-) {
-  return Object.assign(sql, {
-    [internalColumnKind]: kind,
-    [internalColumnArgs]: args
-  })
-}
-
 export interface ColumnData extends BaseColumnData {
   type: ColumnType
+}
+
+function formatType(kind: string, args: Array<Input<unknown>>): Sql {
+  return args.length === 0
+    ? sql.unsafe(kind)
+    : sql`${sql.unsafe(kind)}(${sql.join(args.map(sql.inline), sql`, `)})`
+}
+
+export class ColumnType implements HasSql {
+  [internalSql]: Sql
+  constructor(
+    public kind: string,
+    public args: Array<Input<unknown>>,
+    sql: Sql = formatType(kind, args)
+  ) {
+    this[internalSql] = sql
+  }
 }
 
 type WithoutNull<Value> = Exclude<Value, null>
@@ -135,7 +136,7 @@ function createColumn(data: ColumnData): Column {
 
 export interface Columns {
   <T>(data: ColumnData): Column<T>
-  [key: string]: (...args: Array<Input<any>>) => ColumnType<any>
+  [key: string]: (...args: Array<Input<any>>) => ColumnType
 }
 
 export const column: Columns = new Proxy(createColumn as any, {
@@ -144,16 +145,7 @@ export const column: Columns = new Proxy(createColumn as any, {
       while (args.length > 0)
         if (args.at(-1) === undefined) args.pop()
         else break
-      return ColumnType(
-        method,
-        args,
-        args.length === 0
-          ? sql.unsafe(method)
-          : sql`${sql.unsafe(method)}(${sql.join(
-              args.map(sql.inline),
-              sql`, `
-            )})`
-      )
+      return new ColumnType(method, args)
     })
   }
 })
