@@ -1,4 +1,4 @@
-import {type ColumnData, formatColumn} from '../core/Column.ts'
+import {type BaseColumnData, formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
@@ -127,7 +127,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
       })
       .from(def)
 
-    const localColumns = new Map<string, ColumnData>(
+    const localColumns = new Map<string, BaseColumnData>(
       columnInfo.map(column => {
         return [
           column.name,

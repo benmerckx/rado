@@ -1,26 +1,42 @@
-import {type Column, JsonColumn, column} from '../core/Column.ts'
+import {type Column, ColumnType, JsonColumn, column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
-const idType = sql.universal({
-  sqlite: sql`integer`,
-  postgres: sql`integer generated always as identity`,
-  mysql: sql`int not null auto_increment`
-})
+const idType = new ColumnType(
+  'id',
+  [],
+  sql.universal({
+    sqlite: sql`integer`,
+    postgres: sql`integer generated always as identity`,
+    mysql: sql`int not null auto_increment`
+  })
+)
 
-const blobType = sql.universal({
-  postgres: sql`bytea`,
-  default: sql`blob`
-})
+const blobType = new ColumnType(
+  'blob',
+  [],
+  sql.universal({
+    postgres: sql`bytea`,
+    default: sql`blob`
+  })
+)
 
-const numberType = sql.universal({
-  mysql: sql`double`,
-  default: sql`numeric`
-})
+const numberType = new ColumnType(
+  'number',
+  [],
+  sql.universal({
+    mysql: sql`double`,
+    default: sql`numeric`
+  })
+)
 
-const jsonbType = sql.universal({
-  mysql: sql`json`,
-  default: sql`jsonb`
-})
+const jsonbType = new ColumnType(
+  'json',
+  [],
+  sql.universal({
+    mysql: sql`json`,
+    default: sql`jsonb`
+  })
+)
 
 export function id(name?: string): Column<number> {
   return column({
