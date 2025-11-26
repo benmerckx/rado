@@ -9,13 +9,11 @@ import {Insert, InsertInto} from './query/Insert.ts'
 import type {
   DeleteQuery,
   FromGuard,
-  FromQuery,
   FromRow,
   InsertQuery,
   Query,
   QueryBase,
   SelectQuery,
-  SelectionQuery,
   UpdateQuery
 } from './query/Query.ts'
 import type {
@@ -33,27 +31,23 @@ class BuilderBase<Meta extends QueryMeta> {
     this[internalData] = data
   }
 
-  $query<Returning extends SelectionInput>(
-    select: SelectionQuery<Returning>
-  ): SingleQuery<SelectionRow<Returning>, Meta>
-  $query<const From extends FromGuard>(
-    from: FromQuery<From>
-  ): SingleQuery<FromRow<From>, Meta>
-  $query<Returning extends SelectionInput, Definition extends TableDefinition>(
-    insert: InsertQuery<Returning, Definition>
-  ): SingleQuery<SelectionRow<Returning>, Meta>
-  $query<Returning extends SelectionInput, Definition extends TableDefinition>(
-    remove: DeleteQuery<Returning, Definition>
-  ): SingleQuery<SelectionRow<Returning>, Meta>
-  $query<Returning extends SelectionInput, Definition extends TableDefinition>(
-    update: UpdateQuery<Returning, Definition>
-  ): SingleQuery<SelectionRow<Returning>, Meta>
-  $query(query: Query): SingleQuery<unknown, Meta> {
+  $query<
+    const From extends FromGuard,
+    Returning extends SelectionInput | unknown,
+    Definition extends TableDefinition
+  >(
+    query: Query<Returning, From, Definition>
+  ): SingleQuery<
+    Returning extends SelectionInput ? SelectionRow<Returning> : FromRow<From>,
+    Meta
+  > {
     const data = {...getData(this), ...query}
-    if ('delete' in query) return new Delete(data as DeleteQuery)
-    if ('insert' in query) return new Insert(data as InsertQuery)
-    if ('update' in query) return new Update(data as UpdateQuery)
-    return new Select(data as SelectQuery)
+    let result: SingleQuery<any, Meta>
+    if ('delete' in query) result = new Delete(data as DeleteQuery)
+    else if ('insert' in query) result = new Insert(data as InsertQuery)
+    else if ('update' in query) result = new Update(data as UpdateQuery)
+    else result = new Select(data as SelectQuery)
+    return result
   }
 
   select(): WithoutSelection<Meta>

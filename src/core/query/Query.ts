@@ -12,6 +12,14 @@ import type {Expand} from '../Types.ts'
 import type {Input} from '../expr/Input.ts'
 import type {CTE} from './CTE.ts'
 
+interface QueryDirectives {
+  select?: never
+  from?: never
+  delete?: never
+  insert?: never
+  update?: never
+}
+
 export interface InnerJoin<Target> {
   innerJoin: Target
   on: HasSql<boolean>
@@ -75,7 +83,8 @@ export type FromGuard<Target = HasTarget | Sql> =
   | [Target, ...Array<Join<Target>>]
 
 interface SelectionBase<Returning = SelectionInput>
-  extends SelectBase<Returning> {
+  extends SelectBase<Returning>,
+    Omit<QueryDirectives, 'select' | 'from'> {
   select: Returning
   from?: FromGuard
 }
@@ -85,7 +94,9 @@ export interface SelectionQuery<Returning = SelectionInput>
     QueryBase,
     ResultModifiers {}
 
-interface FromBase<Target = FromGuard> extends SelectBase<undefined> {
+interface FromBase<Target = FromGuard>
+  extends SelectBase<undefined>,
+    Omit<QueryDirectives, 'from'> {
   from: Target
 }
 
@@ -122,7 +133,7 @@ export type FromRow<Target> = Target extends [
     : Expand<FoldJoins<Joins, Record<Name, TableFields<Definition>>>>
   : SelectionRow<Target>
 
-export type Union<Returning = SelectionInput> =
+type Union<Returning = SelectionInput> =
   | {union: SelectQuery<Returning>}
   | {unionAll: SelectQuery<Returning>}
   | {intersect: SelectQuery<Returning>}
@@ -177,7 +188,7 @@ export type Conflict<Definition extends TableDefinition = TableDefinition> =
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends Partial<SelectionQuery<Returning>>,
+> extends Partial<Omit<SelectionQuery<Returning>, 'insert'>>,
     QueryBase,
     ResultModifiers {
   insert: Table<Definition>
@@ -190,7 +201,8 @@ export interface DeleteQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
 > extends QueryBase,
-    ResultModifiers {
+    ResultModifiers,
+    Omit<QueryDirectives, 'delete'> {
   delete: Table<Definition>
   where?: HasSql<boolean>
   returning?: Returning
@@ -200,16 +212,21 @@ export interface UpdateQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
 > extends QueryBase,
-    ResultModifiers {
+    ResultModifiers,
+    Omit<QueryDirectives, 'update'> {
   update: Table<Definition>
   set?: TableUpdate<Definition>
   where?: HasSql<boolean>
   returning?: Returning
 }
 
-export type Query<Returning = SelectionInput> =
+export type Query<
+  Returning = unknown,
+  From extends FromGuard | unknown = unknown,
+  Definition extends TableDefinition = TableDefinition
+> =
+  | FromQuery<From>
   | SelectionQuery<Returning>
-  | FromQuery<Returning>
-  | InsertQuery<Returning>
-  | DeleteQuery<Returning>
-  | UpdateQuery<Returning>
+  | InsertQuery<Returning, Definition>
+  | DeleteQuery<Returning, Definition>
+  | UpdateQuery<Returning, Definition>

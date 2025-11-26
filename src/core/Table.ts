@@ -32,9 +32,7 @@ import {type JsonExpr, jsonExpr} from './expr/Json.ts'
 
 const {assign, fromEntries, entries, keys} = Object
 
-export type TableDefinition = {
-  [name: string]: Column
-}
+export type TableDefinition = Record<string, Column>
 
 class TableData {
   name!: string

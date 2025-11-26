@@ -224,15 +224,15 @@ function formatConflicts(on: Array<Conflict>): Sql | undefined {
 }
 
 export function insertQuery(query: InsertQuery): Sql {
-  const {insert, values, select, returning} = query
-  if (!values && !select) throw new Error('No values defined')
+  const {insert, values, returning, ...rest} = query
+  if (!values && !rest.select) throw new Error('No values defined')
   const table = getTable(insert)
   const tableName = sql.identifier(table.name)
   const toInsert = values
     ? sql.query({
         values: formatValues(table, Array.isArray(values) ? values : [values])
       })
-    : selectQuery(<SelectQuery>query)
+    : selectQuery(<SelectQuery>rest)
   const conflicts = query.on ? formatConflicts(query.on) : undefined
   return sql
     .query(
