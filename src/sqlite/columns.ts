@@ -30,7 +30,12 @@ export function integer(
   ...args: ColumnArguments<{mode: 'timestamp_ms'}>
 ): Column<Date | null>
 export function integer(
-  ...args: ColumnArguments<{mode: 'boolean' | 'timestamp' | 'timestamp_ms'}>
+  ...args: ColumnArguments<{mode: 'number'}>
+): Column<number | null>
+export function integer(
+  ...args: ColumnArguments<{
+    mode: 'boolean' | 'timestamp' | 'timestamp_ms' | 'number'
+  }>
 ): Column<number | Date | boolean | null> {
   const {name, options} = columnConfig(args)
   if (options?.mode === 'timestamp' || options?.mode === 'timestamp_ms') {
@@ -60,7 +65,12 @@ export function blob(
 export function blob<T>(
   ...args: ColumnArguments<{mode: 'json'}>
 ): Column<T | null>
-export function blob(...args: ColumnArguments<{mode: 'json' | 'bigint'}>) {
+export function blob(
+  ...args: ColumnArguments<{mode: 'buffer'}>
+): Column<ArrayBuffer | null>
+export function blob(
+  ...args: ColumnArguments<{mode: 'json' | 'bigint' | 'buffer'}>
+) {
   const {name, options} = columnConfig(args)
   if (options?.mode === 'json') return json(name)
   if (options?.mode === 'bigint')
@@ -74,11 +84,52 @@ export function blob(...args: ColumnArguments<{mode: 'json' | 'bigint'}>) {
         return value.toString()
       }
     })
+  if (options?.mode === 'buffer')
+    return column({
+      name,
+      type: column.blob(),
+      mapFromDriverValue(value: unknown) {
+        if (value instanceof ArrayBuffer) return value
+        if (value && typeof value === 'object' && ArrayBuffer.isView(value)) {
+          const view = value as ArrayBufferView
+          return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)
+        }
+        return value as ArrayBuffer
+      },
+      mapToDriverValue(value: ArrayBuffer | Uint8Array) {
+        return value instanceof ArrayBuffer ? new Uint8Array(value) : value
+      }
+    })
   return column({name, type: column.blob()})
 }
 
-export function text(name?: string): Column<string | null> {
-  return column({name, type: column.text()})
+export function text(name?: string): Column<string | null>
+export function text<const Values extends readonly string[]>(
+  ...args: ColumnArguments<{mode?: 'text'; length?: number; enum?: Values}>
+): Column<Values[number] | null>
+export function text<T>(
+  ...args: ColumnArguments<{mode: 'json'; length?: number}>
+): JsonColumn<T | null>
+export function text(
+  ...args: ColumnArguments<{
+    mode?: 'text' | 'json'
+    length?: number
+    enum?: readonly string[]
+  }>
+): Column<string | null> | JsonColumn<unknown | null> {
+  const {name, options} = columnConfig(args)
+  if (options?.mode === 'json')
+    return new JsonColumn({
+      name,
+      type: column.text(options?.length),
+      mapToDriverValue(value: unknown): string {
+        return JSON.stringify(value)
+      },
+      mapFromDriverValue(value: string): unknown {
+        return JSON.parse(value)
+      }
+    })
+  return column({name, type: column.text(options?.length)})
 }
 
 export function real(name?: string): Column<number | null> {

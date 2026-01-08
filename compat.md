@@ -149,37 +149,45 @@ this codebase.
 
 - `bigint({mode?: 'number'})`
 - `bigserial({mode?: 'number'})`
+- `bit({dimensions?: number})`
 - `boolean()`
 - `bytea()`
 - `char({length?: number})`
 - `cidr()`
 - `date({mode?: 'date' | 'string'})`
 - `doublePrecision()`
+- `geometry({type?: string, mode?: 'tuple' | 'xy'})`
 - `inet()`
 - `integer()` / `int()`
 - `interval({fields?: IntervalFields, precision?: 0..6})`
 - `json<T>()`
 - `jsonb<T>()`
+- `line({mode?: 'tuple' | 'abc'})`
 - `macaddr()`
 - `macaddr8()`
 - `numeric({precision?: number, scale?: number})`
 - `oid()`
+- `point({mode?: 'tuple' | 'xy'})`
 - `real()`
 - `serial()`
+- `sparsevec({dimensions: number})`
 - `smallint()`
 - `smallserial()`
 - `text()`
+- `halfvec({dimensions: number})`
 - `time({precision?: 0..6, withTimeZone?: boolean})`
 - `timestamp({mode?: 'string', precision?: 0..6, withTimeZone?: boolean})`
 - `uuid()`
+- `varbit({dimensions?: number})`
 - `varchar({length: number})`
+- `vector({dimensions: number})`
 
 ### SQLite (`src/sqlite/columns.ts`)
 
 - `boolean()`
-- `integer({mode?: 'boolean' | 'timestamp' | 'timestamp_ms'})` / `int()`
-- `blob({mode?: 'json' | 'bigint'})`
-- `text()`
+- `integer({mode?: 'boolean' | 'timestamp' | 'timestamp_ms' | 'number'})` / `int()`
+- `blob({mode?: 'json' | 'bigint' | 'buffer'})`
+- `text({mode?: 'text' | 'json', length?: number, enum?: string[]})`
 - `real()`
 - `numeric()`
 - `json<T>()`
@@ -199,8 +207,7 @@ this codebase.
 
 ## Missing for Full Drizzle Compatibility
 
-- **Postgres column types:** `bit`, `varbit`, `sparsevec`, `vector`, `halfvec`, `geometry`, `point`, `line`, and `dataType().array(...)` are not present in Rado.
+- **Postgres column types:** `dataType().array(...)` is not present in Rado.
 - **MySQL column types:** `double`, `bigserial`, and `mysqlEnum(...)` (plus enum options on text/char/varchar) are not present in Rado.
-- **SQLite column modes:** `integer({ mode: 'number' })`, `text({ mode: 'json' | 'text', length, enum })`, and `blob({ mode: 'buffer' })` are not present in Rado.
-- **Enum typing on text types:** Drizzle supports enum inference on `text`/`varchar`/`char` across engines; Rado has no enum-aware column helpers.
+- **Enum typing on text types:** Drizzle supports enum inference on `text`/`varchar`/`char` across engines; Rado only covers this for SQLite `text(...)`.
 - **Row locking:** Drizzle’s `select().for('update' | 'share' | ...)` is not available in Rado.
