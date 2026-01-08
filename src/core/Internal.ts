@@ -16,6 +16,7 @@ export const internalField: unique symbol = Symbol()
 export const internalResolver: unique symbol = Symbol()
 export const internalConstraint: unique symbol = Symbol()
 export const internalInclude: unique symbol = Symbol()
+export const internalEnum: unique symbol = Symbol()
 
 export declare class HasData<Data> {
   get [internalData](): Data
@@ -51,6 +52,9 @@ export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
 export declare class HasConstraint {
   get [internalConstraint](): Sql
 }
+export declare class HasEnum<EnumData> {
+  get [internalEnum](): EnumData
+}
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
   internalData in obj
 export const getData = <Data>(obj: HasData<Data>) => obj[internalData]
@@ -79,3 +83,6 @@ export const getResolver = <Meta extends QueryMeta>(obj: HasResolver<Meta>) =>
 export const hasConstraint = (obj: object): obj is HasConstraint =>
   internalConstraint in obj
 export const getConstraint = (obj: HasConstraint) => obj[internalConstraint]
+export const hasEnum = <EnumData>(obj: object): obj is HasEnum<EnumData> =>
+  internalEnum in obj
+export const getEnum = <EnumData>(obj: HasEnum<EnumData>) => obj[internalEnum]

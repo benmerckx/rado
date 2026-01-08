@@ -1,6 +1,8 @@
 import {suite} from '@alinea/suite'
 import * as pg from '@/postgres/columns.ts'
+import {pgEnum} from '@/postgres.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
+import {pgSchema} from '@/postgres.ts'
 
 const test = suite(import.meta)
 test('pg basic scalar columns sql', () => {
@@ -159,4 +161,20 @@ test('pg vector types sql', () => {
   test.equal(columnSql(pg.vector({dimensions: 3})), 'vector(3)')
   test.equal(columnSql(pg.halfvec({dimensions: 3})), 'halfvec(3)')
   test.equal(columnSql(pg.sparsevec({dimensions: 3})), 'sparsevec(3)')
+})
+
+test('pg enum column sql', () => {
+  const mood = pgEnum('mood', ['sad', 'ok', 'happy'])
+  test.equal(columnSql(mood()), '"mood"')
+})
+
+test('pg schema enum column sql', () => {
+  const schema = pgSchema('custom')
+  const colors = schema.enum('colors', ['red', 'green', 'blue'])
+  test.equal(columnSql(colors()), '"custom"."colors"')
+})
+
+test('pg enum with schema arg sql', () => {
+  const palette = pgEnum('palette', ['warm', 'cool'], 'paint')
+  test.equal(columnSql(palette()), '"paint"."palette"')
 })

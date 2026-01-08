@@ -6,6 +6,7 @@ import {testCTE} from './integration/TestCTE.ts'
 import {testColumns} from './integration/TestColumns.ts'
 import {testConflicts} from './integration/TestConflicts.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
+import {testEnums} from './integration/TestEnums.ts'
 import {testInclude} from './integration/TestInclude.ts'
 import {testJoins} from './integration/TestJoins.ts'
 import {testJson} from './integration/TestJson.ts'
@@ -21,6 +22,7 @@ export async function testDriver(
 ) {
   const db = await createDb()
   if (!db) return
+  if (db.dialect.runtime === 'postgres') testEnums(db, test)
   testBasic(db, test)
   testBatch(db, test)
   testColumns(db, test)
