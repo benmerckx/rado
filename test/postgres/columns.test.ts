@@ -1,6 +1,6 @@
 import {suite} from '@alinea/suite'
 import * as pg from '@/postgres/columns.ts'
-import {columnSql, mapFrom, mapTo} from '../../test/TestUtils.ts'
+import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
 
 const test = suite(import.meta)
 test('pg basic scalar columns sql', () => {
