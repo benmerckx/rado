@@ -1,10 +1,12 @@
 import {
   type Column,
   type ColumnArguments,
+  ColumnType,
   JsonColumn,
   column,
   columnConfig
 } from '../core/Column.ts'
+import {sql} from '../core/Sql.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntervalFields =
@@ -21,6 +23,35 @@ type IntervalFields =
   | 'hour to minute'
   | 'hour to second'
   | 'minute to second'
+
+type PointTuple = [number, number]
+type PointXY = {x: number; y: number}
+type LineTuple = [number, number, number]
+type LineABC = {a: number; b: number; c: number}
+
+function parsePoint(value: string): PointTuple {
+  const cleaned = value.trim().replace(/^\(/, '').replace(/\)$/, '')
+  const [x, y] = cleaned.split(',').map(v => Number.parseFloat(v))
+  return [x, y]
+}
+
+function formatPoint(value: PointTuple | PointXY | string): string {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return `(${value[0]},${value[1]})`
+  return `(${value.x},${value.y})`
+}
+
+function parseLine(value: string): LineTuple {
+  const cleaned = value.trim().replace(/^[({[]/, '').replace(/[)}\]]$/, '')
+  const [a, b, c] = cleaned.split(',').map(v => Number.parseFloat(v))
+  return [a, b, c]
+}
+
+function formatLine(value: LineTuple | LineABC | string): string {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return `{${value[0]},${value[1]},${value[2]}}`
+  return `{${value.a},${value.b},${value.c}}`
+}
 
 export function bigint(
   name: string | undefined,
@@ -56,6 +87,20 @@ export function char(
     name,
     type: column.character(options?.length ?? 1)
   })
+}
+
+export function bit(
+  ...args: ColumnArguments<{dimensions?: number}>
+): Column<string | null> {
+  const {name, options} = columnConfig(args)
+  return column({name, type: column.bit(options?.dimensions)})
+}
+
+export function varbit(
+  ...args: ColumnArguments<{dimensions?: number}>
+): Column<string | null> {
+  const {name, options} = columnConfig(args)
+  return column({name, type: column.varbit(options?.dimensions)})
 }
 
 export function cidr(name?: string): Column<string | null> {
@@ -105,6 +150,54 @@ export const int = integer
 
 export function oid(name?: string): Column<number | null> {
   return column({name, type: column.oid()})
+}
+
+export function point(
+  ...args: ColumnArguments<{mode?: 'tuple'}>
+): Column<PointTuple | null>
+export function point(
+  ...args: ColumnArguments<{mode: 'xy'}>
+): Column<PointXY | null>
+export function point(
+  ...args: ColumnArguments<{mode?: 'tuple' | 'xy'}>
+): Column<PointTuple | PointXY | null> {
+  const {name, options} = columnConfig(args)
+  const mode = options?.mode ?? 'tuple'
+  return column({
+    name,
+    type: column.point(),
+    mapFromDriverValue(value: string) {
+      const [x, y] = parsePoint(value)
+      return mode === 'xy' ? {x, y} : [x, y]
+    },
+    mapToDriverValue(value: PointTuple | PointXY | string) {
+      return formatPoint(value)
+    }
+  })
+}
+
+export function line(
+  ...args: ColumnArguments<{mode?: 'tuple'}>
+): Column<LineTuple | null>
+export function line(
+  ...args: ColumnArguments<{mode: 'abc'}>
+): Column<LineABC | null>
+export function line(
+  ...args: ColumnArguments<{mode?: 'tuple' | 'abc'}>
+): Column<LineTuple | LineABC | null> {
+  const {name, options} = columnConfig(args)
+  const mode = options?.mode ?? 'tuple'
+  return column({
+    name,
+    type: column.line(),
+    mapFromDriverValue(value: string) {
+      const [a, b, c] = parseLine(value)
+      return mode === 'abc' ? {a, b, c} : [a, b, c]
+    },
+    mapToDriverValue(value: LineTuple | LineABC | string) {
+      return formatLine(value)
+    }
+  })
 }
 
 export function interval(
@@ -159,6 +252,51 @@ export function jsonb<T>(name?: string): JsonColumn<T | null> {
       return parsesJson ? value : JSON.parse(value as string)
     }
   })
+}
+
+export function geometry(
+  ...args: ColumnArguments<{type?: string; mode?: 'tuple' | 'xy'}>
+): Column<PointTuple | PointXY | string | null> {
+  const {name, options} = columnConfig(args)
+  const typeArg = options?.type ? sql.unsafe(options.type) : undefined
+  const geometryType = options?.type
+    ? new ColumnType('geometry', [], sql`geometry(${typeArg})`)
+    : column.geometry()
+  const mode = options?.mode ?? 'tuple'
+  return column({
+    name,
+    type: geometryType,
+    mapFromDriverValue(value: string) {
+      if (options?.type !== 'point') return value
+      const [x, y] = parsePoint(value)
+      return mode === 'xy' ? {x, y} : [x, y]
+    },
+    mapToDriverValue(value: PointTuple | PointXY | string) {
+      if (options?.type !== 'point') return value
+      return formatPoint(value)
+    }
+  })
+}
+
+export function vector(
+  ...args: ColumnArguments<{dimensions: number}>
+): Column<string | null> {
+  const {name, options} = columnConfig(args)
+  return column({name, type: column.vector(options?.dimensions)})
+}
+
+export function halfvec(
+  ...args: ColumnArguments<{dimensions: number}>
+): Column<string | null> {
+  const {name, options} = columnConfig(args)
+  return column({name, type: column.halfvec(options?.dimensions)})
+}
+
+export function sparsevec(
+  ...args: ColumnArguments<{dimensions: number}>
+): Column<string | null> {
+  const {name, options} = columnConfig(args)
+  return column({name, type: column.sparsevec(options?.dimensions)})
 }
 
 export function macaddr(name?: string): Column<string | null> {
