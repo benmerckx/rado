@@ -24,30 +24,6 @@ type IntervalFields =
   | 'hour to second'
   | 'minute to second'
 
-export type PgEnum<
-  Name extends string = string,
-  Values extends readonly string[] = readonly string[]
-> = {
-  name: Name
-  values: Values
-  (name?: string): Column<Values[number] | null>
-}
-
-export function pgEnum<
-  const Name extends string,
-  const Values extends readonly [string, ...string[]]
->(name: Name, values: Values): PgEnum<Name, Values> {
-  const enumType = new ColumnType(name, [], sql.identifier(name))
-  const builder = ((columnName?: string) =>
-    column({
-      name: columnName,
-      type: enumType
-    })) as PgEnum<Name, Values>
-  builder.name = name
-  builder.values = values
-  return builder
-}
-
 type PointTuple = [number, number]
 type PointXY = {x: number; y: number}
 type LineTuple = [number, number, number]

@@ -4,6 +4,7 @@ import {
   getData,
   getField,
   internalData,
+  internalEnum,
   internalSql
 } from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
@@ -25,6 +26,7 @@ export interface BaseColumnData {
   mapToDriverValue?(value: unknown): unknown
   $default?(): Sql
   $onUpdate?(): Sql
+  [internalEnum]?: unknown
 }
 
 export interface ColumnData extends BaseColumnData {

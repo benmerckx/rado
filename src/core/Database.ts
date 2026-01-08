@@ -26,6 +26,7 @@ import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
 import {count} from './expr/Aggregate.ts'
 import type {SelectFirst} from './query/Select.ts'
+import {collectEnumQuery} from '../postgres/enum.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -60,9 +61,13 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   create(...tables: Array<HasTable>): BatchQuery<unknown, Meta> {
+    const enums: Array<Sql> = []
+    if (this.dialect.runtime === 'postgres') {
+      enums.push(...collectEnumQuery(tables))
+    }
     return new BatchQuery(
       getResolver(this),
-      tables.flatMap(table => getTable(table).create())
+      enums.concat(tables.flatMap(table => getTable(table).create()))
     )
   }
 
