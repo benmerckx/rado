@@ -28,6 +28,8 @@ type PointTuple = [number, number]
 type PointXY = {x: number; y: number}
 type LineTuple = [number, number, number]
 type LineABC = {a: number; b: number; c: number}
+type IntegerMode = 'number' | 'bigint'
+type NumericMode = 'number' | 'bigint'
 
 function parsePoint(value: string): PointTuple {
   const cleaned = value.trim().replace(/^\(/, '').replace(/\)$/, '')
@@ -54,11 +56,13 @@ function formatLine(value: LineTuple | LineABC | string): string {
 }
 
 export function bigint(
-  name: string | undefined,
-  options: {mode: 'number'}
+  ...args: ColumnArguments<{mode: 'number'}>
 ): Column<number | null>
-export function bigint(name?: string): Column<bigint | null>
-export function bigint(name?: string, options?: {mode: 'number'}) {
+export function bigint(
+  ...args: ColumnArguments<{mode?: 'bigint'}>
+): Column<bigint | null>
+export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.bigint(),
@@ -67,11 +71,13 @@ export function bigint(name?: string, options?: {mode: 'number'}) {
 }
 
 export function bigserial(
-  name: string | undefined,
-  options: {mode: 'number'}
+  ...args: ColumnArguments<{mode: 'number'}>
 ): Column<number | null>
-export function bigserial(name?: string): Column<bigint | null>
-export function bigserial(name?: string, options?: {mode: 'number'}) {
+export function bigserial(
+  ...args: ColumnArguments<{mode?: 'bigint'}>
+): Column<bigint | null>
+export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
+  const {name, options} = columnConfig(args)
   return column({
     name,
     type: column.bigserial(),
@@ -309,11 +315,34 @@ export function macaddr8(name?: string): Column<string | null> {
 
 export function numeric(
   ...args: ColumnArguments<{precision?: number; scale?: number}>
-): Column<number | null> {
+): Column<number | null>
+export function numeric(
+  ...args: ColumnArguments<{
+    precision?: number
+    scale?: number
+    mode: 'number'
+  }>
+): Column<number | null>
+export function numeric(
+  ...args: ColumnArguments<{
+    precision?: number
+    scale?: number
+    mode: 'bigint'
+  }>
+): Column<bigint | null>
+export function numeric(
+  ...args: ColumnArguments<{
+    precision?: number
+    scale?: number
+    mode?: NumericMode
+  }>
+): Column<number | bigint | null> {
   const {name, options} = columnConfig(args)
+  const mode = options?.mode ?? 'number'
   return column({
     name,
-    type: column.numeric(options?.precision, options?.scale)
+    type: column.numeric(options?.precision, options?.scale),
+    mapFromDriverValue: mode === 'bigint' ? BigInt : Number
   })
 }
 
@@ -348,27 +377,35 @@ export function time(
 }
 
 export function timestamp(
-  ...args: ColumnArguments<{precision?: Precision; withTimeZone?: boolean}>
+  ...args: ColumnArguments<{
+    mode?: 'date'
+    precision?: Precision
+    withTimeZone?: boolean
+    withTimezone?: boolean
+  }>
 ): Column<Date | null>
 export function timestamp(
   ...args: ColumnArguments<{
     mode: 'string'
     precision?: Precision
     withTimeZone?: boolean
+    withTimezone?: boolean
   }>
 ): Column<string | null>
 export function timestamp(
   ...args: ColumnArguments<{
-    mode?: 'string'
+    mode?: 'string' | 'date'
     precision?: Precision
     withTimeZone?: boolean
+    withTimezone?: boolean
   }>
 ) {
   const {name, options} = columnConfig(args)
+  const withTimeZone = options?.withTimeZone ?? options?.withTimezone
   return column({
     name,
     type: column[
-      options?.withTimeZone ? 'timestamp with time zone' : 'timestamp'
+      withTimeZone ? 'timestamp with time zone' : 'timestamp'
     ](options?.precision),
     mapFromDriverValue(value: string) {
       return options?.mode === 'string' ? value : Date.parse(value)
