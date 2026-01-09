@@ -161,6 +161,8 @@ export function columnConfig<Options>(args: ColumnArguments<Options>): {
   name: string | undefined
   options: Options | undefined
 } {
+  if (args.length > 1)
+    return {name: args[0] as string | undefined, options: args[1] as Options}
   if (typeof args[0] === 'string')
     return {name: args[0] as string, options: args[1]}
   return {name: undefined, options: args[0] as Options}
