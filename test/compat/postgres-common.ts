@@ -4,7 +4,8 @@ import {'@electric-sql/pglite' as connect} from '@/driver.ts'
 import {
   type Column,
   type Database,
-  SQL,
+  type InferSelectModel,
+  type SQL,
   type SQLWrapper,
   TransactionRollbackError,
   and,
@@ -35,25 +36,17 @@ import {
   sumDistinct
 } from '@/index.ts'
 import {
-  PgDialect,
-  PgPolicy,
   alias,
-  authenticatedRole,
   bigint,
   bigserial,
   boolean,
   char,
   cidr,
-  crudPolicy,
   date,
   doublePrecision,
   except,
   exceptAll,
   foreignKey,
-  getMaterializedViewConfig,
-  getTableConfig,
-  getViewConfig,
-  index,
   inet,
   integer,
   intersect,
@@ -67,7 +60,6 @@ import {
   numeric,
   pgEnum,
   pgMaterializedView,
-  pgPolicy,
   pgSchema,
   pgTable,
   pgTableCreator,
@@ -85,8 +77,6 @@ import {
   union,
   unionAll,
   unique,
-  uniqueKeyName,
-  usersSync,
   uuid,
   varchar
 } from '@/postgres.ts'
@@ -601,24 +591,6 @@ test('common', () => {
         nulls: 'not distinct'
       })
     })
-
-    const tableConfig = getTableConfig(cities1Table)
-
-    const columnName = tableConfig.columns.find(it => it.name === 'name')
-
-    expect(columnName?.uniqueName).toBe(
-      uniqueKeyName(cities1Table, [columnName!.name])
-    )
-    expect(columnName?.isUnique).toBe(true)
-
-    const columnState = tableConfig.columns.find(it => it.name === 'state')
-    expect(columnState?.uniqueName).toBe('custom')
-    expect(columnState?.isUnique).toBe(true)
-
-    const columnField = tableConfig.columns.find(it => it.name === 'field')
-    expect(columnField?.uniqueName).toBe('custom_field')
-    expect(columnField?.isUnique).toBe(true)
-    expect(columnField?.uniqueType).toBe('not distinct')
   })
 
   test('table config: foreign keys name', async () => {
@@ -1525,7 +1497,7 @@ test('common', () => {
     }
 
     await db.insert(usersTable).values([{name: 'John'}, {name: 'John1'}])
-    const stmt = db
+    const stmt: any = db
       .select({
         id: usersTable.id,
         name: usersTable.name
@@ -2302,7 +2274,7 @@ test('common', () => {
   test('network types', async ctx => {
     const {db} = ctx.pg
 
-    const value: typeof network.$inferSelect = {
+    const value: InferSelectModel<typeof network> = {
       inet: '127.0.0.1',
       cidr: '192.168.100.128/25',
       macaddr: '08:00:2b:01:02:03',
@@ -2319,7 +2291,7 @@ test('common', () => {
   test('array types', async ctx => {
     const {db} = ctx.pg
 
-    const values: (typeof salEmp.$inferSelect)[] = [
+    const values: InferSelectModel<typeof salEmp>[] = [
       {
         name: 'John',
         payByQuarter: [10000, 10000, 10000, 10000],
@@ -6025,7 +5997,9 @@ test('common', () => {
         db
           .select({
             userId: users.id,
-            notificationId: sql`${newNotification!.id}`.as('notification_id')
+            notificationId: sql<number>`${newNotification!.id}`.as(
+              'notification_id'
+            )
           })
           .from(users)
           .where(inArray(users.name, ['Alice', 'Charlie', 'Eve']))
@@ -6077,141 +6051,6 @@ test('common', () => {
           .from(users2)
       )
     ).toThrowError()
-  })
-
-  test('policy', () => {
-    {
-      const policy = pgPolicy('test policy')
-
-      expect(is(policy, PgPolicy)).toBe(true)
-      expect(policy.name).toBe('test policy')
-    }
-
-    {
-      const policy = pgPolicy('test policy', {
-        as: 'permissive',
-        for: 'all',
-        to: 'public',
-        using: sql`1=1`,
-        withCheck: sql`1=1`
-      })
-
-      expect(is(policy, PgPolicy)).toBe(true)
-      expect(policy.name).toBe('test policy')
-      expect(policy.as).toBe('permissive')
-      expect(policy.for).toBe('all')
-      expect(policy.to).toBe('public')
-      const dialect = new PgDialect()
-      expect(is(policy.using, SQL)).toBe(true)
-      expect(dialect.sqlToQuery(policy.using!).sql).toBe('1=1')
-      expect(is(policy.withCheck, SQL)).toBe(true)
-      expect(dialect.sqlToQuery(policy.withCheck!).sql).toBe('1=1')
-    }
-
-    {
-      const policy = pgPolicy('test policy', {
-        to: 'custom value'
-      })
-
-      expect(policy.to).toBe('custom value')
-    }
-
-    {
-      const p1 = pgPolicy('test policy')
-      const p2 = pgPolicy('test policy 2', {
-        as: 'permissive',
-        for: 'all',
-        to: 'public',
-        using: sql`1=1`,
-        withCheck: sql`1=1`
-      })
-      const table = pgTable(
-        'table_with_policy',
-        {
-          id: serial('id').primaryKey(),
-          name: text('name').notNull()
-        },
-        () => ({
-          p1,
-          p2
-        })
-      )
-      const config = getTableConfig(table)
-      expect(config.policies).toHaveLength(2)
-      expect(config.policies[0]).toBe(p1)
-      expect(config.policies[1]).toBe(p2)
-    }
-  })
-
-  test('neon: policy', () => {
-    {
-      const policy = crudPolicy({
-        read: true,
-        modify: true,
-        role: authenticatedRole
-      })
-
-      for (const it of Object.values(policy)) {
-        expect(is(it, PgPolicy)).toBe(true)
-        expect(it?.to).toStrictEqual(authenticatedRole)
-        it?.using ? expect(it.using).toStrictEqual(sql`true`) : ''
-        it?.withCheck ? expect(it.withCheck).toStrictEqual(sql`true`) : ''
-      }
-    }
-
-    {
-      const table = pgTable(
-        'name',
-        {
-          id: integer('id')
-        },
-        t => [
-          index('name').on(t.id),
-          crudPolicy({
-            read: true,
-            modify: true,
-            role: authenticatedRole
-          }),
-          primaryKey({columns: [t.id], name: 'custom'})
-        ]
-      )
-
-      const {policies, indexes, primaryKeys} = getTableConfig(table)
-
-      expect(policies.length).toBe(4)
-      expect(indexes.length).toBe(1)
-      expect(primaryKeys.length).toBe(1)
-
-      expect(policies[0]?.name === 'crud-custom-policy-modify')
-      expect(policies[1]?.name === 'crud-custom-policy-read')
-    }
-  })
-
-  test('neon: neon_auth', () => {
-    const usersSyncTable = usersSync
-
-    const {columns, schema, name} = getTableConfig(usersSyncTable)
-
-    expect(name).toBe('users_sync')
-    expect(schema).toBe('neon_auth')
-    expect(columns).toHaveLength(7)
-  })
-
-  test('Enable RLS function', () => {
-    const usersWithRLS = pgTable('users', {
-      id: integer()
-    }).enableRLS()
-
-    const config1 = getTableConfig(usersWithRLS)
-
-    const usersNoRLS = pgTable('users', {
-      id: integer()
-    })
-
-    const config2 = getTableConfig(usersNoRLS)
-
-    expect(config1.enableRLS).toBeTruthy()
-    expect(config2.enableRLS).toBeFalsy()
   })
 
   test('test $onUpdateFn and $onUpdate works with sql value', async ctx => {

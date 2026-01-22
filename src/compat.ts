@@ -8,6 +8,9 @@ export type {
 } from './core/Table.ts'
 
 export type SQL<T = unknown> = Sql<T>
+export namespace SQL {
+  export type Aliased<T = unknown> = Sql<T>
+}
 export type SQLWrapper<T = unknown> = HasSql<T>
 export function getTableColumns<Definition extends TableDefinition>(
   table: Table<Definition>
