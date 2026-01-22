@@ -344,7 +344,7 @@ export function macaddr8(name?: string): PgColumn<string | null> {
 
 export function numeric(
   ...args: ColumnArguments<{precision?: number; scale?: number}>
-): PgColumn<number | null>
+): PgColumn<string | null>
 export function numeric(
   ...args: ColumnArguments<{
     precision?: number
@@ -365,13 +365,14 @@ export function numeric(
     scale?: number
     mode?: NumericMode
   }>
-): PgColumn<number | bigint | null> {
+): PgColumn<string | number | bigint | null> {
   const {name, options} = columnConfig(args)
-  const mode = options?.mode ?? 'number'
+  const mode = options?.mode
+  const mapFromDriverValue = mode && (mode === 'bigint' ? BigInt : Number)
   return new PgColumn({
     name,
     type: column.numeric(options?.precision, options?.scale),
-    mapFromDriverValue: mode === 'bigint' ? BigInt : Number
+    mapFromDriverValue
   })
 }
 
