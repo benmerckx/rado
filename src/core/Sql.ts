@@ -77,6 +77,7 @@ export function sql<T>(
       emitter.emitUnsafe(strings[i]!)
       if (i < inner.length) {
         const insert = inner[i]
+        if (insert === undefined) continue
         const isObject = insert !== null && typeof insert === 'object'
         if (isObject && hasSql(insert)) getSql(insert).emit(emitter)
         else if (isObject && hasTarget(insert)) getTarget(insert).emit(emitter)

@@ -72,12 +72,12 @@ export class PgColumn<Value = unknown> extends Column<Value> {
   }
 
   array(size?: number): PgArrayColumn<Value> {
-    throw new PgArrayColumn({
+    return new PgArrayColumn({
       ...this[internalData],
       type: new ColumnType(
         'array',
         [this[internalData].type],
-        sql`${this[internalData].type}[${size ?? ''}]`
+        sql`${this[internalData].type}[${size}]`
       )
     })
   }

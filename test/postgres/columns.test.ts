@@ -1,8 +1,7 @@
-import {suite} from '@alinea/suite'
+import {pgEnum, pgSchema} from '@/postgres.ts'
 import * as pg from '@/postgres/columns.ts'
-import {pgEnum} from '@/postgres.ts'
+import {suite} from '@alinea/suite'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
-import {pgSchema} from '@/postgres.ts'
 
 const test = suite(import.meta)
 test('pg basic scalar columns sql', () => {
@@ -14,6 +13,7 @@ test('pg basic scalar columns sql', () => {
   test.equal(columnSql(pg.uuid()), 'uuid')
   test.equal(columnSql(pg.text()), 'text')
   test.equal(columnSql(pg.integer()), 'integer')
+  test.equal(columnSql(pg.int()), 'integer')
   test.equal(columnSql(pg.smallint()), 'smallint')
   test.equal(columnSql(pg.smallserial()), 'smallserial')
   test.equal(columnSql(pg.serial()), 'serial')
@@ -45,12 +45,10 @@ test('pg date mapping', () => {
   const dateDate = pg.date(undefined, {mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
-  test.equal(
-    mapFrom(dateDate, '2020-01-01'),
-    Date.parse('2020-01-01')
-  )
+  test.equal(mapFrom(dateDate, '2020-01-01'), Date.parse('2020-01-01'))
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(dateDate, date), date.toISOString())
+  test.equal(mapTo(dateDate, '2020-02-01'), '2020-02-01')
 })
 
 test('pg timestamp mapping', () => {
@@ -65,8 +63,16 @@ test('pg timestamp mapping', () => {
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(tsDate, date), date.toISOString())
   test.equal(
+    mapTo(tsDate, '2020-01-02T00:00:00.000Z'),
+    '2020-01-02T00:00:00.000Z'
+  )
+  test.equal(
     columnSql(pg.timestamp({withTimeZone: true, precision: 3})),
     'timestamp with time zone(3)'
+  )
+  test.equal(
+    columnSql(pg.timestamp({withTimezone: true})),
+    'timestamp with time zone'
   )
 })
 
@@ -86,12 +92,15 @@ test('pg time and interval sql', () => {
 test('pg numeric and double precision mapping', () => {
   test.equal(columnSql(pg.numeric()), 'numeric')
   test.equal(columnSql(pg.numeric({precision: 10, scale: 2})), 'numeric(10, 2)')
+  test.equal(mapFrom(pg.numeric(), '1.25'), 1.25)
+  test.equal(mapFrom(pg.numeric({mode: 'bigint'}), '42'), BigInt('42'))
   const dbl = pg.doublePrecision()
   test.equal(columnSql(dbl), 'double precision')
   test.equal(mapFrom(dbl, '1.5'), 1.5)
   test.equal(mapFrom(dbl, 2), 2)
   const real = pg.real()
   test.equal(mapFrom(real, '3.5'), 3.5)
+  test.equal(mapFrom(real, 4), 4)
 })
 
 test('pg json and jsonb mapping', () => {
@@ -99,16 +108,29 @@ test('pg json and jsonb mapping', () => {
   const jsonbCol = pg.jsonb<{bar: string}>()
   const raw = JSON.stringify({foo: 'bar'})
   test.equal(mapTo(jsonCol, {foo: 'bar'}), raw)
-  test.equal(mapFrom(jsonCol, raw, {parsesJson: false, supportsTransactions: true}), {
-    foo: 'bar'
-  })
-  test.equal(mapFrom(jsonCol, {foo: 'bar'}, {parsesJson: true, supportsTransactions: true}), {
-    foo: 'bar'
-  })
+  test.equal(
+    mapFrom(jsonCol, raw, {parsesJson: false, supportsTransactions: true}),
+    {
+      foo: 'bar'
+    }
+  )
+  test.equal(
+    mapFrom(
+      jsonCol,
+      {foo: 'bar'},
+      {parsesJson: true, supportsTransactions: true}
+    ),
+    {
+      foo: 'bar'
+    }
+  )
   test.equal(mapTo(jsonbCol, {bar: 'baz'}), JSON.stringify({bar: 'baz'}))
-  test.equal(mapFrom(jsonbCol, raw, {parsesJson: false, supportsTransactions: true}), {
-    foo: 'bar'
-  })
+  test.equal(
+    mapFrom(jsonbCol, raw, {parsesJson: false, supportsTransactions: true}),
+    {
+      foo: 'bar'
+    }
+  )
 })
 
 test('pg network and mac address types sql', () => {
@@ -147,9 +169,11 @@ test('pg line mapping', () => {
 
 test('pg geometry mapping', () => {
   const geomDefault = pg.geometry()
+  const geomPointTuple = pg.geometry({type: 'point'})
   const geomPoint = pg.geometry({type: 'point', mode: 'xy'})
   const geomLine = pg.geometry({type: 'line'})
   test.equal(columnSql(geomDefault), 'geometry')
+  test.equal(mapFrom(geomPointTuple, '(5,6)'), [5, 6])
   test.equal(columnSql(geomPoint), 'geometry(point)')
   test.equal(mapFrom(geomPoint, '(1,2)'), {x: 1, y: 2})
   test.equal(mapTo(geomPoint, {x: 3, y: 4}), '(3,4)')
@@ -177,4 +201,17 @@ test('pg schema enum column sql', () => {
 test('pg enum with schema arg sql', () => {
   const palette = pgEnum('palette', ['warm', 'cool'], 'paint')
   test.equal(columnSql(palette()), '"paint"."palette"')
+})
+
+test('pg column unique and array helpers', () => {
+  const uniqueColumn = pg.integer().unique('uniq_test', {nulls: 'not distinct'})
+  test.equal(columnSql(uniqueColumn), 'integer unique nulls not distinct')
+  test.equal(columnSql(pg.integer().unique()), 'integer unique')
+
+  const arraySized = pg.integer().array(3)
+  test.ok(arraySized instanceof pg.PgArrayColumn)
+  test.equal(columnSql(arraySized!), 'integer[3]')
+
+  const arrayUnsized = pg.integer().array()
+  test.equal(columnSql(arrayUnsized!), 'integer[]')
 })
