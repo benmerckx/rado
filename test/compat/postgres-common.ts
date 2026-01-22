@@ -6522,7 +6522,7 @@ test('common', () => {
           name: users.name
         }
       })
-      .as(() => sql`select * from ${users} where ${users.name} = 'Jane'`)
+      .as(sql`select * from ${users} where ${users.name} = 'Jane'`)
     const result2 = await db.with(sq2).select().from(sq1)
 
     expect(result1).toEqual([{userId: 1, data: {name: 'John'}}])
