@@ -78,6 +78,7 @@ interface SelectionBase<Returning = SelectionInput>
   extends SelectBase<Returning> {
   select: Returning
   from?: FromGuard
+  for?: HasSql
 }
 
 export interface SelectionQuery<Returning = SelectionInput>

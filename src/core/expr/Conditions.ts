@@ -45,7 +45,7 @@ export const notILike: (
 ) => Sql<boolean> = binop('not ilike')
 export const arrayContains: <T>(
   left: Input<Array<T>>,
-  right: Input<T>
+  right: Input<T | Array<T>>
 ) => Sql<boolean> = binop('@>')
 export const arrayContained: <T>(
   left: Input<Array<T>>,

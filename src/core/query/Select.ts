@@ -151,6 +151,8 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   }
 }
 
+const forKeywords = ['update', 'no key update', 'share', 'key share'] as const
+
 export class Select<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<StripFieldMeta<Input>, Meta>
   implements
@@ -169,6 +171,26 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
 
   from(from: HasTarget | Sql): Select<Input, Meta> {
     return new Select({...getData(this), from})
+  }
+
+  for(
+    keyword: (typeof forKeywords)[number],
+    config: {
+      of?: HasTarget | Array<HasTarget>
+      noWait?: boolean
+      skipLocked?: boolean
+    } = {}
+  ): Select<Input, Meta> {
+    if (!forKeywords.includes(keyword))
+      throw new Error(`Invalid FOR keyword: ${keyword}`)
+    return new Select({
+      ...getData(this),
+      for: sql.query(sql.unsafe(keyword), {
+        of: config.of && sql.join([config.of].flat().map(getTarget), sql`, `),
+        nowait: config.noWait,
+        skipLocked: config.skipLocked
+      })
+    })
   }
 
   #fromTarget(): [HasTarget | Sql, ...Array<Join<HasTarget | Sql>>] {
@@ -271,6 +293,14 @@ export type SubQuery<Input, Name extends string = string> = Input &
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<StripFieldMeta<Input>, Meta>,
     HasSql<SelectionRow<Input>> {
+  for(
+    keyword: (typeof forKeywords)[number],
+    config?: {
+      of?: HasTarget | Array<HasTarget>
+      noWait?: boolean
+      skipLocked?: boolean
+    }
+  ): Select<Input, Meta>
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
   groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
   having(having: HasSql<boolean>): Select<Input, Meta>
@@ -448,6 +478,7 @@ export function selectQuery(query: SelectQuery): Sql {
     {
       select,
       from: from && formatFrom(from),
+      for: query.for,
       where,
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having: typeof having === 'function' ? having(selected.input) : having
