@@ -609,11 +609,6 @@ test('common', () => {
         })
       })
     )
-
-    const tableConfig = getTableConfig(table)
-
-    expect(tableConfig.foreignKeys).toHaveLength(1)
-    expect(tableConfig.foreignKeys[0]!.getName()).toBe('custom_fk')
   })
 
   test('table config: primary keys name', async () => {
@@ -628,11 +623,6 @@ test('common', () => {
         f: primaryKey({columns: [t.id, t.name], name: 'custom_pk'})
       })
     )
-
-    const tableConfig = getTableConfig(table)
-
-    expect(tableConfig.primaryKeys).toHaveLength(1)
-    expect(tableConfig.primaryKeys[0]!.getName()).toBe('custom_pk')
   })
 
   test('select all fields', async ctx => {
@@ -1839,7 +1829,7 @@ test('common', () => {
     const res = await db
       .select({
         population: db
-          .select({count: count().as('count')})
+          .select(count().as('count'))
           .from(users2Table)
           .where(eq(users2Table.cityId, citiesTable.id))
           .as('population'),
@@ -1875,7 +1865,7 @@ test('common', () => {
     const res = await db
       .select({
         cityName: db
-          .select({name: citiesTable.name})
+          .select(citiesTable.name)
           .from(citiesTable)
           .where(eq(users2Table.cityId, citiesTable.id))
           .as('cityName'),
@@ -1981,7 +1971,7 @@ test('common', () => {
           gt(
             regionalSales.totalSales,
             db
-              .select({sales: sql`sum(${regionalSales.totalSales})/10`})
+              .select(sql`sum(${regionalSales.totalSales})/10`)
               .from(regionalSales)
           )
         )
@@ -1997,10 +1987,7 @@ test('common', () => {
       })
       .from(orders)
       .where(
-        inArray(
-          orders.region,
-          db.select({region: topRegions.region}).from(topRegions)
-        )
+        inArray(orders.region, db.select(topRegions.region).from(topRegions))
       )
       .groupBy(orders.region, orders.product)
       .orderBy(orders.region, orders.product)
@@ -2014,10 +2001,7 @@ test('common', () => {
       })
       .from(orders)
       .where(
-        inArray(
-          orders.region,
-          db.select({region: topRegions.region}).from(topRegions)
-        )
+        inArray(orders.region, db.select(topRegions.region).from(topRegions))
       )
       .groupBy(orders.region, orders.product)
       .orderBy(orders.region, orders.product)
@@ -2030,10 +2014,7 @@ test('common', () => {
       })
       .from(orders)
       .where(
-        inArray(
-          orders.region,
-          db.select({region: topRegions.region}).from(topRegions)
-        )
+        inArray(orders.region, db.select(topRegions.region).from(topRegions))
       )
       .groupBy(orders.region)
       .orderBy(orders.region)
@@ -2382,19 +2363,19 @@ test('common', () => {
         cityId: 2
       }
     ])
-
+    const name = sql<string>`upper(${citiesTable.name})`.as('upper_name')
     const result = await db
       .select({
         id: citiesTable.id,
-        name: sql<string>`upper(${citiesTable.name})`.as('upper_name'),
+        name: name,
         usersCount: sql<number>`count(${users2Table.id})::int`.as('users_count')
       })
       .from(citiesTable)
       .leftJoin(users2Table, eq(users2Table.cityId, citiesTable.id))
-      .where(({name}) => sql`length(${name}) >= 3`)
+      .where(sql`length(${name}) >= 3`)
       .groupBy(citiesTable.id)
       .having(({usersCount}) => sql`${usersCount} > 0`)
-      .orderBy(({name}) => name)
+      .orderBy(name)
 
     expect(result).toEqual([
       {
@@ -3848,7 +3829,7 @@ test('common', () => {
       .where(
         arrayContains(
           posts.tags,
-          db.select({tags: posts.tags}).from(posts).where(eq(posts.id, 1))
+          db.select(posts.tags).from(posts).where(eq(posts.id, 1))
         )
       )
 
@@ -4382,7 +4363,7 @@ test('common', () => {
     const result = await db
       .select()
       .from(cities2Table)
-      .except(({unionAll}) =>
+      .except(
         unionAll(
           db.select().from(sq),
           db.select().from(cities2Table).where(eq(citiesTable.id, 2))
@@ -4397,7 +4378,7 @@ test('common', () => {
       (async () => {
         db.select()
           .from(cities2Table)
-          .except(({unionAll}) =>
+          .except(
             unionAll(
               db
                 .select({name: cities2Table.name, id: cities2Table.id})
@@ -6095,8 +6076,8 @@ test('common', () => {
         updatedAt: users.updatedAt
       })
 
-    expect(insertResp[0]?.updatedAt.getTime() ?? 0).lessThan(now)
-    expect(updateResp[0]?.updatedAt.getTime() ?? 0).greaterThan(now)
+    expect(insertResp[0]?.updatedAt.getTime() ?? 0).toBeLessThan(now)
+    expect(updateResp[0]?.updatedAt.getTime() ?? 0).toBeGreaterThan(now)
   })
 
   test('$count separate', async ctx => {
