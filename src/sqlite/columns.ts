@@ -1,5 +1,5 @@
 import {
-  type Column,
+  Column,
   type ColumnArguments,
   JsonColumn,
   column,
@@ -7,7 +7,7 @@ import {
 } from '../core/Column.ts'
 
 export function boolean(name?: string): Column<boolean | null> {
-  return column({
+  return new Column({
     name,
     type: column.integer(),
     mapFromDriverValue(value: number): boolean {
@@ -40,7 +40,7 @@ export function integer(
   const {name, options} = columnConfig(args)
   if (options?.mode === 'timestamp' || options?.mode === 'timestamp_ms') {
     const scale = options.mode === 'timestamp' ? 1000 : 1
-    return column({
+    return new Column({
       name,
       type: column.integer(),
       mapFromDriverValue(value: number | null) {
@@ -53,7 +53,7 @@ export function integer(
     })
   }
   if (options?.mode === 'boolean') return boolean()
-  return column({name, type: column.integer()})
+  return new Column({name, type: column.integer()})
 }
 
 export const int = integer
@@ -74,7 +74,7 @@ export function blob(
   const {name, options} = columnConfig(args)
   if (options?.mode === 'json') return json(name)
   if (options?.mode === 'bigint')
-    return column({
+    return new Column({
       name,
       type: column.blob(),
       mapFromDriverValue(value: string) {
@@ -85,14 +85,17 @@ export function blob(
       }
     })
   if (options?.mode === 'buffer')
-    return column({
+    return new Column({
       name,
       type: column.blob(),
       mapFromDriverValue(value: unknown) {
         if (value instanceof ArrayBuffer) return value
         if (value && typeof value === 'object' && ArrayBuffer.isView(value)) {
           const view = value as ArrayBufferView
-          return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)
+          return view.buffer.slice(
+            view.byteOffset,
+            view.byteOffset + view.byteLength
+          )
         }
         return value as ArrayBuffer
       },
@@ -100,7 +103,7 @@ export function blob(
         return value instanceof ArrayBuffer ? new Uint8Array(value) : value
       }
     })
-  return column({name, type: column.blob()})
+  return new Column({name, type: column.blob()})
 }
 
 export function text(name?: string): Column<string | null>
@@ -129,15 +132,15 @@ export function text(
         return JSON.parse(value)
       }
     })
-  return column({name, type: column.text(options?.length)})
+  return new Column({name, type: column.text(options?.length)})
 }
 
 export function real(name?: string): Column<number | null> {
-  return column({name, type: column.real()})
+  return new Column({name, type: column.real()})
 }
 
 export function numeric(name?: string): Column<number | null> {
-  return column({name, type: column.numeric()})
+  return new Column({name, type: column.numeric()})
 }
 
 export function json<T>(name?: string): JsonColumn<T | null> {

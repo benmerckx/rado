@@ -1,4 +1,4 @@
-import {type Column, ColumnType, JsonColumn, column} from '../core/Column.ts'
+import {Column, ColumnType, JsonColumn, column} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 const idType = new ColumnType(
@@ -39,7 +39,7 @@ const jsonbType = new ColumnType(
 )
 
 export function id(name?: string): Column<number> {
-  return column({
+  return new Column({
     name,
     type: idType,
     primary: true
@@ -47,26 +47,26 @@ export function id(name?: string): Column<number> {
 }
 
 export function text(name?: string): Column<string | null> {
-  return column({name, type: column.text()})
+  return new Column({name, type: column.text()})
 }
 
 export function varchar(
   name?: string,
   options?: {length: number}
 ): Column<string | null> {
-  return column({name, type: column.varchar(options?.length)})
+  return new Column({name, type: column.varchar(options?.length)})
 }
 
 export function integer(name?: string): Column<number | null> {
-  return column({name, type: column.integer()})
+  return new Column({name, type: column.integer()})
 }
 
 export function number(name?: string): Column<number | null> {
-  return column({name, type: numberType, mapFromDriverValue: Number})
+  return new Column({name, type: numberType, mapFromDriverValue: Number})
 }
 
 export function boolean(name?: string): Column<boolean | null> {
-  return column({
+  return new Column({
     name,
     type: column.boolean(),
     mapFromDriverValue: Boolean
@@ -100,7 +100,7 @@ export function jsonb<T>(name?: string): JsonColumn<T> {
 }
 
 export function blob(name?: string): Column<Uint8Array | null> {
-  return column({
+  return new Column({
     name,
     type: blobType,
     mapFromDriverValue(value) {

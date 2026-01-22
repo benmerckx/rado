@@ -314,7 +314,7 @@ tinyint in the database:
 import {Column, column, table, sql} from 'rado'
 
 export function bool(name?: string): Column<boolean | null> {
-  return column({
+  return new Column({
     name,
     type: sql`tinyint(1)`,
     mapFromDriverValue(value: number): boolean {

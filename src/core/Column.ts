@@ -132,30 +132,28 @@ export interface RequiredColumn<Value = unknown>
   [required]: true
 }
 
-function createColumn(data: ColumnData): Column {
-  return new Column(data)
-}
-
 export interface Columns {
-  <T>(data: ColumnData): Column<T>
   [key: string]: (...args: Array<Input<any>>) => ColumnType
 }
 
-export const column: Columns = new Proxy(createColumn as any, {
-  get(target: Record<string, Function>, method: string) {
-    return (target[method] ??= (...args: Array<Input<unknown>>) => {
-      while (args.length > 0)
-        if (args.at(-1) === undefined) args.pop()
-        else break
-      return new ColumnType(method, args)
-    })
+export const column: Columns = new Proxy<Columns>(
+  {},
+  {
+    get(target: Record<string, Function>, method: string) {
+      return (target[method] ??= (...args: Array<Input<unknown>>) => {
+        while (args.length > 0)
+          if (args.at(-1) === undefined) args.pop()
+          else break
+        return new ColumnType(method, args)
+      })
+    }
   }
-})
+)
 
 export type ColumnArguments<Options> =
   | [name?: string]
   | [options: Options]
-  | [name: string, options: Options]
+  | [name: string | undefined, options: Options]
 
 export function columnConfig<Options>(args: ColumnArguments<Options>): {
   name: string | undefined
