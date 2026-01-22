@@ -1,5 +1,7 @@
+import type {IsPostgres} from '../core/MetaData.ts'
 import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
+import {type View, view} from '../core/View.ts'
 import {type PgEnum, pgEnum} from './enum.ts'
 
 type Prefix<
@@ -18,10 +20,12 @@ export interface PgSchema<SchemaName extends string> {
   enum<
     const Name extends string,
     const Values extends readonly [string, ...string[]]
-  >(
-    name: Name,
-    values: Values
-  ): PgEnum<Values>
+  >(name: Name, values: Values): PgEnum<Values>
+  view(name: string): View<unknown, IsPostgres>
+  view<Definition extends TableDefinition>(
+    name: string,
+    fields: Definition
+  ): View<unknown, IsPostgres>
 }
 
 export function pgSchema<SchemaName extends string>(
@@ -33,6 +37,9 @@ export function pgSchema<SchemaName extends string>(
     },
     enum(name, values) {
       return pgEnum(name, values, schemaName)
+    },
+    view(name, fields) {
+      return view(name, fields, schemaName)
     }
   }
 }

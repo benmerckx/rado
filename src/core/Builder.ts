@@ -118,9 +118,10 @@ class BuilderBase<Meta extends QueryMeta> {
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   $with(cteName: string): {
-    as<Input>(query: UnionBase<Input>): CTE<Input>
-    as<Input>(query: Delete<Input>): CTE<Input>
-    as<Input>(query: Update<Input>): CTE<Input>
+    as<Input>(query: UnionBase<Input, Meta>): CTE<Input>
+    as<Input>(query: Delete<Input, Meta>): CTE<Input>
+    as<Input>(query: Update<Input, Meta>): CTE<Input>
+    as<Input>(query: Insert<Input, Meta>): CTE<Input>
   } {
     return {
       as(query) {
