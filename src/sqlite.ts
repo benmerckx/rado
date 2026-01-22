@@ -11,6 +11,7 @@ export {
   table as sqliteTable,
   tableCreator as sqliteTableCreator
 } from './core/Table.ts'
+export {view as sqliteView} from './core/View.ts'
 export * from './sqlite/builder.ts'
 export * from './sqlite/columns.ts'
 export * from './sqlite/dialect.ts'

@@ -13,7 +13,7 @@ import {
 import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
-import {virtual} from './Virtual.ts'
+import {type VirtualTarget, virtualTarget} from './Virtual.ts'
 import type {Include} from './expr/Include.ts'
 import type {JoinOp} from './query/Query.ts'
 
@@ -103,8 +103,8 @@ export class Selection implements HasSql {
     this.mapRow = root.result.bind(root)
   }
 
-  makeVirtual<Input>(name: string): Input & HasTarget {
-    return virtual(name, <Input>this.input)
+  makeVirtual<Input>(name: string): VirtualTarget<Input> {
+    return virtualTarget(name, <Input>this.input)
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {

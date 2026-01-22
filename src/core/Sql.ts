@@ -56,6 +56,10 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   forSelection(): Sql<Value> {
     return this
   }
+
+  if(condition: unknown): Sql<Value> | undefined {
+    return condition ? this : undefined
+  }
 }
 
 class JsonPathSql<T> extends Sql<T> {

@@ -1,9 +1,10 @@
-import {type HasSql, getData, internalData} from './Internal.ts'
+import {type HasSql, getData, getQuery, internalData} from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Queries.ts'
 import type {SelectionInput, SelectionRow} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
-import {type CTE, createCTE} from './query/CTE.ts'
+import {virtualQuery} from './Virtual.ts'
+import type {CTE} from './query/CTE.ts'
 import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
 import type {
@@ -123,7 +124,7 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
       as<Input extends SelectionInput>(
         query: UnionBase<Input, Meta>
       ): CTE<Input> {
-        return createCTE(cteName, query)
+        return virtualQuery(cteName, getQuery(query).nameSelf(cteName))
       }
     }
   }

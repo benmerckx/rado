@@ -14,6 +14,7 @@ export {
   table as mysqlTable,
   tableCreator as mysqlTableCreator
 } from './core/Table.ts'
+export {view as mysqlView} from './core/View.ts'
 export * from './mysql/builder.ts'
 export * from './mysql/columns.ts'
 export * from './mysql/dialect.ts'

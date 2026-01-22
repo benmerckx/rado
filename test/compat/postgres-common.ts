@@ -3587,8 +3587,8 @@ test('common', () => {
       cityId: integer('city_id').notNull()
     })
 
-    const newYorkers = pgView('new_yorkers').as(qb =>
-      qb.select().from(users).where(eq(users.cityId, 1))
+    const newYorkers = pgView('new_yorkers').as(
+      db.select().from(users).where(eq(users.cityId, 1))
     )
 
     await db.execute(sql`drop table if exists ${users}`)
@@ -3629,8 +3629,8 @@ test('common', () => {
       cityId: integer('city_id').notNull()
     })
 
-    const newYorkers = pgView('new_yorkers').as(qb =>
-      qb.select().from(users).where(eq(users.cityId, 1))
+    const newYorkers = pgView('new_yorkers').as(
+      db.select().from(users).where(eq(users.cityId, 1))
     )
 
     await db.execute(sql`drop table if exists ${users}`)
@@ -4720,7 +4720,7 @@ test('common', () => {
     const [result2] = await db
       .select()
       .from(users)
-      .where(sql`${users.id} = 1`.if(condition2))
+      .where(sql<boolean>`${users.id} = 1`.if(condition2))
 
     expect(result2).toEqual({id: 1, name: 'John', age: 20, city: 'New York'})
 
@@ -4760,7 +4760,7 @@ test('common', () => {
     const result5 = await db
       .select()
       .from(users)
-      .where(sql`${users.id} = 1`.if(condition5))
+      .where(sql<boolean>`${users.id} = 1`.if(condition5))
 
     expect(result5).toEqual([
       {id: 1, name: 'John', age: 20, city: 'New York'},
