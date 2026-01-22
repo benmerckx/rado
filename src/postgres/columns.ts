@@ -5,7 +5,7 @@ import {
   column,
   columnConfig
 } from '../core/Column.ts'
-import {internalData} from '../core/Internal.ts'
+import {getData} from '../core/Internal.ts'
 import {sql} from '../core/Sql.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -64,7 +64,7 @@ export class PgColumn<Value = unknown> extends Column<Value> {
     config?: {nulls: 'distinct' | 'not distinct'}
   ): PgColumn<Value> {
     return new PgColumn({
-      ...this[internalData],
+      ...getData(this),
       isUnique: true,
       nullsNotDistinct: config?.nulls === 'not distinct',
       name
@@ -72,13 +72,10 @@ export class PgColumn<Value = unknown> extends Column<Value> {
   }
 
   array(size?: number): PgArrayColumn<Value> {
+    const data = getData(this)
     return new PgArrayColumn({
-      ...this[internalData],
-      type: new ColumnType(
-        'array',
-        [this[internalData].type],
-        sql`${this[internalData].type}[${size}]`
-      )
+      ...data,
+      type: new ColumnType('array', [data.type], sql`${data.type}[${size}]`)
     })
   }
 }
