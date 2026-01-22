@@ -1,5 +1,4 @@
-import type {Column} from '../core/Column.ts'
-import {ColumnType, column} from '../core/Column.ts'
+import {type Column, ColumnType} from '../core/Column.ts'
 import type {HasTable} from '../core/Internal.ts'
 import {
   getData,
@@ -10,6 +9,7 @@ import {
 } from '../core/Internal.ts'
 import type {Sql} from '../core/Sql.ts'
 import {sql} from '../core/Sql.ts'
+import {PgColumn} from './columns.ts'
 
 export type PgEnum<Values extends readonly string[] = readonly string[]> = {
   (name?: string): Column<Values[number] | null>
@@ -30,7 +30,7 @@ export function pgEnum<
     : sql.identifier(name)
   const enumType = new ColumnType(name, [], enumIdentifier)
   return (columnName?: string) => {
-    return column({
+    return new PgColumn({
       name: columnName,
       type: enumType,
       [internalEnum]: {name, schema: schemaName, values}
