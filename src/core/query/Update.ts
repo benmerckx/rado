@@ -16,16 +16,16 @@ import {
   selection
 } from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
-import type {TableDefinition, TableRow, TableUpdate} from '../Table.ts'
+import type {TableDefinition, TableFields, TableUpdate} from '../Table.ts'
 import {and} from '../expr/Conditions.ts'
-import {type Input, mapToColumn} from '../expr/Input.ts'
+import {type Input as UserInput, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 import {formatModifiers} from './Shared.ts'
 
-export class Update<Result, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<Array<Result>, Meta>
-  implements HasQuery<Result>
+export class Update<Input, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<Array<SelectionRow<Input>>, Meta>
+  implements HasQuery<Array<SelectionRow<Input>>>
 {
   readonly [internalData]: QueryData<Meta> & UpdateQuery
   declare readonly [internalSelection]?: Selection
@@ -36,19 +36,19 @@ export class Update<Result, Meta extends QueryMeta = QueryMeta>
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql<Result> {
-    return updateQuery(getData(this)) as Sql<Result>
+  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
+    return updateQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
   }
 
-  limit(limit: Input<number>): Update<Result, Meta> {
+  limit(limit: UserInput<number>): Update<Input, Meta> {
     return new Update({...getData(this), limit})
   }
 
-  offset(offset: Input<number>): Update<Result, Meta> {
+  offset(offset: UserInput<number>): Update<Input, Meta> {
     return new Update({...getData(this), offset})
   }
 
-  orderBy(...orderBy: Array<HasSql>): Update<Result, Meta> {
+  orderBy(...orderBy: Array<HasSql>): Update<Input, Meta> {
     return new Update({...getData(this), orderBy})
   }
 }
@@ -72,11 +72,11 @@ export class UpdateTable<
 
   returning(
     this: UpdateTable<Definition, IsPostgres | IsSqlite>
-  ): Update<TableRow<Definition>, Meta>
+  ): Update<TableFields<Definition>, Meta>
   returning<Input extends SelectionInput>(
     this: UpdateTable<Definition, IsPostgres | IsSqlite>,
     returning?: Input
-  ): Update<SelectionRow<Input>, Meta>
+  ): Update<Input, Meta>
   returning(returning?: SelectionInput) {
     const data = getData(this)
     return new Update({...data, returning: returning ?? data.update})

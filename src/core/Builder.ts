@@ -118,12 +118,12 @@ class BuilderBase<Meta extends QueryMeta> {
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   $with(cteName: string): {
-    as<Input extends SelectionInput>(query: UnionBase<Input, Meta>): CTE<Input>
+    as<Input>(query: UnionBase<Input>): CTE<Input>
+    as<Input>(query: Delete<Input>): CTE<Input>
+    as<Input>(query: Update<Input>): CTE<Input>
   } {
     return {
-      as<Input extends SelectionInput>(
-        query: UnionBase<Input, Meta>
-      ): CTE<Input> {
+      as(query) {
         return virtualQuery(cteName, getQuery(query).nameSelf(cteName))
       }
     }
