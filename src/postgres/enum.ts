@@ -1,4 +1,4 @@
-import {type Column, ColumnType} from '../core/Column.ts'
+import {ColumnType} from '../core/Column.ts'
 import type {HasTable} from '../core/Internal.ts'
 import {
   getData,
@@ -12,7 +12,7 @@ import {sql} from '../core/Sql.ts'
 import {PgColumn} from './columns.ts'
 
 export type PgEnum<Values extends readonly string[] = readonly string[]> = {
-  (name?: string): Column<Values[number] | null>
+  (name?: string): PgColumn<Values[number] | null>
 }
 
 export interface PgEnumInfo {
