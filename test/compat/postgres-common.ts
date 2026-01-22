@@ -2410,10 +2410,6 @@ test('common', () => {
       cityId: integer('city_id').notNull()
     }).existing()
 
-    await db.execute(
-      sql`create view ${newYorkers1} as ${getViewConfig(newYorkers1).query}`
-    )
-
     await db.insert(citiesTable).values([{name: 'New York'}, {name: 'Paris'}])
 
     await db.insert(users2Table).values([
@@ -2534,7 +2530,7 @@ test('common', () => {
       .view('new_yorkers', {
         id: integer('id').notNull()
       })
-      .existing()
+      .as(sql`select id from ${usersTable}`)
 
     await db.execute(sql`drop schema if exists ${schema} cascade`)
     await db.execute(sql`create schema ${schema}`)

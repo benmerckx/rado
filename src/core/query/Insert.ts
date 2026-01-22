@@ -18,11 +18,12 @@ import {type Sql, sql} from '../Sql.ts'
 import type {
   TableApi,
   TableDefinition,
+  TableFields,
   TableInsert,
   TableRow,
   TableUpdate
 } from '../Table.ts'
-import {type Input, input, mapToColumn} from '../expr/Input.ts'
+import {type Input as UserInput, input, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   Conflict,
@@ -35,9 +36,9 @@ import type {
 import {selectQuery} from './Select.ts'
 import {formatModifiers} from './Shared.ts'
 
-export class Insert<Result, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<Result, Meta>
-  implements HasQuery<Result>
+export class Insert<Input, Meta extends QueryMeta = QueryMeta>
+  extends SingleQuery<Array<SelectionRow<Input>>, Meta>
+  implements HasQuery<Array<SelectionRow<Input>>>
 {
   readonly [internalData]: QueryData<Meta> & InsertQuery
   declare readonly [internalSelection]?: Selection
@@ -48,8 +49,8 @@ export class Insert<Result, Meta extends QueryMeta = QueryMeta>
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql<Result> {
-    return insertQuery(getData(this)) as Sql<Result>
+  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
+    return insertQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
   }
 }
 
@@ -59,11 +60,11 @@ class InsertCanReturn<
 > extends Insert<void, Meta> {
   returning<Meta extends IsPostgres | IsSqlite>(
     this: InsertCanReturn<Definition, Meta>
-  ): Insert<Array<TableRow<Definition>>, Meta>
+  ): Insert<TableFields<Definition>, Meta>
   returning<Input extends SelectionInput, Meta extends IsPostgres | IsSqlite>(
     this: InsertCanReturn<Definition, Meta>,
     returning: Input
-  ): Insert<Array<SelectionRow<Input>>, Meta>
+  ): Insert<Input, Meta>
   returning(returning?: SelectionInput) {
     const data = getData(this)
     return new Insert({
@@ -155,7 +156,7 @@ function formatValues(
   rows: Array<TableInsert<TableDefinition>>
 ): Sql {
   return sql.join(
-    rows.map((row: Record<string, Input>) => {
+    rows.map((row: Record<string, UserInput>) => {
       return sql`(${sql.join(
         Object.entries(table.columns).map(([key, column]) => {
           const expr = row[key]

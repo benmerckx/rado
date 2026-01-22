@@ -3,15 +3,12 @@ import {
   type HasSql,
   type HasTarget,
   getData,
-  getQuery,
-  getSelection,
-  hasSql,
-  internalData,
-  internalQuery
+  internalData
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Queries.ts'
-import {Field} from './expr/Field.ts'
+import type {TableDefinition, TableFields} from './Table.ts'
+import {virtualQuery} from './Virtual.ts'
 import type {UnionBase} from './query/Select.ts'
 
 interface ViewData {
@@ -32,19 +29,19 @@ export class View<Input, Meta extends QueryMeta> {
   as<Input>(query: HasSql<Input>): VirtualView<Input>
   as(query: HasSql | UnionBase<unknown>): VirtualView<Input> {
     const {name} = getData(this)
-    if (hasSql(query))
-      return new Proxy({[internalQuery]: query} as VirtualView<Input>, {
-        get(_, property) {
-          return new Field(name, property as string)
-        }
-      })
-    const fields = getSelection(query).makeVirtual<Input>(name)
-    return Object.assign(fields, {
-      [internalQuery]: getQuery(query)
-    })
+    return virtualQuery<Input>(name, query)
   }
 }
 
-export function view(name: string) {
+export function view(name: string): View<unknown, QueryMeta>
+export function view<Definition extends TableDefinition>(
+  name: string,
+  fields: Definition
+): View<TableFields<Definition>, QueryMeta>
+export function view(
+  name: string,
+  fields?: TableDefinition,
+  schemaName?: string
+) {
   return new View({name})
 }
