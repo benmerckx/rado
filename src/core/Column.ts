@@ -19,6 +19,7 @@ export interface BaseColumnData {
   primary?: boolean
   notNull?: boolean
   isUnique?: boolean
+  nullsNotDistinct?: boolean
   autoIncrement?: boolean
   defaultValue?: Sql
   references?(): FieldData
@@ -183,6 +184,7 @@ export function formatColumn(column: BaseColumnData): Sql {
       primaryKey: column.primary,
       notNull: column.notNull,
       unique: column.isUnique,
+      nullsNotDistinct: column.nullsNotDistinct,
       autoincrement: column.autoIncrement
     },
     column.defaultValue !== undefined

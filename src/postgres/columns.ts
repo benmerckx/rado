@@ -59,6 +59,18 @@ function formatLine(value: LineTuple | LineABC | string): string {
 }
 
 export class PgColumn<Value = unknown> extends Column<Value> {
+  unique(
+    name?: string,
+    config?: {nulls: 'distinct' | 'not distinct'}
+  ): PgColumn<Value> {
+    return new PgColumn({
+      ...this[internalData],
+      isUnique: true,
+      nullsNotDistinct: config?.nulls === 'not distinct',
+      name
+    })
+  }
+
   array(size?: number): PgArrayColumn<Value> {
     throw new PgArrayColumn({
       ...this[internalData],

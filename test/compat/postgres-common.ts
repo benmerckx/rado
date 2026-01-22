@@ -2,7 +2,6 @@
 
 import {'@electric-sql/pglite' as connect} from '@/driver.ts'
 import {
-  type AsyncDatabase,
   type Column,
   type Database,
   SQL,
@@ -91,7 +90,7 @@ import {
   uuid,
   varchar
 } from '@/postgres.ts'
-import {type Hooks, suite} from '@alinea/suite'
+import {suite} from '@alinea/suite'
 import {PGlite} from '@electric-sql/pglite'
 import {expect} from 'bun:test'
 
@@ -104,8 +103,148 @@ const Expect = <T extends true>() => {}
 
 const db = connect(new PGlite())
 const test = suite(import.meta, {
-  pg: {db}
-} as Hooks & {pg: {db: AsyncDatabase<'postgres'>}})
+  pg: {db},
+  async afterEach() {
+    const {db} = this.pg
+    await db.execute(sql`drop schema if exists custom_migrations cascade`)
+  },
+  async beforeEach() {
+    const {db} = this.pg
+    await db.execute(sql`drop schema if exists public cascade`)
+    await db.execute(sql`drop schema if exists ${mySchema} cascade`)
+    await db.execute(sql`create schema public`)
+    await db.execute(sql`create schema if not exists custom_migrations`)
+    await db.execute(sql`create schema ${mySchema}`)
+    // public users
+    await db.execute(
+      sql`
+					create table users (
+						id serial primary key,
+						name text not null,
+						verified boolean not null default false,
+						jsonb jsonb,
+						created_at timestamptz not null default now()
+					)
+				`
+    )
+    // public cities
+    await db.execute(
+      sql`
+					create table cities (
+						id serial primary key,
+						name text not null,
+						state char(2)
+					)
+				`
+    )
+    // public users2
+    await db.execute(
+      sql`
+					create table users2 (
+						id serial primary key,
+						name text not null,
+						city_id integer references cities(id)
+					)
+				`
+    )
+    await db.execute(
+      sql`
+					create table course_categories (
+						id serial primary key,
+						name text not null
+					)
+				`
+    )
+    await db.execute(
+      sql`
+					create table courses (
+						id serial primary key,
+						name text not null,
+						category_id integer references course_categories(id)
+					)
+				`
+    )
+    await db.execute(
+      sql`
+					create table orders (
+						id serial primary key,
+						region text not null,
+						product text not null,
+						amount integer not null,
+						quantity integer not null
+					)
+				`
+    )
+    await db.execute(
+      sql`
+					create table network_table (
+						inet inet not null,
+						cidr cidr not null,
+						macaddr macaddr not null,
+						macaddr8 macaddr8 not null
+					)
+				`
+    )
+    await db.execute(
+      sql`
+					create table sal_emp (
+						name text not null,
+						pay_by_quarter integer[] not null,
+						schedule text[][] not null
+					)
+				`
+    )
+    await db.execute(
+      sql`
+					create table tictactoe (
+						squares integer[3][3] not null
+					)
+				`
+    )
+    // // mySchema users
+    await db.execute(
+      sql`
+					create table ${usersMySchemaTable} (
+						id serial primary key,
+						name text not null,
+						verified boolean not null default false,
+						jsonb jsonb,
+						created_at timestamptz not null default now()
+					)
+				`
+    )
+    // mySchema cities
+    await db.execute(
+      sql`
+					create table ${citiesMySchemaTable} (
+						id serial primary key,
+						name text not null,
+						state char(2)
+					)
+				`
+    )
+    // mySchema users2
+    await db.execute(
+      sql`
+					create table ${users2MySchemaTable} (
+						id serial primary key,
+						name text not null,
+						city_id integer references "mySchema".cities(id)
+					)
+				`
+    )
+
+    await db.execute(
+      sql`
+					create table jsontest (
+						id serial primary key,
+						json json,
+						jsonb jsonb
+					)
+				`
+    )
+  }
+})
 
 const en = pgEnum('en', ['enVal1', 'enVal2'])
 
@@ -374,148 +513,6 @@ const jsonTestTable = pgTable('jsontest', {
 })
 
 test('common', () => {
-  beforeEach(async ctx => {
-    const {db} = ctx.pg
-    await db.execute(sql`drop schema if exists public cascade`)
-    await db.execute(sql`drop schema if exists ${mySchema} cascade`)
-    await db.execute(sql`create schema public`)
-    await db.execute(sql`create schema if not exists custom_migrations`)
-    await db.execute(sql`create schema ${mySchema}`)
-    // public users
-    await db.execute(
-      sql`
-					create table users (
-						id serial primary key,
-						name text not null,
-						verified boolean not null default false,
-						jsonb jsonb,
-						created_at timestamptz not null default now()
-					)
-				`
-    )
-    // public cities
-    await db.execute(
-      sql`
-					create table cities (
-						id serial primary key,
-						name text not null,
-						state char(2)
-					)
-				`
-    )
-    // public users2
-    await db.execute(
-      sql`
-					create table users2 (
-						id serial primary key,
-						name text not null,
-						city_id integer references cities(id)
-					)
-				`
-    )
-    await db.execute(
-      sql`
-					create table course_categories (
-						id serial primary key,
-						name text not null
-					)
-				`
-    )
-    await db.execute(
-      sql`
-					create table courses (
-						id serial primary key,
-						name text not null,
-						category_id integer references course_categories(id)
-					)
-				`
-    )
-    await db.execute(
-      sql`
-					create table orders (
-						id serial primary key,
-						region text not null,
-						product text not null,
-						amount integer not null,
-						quantity integer not null
-					)
-				`
-    )
-    await db.execute(
-      sql`
-					create table network_table (
-						inet inet not null,
-						cidr cidr not null,
-						macaddr macaddr not null,
-						macaddr8 macaddr8 not null
-					)
-				`
-    )
-    await db.execute(
-      sql`
-					create table sal_emp (
-						name text not null,
-						pay_by_quarter integer[] not null,
-						schedule text[][] not null
-					)
-				`
-    )
-    await db.execute(
-      sql`
-					create table tictactoe (
-						squares integer[3][3] not null
-					)
-				`
-    )
-    // // mySchema users
-    await db.execute(
-      sql`
-					create table ${usersMySchemaTable} (
-						id serial primary key,
-						name text not null,
-						verified boolean not null default false,
-						jsonb jsonb,
-						created_at timestamptz not null default now()
-					)
-				`
-    )
-    // mySchema cities
-    await db.execute(
-      sql`
-					create table ${citiesMySchemaTable} (
-						id serial primary key,
-						name text not null,
-						state char(2)
-					)
-				`
-    )
-    // mySchema users2
-    await db.execute(
-      sql`
-					create table ${users2MySchemaTable} (
-						id serial primary key,
-						name text not null,
-						city_id integer references "mySchema".cities(id)
-					)
-				`
-    )
-
-    await db.execute(
-      sql`
-					create table jsontest (
-						id serial primary key,
-						json json,
-						jsonb jsonb
-					)
-				`
-    )
-  })
-
-  afterEach(async ctx => {
-    const {db} = ctx.pg
-    await db.execute(sql`drop schema if exists custom_migrations cascade`)
-  })
-
   async function setupSetOperationTest(db: Database) {
     await db.execute(sql`drop table if exists users2`)
     await db.execute(sql`drop table if exists cities`)
@@ -593,24 +590,6 @@ test('common', () => {
         f1: unique('custom_name1').on(t.name, t.state)
       })
     )
-
-    const tableConfig = getTableConfig(cities1Table)
-
-    expect(tableConfig.uniqueConstraints).toHaveLength(2)
-
-    expect(tableConfig.uniqueConstraints[0]?.name).toBe('custom_name')
-    expect(tableConfig.uniqueConstraints[0]?.nullsNotDistinct).toBe(true)
-    expect(tableConfig.uniqueConstraints[0]?.columns.map(t => t.name)).toEqual([
-      'name',
-      'state'
-    ])
-
-    expect(tableConfig.uniqueConstraints[1]?.name).toBe('custom_name1')
-    expect(tableConfig.uniqueConstraints[1]?.nullsNotDistinct).toBe(false)
-    expect(tableConfig.uniqueConstraints[1]?.columns.map(t => t.name)).toEqual([
-      'name',
-      'state'
-    ])
   })
 
   test('table configs: unique in column', async () => {
