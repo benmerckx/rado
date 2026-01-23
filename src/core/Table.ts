@@ -104,18 +104,6 @@ export class TableApi<
     )
   }
 
-  fields(): Record<string, HasSql> {
-    return fromEntries(
-      entries(this.columns).map(([name, column]) => {
-        const columnApi = getData(column)
-        const {name: givenName} = columnApi
-        const field = new Field(this.aliased, givenName ?? name, columnApi)
-        if (columnApi.json) return [name, jsonExpr(field)]
-        return [name, field]
-      })
-    )
-  }
-
   createTable(altName?: string, ifNotExists = false): Sql {
     return sql.join([
       sql`create table`,
@@ -145,6 +133,21 @@ export class TableApi<
       entries(this.config ?? {}).filter(([, config]) => config instanceof Index)
     ) as Record<string, Index>
   }
+}
+
+export function tableFields(
+  tragetName: string,
+  columns: TableDefinition
+): Record<string, HasSql> {
+  return fromEntries(
+    entries(columns).map(([name, column]) => {
+      const columnApi = getData(column)
+      const {name: givenName} = columnApi
+      const field = new Field(tragetName, givenName ?? name, columnApi)
+      if (columnApi.json) return [name, jsonExpr(field)]
+      return [name, field]
+    })
+  )
 }
 
 export type Table<
@@ -212,7 +215,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
     schemaName,
     columns
   })
-  const fields = api.fields()
+  const fields = tableFields(api.aliased, api.columns)
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
@@ -231,12 +234,12 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     ...getTable(table),
     alias
   })
-  const fields = api.fields()
+  const fields = tableFields(api.aliased, api.columns)
   return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
     [internalSelection]: selection(fields),
-    ...api.fields()
+    ...fields
   }
 }
 

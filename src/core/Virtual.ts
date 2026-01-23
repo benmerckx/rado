@@ -1,40 +1,22 @@
 import {
   type HasQuery,
-  type HasSelection,
-  type HasSql,
   type HasTarget,
-  getQuery,
-  getSelection,
   getSql,
   hasSql,
   internalQuery,
   internalTarget
 } from './Internal.ts'
-import {sql} from './Sql.ts'
+import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 
 export type VirtualQuery<Input> = VirtualTarget<Input> & HasQuery
 
 export function virtualQuery<Input>(
   name: string,
-  from: HasSql | (HasSelection & HasQuery)
+  source: Input,
+  query: Sql
 ): VirtualQuery<Input> {
-  if (hasSql(from))
-    return new Proxy(
-      {
-        [internalTarget]: sql.identifier(name),
-        [internalQuery]: from
-      } as VirtualQuery<Input>,
-      {
-        get(target, property) {
-          if (typeof property !== 'string')
-            return target[property as keyof VirtualQuery<Input>]
-          return new Field(name, property as string)
-        }
-      }
-    )
-  const fields = getSelection(from).makeVirtual<Input>(name)
-  return Object.assign({[internalQuery]: getQuery(from)}, fields)
+  return Object.assign(virtualTarget(name, source), {[internalQuery]: query})
 }
 
 export type VirtualTarget<Input> = Input & HasTarget

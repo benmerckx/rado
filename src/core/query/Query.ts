@@ -22,6 +22,11 @@ export interface LeftJoin<Target> {
   on: HasSql<boolean>
 }
 
+export interface LeftJoinLateral<Target> {
+  leftJoinLateral: Target
+  on: HasSql<boolean>
+}
+
 export interface RightJoin<Target> {
   rightJoin: Target
   on: HasSql<boolean>
@@ -34,22 +39,31 @@ export interface FullJoin<Target> {
 
 export interface CrossJoin<Target> {
   crossJoin: Target
-  on: HasSql<boolean>
+  on?: undefined
+}
+
+export interface CrossJoinLateral<Target> {
+  crossJoinLateral: Target
+  on?: undefined
 }
 
 export type Join<Target = HasTarget | Sql> =
   | InnerJoin<Target>
   | LeftJoin<Target>
+  | LeftJoinLateral<Target>
   | RightJoin<Target>
   | FullJoin<Target>
   | CrossJoin<Target>
+  | CrossJoinLateral<Target>
 
 export type JoinOp =
   | 'leftJoin'
+  | 'leftJoinLateral'
   | 'rightJoin'
   | 'innerJoin'
   | 'fullJoin'
   | 'crossJoin'
+  | 'crossJoinLateral'
 
 export interface QueryBase {
   with?: Array<CTE>
@@ -103,14 +117,22 @@ type FoldJoins<T extends Array<unknown>, Result> = T extends [
       Joins,
       Join extends LeftJoin<Table<infer Definition, infer Name>>
         ? Result & MakeNullable<Record<Name, TableFields<Definition>>>
-        : Join extends RightJoin<Table<infer Definition, infer Name>>
-          ? MakeNullable<Result> & Record<Name, TableFields<Definition>>
-          : Join extends InnerJoin<Table<infer Definition, infer Name>>
-            ? Result & Record<Name, TableFields<Definition>>
-            : Join extends FullJoin<Table<infer Definition, infer Name>>
-              ? MakeNullable<Result> &
-                  MakeNullable<Record<Name, TableFields<Definition>>>
-              : Result
+        : Join extends LeftJoinLateral<Table<infer Definition, infer Name>>
+          ? Result & MakeNullable<Record<Name, TableFields<Definition>>>
+          : Join extends RightJoin<Table<infer Definition, infer Name>>
+            ? MakeNullable<Result> & Record<Name, TableFields<Definition>>
+            : Join extends InnerJoin<Table<infer Definition, infer Name>>
+              ? Result & Record<Name, TableFields<Definition>>
+              : Join extends CrossJoin<Table<infer Definition, infer Name>>
+                ? Result & Record<Name, TableFields<Definition>>
+                : Join extends FullJoin<Table<infer Definition, infer Name>>
+                  ? MakeNullable<Result> &
+                      MakeNullable<Record<Name, TableFields<Definition>>>
+                  : Join extends CrossJoinLateral<
+                        Table<infer Definition, infer Name>
+                      >
+                    ? Result & Record<Name, TableFields<Definition>>
+                    : Result
     >
   : Result
 

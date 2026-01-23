@@ -1,4 +1,11 @@
-import {type HasSql, getData, getQuery, internalData} from './Internal.ts'
+import {
+  type HasSql,
+  getData,
+  getQuery,
+  getSelection,
+  hasSelection,
+  internalData
+} from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Queries.ts'
 import type {SelectionInput, SelectionRow} from './Selection.ts'
@@ -125,7 +132,10 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   } {
     return {
       as(query) {
-        return virtualQuery(cteName, getQuery(query).nameSelf(cteName))
+        const input = hasSelection(query)
+          ? getSelection(query).input
+          : undefined
+        return virtualQuery(cteName, input, getQuery(query).nameSelf(cteName))
       }
     }
   }
