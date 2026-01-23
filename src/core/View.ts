@@ -8,7 +8,6 @@ import {
   internalData
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
-import type {QueryData} from './Queries.ts'
 import {type TableDefinition, type TableFields, tableFields} from './Table.ts'
 import {
   type VirtualQuery,
@@ -25,16 +24,18 @@ interface ViewData {
   as?: HasSql | HasQuery
 }
 
-export class View<Meta extends QueryMeta> {
-  readonly [internalData]: QueryData<Meta> & ViewData
+export class View {
+  readonly [internalData]: ViewData
 
   constructor(data: ViewData) {
     this[internalData] = data
   }
 }
 
-export class QueryView<Meta extends QueryMeta> extends View<Meta> {
-  as<Input>(query: UnionBase<Input, Meta>): VirtualQuery<Input> {
+export class QueryView extends View {
+  as<Input, Meta extends QueryMeta>(
+    query: UnionBase<Input, Meta>
+  ): VirtualQuery<Input> {
     const {name} = getData(this)
     return virtualQuery<Input>(
       name,
@@ -44,10 +45,7 @@ export class QueryView<Meta extends QueryMeta> extends View<Meta> {
   }
 }
 
-export class DefinedView<
-  Definition extends TableDefinition,
-  Meta extends QueryMeta
-> extends View<Meta> {
+export class DefinedView<Definition extends TableDefinition> extends View {
   existing(): VirtualTarget<TableFields<Definition>> {
     const {name, columns} = getData(this)
     const fields = tableFields(name, columns!) as TableFields<Definition>
@@ -61,12 +59,12 @@ export class DefinedView<
   }
 }
 
-export function view(name: string): QueryView<QueryMeta>
+export function view(name: string): QueryView
 export function view<Definition extends TableDefinition>(
   name: string,
   columns: Definition,
   schemaName?: string
-): DefinedView<Definition, QueryMeta>
+): DefinedView<Definition>
 export function view(
   name: string,
   columns?: TableDefinition,

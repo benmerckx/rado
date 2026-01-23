@@ -31,10 +31,11 @@ import {
 import {Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
+import type {VirtualQuery, VirtualTarget} from '../Virtual.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
-import {type CTE, formatCTE} from './CTE.ts'
+import {formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
   Join,
@@ -243,9 +244,7 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join({crossJoin})
   }
 
-  crossJoinLateral(
-    crossJoinLateral: HasTarget | Sql
-  ): Select<Input, Meta> {
+  crossJoinLateral(crossJoinLateral: HasTarget | Sql): Select<Input, Meta> {
     return this.#join({crossJoinLateral})
   }
 
@@ -329,7 +328,8 @@ export interface WithoutSelection<Meta extends QueryMeta> {
     Record<Name, TableFields<Definition>>
   >
   from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
-  from<Input>(from: CTE<Input>): SelectionFrom<Input, Meta>
+  from<Input>(from: VirtualQuery<Input>): SelectionFrom<Input, Meta>
+  from<Input>(from: VirtualTarget<Input>): SelectionFrom<Input, Meta>
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>

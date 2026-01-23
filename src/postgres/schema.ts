@@ -1,31 +1,23 @@
-import type {IsPostgres} from '../core/MetaData.ts'
 import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {type DefinedView, type QueryView, view} from '../core/View.ts'
 import {type PgEnum, pgEnum} from './enum.ts'
 
-type Prefix<
-  SchemaName extends string,
-  TableName extends string
-> = `${SchemaName}.${TableName}`
-
 export interface PgSchema<SchemaName extends string> {
   table<Definition extends TableDefinition, TableName extends string>(
     tableName: TableName,
     columns: Definition,
-    config?: (
-      self: Table<Definition>
-    ) => TableConfig<Prefix<SchemaName, TableName>>
-  ): Table<Definition, Prefix<SchemaName, TableName>>
+    config?: (self: Table<Definition>) => TableConfig<TableName>
+  ): Table<Definition, TableName>
   enum<
     const Name extends string,
     const Values extends readonly [string, ...string[]]
   >(name: Name, values: Values): PgEnum<Values>
-  view(name: string): QueryView<IsPostgres>
+  view(name: string): QueryView
   view<Definition extends TableDefinition>(
     name: string,
     fields: Definition
-  ): DefinedView<Definition, IsPostgres>
+  ): DefinedView<Definition>
 }
 
 export function pgSchema<SchemaName extends string>(
