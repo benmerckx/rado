@@ -92,7 +92,8 @@ test('pg time and interval sql', () => {
 test('pg numeric and double precision mapping', () => {
   test.equal(columnSql(pg.numeric()), 'numeric')
   test.equal(columnSql(pg.numeric({precision: 10, scale: 2})), 'numeric(10, 2)')
-  test.equal(mapFrom(pg.numeric(), '1.25'), 1.25)
+  test.equal(mapFrom(pg.numeric(), '1.25'), '1.25')
+  test.equal(mapFrom(pg.numeric({mode: 'number'}), '1.25'), 1.25)
   test.equal(mapFrom(pg.numeric({mode: 'bigint'}), '42'), BigInt('42'))
   const dbl = pg.doublePrecision()
   test.equal(columnSql(dbl), 'double precision')

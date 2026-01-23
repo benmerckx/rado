@@ -1,7 +1,15 @@
-import {type HasQuery, type HasSql, getData, internalData} from './Internal.ts'
+import {
+  type HasQuery,
+  type HasSql,
+  getData,
+  getQuery,
+  getSelection,
+  getSql,
+  internalData
+} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Queries.ts'
-import type {TableDefinition, TableFields} from './Table.ts'
+import {type TableDefinition, type TableFields, tableFields} from './Table.ts'
 import {
   type VirtualQuery,
   type VirtualTarget,
@@ -17,36 +25,53 @@ interface ViewData {
   as?: HasSql | HasQuery
 }
 
-export class View<Input, Meta extends QueryMeta> {
+export class View<Meta extends QueryMeta> {
   readonly [internalData]: QueryData<Meta> & ViewData
 
   constructor(data: ViewData) {
     this[internalData] = data
   }
+}
 
-  existing(): VirtualTarget<Input> {
-    const {name, columns} = getData(this)
-    return virtualTarget(name, columns as Input)
-  }
-
-  as<Input>(query: UnionBase<Input, Meta>): VirtualQuery<Input>
-  as<Input>(query: HasSql<Input>): VirtualQuery<Input>
-  as(query: HasSql | UnionBase<unknown>): VirtualQuery<Input> {
+export class QueryView<Meta extends QueryMeta> extends View<Meta> {
+  as<Input>(query: UnionBase<Input, Meta>): VirtualQuery<Input> {
     const {name} = getData(this)
-    return virtualQuery<Input>(name, query)
+    return virtualQuery<Input>(
+      name,
+      getSelection(query).input as Input,
+      getQuery(query)
+    )
   }
 }
 
-export function view(name: string): View<unknown, QueryMeta>
+export class DefinedView<
+  Definition extends TableDefinition,
+  Meta extends QueryMeta
+> extends View<Meta> {
+  existing(): VirtualTarget<TableFields<Definition>> {
+    const {name, columns} = getData(this)
+    const fields = tableFields(name, columns!) as TableFields<Definition>
+    return virtualTarget(name, fields)
+  }
+
+  as(query: HasSql): VirtualQuery<TableFields<Definition>> {
+    const {name, columns} = getData(this)
+    const fields = tableFields(name, columns!) as TableFields<Definition>
+    return virtualQuery(name, fields, getSql(query))
+  }
+}
+
+export function view(name: string): QueryView<QueryMeta>
 export function view<Definition extends TableDefinition>(
   name: string,
   columns: Definition,
   schemaName?: string
-): View<TableFields<Definition>, QueryMeta>
+): DefinedView<Definition, QueryMeta>
 export function view(
   name: string,
   columns?: TableDefinition,
   schemaName?: string
 ) {
-  return new View({name, columns, schemaName})
+  if (columns) return new DefinedView({name, columns, schemaName})
+  return new QueryView({name, columns, schemaName})
 }

@@ -33,7 +33,7 @@ like relations, `.query.*`, or schema definition helpers.
 | `.leftJoin(table, on)`             | `.leftJoin(table, on)`  | Same.                                                      |
 | `.rightJoin(table, on)`            | `.rightJoin(table, on)` | Same.                                                      |
 | `.fullJoin(table, on)`             | `.fullJoin(table, on)`  | Same.                                                      |
-| `.crossJoin(table)`                | `.crossJoin(table, on)` | Rado requires an `on` even for cross joins.                |
+| `.crossJoin(table)`                | `.crossJoin(table)`     | Same.                                                      |
 | `.union(query)`                    | `.union(query)`         | Both support chaining.                                     |
 | `.unionAll(query)`                 | `.unionAll(query)`      | Same.                                                      |
 | `.intersect(query)`                | `.intersect(query)`     | Same.                                                      |

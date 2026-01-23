@@ -57,6 +57,45 @@ suite(import.meta, test => {
     test.equal(emit(direct), expected)
   })
 
+  test('cross join', () => {
+    const expected =
+      'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" cross join "Node" as "right"'
+    const right = alias(Node, 'right')
+    const query = builder.select().from(Node).crossJoin(right)
+    test.equal(emit(query), expected)
+    const direct = builder.$query({
+      from: [Node, {crossJoin: right}]
+    })
+    test.equal(emit(direct), expected)
+  })
+
+  test('left join lateral', () => {
+    const expected =
+      'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" left join lateral "Node" as "right" on "right"."id" = 1'
+    const right = alias(Node, 'right')
+    const query = builder
+      .select()
+      .from(Node)
+      .leftJoinLateral(right, eq(right.id, 1))
+    test.equal(emit(query), expected)
+    const direct = builder.$query({
+      from: [Node, {leftJoinLateral: right, on: eq(right.id, 1)}]
+    })
+    test.equal(emit(direct), expected)
+  })
+
+  test('cross join lateral', () => {
+    const expected =
+      'select "Node"."id", "Node"."field1", "right"."id" as "id_", "right"."field1" as "field1_" from "Node" cross join lateral "Node" as "right"'
+    const right = alias(Node, 'right')
+    const query = builder.select().from(Node).crossJoinLateral(right)
+    test.equal(emit(query), expected)
+    const direct = builder.$query({
+      from: [Node, {crossJoinLateral: right}]
+    })
+    test.equal(emit(direct), expected)
+  })
+
   test('order by', () => {
     const expected =
       'select "Node"."id", "Node"."field1" from "Node" order by "id"'

@@ -211,6 +211,13 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join({leftJoin, on})
   }
 
+  leftJoinLateral(
+    leftJoinLateral: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
+    return this.#join({leftJoinLateral, on})
+  }
+
   rightJoin(
     rightJoin: HasTarget | Sql,
     on: HasSql<boolean>
@@ -232,11 +239,14 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join({fullJoin, on})
   }
 
-  crossJoin(
-    crossJoin: HasTarget | Sql,
-    on: HasSql<boolean>
+  crossJoin(crossJoin: HasTarget | Sql): Select<Input, Meta> {
+    return this.#join({crossJoin})
+  }
+
+  crossJoinLateral(
+    crossJoinLateral: HasTarget | Sql
   ): Select<Input, Meta> {
-    return this.#join({crossJoin, on})
+    return this.#join({crossJoinLateral})
   }
 
   where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta> {
@@ -346,6 +356,17 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & MakeNullable<Record<Name, Input>>>, Meta>
+  leftJoinLateral<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<
+    Expand<Tables & MakeNullable<Record<Name, TableFields<Definition>>>>,
+    Meta
+  >
+  leftJoinLateral<Input, Name extends string>(
+    right: SubQuery<Input, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<Expand<Tables & MakeNullable<Record<Name, Input>>>, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -364,6 +385,18 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
   innerJoin<Input, Name extends string>(
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
+  ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  crossJoin<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>
+  ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
+  crossJoin<Input, Name extends string>(
+    right: SubQuery<Input, Name>
+  ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  crossJoinLateral<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>
+  ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
+  crossJoinLateral<Input, Name extends string>(
+    right: SubQuery<Input, Name>
   ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
@@ -405,6 +438,14 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   leftJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  leftJoinLateral<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>,
+    on: HasSql<boolean>
+  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  leftJoinLateral(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -416,10 +457,13 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
   ): SelectionFrom<Input, Meta>
   innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   crossJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    right: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
-  crossJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  crossJoin(right: HasTarget): SelectionFrom<Input, Meta>
+  crossJoinLateral<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>
+  ): SelectionFrom<Input, Meta>
+  crossJoinLateral(right: HasTarget): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
