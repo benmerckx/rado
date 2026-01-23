@@ -5347,8 +5347,8 @@ test('common', () => {
 
     const newYorkers1 = mySchema
       .view('new_yorkers')
-      .as(qb =>
-        qb
+      .as(
+        db
           .select()
           .from(users2MySchemaTable)
           .where(eq(users2MySchemaTable.cityId, 1))

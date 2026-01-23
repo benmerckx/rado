@@ -13,10 +13,8 @@ export interface Schema<SchemaName extends string> {
   table<Definition extends TableDefinition, TableName extends string>(
     tableName: TableName,
     columns: Definition,
-    config?: (
-      self: Table<Definition>
-    ) => TableConfig<Prefix<SchemaName, TableName>>
-  ): Table<Definition, Prefix<SchemaName, TableName>>
+    config?: (self: Table<Definition>) => TableConfig<TableName>
+  ): Table<Definition, TableName>
 }
 
 export function schema<SchemaName extends string>(
