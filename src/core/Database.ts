@@ -1,3 +1,4 @@
+import {collectEnumQuery} from '../postgres/enum.ts'
 import {txGenerator} from '../universal.ts'
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
@@ -26,7 +27,6 @@ import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
 import {count} from './expr/Aggregate.ts'
 import type {SelectFirst} from './query/Select.ts'
-import {collectEnumQuery} from '../postgres/enum.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
@@ -74,7 +74,7 @@ export class Database<Meta extends QueryMeta = Either>
   drop(...tables: Array<HasTable>): BatchQuery<unknown, Meta> {
     return new BatchQuery(
       getResolver(this),
-      tables.map(table => getTable(table).drop())
+      tables.flatMap(table => getTable(table).drop())
     )
   }
 
