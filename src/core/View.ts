@@ -1,22 +1,21 @@
-import {
-  type HasQuery,
-  type HasSql,
-  type HasTarget,
-  getData,
-  internalData
-} from './Internal.ts'
+import {type HasQuery, type HasSql, getData, internalData} from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {QueryData} from './Queries.ts'
 import type {TableDefinition, TableFields} from './Table.ts'
-import {virtualQuery} from './Virtual.ts'
+import {
+  type VirtualQuery,
+  type VirtualTarget,
+  virtualQuery,
+  virtualTarget
+} from './Virtual.ts'
 import type {UnionBase} from './query/Select.ts'
 
 interface ViewData {
   name: string
+  columns?: TableDefinition
+  schemaName?: string
   as?: HasSql | HasQuery
 }
-
-export type VirtualView<Input> = Input & HasTarget & HasQuery
 
 export class View<Input, Meta extends QueryMeta> {
   readonly [internalData]: QueryData<Meta> & ViewData
@@ -25,9 +24,14 @@ export class View<Input, Meta extends QueryMeta> {
     this[internalData] = data
   }
 
-  as<Input>(query: UnionBase<Input, Meta>): VirtualView<Input>
-  as<Input>(query: HasSql<Input>): VirtualView<Input>
-  as(query: HasSql | UnionBase<unknown>): VirtualView<Input> {
+  existing(): VirtualTarget<Input> {
+    const {name, columns} = getData(this)
+    return virtualTarget(name, columns as Input)
+  }
+
+  as<Input>(query: UnionBase<Input, Meta>): VirtualQuery<Input>
+  as<Input>(query: HasSql<Input>): VirtualQuery<Input>
+  as(query: HasSql | UnionBase<unknown>): VirtualQuery<Input> {
     const {name} = getData(this)
     return virtualQuery<Input>(name, query)
   }
@@ -36,12 +40,13 @@ export class View<Input, Meta extends QueryMeta> {
 export function view(name: string): View<unknown, QueryMeta>
 export function view<Definition extends TableDefinition>(
   name: string,
-  fields: Definition
+  columns: Definition,
+  schemaName?: string
 ): View<TableFields<Definition>, QueryMeta>
 export function view(
   name: string,
-  fields?: TableDefinition,
+  columns?: TableDefinition,
   schemaName?: string
 ) {
-  return new View({name})
+  return new View({name, columns, schemaName})
 }

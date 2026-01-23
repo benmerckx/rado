@@ -1,5 +1,10 @@
 import type {IsPostgres} from '../core/MetaData.ts'
-import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
+import type {
+  Table,
+  TableConfig,
+  TableDefinition,
+  TableFields
+} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {type View, view} from '../core/View.ts'
 import {type PgEnum, pgEnum} from './enum.ts'
@@ -25,7 +30,7 @@ export interface PgSchema<SchemaName extends string> {
   view<Definition extends TableDefinition>(
     name: string,
     fields: Definition
-  ): View<unknown, IsPostgres>
+  ): View<TableFields<Definition>, IsPostgres>
 }
 
 export function pgSchema<SchemaName extends string>(

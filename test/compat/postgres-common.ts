@@ -2595,18 +2595,20 @@ test('common', () => {
 
   test('join on aliased sql from select', async ctx => {
     const {db} = ctx.pg
-
+    const cityId = sql<number>`cities.id`.as('cityId')
+    const userId = sql<number>`users.id`.as('userId')
     const result = await db
       .select({
-        userId: sql<number>`users.id`.as('userId'),
+        userId,
         name: sql<string>`users.name`,
         userCity: sql<string>`users.city`,
-        cityId: sql<number>`cities.id`.as('cityId'),
+        cityId,
         cityName: sql<string>`cities.name`
       })
       .from(sql`(select 1 as id, 'John' as name, 'New York' as city) as users`)
-      .leftJoin(sql`(select 1 as id, 'Paris' as name) as cities`, cols =>
-        eq(cols.cityId, cols.userId)
+      .leftJoin(
+        sql`(select 1 as id, 'Paris' as name) as cities`,
+        eq(cityId, userId)
       )
 
     Expect<
@@ -2667,7 +2669,7 @@ test('common', () => {
         cityName: cities.name
       })
       .from(users)
-      .leftJoin(cities, cols => eq(cols.cityId, cols.userId))
+      .leftJoin(cities, eq(cities.id, users.id))
 
     Expect<
       Equal<

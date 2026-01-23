@@ -11,8 +11,8 @@ import type {Sql} from '../core/Sql.ts'
 import {sql} from '../core/Sql.ts'
 import {PgColumn} from './columns.ts'
 
-export type PgEnum<Values extends readonly string[] = readonly string[]> = {
-  (name?: string): PgColumn<Values[number] | null>
+export type PgEnum<Values extends EnumInput> = {
+  (name?: string): PgColumn<Values[keyof Values] | null>
 }
 
 export interface PgEnumInfo {
@@ -21,9 +21,11 @@ export interface PgEnumInfo {
   values: readonly string[]
 }
 
+type EnumInput = readonly [string, ...string[]] | Record<string, string>
+
 export function pgEnum<
   const Name extends string,
-  const Values extends readonly [string, ...string[]]
+  const Values extends EnumInput
 >(name: Name, values: Values, schemaName?: string): PgEnum<Values> {
   const enumIdentifier = schemaName
     ? sql.join([sql.identifier(schemaName), sql.identifier(name)], sql`.`)
