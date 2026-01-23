@@ -12,14 +12,20 @@ import type {
 import {Index} from './Index.ts'
 import {
   type HasConstraint,
+  type HasCreate,
   type HasData,
+  type HasDrop,
   type HasSelection,
   type HasSql,
   type HasTable,
   getConstraint,
+  getCreate,
   getData,
+  getDrop,
   getTable,
   hasConstraint,
+  internalCreate,
+  internalDrop,
   internalSelection,
   internalTable,
   internalTarget
@@ -124,8 +130,8 @@ export class TableApi<
     return [this.createTable(), ...this.createIndexes()]
   }
 
-  drop(): Sql {
-    return sql`drop table if exists ${this.target()}`
+  drop(): Array<Sql> {
+    return [sql`drop table if exists ${this.target()}`]
   }
 
   indexes(): Record<string, Index> {
@@ -153,7 +159,11 @@ export function tableFields(
 export type Table<
   Definition extends TableDefinition = Record<never, Column>,
   Name extends string = string
-> = TableFields<Definition, Name> & HasTable<Definition, Name> & HasSelection
+> = TableFields<Definition, Name> &
+  HasTable<Definition, Name> &
+  HasSelection &
+  HasCreate &
+  HasDrop
 
 export type TableFields<
   Definition extends TableDefinition,
@@ -220,6 +230,12 @@ export function table<Definition extends TableDefinition, Name extends string>(
     [internalTable]: api,
     [internalTarget]: api.target(),
     [internalSelection]: selection(fields),
+    get [internalCreate]() {
+      return api.create()
+    },
+    get [internalDrop]() {
+      return api.drop()
+    },
     ...fields
   }
   if (config) api.config = config(table)
@@ -239,6 +255,12 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     [internalTable]: api,
     [internalTarget]: api.target(),
     [internalSelection]: selection(fields),
+    get [internalCreate]() {
+      return getCreate(table)
+    },
+    get [internalDrop]() {
+      return getDrop(table)
+    },
     ...fields
   }
 }

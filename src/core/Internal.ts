@@ -17,6 +17,8 @@ export const internalResolver: unique symbol = Symbol()
 export const internalConstraint: unique symbol = Symbol()
 export const internalInclude: unique symbol = Symbol()
 export const internalEnum: unique symbol = Symbol()
+export const internalCreate: unique symbol = Symbol()
+export const internalDrop: unique symbol = Symbol()
 
 export declare class HasData<Data> {
   get [internalData](): Data
@@ -55,6 +57,12 @@ export declare class HasConstraint {
 export declare class HasEnum<EnumData> {
   get [internalEnum](): EnumData
 }
+export declare class HasCreate {
+  get [internalCreate](): Array<Sql>
+}
+export declare class HasDrop {
+  get [internalDrop](): Array<Sql>
+}
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
   internalData in obj
 export const getData = <Data>(obj: HasData<Data>) => obj[internalData]
@@ -86,3 +94,8 @@ export const getConstraint = (obj: HasConstraint) => obj[internalConstraint]
 export const hasEnum = <EnumData>(obj: object): obj is HasEnum<EnumData> =>
   internalEnum in obj
 export const getEnum = <EnumData>(obj: HasEnum<EnumData>) => obj[internalEnum]
+export const hasCreate = (obj: object): obj is HasCreate =>
+  internalCreate in obj
+export const getCreate = (obj: HasCreate) => obj[internalCreate]
+export const hasDrop = (obj: object): obj is HasDrop => internalDrop in obj
+export const getDrop = (obj: HasDrop) => obj[internalDrop]
