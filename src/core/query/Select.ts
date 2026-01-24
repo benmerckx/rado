@@ -31,7 +31,6 @@ import {
 import {Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
-import type {VirtualQuery, VirtualTarget} from '../Virtual.ts'
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
@@ -328,8 +327,7 @@ export interface WithoutSelection<Meta extends QueryMeta> {
     Record<Name, TableFields<Definition>>
   >
   from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
-  from<Input>(from: VirtualQuery<Input>): SelectionFrom<Input, Meta>
-  from<Input>(from: VirtualTarget<Input>): SelectionFrom<Input, Meta>
+  from<Input extends HasTarget>(from: Input): SelectionFrom<Input, Meta>
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>

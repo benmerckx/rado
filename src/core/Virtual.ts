@@ -1,25 +1,9 @@
-import {
-  type HasQuery,
-  type HasTarget,
-  getSql,
-  hasSql,
-  internalQuery,
-  internalTarget
-} from './Internal.ts'
+import {type HasQuery, getSql, hasSql, internalTarget} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 
 export type VirtualQuery<Input> = VirtualTarget<Input> & HasQuery
-
-export function virtualQuery<Input>(
-  name: string,
-  source: Input,
-  query: Sql
-): VirtualQuery<Input> {
-  return Object.assign(virtualTarget(name, source), {[internalQuery]: query})
-}
-
-export type VirtualTarget<Input> = Input & HasTarget
+export type VirtualTarget<Input> = Input & {[internalTarget]: Sql}
 
 export function virtualTarget<Input>(
   alias: string,
