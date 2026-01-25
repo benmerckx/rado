@@ -32,18 +32,36 @@ export class ViewBase {
 
 export interface View extends HasTarget, HasCreate, HasDrop {}
 
+function viewIdentifier({name, schemaName}: ViewData): Sql {
+  return schemaName
+    ? sql.join([sql.identifier(schemaName), sql.identifier(name)], sql`.`)
+    : sql.identifier(name)
+}
+
 export function createView(data: ViewData, as: HasSql): Sql {
-  return sql.join([
-    sql`create view`
-    // ...
-  ])
+  const {columns} = data
+  const columnList = columns
+    ? sql.join(
+        Object.entries(columns).map(([name, column]) => {
+          const columnData = getData(column)
+          return sql.identifier(columnData.name ?? name)
+        }),
+        sql`, `
+      )
+    : undefined
+  return sql
+    .join([
+      sql`create view`,
+      viewIdentifier(data),
+      columnList ? sql`(${columnList})` : undefined,
+      sql`as`,
+      as
+    ])
+    .inlineValues()
 }
 
 export function dropView(data: ViewData): Sql {
-  return sql.join([
-    sql`drop view`
-    // ...
-  ])
+  return sql.join([sql`drop view`, sql`if exists`, viewIdentifier(data)])
 }
 
 export class QueryView extends ViewBase {
