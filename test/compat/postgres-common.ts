@@ -2457,7 +2457,7 @@ test('common', () => {
   test('materialized view', async ctx => {
     const {db} = ctx.pg
 
-    const newYorkers1 = pgMaterializedView('new_yorkers').as(qb =>
+    const newYorkers1 = pgMaterializedView('new_yorkers').as((qb: any) =>
       qb.select().from(users2Table).where(eq(users2Table.cityId, 1))
     )
 
@@ -3178,7 +3178,7 @@ test('common', () => {
         test: sql`something`.as('test')
       })
       .from(users2Table)
-      .orderBy(fields => fields.test)
+      .orderBy((fields: any) => fields.test)
       .toSQL()
 
     expect(query.sql).toBe(
