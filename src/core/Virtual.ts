@@ -3,7 +3,7 @@ import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 
 export type VirtualQuery<Input> = VirtualTarget<Input> & HasQuery
-export type VirtualTarget<Input> = Input & {[internalTarget]: Sql}
+export type VirtualTarget<Input> = Input & {readonly [internalTarget]: Sql}
 
 export function virtualTarget<Input>(
   alias: string,

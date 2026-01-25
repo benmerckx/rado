@@ -2135,7 +2135,10 @@ test('common', () => {
       .with(userCount)
       .insert(users)
       .values([
-        {username: 'user1', admin: sql`((select * from ${userCount}) = 0)`}
+        {
+          username: 'user1',
+          admin: sql<boolean>`((select * from ${userCount}) = 0)`
+        }
       ])
       .returning({
         admin: users.admin
@@ -2841,15 +2844,15 @@ test('common', () => {
       {
         id: 1,
         name: 'Bench Press',
-        force: 'isotonic',
-        level: 'beginner',
-        mechanic: 'compound',
-        equipment: 'barbell',
+        force: Force.isotonic,
+        level: Level.beginner,
+        mechanic: Mechanic.compound,
+        equipment: Equipment.barbell,
         instructions:
           'Lie on your back on a flat bench. Grasp the barbell with an overhand grip, slightly wider than shoulder width. Unrack the barbell and hold it over you with your arms locked. Lower the barbell to your chest. Press the barbell back to the starting position.',
-        category: 'upper_body',
-        primaryMuscles: ['chest', 'triceps'],
-        secondaryMuscles: ['shoulders', 'traps'],
+        category: Category.upper_body,
+        primaryMuscles: [Muscle.chest, Muscle.triceps],
+        secondaryMuscles: [Muscle.shoulders, Muscle.traps],
         createdAt: result[0]!.createdAt,
         updatedAt: result[0]!.updatedAt
       }
@@ -5296,9 +5299,7 @@ test('common', () => {
       })
       .existing()
 
-    await db.execute(
-      sql`create view ${newYorkers1} as ${getViewConfig(newYorkers1).query}`
-    )
+    await db.create(newYorkers1)
 
     await db
       .insert(citiesMySchemaTable)
@@ -5347,8 +5348,8 @@ test('common', () => {
 
     const newYorkers1 = mySchema
       .materializedView('new_yorkers')
-      .as(qb =>
-        qb
+      .as(
+        db
           .select()
           .from(users2MySchemaTable)
           .where(eq(users2MySchemaTable.cityId, 1))
