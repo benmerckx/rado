@@ -1,3 +1,4 @@
+import {collectEnumQuery} from '../postgres.ts'
 import {
   type Column,
   type JsonColumn,
@@ -126,8 +127,12 @@ export class TableApi<
     })
   }
 
+  createEnums(): Array<Sql> {
+    return collectEnumQuery(this)
+  }
+
   create(): Array<Sql> {
-    return [this.createTable(), ...this.createIndexes()]
+    return [...this.createEnums(), this.createTable(), ...this.createIndexes()]
   }
 
   drop(): Array<Sql> {

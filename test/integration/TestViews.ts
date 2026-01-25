@@ -1,4 +1,4 @@
-import {eq, getCreate, getDrop, sql, type Database, view} from '@/index.ts'
+import {type Database, eq, sql, view} from '@/index.ts'
 import {integer, text} from '@/universal.ts'
 import type {DefineTest} from '@alinea/suite'
 import {Node} from './schema.ts'
@@ -16,13 +16,11 @@ export function testViews(db: Database, test: DefineTest) {
     )
 
     try {
-      await db.create(Node)
+      await db.create(Node, activeNodes)
       await db.insert(Node).values([
         {textField: 'one', bool: true},
         {textField: 'two', bool: false}
       ])
-      await db.batch(getDrop(activeNodes)).run()
-      await db.batch(getCreate(activeNodes)).run()
 
       const result = await db
         .select({
@@ -33,8 +31,7 @@ export function testViews(db: Database, test: DefineTest) {
 
       test.equal(result, [{id: 1, textField: 'one'}])
     } finally {
-      await db.batch(getDrop(activeNodes)).run()
-      await db.drop(Node)
+      await db.drop(activeNodes, Node)
     }
   })
 
@@ -45,13 +42,11 @@ export function testViews(db: Database, test: DefineTest) {
     }).as(sql`select ${Node.id}, ${Node.textField} from ${Node}`)
 
     try {
-      await db.create(Node)
+      await db.create(Node, allNodes)
       await db.insert(Node).values([
         {textField: 'one', bool: true},
         {textField: 'two', bool: false}
       ])
-      await db.batch(getDrop(allNodes)).run()
-      await db.batch(getCreate(allNodes)).run()
 
       const result = await db
         .select({
@@ -65,8 +60,7 @@ export function testViews(db: Database, test: DefineTest) {
         {id: 2, textField: 'two'}
       ])
     } finally {
-      await db.batch(getDrop(allNodes)).run()
-      await db.drop(Node)
+      await db.drop(allNodes, Node)
     }
   })
 }

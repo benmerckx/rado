@@ -1,16 +1,17 @@
-import {collectEnumQuery} from '../postgres/enum.ts'
 import {txGenerator} from '../universal.ts'
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Diff} from './Diff.ts'
 import type {Driver} from './Driver.ts'
 import {
+  type HasCreate,
+  type HasDrop,
   type HasQuery,
   type HasResolver,
   type HasSql,
-  type HasTable,
+  getCreate,
+  getDrop,
   getResolver,
-  getTable,
   internalResolver
 } from './Internal.ts'
 import type {
@@ -60,22 +61,12 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  create(...tables: Array<HasTable>): BatchQuery<unknown, Meta> {
-    const enums: Array<Sql> = []
-    if (this.dialect.runtime === 'postgres') {
-      enums.push(...collectEnumQuery(tables))
-    }
-    return new BatchQuery(
-      getResolver(this),
-      enums.concat(tables.flatMap(table => getTable(table).create()))
-    )
+  create(...createables: Array<HasCreate>): BatchQuery<unknown, Meta> {
+    return new BatchQuery(getResolver(this), createables.flatMap(getCreate))
   }
 
-  drop(...tables: Array<HasTable>): BatchQuery<unknown, Meta> {
-    return new BatchQuery(
-      getResolver(this),
-      tables.flatMap(table => getTable(table).drop())
-    )
+  drop(...droppables: Array<HasDrop>): BatchQuery<unknown, Meta> {
+    return new BatchQuery(getResolver(this), droppables.flatMap(getDrop))
   }
 
   run(input: HasSql): Deliver<Meta, void> {
