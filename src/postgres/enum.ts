@@ -1,14 +1,8 @@
 import {ColumnType} from '../core/Column.ts'
-import type {HasTable} from '../core/Internal.ts'
-import {
-  getData,
-  getEnum,
-  getTable,
-  hasEnum,
-  internalEnum
-} from '../core/Internal.ts'
+import {getData, getEnum, hasEnum, internalEnum} from '../core/Internal.ts'
 import type {Sql} from '../core/Sql.ts'
 import {sql} from '../core/Sql.ts'
+import type {TableApi} from '../core/Table.ts'
 import {PgColumn} from './columns.ts'
 
 export type PgEnum<Values extends EnumInput> = {
@@ -53,20 +47,17 @@ export function enumQuery(enumInfo: PgEnumInfo): Sql {
   )}); exception when duplicate_object then null; end $$`
 }
 
-export function collectEnumQuery(tables: Array<HasTable>): Array<Sql> {
+export function collectEnumQuery(table: TableApi): Array<Sql> {
   const enums: Array<Sql> = []
   const seen = new Set<string>()
-  for (const table of tables) {
-    const tableApi = getTable(table)
-    for (const column of Object.values(tableApi.columns)) {
-      const data = getData(column)
-      if (!hasEnum<PgEnumInfo>(data)) continue
-      const info = getEnum<PgEnumInfo>(data)
-      const enumKey = info.schema ? `${info.schema}.${info.name}` : info.name
-      if (seen.has(enumKey)) continue
-      seen.add(enumKey)
-      enums.push(enumQuery(info))
-    }
+  for (const column of Object.values(table.columns)) {
+    const data = getData(column)
+    if (!hasEnum<PgEnumInfo>(data)) continue
+    const info = getEnum<PgEnumInfo>(data)
+    const enumKey = info.schema ? `${info.schema}.${info.name}` : info.name
+    if (seen.has(enumKey)) continue
+    seen.add(enumKey)
+    enums.push(enumQuery(info))
   }
   return enums
 }
