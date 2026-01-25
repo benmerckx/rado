@@ -1,11 +1,20 @@
 import {ColumnType} from '../core/Column.ts'
-import {getData, getEnum, hasEnum, internalEnum} from '../core/Internal.ts'
+import {
+  type HasCreate,
+  type HasDrop,
+  getData,
+  getEnum,
+  hasEnum,
+  internalCreate,
+  internalDrop,
+  internalEnum
+} from '../core/Internal.ts'
 import type {Sql} from '../core/Sql.ts'
 import {sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
 import {PgColumn} from './columns.ts'
 
-export type PgEnum<Values extends EnumInput> = {
+export interface PgEnum<Values extends EnumInput> extends HasCreate, HasDrop {
   (name?: string): PgColumn<Values[keyof Values] | null>
 }
 
@@ -25,13 +34,25 @@ export function pgEnum<
     ? sql.join([sql.identifier(schemaName), sql.identifier(name)], sql`.`)
     : sql.identifier(name)
   const enumType = new ColumnType(name, [], enumIdentifier)
-  return (columnName?: string) => {
-    return new PgColumn({
-      name: columnName,
-      type: enumType,
-      [internalEnum]: {name, schema: schemaName, values}
-    })
-  }
+  const v = Array.isArray(values) ? values : Object.values(values)
+  const info: PgEnumInfo = {name, schema: schemaName, values: v}
+  return Object.assign(
+    (columnName?: string) => {
+      return new PgColumn({
+        name: columnName,
+        type: enumType,
+        [internalEnum]: info
+      })
+    },
+    {
+      get [internalCreate](): Array<Sql> {
+        return [enumQuery(info)]
+      },
+      get [internalDrop](): Array<Sql> {
+        return [sql`drop type if exists ${enumIdentifier}`]
+      }
+    }
+  )
 }
 
 export function enumQuery(enumInfo: PgEnumInfo): Sql {
