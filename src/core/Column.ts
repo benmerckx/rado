@@ -27,7 +27,7 @@ export interface BaseColumnData {
   mapToDriverValue?(value: unknown): unknown
   $default?(): Sql
   $onUpdate?(): Sql
-  [internalEnum]?: unknown
+  readonly [internalEnum]?: unknown
 }
 
 export interface ColumnData extends BaseColumnData {

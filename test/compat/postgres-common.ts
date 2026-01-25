@@ -2394,8 +2394,8 @@ test('common', () => {
   test('view', async ctx => {
     const {db} = ctx.pg
 
-    const newYorkers1 = pgView('new_yorkers').as(qb =>
-      qb.select().from(users2Table).where(eq(users2Table.cityId, 1))
+    const newYorkers1 = pgView('new_yorkers').as(
+      db.select().from(users2Table).where(eq(users2Table.cityId, 1))
     )
 
     const newYorkers2 = pgView('new_yorkers', {
@@ -2802,64 +2802,25 @@ test('common', () => {
       updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
     })
 
-    await db.execute(sql`drop table if exists ${exercises}`)
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(muscleEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(forceEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(levelEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(mechanicEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(equipmentEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(categoryEnum.enumName)}`
+    await db.drop(
+      exercises,
+      muscleEnum,
+      forceEnum,
+      levelEnum,
+      mechanicEnum,
+      equipmentEnum,
+      categoryEnum
     )
 
-    await db.execute(
-      sql`create type ${sql.identifier(
-        muscleEnum.enumName
-      )} as enum ('abdominals', 'hamstrings', 'adductors', 'quadriceps', 'biceps', 'shoulders', 'chest', 'middle_back', 'calves', 'glutes', 'lower_back', 'lats', 'triceps', 'traps', 'forearms', 'neck', 'abductors')`
+    await db.create(
+      muscleEnum,
+      forceEnum,
+      levelEnum,
+      mechanicEnum,
+      equipmentEnum,
+      categoryEnum,
+      exercises
     )
-    await db.execute(
-      sql`create type ${sql.identifier(forceEnum.enumName)} as enum ('isometric', 'isotonic', 'isokinetic')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(levelEnum.enumName)} as enum ('beginner', 'intermediate', 'advanced')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(mechanicEnum.enumName)} as enum ('compound', 'isolation')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(
-        equipmentEnum.enumName
-      )} as enum ('barbell', 'dumbbell', 'bodyweight', 'machine', 'cable', 'kettlebell')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(categoryEnum.enumName)} as enum ('upper_body', 'lower_body', 'full_body')`
-    )
-    await db.execute(sql`
-				create table ${exercises} (
-					id serial primary key,
-					name varchar not null,
-					force force,
-					level level,
-					mechanic mechanic,
-					equipment equipment,
-					instructions text,
-					category category,
-					primary_muscles muscle[],
-					secondary_muscles muscle[],
-					created_at timestamp not null default now(),
-					updated_at timestamp not null default now()
-				)
-			`)
 
     await db.insert(exercises).values({
       name: 'Bench Press',
@@ -2894,13 +2855,15 @@ test('common', () => {
       }
     ])
 
-    await db.execute(sql`drop table ${exercises}`)
-    await db.execute(sql`drop type ${sql.identifier(muscleEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(forceEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(levelEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(mechanicEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(equipmentEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(categoryEnum.enumName)}`)
+    await db.drop(
+      exercises,
+      muscleEnum,
+      forceEnum,
+      levelEnum,
+      mechanicEnum,
+      equipmentEnum,
+      categoryEnum
+    )
   })
 
   test('select from enum', async ctx => {
@@ -2961,65 +2924,24 @@ test('common', () => {
       createdAt: timestamp('created_at').notNull().default(sql`now()`),
       updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
     })
-
-    await db.execute(sql`drop table if exists ${exercises}`)
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(muscleEnum.enumName)}`
+    await db.drop(
+      muscleEnum,
+      forceEnum,
+      levelEnum,
+      mechanicEnum,
+      equipmentEnum,
+      categoryEnum,
+      exercises
     )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(forceEnum.enumName)}`
+    await db.create(
+      muscleEnum,
+      forceEnum,
+      levelEnum,
+      mechanicEnum,
+      equipmentEnum,
+      categoryEnum,
+      exercises
     )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(levelEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(mechanicEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(equipmentEnum.enumName)}`
-    )
-    await db.execute(
-      sql`drop type if exists ${sql.identifier(categoryEnum.enumName)}`
-    )
-
-    await db.execute(
-      sql`create type ${sql.identifier(
-        muscleEnum.enumName
-      )} as enum ('abdominals', 'hamstrings', 'adductors', 'quadriceps', 'biceps', 'shoulders', 'chest', 'middle_back', 'calves', 'glutes', 'lower_back', 'lats', 'triceps', 'traps', 'forearms', 'neck', 'abductors')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(forceEnum.enumName)} as enum ('isometric', 'isotonic', 'isokinetic')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(levelEnum.enumName)} as enum ('beginner', 'intermediate', 'advanced')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(mechanicEnum.enumName)} as enum ('compound', 'isolation')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(
-        equipmentEnum.enumName
-      )} as enum ('barbell', 'dumbbell', 'bodyweight', 'machine', 'cable', 'kettlebell')`
-    )
-    await db.execute(
-      sql`create type ${sql.identifier(categoryEnum.enumName)} as enum ('upper_body', 'lower_body', 'full_body')`
-    )
-    await db.execute(sql`
-				create table ${exercises} (
-					id serial primary key,
-					name varchar not null,
-					force force,
-					level level,
-					mechanic mechanic,
-					equipment equipment,
-					instructions text,
-					category category,
-					primary_muscles muscle[],
-					secondary_muscles muscle[],
-					created_at timestamp not null default now(),
-					updated_at timestamp not null default now()
-				)
-			`)
 
     await db.insert(exercises).values({
       name: 'Bench Press',
@@ -3054,13 +2976,15 @@ test('common', () => {
       }
     ])
 
-    await db.execute(sql`drop table ${exercises}`)
-    await db.execute(sql`drop type ${sql.identifier(muscleEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(forceEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(levelEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(mechanicEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(equipmentEnum.enumName)}`)
-    await db.execute(sql`drop type ${sql.identifier(categoryEnum.enumName)}`)
+    await db.drop(
+      exercises,
+      muscleEnum,
+      forceEnum,
+      levelEnum,
+      mechanicEnum,
+      equipmentEnum,
+      categoryEnum
+    )
   })
 
   test('all date and time columns', async ctx => {
