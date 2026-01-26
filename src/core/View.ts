@@ -20,6 +20,8 @@ interface ViewData {
   name: string
   columns?: TableDefinition
   schemaName?: string
+  materialized?: boolean
+  query?: Sql
 }
 
 export class ViewBase {
@@ -39,6 +41,9 @@ function viewIdentifier({name, schemaName}: ViewData): Sql {
 }
 
 export function createView(data: ViewData, as: HasSql): Sql {
+  const createKeyword = data.materialized
+    ? sql`create materialized view`
+    : sql`create view`
   const {columns} = data
   const columnList = columns
     ? sql.join(
@@ -51,7 +56,7 @@ export function createView(data: ViewData, as: HasSql): Sql {
     : undefined
   return sql
     .join([
-      sql`create view`,
+      createKeyword,
       viewIdentifier(data),
       columnList ? sql`(${columnList})` : undefined,
       sql`as`,
@@ -61,7 +66,10 @@ export function createView(data: ViewData, as: HasSql): Sql {
 }
 
 export function dropView(data: ViewData): Sql {
-  return sql.join([sql`drop view`, sql`if exists`, viewIdentifier(data)])
+  const dropKeyword = data.materialized
+    ? sql`drop materialized view`
+    : sql`drop view`
+  return sql.join([dropKeyword, sql`if exists`, viewIdentifier(data)])
 }
 
 export class QueryView extends ViewBase {
@@ -121,4 +129,20 @@ export function view(
 ) {
   if (columns) return new DefinedView({name, columns, schemaName})
   return new QueryView({name, columns, schemaName})
+}
+
+export function materializedView(name: string): QueryView
+export function materializedView<Definition extends TableDefinition>(
+  name: string,
+  columns: Definition,
+  schemaName?: string
+): DefinedView<Definition>
+export function materializedView(
+  name: string,
+  columns?: TableDefinition,
+  schemaName?: string
+) {
+  const data = {name, columns, schemaName, materialized: true}
+  if (columns) return new DefinedView(data)
+  return new QueryView(data)
 }

@@ -1,6 +1,11 @@
 import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
-import {type DefinedView, type QueryView, view} from '../core/View.ts'
+import {
+  type DefinedView,
+  type QueryView,
+  materializedView,
+  view
+} from '../core/View.ts'
 import {type PgEnum, pgEnum} from './enum.ts'
 
 export interface PgSchema<SchemaName extends string> {
@@ -18,6 +23,11 @@ export interface PgSchema<SchemaName extends string> {
     name: string,
     fields: Definition
   ): DefinedView<Definition>
+  materializedView(name: string): QueryView
+  materializedView<Definition extends TableDefinition>(
+    name: string,
+    fields: Definition
+  ): DefinedView<Definition>
 }
 
 export function pgSchema<SchemaName extends string>(
@@ -32,6 +42,9 @@ export function pgSchema<SchemaName extends string>(
     },
     view(name, fields) {
       return view(name, fields, schemaName)
+    },
+    materializedView(name, fields) {
+      return materializedView(name, fields, schemaName)
     }
   }
 }
