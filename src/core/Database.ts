@@ -9,6 +9,7 @@ import {
   type HasQuery,
   type HasResolver,
   type HasSql,
+  type HasTarget,
   getCreate,
   getDrop,
   getResolver,
@@ -114,6 +115,10 @@ export class Database<Meta extends QueryMeta = Either>
     const emitter = this.dialect.emit(input)
     if (emitter.hasParams) throw new Error('Query has parameters')
     return this.driver.exec(emitter.sql)
+  }
+
+  refreshMaterializedView(view: HasTarget): Deliver<Meta, void> {
+    return this.execute(sql`refresh materialized view ${view}`)
   }
 
   transaction<T>(
