@@ -5373,9 +5373,7 @@ test('common', () => {
       })
       .existing()
 
-    await db.execute(
-      sql`create materialized view ${newYorkers1} as ${getMaterializedViewConfig(newYorkers1).query}`
-    )
+    await db.create(newYorkers1)
 
     await db
       .insert(citiesMySchemaTable)
