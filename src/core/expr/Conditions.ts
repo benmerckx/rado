@@ -40,16 +40,16 @@ export const notILike: (
   right: Input<string>
 ) => Sql<boolean> = binop('not ilike')
 export const arrayContains: <T>(
-  left: Input<Array<T>>,
-  right: Input<T | Array<T>>
+  left: Input<Array<T> | null>,
+  right: Input<T | Array<T> | null>
 ) => Sql<boolean> = binop('@>')
 export const arrayContained: <T>(
-  left: Input<Array<T>>,
-  right: Input<Array<T>>
+  left: Input<Array<T> | null>,
+  right: Input<Array<T> | null>
 ) => Sql<boolean> = binop('<@')
 export const arrayOverlaps: <T>(
-  left: Input<Array<T>>,
-  right: Input<Array<T>>
+  left: Input<Array<T> | null>,
+  right: Input<Array<T> | null>
 ) => Sql<boolean> = binop('&&')
 
 export function and(
