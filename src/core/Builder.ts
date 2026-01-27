@@ -1,8 +1,11 @@
 import {
+  type HasQuery,
   type HasSql,
   getData,
   getQuery,
   getSelection,
+  getSql,
+  hasQuery,
   hasSelection,
   internalData,
   internalQuery
@@ -10,6 +13,7 @@ import {
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Queries.ts'
 import type {SelectionInput, SelectionRow} from './Selection.ts'
+import type {Sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {virtualTarget} from './Virtual.ts'
 import type {CTE} from './query/CTE.ts'
@@ -125,21 +129,35 @@ class BuilderBase<Meta extends QueryMeta> {
 }
 
 export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
+  $with<Input extends SelectionInput>(
+    cteName: string,
+    columns: Input
+  ): {
+    as(query: Sql): CTE<Input>
+  }
   $with(cteName: string): {
     as<Input>(query: UnionBase<Input, Meta>): CTE<Input>
     as<Input>(query: Delete<Input, Meta>): CTE<Input>
     as<Input>(query: Update<Input, Meta>): CTE<Input>
     as<Input>(query: Insert<Input, Meta>): CTE<Input>
-  } {
+  }
+  $with(
+    cteName: string,
+    columns?: SelectionInput
+  ): {as(query: HasQuery): CTE} | {as(query: HasSql): CTE} {
     return {
-      as(query) {
-        const input = hasSelection(query)
-          ? getSelection(query).input
-          : undefined
+      as(query: HasQuery | HasSql) {
+        const input = hasQuery(query)
+          ? hasSelection(query)
+            ? getSelection(query).input
+            : undefined
+          : columns
         return {
           ...virtualTarget(cteName, input),
           get [internalQuery]() {
-            return getQuery(query).nameSelf(cteName)
+            return hasQuery(query)
+              ? getQuery(query).nameSelf(cteName)
+              : getSql(query)
           }
         }
       }
