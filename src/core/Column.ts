@@ -12,6 +12,18 @@ import type {Field, FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import {type Input, input, mapToColumn} from './expr/Input.ts'
 
+export type ReferenceAction =
+  | 'cascade'
+  | 'restrict'
+  | 'no action'
+  | 'set null'
+  | 'set default'
+
+export interface ReferenceOptions {
+  onDelete?: ReferenceAction
+  onUpdate?: ReferenceAction
+}
+
 export interface BaseColumnData {
   type: HasSql
   name?: string
@@ -23,6 +35,7 @@ export interface BaseColumnData {
   autoIncrement?: boolean
   defaultValue?: Sql
   references?(): FieldData
+  referenceOptions?: ReferenceOptions
   mapFromDriverValue?(value: unknown, specs: DriverSpecs): unknown
   mapToDriverValue?(value: unknown): unknown
   $default?(): Sql
@@ -105,14 +118,18 @@ export class Column<Value = unknown> {
   unique(name?: string): Column<Value> {
     return new Column({...getData(this), isUnique: true})
   }
-  references(foreignField: Field | (() => Field)): Column<Value> {
+  references(
+    foreignField: Field | (() => Field),
+    options?: ReferenceOptions
+  ): Column<Value> {
     return new Column<Value>({
       ...getData(this),
       references() {
         return getField(
           typeof foreignField === 'function' ? foreignField() : foreignField
         )
-      }
+      },
+      referenceOptions: options
     })
   }
   $type<T>(): Column<null extends Value ? T | null : T> {
@@ -167,17 +184,28 @@ export function columnConfig<Options>(args: ColumnArguments<Options>): {
   return {name: undefined, options: args[0] as Options}
 }
 
-function formatReferences(fields: Array<FieldData>): Sql {
-  return callFunction(
-    sql.identifier(fields[0].targetName),
-    fields.map(field => sql.identifier(field.fieldName))
+function formatReferences(
+  fields: Array<FieldData>,
+  options: ReferenceOptions
+): Sql {
+  return sql.query(
+    callFunction(
+      sql.identifier(fields[0].targetName),
+      fields.map(field => sql.identifier(field.fieldName))
+    ),
+    {
+      onDelete: options.onDelete && sql.unsafe(options.onDelete),
+      onUpdate: options.onUpdate && sql.unsafe(options.onUpdate)
+    }
   )
 }
-
 export function formatColumn(column: BaseColumnData): Sql {
   const references =
     column.references &&
-    sql`references ${formatReferences([column.references!()])}`
+    sql`references ${formatReferences(
+      [column.references!()],
+      column.referenceOptions || {}
+    )}`
   return sql.query(
     column.type,
     {
