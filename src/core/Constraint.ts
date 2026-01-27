@@ -136,6 +136,7 @@ export class ForeignKeyConstraint<TableName extends string = string>
 export function foreignKey<TableName extends string = string>(options: {
   name?: string
   columns: Array<Field<unknown, TableName>>
+  foreignColumns?: Array<Field<unknown, string>>
 }): ForeignKeyConstraint<TableName>
 export function foreignKey<TableName extends string = string>(
   ...fields: Array<Field<unknown, TableName>>
@@ -147,7 +148,7 @@ export function foreignKey<TableName extends string = string>(
     return new ForeignKeyConstraint({
       name: args[0].name,
       fields: args[0].columns.map(getField),
-      references: []
+      references: args[0].foreignColumns?.map(getField) ?? []
     })
   return new ForeignKeyConstraint({
     fields: args.map(getField),
