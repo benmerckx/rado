@@ -186,7 +186,7 @@ export function columnConfig<Options>(args: ColumnArguments<Options>): {
 
 function formatReferences(
   fields: Array<FieldData>,
-  options: ReferenceOptions
+  options: ReferenceOptions = {}
 ): Sql {
   return sql.query(
     callFunction(
@@ -200,12 +200,6 @@ function formatReferences(
   )
 }
 export function formatColumn(column: BaseColumnData): Sql {
-  const references =
-    column.references &&
-    sql`references ${formatReferences(
-      [column.references!()],
-      column.referenceOptions || {}
-    )}`
   return sql.query(
     column.type,
     {
@@ -218,6 +212,10 @@ export function formatColumn(column: BaseColumnData): Sql {
     column.defaultValue !== undefined
       ? sql`default (${column.defaultValue})`.inlineValues()
       : undefined,
-    references
+    {
+      references:
+        column.references &&
+        formatReferences([column.references!()], column.referenceOptions)
+    }
   )
 }
