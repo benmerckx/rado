@@ -17,6 +17,11 @@ export interface InnerJoin<Target> {
   on: HasSql<boolean>
 }
 
+export interface InnerJoinLateral<Target> {
+  innerJoinLateral: Target
+  on: HasSql<boolean>
+}
+
 export interface LeftJoin<Target> {
   leftJoin: Target
   on: HasSql<boolean>
@@ -49,6 +54,7 @@ export interface CrossJoinLateral<Target> {
 
 export type Join<Target = HasTarget | Sql> =
   | InnerJoin<Target>
+  | InnerJoinLateral<Target>
   | LeftJoin<Target>
   | LeftJoinLateral<Target>
   | RightJoin<Target>
@@ -61,6 +67,7 @@ export type JoinOp =
   | 'leftJoinLateral'
   | 'rightJoin'
   | 'innerJoin'
+  | 'innerJoinLateral'
   | 'fullJoin'
   | 'crossJoin'
   | 'crossJoinLateral'
@@ -123,16 +130,20 @@ type FoldJoins<T extends Array<unknown>, Result> = T extends [
             ? MakeNullable<Result> & Record<Name, TableFields<Definition>>
             : Join extends InnerJoin<Table<infer Definition, infer Name>>
               ? Result & Record<Name, TableFields<Definition>>
-              : Join extends CrossJoin<Table<infer Definition, infer Name>>
+              : Join extends InnerJoinLateral<
+                    Table<infer Definition, infer Name>
+                  >
                 ? Result & Record<Name, TableFields<Definition>>
-                : Join extends FullJoin<Table<infer Definition, infer Name>>
-                  ? MakeNullable<Result> &
-                      MakeNullable<Record<Name, TableFields<Definition>>>
-                  : Join extends CrossJoinLateral<
-                        Table<infer Definition, infer Name>
-                      >
-                    ? Result & Record<Name, TableFields<Definition>>
-                    : Result
+                : Join extends CrossJoin<Table<infer Definition, infer Name>>
+                  ? Result & Record<Name, TableFields<Definition>>
+                  : Join extends FullJoin<Table<infer Definition, infer Name>>
+                    ? MakeNullable<Result> &
+                        MakeNullable<Record<Name, TableFields<Definition>>>
+                    : Join extends CrossJoinLateral<
+                          Table<infer Definition, infer Name>
+                        >
+                      ? Result & Record<Name, TableFields<Definition>>
+                      : Result
     >
   : Result
 
@@ -207,6 +218,7 @@ export interface InsertQuery<
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
   on?: Array<Conflict<Definition>>
+  overridingSystemValue?: boolean
 }
 
 export interface DeleteQuery<
@@ -226,6 +238,7 @@ export interface UpdateQuery<
     ResultModifiers {
   update: Table<Definition>
   set?: TableUpdate<Definition>
+  from?: FromGuard
   where?: HasSql<boolean>
   returning?: Returning
 }
