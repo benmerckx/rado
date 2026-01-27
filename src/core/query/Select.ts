@@ -233,6 +233,13 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return this.#join({innerJoin, on})
   }
 
+  innerJoinLateral(
+    innerJoinLateral: HasTarget | Sql,
+    on: HasSql<boolean>
+  ): Select<Input, Meta> {
+    return this.#join({innerJoinLateral, on})
+  }
+
   fullJoin(
     fullJoin: HasTarget | Sql,
     on: HasSql<boolean>
@@ -385,6 +392,14 @@ export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  innerJoinLateral<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
+  innerJoinLateral<Input, Name extends string>(
+    right: SubQuery<Input, Name>,
+    on: HasSql<boolean>
+  ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
   crossJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
@@ -455,6 +470,14 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  innerJoinLateral<Definition extends TableDefinition, Name extends string>(
+    right: Table<Definition, Name>,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
+  innerJoinLateral(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
   crossJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
