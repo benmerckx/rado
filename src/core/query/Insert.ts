@@ -121,6 +121,13 @@ export class InsertInto<
     this[internalData] = data
   }
 
+  overridingSystemValue(): InsertInto<Definition, Meta> {
+    return new InsertInto({
+      ...getData(this),
+      overridingSystemValue: true
+    })
+  }
+
   values(value: TableInsert<Definition>): InsertCanConflict<Definition, Meta>
   values(
     values: Array<TableInsert<Definition>>
@@ -225,7 +232,7 @@ function formatConflicts(on: Array<Conflict>): Sql | undefined {
 }
 
 export function insertQuery(query: InsertQuery): Sql {
-  const {insert, values, select, returning} = query
+  const {insert, values, select, returning, overridingSystemValue} = query
   if (!values && !select) throw new Error('No values defined')
   const table = getTable(insert)
   const tableName = sql.identifier(table.name)
@@ -239,6 +246,7 @@ export function insertQuery(query: InsertQuery): Sql {
     .query(
       formatCTE(query),
       {insertInto: sql`${tableName} (${table.listColumns()})`},
+      {overridingSystemValue},
       toInsert,
       conflicts,
       returning && sql.query({returning: selection(returning)}),
