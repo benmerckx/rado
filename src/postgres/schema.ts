@@ -1,3 +1,11 @@
+import {
+  type HasCreate,
+  type HasDrop,
+  internalCreate,
+  internalDrop,
+  internalTarget
+} from '../core/Internal.ts'
+import {sql} from '../core/Sql.ts'
 import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {
@@ -8,43 +16,60 @@ import {
 } from '../core/View.ts'
 import {type PgEnum, pgEnum} from './enum.ts'
 
-export interface PgSchema<SchemaName extends string> {
+export class PgSchema<SchemaName extends string> implements HasCreate, HasDrop {
+  #schemaName: SchemaName
+
+  constructor(schemaName: SchemaName) {
+    this.#schemaName = schemaName
+  }
+
+  get [internalTarget]() {
+    return sql.identifier(this.#schemaName)
+  }
+
+  get [internalCreate]() {
+    return [sql`create schema if not exists ${this}`]
+  }
+  get [internalDrop]() {
+    return [sql`drop schema if exists ${this} cascade`]
+  }
+
   table<Definition extends TableDefinition, TableName extends string>(
     tableName: TableName,
     columns: Definition,
     config?: (self: Table<Definition>) => TableConfig<TableName>
-  ): Table<Definition, TableName>
+  ): Table<Definition, TableName> {
+    return table(tableName, columns, config, this.#schemaName)
+  }
   enum<
     const Name extends string,
     const Values extends readonly [string, ...string[]]
-  >(name: Name, values: Values): PgEnum<Values>
+  >(name: Name, values: Values): PgEnum<Values> {
+    return pgEnum(name, values, this.#schemaName)
+  }
   view(name: string): QueryView
   view<Definition extends TableDefinition>(
     name: string,
     fields: Definition
   ): DefinedView<Definition>
+  view(name: string, fields?: TableDefinition): QueryView | DefinedView<any> {
+    return view(name, fields!, this.#schemaName)
+  }
   materializedView(name: string): QueryView
   materializedView<Definition extends TableDefinition>(
     name: string,
     fields: Definition
   ): DefinedView<Definition>
+  materializedView(
+    name: string,
+    fields?: TableDefinition
+  ): QueryView | DefinedView<any> {
+    return materializedView(name, fields!, this.#schemaName)
+  }
 }
 
 export function pgSchema<SchemaName extends string>(
   schemaName: SchemaName
 ): PgSchema<SchemaName> {
-  return <PgSchema<SchemaName>>{
-    table(tableName, columns, config) {
-      return table(tableName, columns, config, schemaName)
-    },
-    enum(name, values) {
-      return pgEnum(name, values, schemaName)
-    },
-    view(name, fields) {
-      return view(name, fields, schemaName)
-    },
-    materializedView(name, fields) {
-      return materializedView(name, fields, schemaName)
-    }
-  }
+  return new PgSchema(schemaName)
 }

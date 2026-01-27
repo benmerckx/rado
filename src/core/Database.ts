@@ -13,6 +13,7 @@ import {
   getCreate,
   getDrop,
   getResolver,
+  getSql,
   internalResolver
 } from './Internal.ts'
 import type {
@@ -112,7 +113,8 @@ export class Database<Meta extends QueryMeta = Either>
 
   execute(input: HasSql): Deliver<Meta, void>
   execute(input: HasSql) {
-    const emitter = this.dialect.emit(input)
+    const inner = getSql(input)
+    const emitter = this.dialect.emit(inner.inlineValues())
     if (emitter.hasParams) throw new Error('Query has parameters')
     return this.driver.exec(emitter.sql)
   }

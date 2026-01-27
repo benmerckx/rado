@@ -57,11 +57,11 @@ export declare class HasConstraint {
 export declare class HasEnum<EnumData> {
   get [internalEnum](): EnumData
 }
-export declare class HasCreate {
-  get [internalCreate](): Array<Sql>
+export interface HasCreate {
+  readonly [internalCreate]: Array<Sql>
 }
-export declare class HasDrop {
-  get [internalDrop](): Array<Sql>
+export interface HasDrop {
+  readonly [internalDrop]: Array<Sql>
 }
 export const hasData = <Data>(obj: object): obj is HasData<Data> =>
   internalData in obj
