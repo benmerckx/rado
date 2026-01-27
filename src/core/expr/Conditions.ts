@@ -19,14 +19,10 @@ export const eq: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
   binop('=')
 export const ne: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
   binop('<>')
-export const gt: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
-  binop('>')
-export const gte: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
-  binop('>=')
-export const lt: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
-  binop('<')
-export const lte: <T>(left: Input<T>, right: Input<T>) => Sql<boolean> =
-  binop('<=')
+export const gt: (left: Input, right: Input) => Sql<boolean> = binop('>')
+export const gte: (left: Input, right: Input) => Sql<boolean> = binop('>=')
+export const lt: (left: Input, right: Input) => Sql<boolean> = binop('<')
+export const lte: (left: Input, right: Input) => Sql<boolean> = binop('<=')
 export const like: (
   left: Input<string | null>,
   right: Input<string>

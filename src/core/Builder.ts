@@ -89,11 +89,11 @@ class BuilderBase<Meta extends QueryMeta> {
   }
 
   selectDistinctOn(
-    this: Builder<IsPostgres>,
+    this: BuilderBase<IsPostgres>,
     columns: Array<HasSql>
   ): WithoutSelection<Meta>
   selectDistinctOn<Input extends SelectionInput>(
-    this: Builder<IsPostgres>,
+    this: BuilderBase<IsPostgres>,
     columns: Array<HasSql>,
     selection: Input
   ): WithSelection<Input, Meta>

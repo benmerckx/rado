@@ -104,7 +104,9 @@ export class PgColumn<Value = unknown> extends Column<Value> {
   }
 }
 
-export class PgArrayColumn<T> extends PgColumn<Array<T>> {}
+export class PgArrayColumn<T> extends PgColumn<
+  T extends null ? Array<NonNullable<T>> | null : Array<T>
+> {}
 
 export function bigint(
   ...args: ColumnArguments<{mode: 'number'}>
