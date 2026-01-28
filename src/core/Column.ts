@@ -64,65 +64,68 @@ export class ColumnType implements HasSql {
   }
 }
 
+export type Nullability = [allowsNull: boolean, isRequired: boolean]
+
 type WithoutNull<Value> = Exclude<Value, null>
 
-export class Column<Value = unknown> {
+export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
   readonly [internalData]: ColumnData
   constructor(data: ColumnData) {
     this[internalData] = data
   }
-  notNull(): RequiredColumn<Value> {
-    return <any>new Column({
+  notNull(): Column<Value, [false, Nulls[1]]> {
+    return new Column({
       ...getData(this),
       notNull: true
     })
   }
-  $defaultFn(
-    value: () => Input<WithoutNull<Value>>
-  ): Column<WithoutNull<Value>> {
+  $defaultFn(value: () => Input<Value>): Column<Value, [Nulls[0], false]> {
     return this.$default(value)
   }
   $default(
-    value: Input<WithoutNull<Value>> | (() => Input<WithoutNull<Value>>)
-  ): Column<WithoutNull<Value>> {
+    value: Input<Value> | (() => Input<Value>)
+  ): Column<Value, [Nulls[0], false]> {
     return new Column({
       ...getData(this),
       $default: () =>
         mapToColumn(getData(this), value instanceof Function ? value() : value)
     })
   }
-  $onUpdateFn(fn: () => Input<Value>): Column<Value> {
+  $onUpdateFn(fn: () => Input<Value>): Column<Value, Nulls> {
     return this.$onUpdate(fn)
   }
-  $onUpdate(fn: () => Input<Value>): Column<Value> {
+  $onUpdate(fn: () => Input<Value>): Column<Value, Nulls> {
     return new Column({
       ...getData(this),
       $onUpdate: () => mapToColumn(getData(this), fn())
     })
   }
-  default(value: Input<WithoutNull<Value>>): Column<WithoutNull<Value>> {
+  default(value: Input<Value>): Column<Value, [Nulls[0], false]> {
     return new Column({
       ...getData(this),
       defaultValue: input(value)
     })
   }
-  defaultNow(): Column<WithoutNull<Value>> {
+  defaultNow(): Column<WithoutNull<Value>, [Nulls[0], false]> {
     return new Column({
       ...getData(this),
       defaultValue: sql.unsafe('now()')
     })
   }
-  primaryKey(options?: {autoIncrement: boolean}): Column<WithoutNull<Value>> {
+  primaryKey(options?: {autoIncrement: boolean}): Column<
+    Value,
+    [false, false]
+  > {
     return new Column({...getData(this), ...options, primary: true})
   }
-  unique(name?: string): Column<Value> {
+  unique(name?: string): Column<Value, Nulls> {
     return new Column({...getData(this), isUnique: true})
   }
   references(
     foreignField: Field | (() => Field),
     options?: ReferenceOptions
-  ): Column<Value> {
-    return new Column<Value>({
+  ): Column<Value, Nulls> {
+    return new Column<Value, Nulls>({
       ...getData(this),
       references() {
         return getField(
@@ -132,22 +135,19 @@ export class Column<Value = unknown> {
       referenceOptions: options
     })
   }
-  $type<T>(): Column<null extends Value ? T | null : T> {
+  $type<T>(): Column<T, Nulls> {
     return this as any
   }
 }
 
-export class JsonColumn<Value = unknown> extends Column<Value> {
+export class JsonColumn<
+  Value,
+  Meta extends Nullability = Nullability
+> extends Column<Value, Meta> {
   private declare brand: [Value]
   constructor(data: ColumnData) {
     super({...data, json: true})
   }
-}
-
-declare const required: unique symbol
-export interface RequiredColumn<Value = unknown>
-  extends Column<WithoutNull<Value>> {
-  [required]: true
 }
 
 export interface Columns {

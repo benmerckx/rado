@@ -6,7 +6,7 @@ import {
   columnConfig
 } from '../core/Column.ts'
 
-export function boolean(name?: string): Column<boolean | null> {
+export function boolean(name?: string): Column<boolean> {
   return new Column({
     name,
     type: column.integer(),
@@ -19,31 +19,31 @@ export function boolean(name?: string): Column<boolean | null> {
   })
 }
 
-export function integer(name?: string): Column<number | null>
+export function integer(name?: string): Column<number>
 export function integer(
   ...args: ColumnArguments<{mode: 'boolean'}>
-): Column<boolean | null>
+): Column<boolean>
 export function integer(
   ...args: ColumnArguments<{mode: 'timestamp'}>
-): Column<Date | null>
+): Column<Date>
 export function integer(
   ...args: ColumnArguments<{mode: 'timestamp_ms'}>
-): Column<Date | null>
+): Column<Date>
 export function integer(
   ...args: ColumnArguments<{mode: 'number'}>
-): Column<number | null>
+): Column<number>
 export function integer(
   ...args: ColumnArguments<{
     mode: 'boolean' | 'timestamp' | 'timestamp_ms' | 'number'
   }>
-): Column<number | Date | boolean | null> {
+): Column<number | Date | boolean> {
   const {name, options} = columnConfig(args)
   if (options?.mode === 'timestamp' || options?.mode === 'timestamp_ms') {
     const scale = options.mode === 'timestamp' ? 1000 : 1
     return new Column({
       name,
       type: column.integer(),
-      mapFromDriverValue(value: number | null) {
+      mapFromDriverValue(value: number) {
         if (value === null) return null
         return new Date(value * scale)
       },
@@ -58,16 +58,12 @@ export function integer(
 
 export const int = integer
 
-export function blob(name?: string): Column<Uint8Array | null>
-export function blob(
-  ...args: ColumnArguments<{mode: 'bigint'}>
-): Column<BigInt | null>
-export function blob<T>(
-  ...args: ColumnArguments<{mode: 'json'}>
-): Column<T | null>
+export function blob(name?: string): Column<Uint8Array>
+export function blob(...args: ColumnArguments<{mode: 'bigint'}>): Column<BigInt>
+export function blob<T>(...args: ColumnArguments<{mode: 'json'}>): Column<T>
 export function blob(
   ...args: ColumnArguments<{mode: 'buffer'}>
-): Column<ArrayBuffer | null>
+): Column<ArrayBuffer>
 export function blob(
   ...args: ColumnArguments<{mode: 'json' | 'bigint' | 'buffer'}>
 ) {
@@ -106,20 +102,20 @@ export function blob(
   return new Column({name, type: column.blob()})
 }
 
-export function text(name?: string): Column<string | null>
+export function text(name?: string): Column<string>
 export function text<const Values extends readonly string[]>(
   ...args: ColumnArguments<{mode?: 'text'; length?: number; enum?: Values}>
-): Column<Values[number] | null>
+): Column<Values[number]>
 export function text<T>(
   ...args: ColumnArguments<{mode: 'json'; length?: number}>
-): JsonColumn<T | null>
+): JsonColumn<T>
 export function text(
   ...args: ColumnArguments<{
     mode?: 'text' | 'json'
     length?: number
     enum?: readonly string[]
   }>
-): Column<string | null> | JsonColumn<unknown | null> {
+): Column<string> | JsonColumn<unknown> {
   const {name, options} = columnConfig(args)
   if (options?.mode === 'json')
     return new JsonColumn({
@@ -135,15 +131,15 @@ export function text(
   return new Column({name, type: column.text(options?.length)})
 }
 
-export function real(name?: string): Column<number | null> {
+export function real(name?: string): Column<number> {
   return new Column({name, type: column.real()})
 }
 
-export function numeric(name?: string): Column<number | null> {
+export function numeric(name?: string): Column<number> {
   return new Column({name, type: column.numeric()})
 }
 
-export function json<T>(name?: string): JsonColumn<T | null> {
+export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
     type: column.json(),
@@ -156,7 +152,7 @@ export function json<T>(name?: string): JsonColumn<T | null> {
   })
 }
 
-export function jsonb<T>(name?: string): JsonColumn<T | null> {
+export function jsonb<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
     type: column.jsonb(),

@@ -38,34 +38,35 @@ const jsonbType = new ColumnType(
   })
 )
 
-export function id(name?: string): Column<number> {
+export function id(name?: string): Column<number, [false, false]> {
   return new Column({
     name,
     type: idType,
-    primary: true
+    primary: true,
+    notNull: true
   })
 }
 
-export function text(name?: string): Column<string | null> {
+export function text(name?: string): Column<string> {
   return new Column({name, type: column.text()})
 }
 
 export function varchar(
   name?: string,
   options?: {length: number}
-): Column<string | null> {
+): Column<string> {
   return new Column({name, type: column.varchar(options?.length)})
 }
 
-export function integer(name?: string): Column<number | null> {
+export function integer(name?: string): Column<number> {
   return new Column({name, type: column.integer()})
 }
 
-export function number(name?: string): Column<number | null> {
+export function number(name?: string): Column<number> {
   return new Column({name, type: numberType, mapFromDriverValue: Number})
 }
 
-export function boolean(name?: string): Column<boolean | null> {
+export function boolean(name?: string): Column<boolean> {
   return new Column({
     name,
     type: column.boolean(),
@@ -99,7 +100,7 @@ export function jsonb<T>(name?: string): JsonColumn<T> {
   })
 }
 
-export function blob(name?: string): Column<Uint8Array | null> {
+export function blob(name?: string): Column<Uint8Array> {
   return new Column({
     name,
     type: blobType,
