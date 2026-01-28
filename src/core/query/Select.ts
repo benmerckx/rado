@@ -88,7 +88,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {
-    const fields = getSelection(this).makeVirtual(alias)
+    const fields = getSelection(this).makeVirtual<Input>(alias)
     return Object.assign(<any>fields, {
       [internalSelection]: selection(fields),
       [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
@@ -302,9 +302,23 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 }
 
-export type SubQuery<Input, Name extends string = string> = Input &
+export type SubQuery<Input, Name extends string = string> = RetypeSubQueryInput<
+  Input,
+  Name
+> &
   HasTarget<Name> &
   HasSelection
+
+type RetypeSubQueryInput<
+  Input,
+  TableName extends string
+> = Input extends HasSql<infer Value>
+  ? Field<Value, TableName>
+  : Input extends SelectionRecord
+    ? Expand<{
+        [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
+      }>
+    : Input
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<StripFieldMeta<Input>, Meta>,
@@ -456,10 +470,10 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
-  leftJoinLateral(
-    right: HasTarget,
+  leftJoinLateral<Name extends string>(
+    right: HasTarget<Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
+  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
