@@ -465,6 +465,10 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  leftJoin<Name extends string>(
+    right: HasTarget<Name>,
+    on: HasSql<boolean>
+  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   leftJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   leftJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
@@ -504,6 +508,10 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
+  fullJoin<Name extends string>(
+    right: HasTarget<Name>,
+    on: HasSql<boolean>
+  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
 }
 
