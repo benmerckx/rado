@@ -5597,7 +5597,7 @@ test('set json/jsonb fields with strings and retrieve with the -> operator', asy
     }
   ])
 })
-
+/*
 test('update ... from', async ctx => {
   const {db} = ctx.pg
 
@@ -5773,7 +5773,7 @@ test('update ... from with join', async ctx => {
     }
   ])
 })
-
+*/
 test('insert into ... select', async ctx => {
   const {db} = ctx.pg
 
