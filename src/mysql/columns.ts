@@ -10,10 +10,10 @@ type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export function bigint(
   ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
-): Column<number | null>
+): Column<number>
 export function bigint(
   ...args: ColumnArguments<{unsigned?: boolean}>
-): Column<bigint | null>
+): Column<bigint>
 export function bigint(
   ...args: ColumnArguments<{mode?: 'number'; unsigned?: boolean}>
 ) {
@@ -27,32 +27,28 @@ export function bigint(
 
 export function binary(
   ...args: ColumnArguments<{length?: number}>
-): Column<Uint8Array | null> {
+): Column<Uint8Array> {
   const {name, options} = columnConfig(args)
   return new Column({name, type: column.binary(options?.length)})
 }
 
-export function boolean(name?: string): Column<boolean | null> {
+export function boolean(name?: string): Column<boolean> {
   return new Column({name, type: column.boolean()})
 }
 
-export function blob(name?: string): Column<Uint8Array | null> {
+export function blob(name?: string): Column<Uint8Array> {
   return new Column({name, type: column.blob()})
 }
 
 export function char(
   ...args: ColumnArguments<{length?: number}>
-): Column<string | null> {
+): Column<string> {
   const {name, options} = columnConfig(args)
   return new Column({name, type: column.char(options?.length)})
 }
 
-export function date(
-  ...args: ColumnArguments<{mode: 'string'}>
-): Column<string | null>
-export function date(
-  ...args: ColumnArguments<{mode: 'date'}>
-): Column<Date | null>
+export function date(...args: ColumnArguments<{mode: 'string'}>): Column<string>
+export function date(...args: ColumnArguments<{mode: 'date'}>): Column<Date>
 export function date(...args: ColumnArguments<{mode: 'date' | 'string'}>) {
   const {name, options} = columnConfig(args)
   return new Column({
@@ -69,10 +65,10 @@ export function date(...args: ColumnArguments<{mode: 'date' | 'string'}>) {
 
 export function datetime(
   ...args: ColumnArguments<{fsp?: Precision}>
-): Column<Date | null>
+): Column<Date>
 export function datetime(
   ...args: ColumnArguments<{mode: 'string'; fsp?: Precision}>
-): Column<string | null>
+): Column<string>
 export function datetime(
   ...args: ColumnArguments<{mode?: 'string'; fsp?: Precision}>
 ) {
@@ -91,7 +87,7 @@ export function datetime(
 
 export function decimal(
   ...args: ColumnArguments<{precision?: number; scale?: number}>
-): Column<number | null> {
+): Column<number> {
   const {name, options} = columnConfig(args)
   return new Column({
     name,
@@ -99,17 +95,17 @@ export function decimal(
   })
 }
 
-export function float(name?: string): Column<number | null> {
+export function float(name?: string): Column<number> {
   return new Column({name, type: column.float()})
 }
 
-export function integer(name?: string): Column<number | null> {
+export function integer(name?: string): Column<number> {
   return new Column({name, type: column.integer()})
 }
 
 export const int = integer
 
-export function json<T>(name?: string): JsonColumn<T | null> {
+export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
     type: column.json(),
@@ -121,7 +117,7 @@ export function json<T>(name?: string): JsonColumn<T | null> {
 
 export function mediumint(
   ...args: ColumnArguments<{unsigned?: boolean}>
-): Column<number | null> {
+): Column<number> {
   const {name, options} = columnConfig(args)
   return new Column({
     name,
@@ -129,17 +125,17 @@ export function mediumint(
   })
 }
 
-export function real(name?: string): Column<number | null> {
+export function real(name?: string): Column<number> {
   return new Column({name, type: column.real()})
 }
 
-export function serial(name?: string): Column<number | null> {
+export function serial(name?: string): Column<number> {
   return new Column({name, type: column.serial()})
 }
 
 export function smallint(
   ...args: ColumnArguments<{unsigned?: boolean}>
-): Column<number | null> {
+): Column<number> {
   const {name, options} = columnConfig(args)
   return new Column({
     name,
@@ -147,35 +143,35 @@ export function smallint(
   })
 }
 
-export function text(name?: string): Column<string | null> {
+export function text(name?: string): Column<string> {
   return new Column({name, type: column.text()})
 }
 
-export function tinytext(name?: string): Column<string | null> {
+export function tinytext(name?: string): Column<string> {
   return new Column({name, type: column.tinytext()})
 }
 
-export function mediumtext(name?: string): Column<string | null> {
+export function mediumtext(name?: string): Column<string> {
   return new Column({name, type: column.mediumtext()})
 }
 
-export function longtext(name?: string): Column<string | null> {
+export function longtext(name?: string): Column<string> {
   return new Column({name, type: column.longtext()})
 }
 
 export function time(
   ...args: ColumnArguments<{fsp?: Precision}>
-): Column<string | null> {
+): Column<string> {
   const {name, options} = columnConfig(args)
   return new Column({name, type: column.time(options?.fsp)})
 }
 
 export function timestamp(
   ...args: ColumnArguments<{fsp?: Precision}>
-): Column<Date | null>
+): Column<Date>
 export function timestamp(
   ...args: ColumnArguments<{mode: 'string'; fsp?: Precision}>
-): Column<string | null>
+): Column<string>
 export function timestamp(
   ...args: ColumnArguments<{mode?: 'string'; fsp?: Precision}>
 ) {
@@ -196,7 +192,7 @@ export function timestamp(
 
 export function tinyint(
   ...args: ColumnArguments<{unsigned?: boolean}>
-): Column<number | null> {
+): Column<number> {
   const {name, options} = columnConfig(args)
   return new Column({
     name,
@@ -206,18 +202,18 @@ export function tinyint(
 
 export function varbinary(
   ...args: ColumnArguments<{length?: number}>
-): Column<Uint8Array | null> {
+): Column<Uint8Array> {
   const {name, options} = columnConfig(args)
   return new Column({name, type: column.varbinary(options?.length)})
 }
 
 export function varchar(
   ...args: ColumnArguments<{length?: number}>
-): Column<string | null> {
+): Column<string> {
   const {name, options} = columnConfig(args)
   return new Column({name, type: column.varchar(options?.length)})
 }
 
-export function year(name?: string): Column<number | null> {
+export function year(name?: string): Column<number> {
   return new Column({name, type: column.year()})
 }

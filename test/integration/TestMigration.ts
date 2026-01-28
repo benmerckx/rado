@@ -180,7 +180,7 @@ export function testMigration(db: Database, test: DefineTest) {
           fieldB: 'second',
           extraColumn: 'extra',
           unchangedField: 'different',
-          newRequiredField: null
+          newRequiredField: null!
         })
         .then(
           () => test.ok(false),

@@ -210,7 +210,6 @@ test('pg column unique and array helpers', () => {
   test.equal(columnSql(pg.integer().unique()), 'integer unique')
 
   const arraySized = pg.integer().array(3)
-  test.ok(arraySized instanceof pg.PgArrayColumn)
   test.equal(columnSql(arraySized!), 'integer[3]')
 
   const arrayUnsized = pg.integer().array()

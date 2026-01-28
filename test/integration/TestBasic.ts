@@ -1,4 +1,4 @@
-import {eq, sql, type Database} from '@/index.ts'
+import {type Database, eq, sql} from '@/index.ts'
 import {concat} from '@/universal.ts'
 import type {DefineTest} from '@alinea/suite'
 import {Node} from './schema.ts'

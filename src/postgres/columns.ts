@@ -2,6 +2,7 @@ import {
   Column,
   type ColumnArguments,
   ColumnType,
+  type Nullability,
   column,
   columnConfig
 } from '../core/Column.ts'
@@ -58,11 +59,20 @@ function formatLine(value: LineTuple | LineABC | string): string {
   return `{${value.a},${value.b},${value.c}}`
 }
 
-export class PgColumn<Value = unknown> extends Column<Value> {
+export class PgColumn<
+  Value = unknown,
+  Nulls extends Nullability = Nullability
+> extends Column<Value, Nulls> {
+  notNull(): PgColumn<Value, [false, Nulls[1]]> {
+    return new PgColumn({
+      ...getData(this),
+      notNull: true
+    })
+  }
   unique(
     name?: string,
     config?: {nulls: 'distinct' | 'not distinct'}
-  ): PgColumn<Value> {
+  ): PgColumn<Value, Nulls> {
     return new PgColumn({
       ...getData(this),
       isUnique: true,
@@ -71,15 +81,15 @@ export class PgColumn<Value = unknown> extends Column<Value> {
     })
   }
 
-  array(size?: number): PgArrayColumn<Value> {
+  array(size?: number): PgColumn<Array<Value>, Nulls> {
     const data = getData(this)
-    return new PgArrayColumn({
+    return new PgColumn({
       ...data,
       type: new ColumnType('array', [data.type], sql`${data.type}[${size}]`)
     })
   }
 
-  generatedAlwaysAsIdentity(): PgColumn<Value> {
+  generatedAlwaysAsIdentity(): PgColumn<Value, Nulls> {
     const data = getData(this)
     return new PgColumn({
       ...data,
@@ -91,7 +101,7 @@ export class PgColumn<Value = unknown> extends Column<Value> {
     })
   }
 
-  generatedByDefaultAsIdentity(): PgColumn<Value> {
+  generatedByDefaultAsIdentity(): PgColumn<Value, Nulls> {
     const data = getData(this)
     return new PgColumn({
       ...data,
@@ -104,16 +114,12 @@ export class PgColumn<Value = unknown> extends Column<Value> {
   }
 }
 
-export class PgArrayColumn<T> extends PgColumn<
-  T extends null ? Array<NonNullable<T>> | null : Array<T>
-> {}
-
 export function bigint(
   ...args: ColumnArguments<{mode: 'number'}>
-): PgColumn<number | null>
+): PgColumn<number>
 export function bigint(
   ...args: ColumnArguments<{mode?: 'bigint'}>
-): PgColumn<bigint | null>
+): PgColumn<bigint>
 export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
   const {name, options} = columnConfig(args)
   return new PgColumn({
@@ -125,10 +131,10 @@ export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
 
 export function bigserial(
   ...args: ColumnArguments<{mode: 'number'}>
-): PgColumn<number | null>
+): PgColumn<number>
 export function bigserial(
   ...args: ColumnArguments<{mode?: 'bigint'}>
-): PgColumn<bigint | null>
+): PgColumn<bigint>
 export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
   const {name, options} = columnConfig(args)
   return new PgColumn({
@@ -141,7 +147,7 @@ export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
 export function char(
   name?: string,
   options?: {length: number}
-): PgColumn<string | null> {
+): PgColumn<string> {
   return new PgColumn({
     name,
     type: column.character(options?.length ?? 1)
@@ -150,30 +156,30 @@ export function char(
 
 export function bit(
   ...args: ColumnArguments<{dimensions?: number}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({name, type: column.bit(options?.dimensions)})
 }
 
 export function varbit(
   ...args: ColumnArguments<{dimensions?: number}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({name, type: column.varbit(options?.dimensions)})
 }
 
-export function cidr(name?: string): PgColumn<string | null> {
+export function cidr(name?: string): PgColumn<string> {
   return new PgColumn({name, type: column.cidr()})
 }
 
 export function date(
   name?: string,
   options?: {mode: 'string'}
-): PgColumn<string | null>
+): PgColumn<string>
 export function date(
   name: string | undefined,
   options: {mode: 'date'}
-): PgColumn<Date | null>
+): PgColumn<Date>
 export function date(name?: string, options?: {mode: 'date' | 'string'}) {
   return new PgColumn({
     name,
@@ -187,7 +193,7 @@ export function date(name?: string, options?: {mode: 'date' | 'string'}) {
   })
 }
 
-export function doublePrecision(name?: string): PgColumn<number | null> {
+export function doublePrecision(name?: string): PgColumn<number> {
   return new PgColumn({
     name,
     type: column['double precision'](),
@@ -197,29 +203,27 @@ export function doublePrecision(name?: string): PgColumn<number | null> {
   })
 }
 
-export function inet(name?: string): PgColumn<string | null> {
+export function inet(name?: string): PgColumn<string> {
   return new PgColumn({name, type: column.inet()})
 }
 
-export function integer(name?: string): PgColumn<number | null> {
+export function integer(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.integer()})
 }
 
 export const int = integer
 
-export function oid(name?: string): PgColumn<number | null> {
+export function oid(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.oid()})
 }
 
 export function point(
   ...args: ColumnArguments<{mode?: 'tuple'}>
-): PgColumn<PointTuple | null>
-export function point(
-  ...args: ColumnArguments<{mode: 'xy'}>
-): PgColumn<PointXY | null>
+): PgColumn<PointTuple>
+export function point(...args: ColumnArguments<{mode: 'xy'}>): PgColumn<PointXY>
 export function point(
   ...args: ColumnArguments<{mode?: 'tuple' | 'xy'}>
-): PgColumn<PointTuple | PointXY | null> {
+): PgColumn<PointTuple | PointXY> {
   const {name, options} = columnConfig(args)
   const mode = options?.mode ?? 'tuple'
   return new PgColumn({
@@ -237,13 +241,11 @@ export function point(
 
 export function line(
   ...args: ColumnArguments<{mode?: 'tuple'}>
-): PgColumn<LineTuple | null>
-export function line(
-  ...args: ColumnArguments<{mode: 'abc'}>
-): PgColumn<LineABC | null>
+): PgColumn<LineTuple>
+export function line(...args: ColumnArguments<{mode: 'abc'}>): PgColumn<LineABC>
 export function line(
   ...args: ColumnArguments<{mode?: 'tuple' | 'abc'}>
-): PgColumn<LineTuple | LineABC | null> {
+): PgColumn<LineTuple | LineABC> {
   const {name, options} = columnConfig(args)
   const mode = options?.mode ?? 'tuple'
   return new PgColumn({
@@ -261,7 +263,7 @@ export function line(
 
 export function interval(
   ...args: ColumnArguments<{fields?: IntervalFields; precision?: Precision}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({
     name,
@@ -275,19 +277,19 @@ export function serial(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.serial()})
 }
 
-export function boolean(name?: string): PgColumn<boolean | null> {
+export function boolean(name?: string): PgColumn<boolean> {
   return new PgColumn({name, type: column.boolean()})
 }
 
-export function bytea(name?: string): PgColumn<Uint8Array | null> {
+export function bytea(name?: string): PgColumn<Uint8Array> {
   return new PgColumn({name, type: column.bytea()})
 }
 
-export function text(name?: string): PgColumn<string | null> {
+export function text(name?: string): PgColumn<string> {
   return new PgColumn({name, type: column.text()})
 }
 
-export function json<T>(name?: string): PgColumn<T | null> {
+export function json<T>(name?: string): PgColumn<T> {
   return new PgColumn({
     name,
     type: column.json(),
@@ -301,7 +303,7 @@ export function json<T>(name?: string): PgColumn<T | null> {
   })
 }
 
-export function jsonb<T>(name?: string): PgColumn<T | null> {
+export function jsonb<T>(name?: string): PgColumn<T> {
   return new PgColumn({
     name,
     type: column.jsonb(),
@@ -317,7 +319,7 @@ export function jsonb<T>(name?: string): PgColumn<T | null> {
 
 export function geometry(
   ...args: ColumnArguments<{type?: string; mode?: 'tuple' | 'xy'}>
-): PgColumn<PointTuple | PointXY | string | null> {
+): PgColumn<PointTuple | PointXY | string> {
   const {name, options} = columnConfig(args)
   const typeArg = options?.type ? sql.unsafe(options.type) : undefined
   const geometryType = options?.type
@@ -341,57 +343,57 @@ export function geometry(
 
 export function vector(
   ...args: ColumnArguments<{dimensions: number}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({name, type: column.vector(options?.dimensions)})
 }
 
 export function halfvec(
   ...args: ColumnArguments<{dimensions: number}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({name, type: column.halfvec(options?.dimensions)})
 }
 
 export function sparsevec(
   ...args: ColumnArguments<{dimensions: number}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({name, type: column.sparsevec(options?.dimensions)})
 }
 
-export function macaddr(name?: string): PgColumn<string | null> {
+export function macaddr(name?: string): PgColumn<string> {
   return new PgColumn({name, type: column.macaddr()})
 }
 
-export function macaddr8(name?: string): PgColumn<string | null> {
+export function macaddr8(name?: string): PgColumn<string> {
   return new PgColumn({name, type: column.macaddr8()})
 }
 
 export function numeric(
   ...args: ColumnArguments<{precision?: number; scale?: number}>
-): PgColumn<string | null>
+): PgColumn<string>
 export function numeric(
   ...args: ColumnArguments<{
     precision?: number
     scale?: number
     mode: 'number'
   }>
-): PgColumn<number | null>
+): PgColumn<number>
 export function numeric(
   ...args: ColumnArguments<{
     precision?: number
     scale?: number
     mode: 'bigint'
   }>
-): PgColumn<bigint | null>
+): PgColumn<bigint>
 export function numeric(
   ...args: ColumnArguments<{
     precision?: number
     scale?: number
     mode?: NumericMode
   }>
-): PgColumn<string | number | bigint | null> {
+): PgColumn<string | number | bigint> {
   const {name, options} = columnConfig(args)
   const mode = options?.mode
   const mapFromDriverValue = mode && (mode === 'bigint' ? BigInt : Number)
@@ -402,7 +404,7 @@ export function numeric(
   })
 }
 
-export function real(name?: string): PgColumn<number | null> {
+export function real(name?: string): PgColumn<number> {
   return new PgColumn({
     name,
     type: column.real(),
@@ -412,17 +414,17 @@ export function real(name?: string): PgColumn<number | null> {
   })
 }
 
-export function smallint(name?: string): PgColumn<number | null> {
+export function smallint(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.smallint()})
 }
 
-export function smallserial(name?: string): PgColumn<number | null> {
+export function smallserial(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.smallserial()})
 }
 
 export function time(
   ...args: ColumnArguments<{precision?: Precision; withTimeZone?: boolean}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({
     name,
@@ -439,7 +441,7 @@ export function timestamp(
     withTimeZone?: boolean
     withTimezone?: boolean
   }>
-): PgColumn<Date | null>
+): PgColumn<Date>
 export function timestamp(
   ...args: ColumnArguments<{
     mode: 'string'
@@ -447,7 +449,7 @@ export function timestamp(
     withTimeZone?: boolean
     withTimezone?: boolean
   }>
-): PgColumn<string | null>
+): PgColumn<string>
 export function timestamp(
   ...args: ColumnArguments<{
     mode?: 'string' | 'date'
@@ -472,13 +474,13 @@ export function timestamp(
   })
 }
 
-export function uuid(name?: string): PgColumn<string | null> {
-  return new PgColumn<string | null>({name, type: column.uuid()})
+export function uuid(name?: string): PgColumn<string> {
+  return new PgColumn<string>({name, type: column.uuid()})
 }
 
 export function varchar(
   ...args: ColumnArguments<{length: number}>
-): PgColumn<string | null> {
+): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({
     name,

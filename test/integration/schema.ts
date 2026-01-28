@@ -2,7 +2,7 @@ import {foreignKey, primaryKey, table, unique} from '@/index.ts'
 import {boolean, id, integer, json, text} from '@/universal.ts'
 
 export const Node = table('Node', {
-  id: id().notNull(),
+  id: id(),
   textField: text().notNull(),
   bool: boolean()
 })

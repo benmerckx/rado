@@ -1,10 +1,5 @@
 import {collectEnumQuery} from '../postgres.ts'
-import {
-  type Column,
-  type JsonColumn,
-  type RequiredColumn,
-  formatColumn
-} from './Column.ts'
+import {type Column, type JsonColumn, formatColumn} from './Column.ts'
 import type {
   ForeignKeyConstraint,
   PrimaryKeyConstraint,
@@ -176,8 +171,13 @@ export type TableFields<
 > = {
   [K in keyof Definition]: Definition[K] extends JsonColumn<infer T>
     ? JsonExpr<T>
-    : Definition[K] extends Column<infer T>
-      ? Field<T, TableName>
+    : Definition[K] extends Column<
+          infer T,
+          [infer Nullable extends boolean, boolean]
+        >
+      ? [Nullable] extends [false]
+        ? Field<T, TableName>
+        : Field<T | null, TableName>
       : never
 }
 
@@ -185,8 +185,11 @@ export type TableRow<Definition extends TableDefinition> = {
   [K in keyof Definition]: Definition[K] extends Column<infer T> ? T : never
 } & {}
 
-type IsReq<Col> = Col extends RequiredColumn<infer Value>
-  ? null extends Value
+type IsReq<Col> = Col extends Column<
+  unknown,
+  [boolean, infer Required extends boolean]
+>
+  ? [Required] extends [true]
     ? true
     : false
   : false
@@ -198,15 +201,20 @@ type RequiredInput<D> = {
 type OptionalInput<D> = {
   readonly [K in keyof D as false extends IsReq<D[K]>
     ? K
-    : never]?: D[K] extends Column<infer V> ? Input<V> : never
+    : never]?: D[K] extends Column<infer V> ? Input<V | null> : never
 }
 
 export type TableInsert<Definition extends TableDefinition> =
   RequiredInput<Definition> & OptionalInput<Definition>
 
 export type TableUpdate<Definition extends TableDefinition> = {
-  readonly [K in keyof Definition]?: Definition[K] extends Column<infer T>
-    ? Input<T>
+  readonly [K in keyof Definition]?: Definition[K] extends Column<
+    infer T,
+    [infer Nullable extends boolean, boolean]
+  >
+    ? Nullable extends false
+      ? Input<T>
+      : Input<T | null>
     : never
 }
 
