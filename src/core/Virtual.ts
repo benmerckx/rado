@@ -1,4 +1,11 @@
-import {type HasQuery, getSql, hasSql, internalTarget} from './Internal.ts'
+import {
+  type HasQuery,
+  getSql,
+  hasSql,
+  internalSelection,
+  internalTarget
+} from './Internal.ts'
+import {type SelectionInput, selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 import {Field} from './expr/Field.ts'
 
@@ -27,6 +34,7 @@ export function virtualTarget<Input>(
   ) as Input
   return {
     [internalTarget]: sql.identifier(alias),
+    [internalSelection]: selection(aliased as SelectionInput),
     ...aliased
   }
 }

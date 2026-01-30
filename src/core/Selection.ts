@@ -1,14 +1,10 @@
 import type {DriverSpecs} from './Driver.ts'
 import {
-  type HasSql,
+  HasInternal,
   type HasTable,
   type HasTarget,
-  getField,
-  getSql,
-  getTable,
-  hasField,
-  hasTable,
-  internalSql
+  type HasValue,
+  get
 } from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
@@ -22,7 +18,7 @@ export interface SelectionRecord extends Record<string, SelectionInput> {}
 export type IsNullable = {[nullable]: true}
 export type MakeNullable<T> = Expand<{[K in keyof T]: T[K] & IsNullable}>
 export type SelectionInput =
-  | HasSql
+  | HasValue
   | HasTable
   | HasTarget
   | SelectionRecord
@@ -32,7 +28,7 @@ export type RowOfRecord<Input> = Expand<{
     Input[Key]
   >
 }>
-export type SelectionRow<Input> = Input extends HasSql<infer Value>
+export type SelectionRow<Input> = Input extends HasValue<infer Value>
   ? Value
   : Input extends IsNullable
     ? RowOfRecord<Input> | null
@@ -92,13 +88,18 @@ class ObjectColumn implements Column {
   }
 }
 
-export class Selection implements HasSql {
+export class Selection extends HasInternal<{value: Sql}> {
   mapRow: (ctx: MapRowContext) => unknown
 
   constructor(
     public input: SelectionInput,
     public nullable: Set<string> = new Set()
   ) {
+    super({
+      get value() {
+        return sql.join(selectionToSql(input, new Set()), sql`, `)
+      }
+    })
     const root = this.#defineColumn(nullable, input)
     this.mapRow = root.result.bind(root)
   }
@@ -108,8 +109,8 @@ export class Selection implements HasSql {
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
-    const expr = getSql(input as HasSql)
-    if (expr) return new SqlColumn(expr, getField(<any>input)?.targetName)
+    const {value, field} = get(input)
+    if (value) return new SqlColumn(value, field?.targetName)
     return new ObjectColumn(
       nullable,
       Object.entries(input).map(([name, value]) => [
@@ -128,9 +129,9 @@ export class Selection implements HasSql {
     names: Set<string>,
     name?: string
   ): Array<string> {
-    const expr = getSql(input as HasSql)
-    if (expr) {
-      let exprName = name ?? expr.alias
+    const {value} = get(input)
+    if (value) {
+      let exprName = name ?? value.alias
       if (!exprName) throw new Error('Missing field name')
       while (names.has(exprName)) exprName = `${exprName}_`
       return [exprName]
@@ -140,38 +141,33 @@ export class Selection implements HasSql {
     )
   }
 
-  #selectionToSql(
-    input: SelectionInput,
-    names: Set<string>,
-    name?: string
-  ): Array<Sql> {
-    const expr = getSql(input as HasSql)
-    if (expr) {
-      let exprName = name ?? expr.alias
-      if (exprName) {
-        // The bun:sqlite driver cannot handle multiple columns by the same name
-        while (names.has(exprName)) exprName = `${exprName}_`
-        names.add(exprName)
-        if (hasField(input)) {
-          const field = getField(input)
-          if (field.fieldName === exprName) return [expr]
-        }
-        return [sql`${expr.forSelection()} as ${sql.identifier(exprName)}`]
-      }
-      return [expr]
-    }
-    return Object.entries(input).flatMap(([name, value]) =>
-      this.#selectionToSql(value, names, name)
-    )
-  }
-
-  get [internalSql](): Sql {
-    return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
-  }
-
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
     return this
   }
+}
+
+function selectionToSql(
+  input: SelectionInput,
+  names: Set<string>,
+  name?: string
+): Array<Sql> {
+  const {field, value} = get(input)
+  if (value) {
+    let exprName = name ?? value.alias
+    if (exprName) {
+      // The bun:sqlite driver cannot handle multiple columns by the same name
+      while (names.has(exprName)) exprName = `${exprName}_`
+      names.add(exprName)
+      if (field) {
+        if (field.fieldName === exprName) return [value]
+      }
+      return [sql`${value.forSelection()} as ${sql.identifier(exprName)}`]
+    }
+    return [value]
+  }
+  return Object.entries(input).flatMap(([name, value]) =>
+    selectionToSql(value, names, name)
+  )
 }
 
 export class TableSelection extends Selection {
@@ -180,15 +176,15 @@ export class TableSelection extends Selection {
   }
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
-    const leftTable = getTable(this.table)
-    if (!hasTable(right)) return this
-    const rightTable = getTable(right)
+    const {table: leftTable} = get(this.table)
+    const {table: rightTable} = get(right)
+    if (!rightTable) return this
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
       nullable.add(leftTable.aliased)
     if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
-    return new JoinSelection([this.table, right], nullable)
+    return new JoinSelection([this.table, right as HasTable], nullable)
   }
 }
 
@@ -198,22 +194,24 @@ export class JoinSelection extends Selection {
     nullable: Set<string>
   ) {
     super(
-      Object.fromEntries(tables.map(table => [getTable(table).aliased, table])),
+      Object.fromEntries(
+        tables.map(table => [get(table).table.aliased, table])
+      ),
       nullable
     )
   }
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
-    if (!hasTable(right)) return this
-    const rightTable = getTable(right)
+    const {table: rightTable} = get(right)
+    if (!rightTable) return this
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
       this.tables
-        .map(table => getTable(table).aliased)
+        .map(table => get(table).table.aliased)
         .forEach(nullable.add, nullable)
     if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
-    return new JoinSelection([...this.tables, right], nullable)
+    return new JoinSelection([...this.tables, right as HasTable], nullable)
   }
 }
 
@@ -222,8 +220,9 @@ const selected = new WeakMap<SelectionInput, Selection>()
 export function selection(input: SelectionInput): Selection {
   if (input instanceof Selection) return input
   if (selected.has(input)) return selected.get(input)!
-  const selection = hasTable(input)
-    ? new TableSelection(input)
+  const {table} = get(input)
+  const selection = table
+    ? new TableSelection(input as HasTable)
     : new Selection(input)
   selected.set(input, selection)
   return selection

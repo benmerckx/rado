@@ -3,9 +3,9 @@ import type {BatchedQuery, Driver, DriverSpecs, Statement} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {
   type HasQuery,
-  type HasSql,
-  getSelection,
-  hasSelection
+  type HasSelection,
+  type HasValue,
+  get
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
@@ -25,25 +25,33 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     return {sql: emitter.sql, params: emitter.bind()}
   }
 
-  prepare(query: HasQuery, name?: string): PreparedStatement<Meta> {
-    const isSelection = hasSelection(query)
-    const mapRow = isSelection ? getSelection(query).mapRow : undefined
+  prepare(
+    query: HasQuery | HasSelection,
+    name?: string
+  ): PreparedStatement<Meta> {
+    const {selection} = get(query)
+    const mapRow = selection ? selection.mapRow : undefined
     const emitter = this.#dialect.emit(query)
     const stmt = this.#driver.prepare(emitter.sql, {
-      isSelection,
+      isSelection: Boolean(selection),
       name
     })
     return new PreparedStatement<Meta>(emitter, stmt, mapRow, this.#driver)
   }
 
-  batch(queries: Array<HasSql | HasQuery>): Batch<Meta> {
+  batch(queries: Array<HasValue | HasQuery>): Batch<Meta> {
     return new Batch(
       this.#driver,
       queries.map(query => {
-        const isSelection = hasSelection(query)
-        const mapRow = isSelection ? getSelection(query).mapRow : undefined
+        const {selection} = get(query)
+        const mapRow = selection ? selection.mapRow : undefined
         const emitter = this.#dialect.emit(query)
-        return {sql: emitter.sql, params: emitter.bind(), isSelection, mapRow}
+        return {
+          sql: emitter.sql,
+          params: emitter.bind(),
+          isSelection: Boolean(selection),
+          mapRow
+        }
       })
     )
   }

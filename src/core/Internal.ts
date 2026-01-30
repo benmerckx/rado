@@ -5,96 +5,71 @@ import type {Sql} from './Sql.ts'
 import type {TableApi, TableDefinition} from './Table.ts'
 import type {FieldData} from './expr/Field.ts'
 
-export const internalData: unique symbol = Symbol()
-export const internalSql: unique symbol = Symbol()
-export const internalSelection: unique symbol = Symbol()
-export const internalTarget: unique symbol = Symbol()
-export const internalQuery: unique symbol = Symbol()
-export const internalBatch: unique symbol = Symbol()
-export const internalTable: unique symbol = Symbol()
-export const internalField: unique symbol = Symbol()
-export const internalResolver: unique symbol = Symbol()
-export const internalConstraint: unique symbol = Symbol()
-export const internalInclude: unique symbol = Symbol()
-export const internalEnum: unique symbol = Symbol()
-export const internalCreate: unique symbol = Symbol()
-export const internalDrop: unique symbol = Symbol()
+export const internal: unique symbol = Symbol()
 
-export declare class HasData<Data> {
-  get [internalData](): Data
+export class HasInternal<Data extends Internal> {
+  readonly [internal]: Internal & Data
+  constructor(data: Data) {
+    this[internal] = data
+  }
 }
-export declare class HasSql<Value = unknown> {
-  get [internalSql](): Sql<Value>
+
+export interface Internal {
+  readonly value?: Sql
+  readonly selection?: Selection
+  readonly target?: Sql
+  readonly query?: Sql
+  readonly batch?: Array<Sql>
+  readonly table?: TableApi
+  readonly field?: FieldData
+  readonly resolver?: Resolver
+  readonly constraint?: Sql
+  readonly enum?: unknown
 }
-export declare class HasSelection {
-  get [internalSelection](): Selection
+
+export function has(input: object): input is {readonly [internal]: Internal} {
+  return internal in input
 }
-export declare class HasTarget<Name extends string = string> {
-  get [internalTarget](): Sql
+export function get<Input extends object>(
+  input: Input
+): Input extends HasInternal<infer Result> ? Internal & Result : Internal {
+  return (has(input) ? input[internal] : {}) as any
 }
-export declare class HasQuery<Result = unknown> {
-  get [internalQuery](): Sql<Result>
-}
+
+export declare class HasValue<Value = unknown> extends HasInternal<{
+  value: Sql<Value>
+}> {}
+export declare class HasSelection extends HasInternal<{selection: Selection}> {}
+export declare class HasTarget<
+  Name extends string = string
+> extends HasInternal<{target: Sql}> {}
+export declare class HasQuery<Result = unknown> extends HasInternal<{
+  query: Sql<Result>
+}> {}
 export declare class HasBatch {
-  get [internalBatch](): Array<Sql>
+  readonly [internal]: {batch: Array<Sql>}
 }
 export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
-> extends HasTarget<Name> {
-  get [internalTable](): TableApi<Definition, Name>
+> {
+  readonly [internal]: {table: TableApi<Definition, Name>}
 }
 export declare class HasField {
-  get [internalField](): FieldData
+  readonly [internal]: {field: FieldData}
 }
 export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
-  get [internalResolver](): Resolver<Meta>
+  readonly [internal]: {resolver: Resolver<Meta>}
 }
 export declare class HasConstraint {
-  get [internalConstraint](): Sql
+  readonly [internal]: {constraint: Sql}
 }
 export declare class HasEnum<EnumData> {
-  get [internalEnum](): EnumData
+  readonly [internal]: {enum: EnumData}
 }
 export interface HasCreate {
-  readonly [internalCreate]: Array<Sql>
+  readonly [internal]: {create: Array<Sql>}
 }
 export interface HasDrop {
-  readonly [internalDrop]: Array<Sql>
+  readonly [internal]: {drop: Array<Sql>}
 }
-export const hasData = <Data>(obj: object): obj is HasData<Data> =>
-  internalData in obj
-export const getData = <Data>(obj: HasData<Data>) => obj[internalData]
-export const hasSql = <Value>(obj: object): obj is HasSql<Value> =>
-  internalSql in obj
-export const getSql = <Value>(obj: HasSql<Value>) => obj[internalSql]
-export const hasSelection = (obj: object): obj is HasSelection =>
-  internalSelection in obj
-export const getSelection = (obj: HasSelection) => obj[internalSelection]
-export const hasTarget = (obj: object): obj is HasTarget =>
-  internalTarget in obj
-export const getTarget = (obj: HasTarget) => obj[internalTarget]
-export const hasQuery = (obj: object): obj is HasQuery => internalQuery in obj
-export const getQuery = (obj: HasQuery) => obj[internalQuery]
-export const hasBatch = (obj: object): obj is HasBatch => internalBatch in obj
-export const getBatch = (obj: HasBatch) => obj[internalBatch]
-export const hasTable = (obj: object): obj is HasTable => internalTable in obj
-export const getTable = (obj: HasTable) => obj[internalTable]
-export const hasField = (obj: object): obj is HasField => internalField in obj
-export const getField = (obj: HasField) => obj[internalField]
-export const hasResolver = <Meta extends QueryMeta>(
-  obj: object
-): obj is HasResolver<Meta> => internalResolver in obj
-export const getResolver = <Meta extends QueryMeta>(obj: HasResolver<Meta>) =>
-  obj[internalResolver]
-export const hasConstraint = (obj: object): obj is HasConstraint =>
-  internalConstraint in obj
-export const getConstraint = (obj: HasConstraint) => obj[internalConstraint]
-export const hasEnum = <EnumData>(obj: object): obj is HasEnum<EnumData> =>
-  internalEnum in obj
-export const getEnum = <EnumData>(obj: HasEnum<EnumData>) => obj[internalEnum]
-export const hasCreate = (obj: object): obj is HasCreate =>
-  internalCreate in obj
-export const getCreate = (obj: HasCreate) => obj[internalCreate]
-export const hasDrop = (obj: object): obj is HasDrop => internalDrop in obj
-export const getDrop = (obj: HasDrop) => obj[internalDrop]

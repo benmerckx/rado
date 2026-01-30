@@ -1,4 +1,4 @@
-import type {HasSql, HasTarget} from '../Internal.ts'
+import type {HasTarget, HasValue} from '../Internal.ts'
 import type {MakeNullable, SelectionInput, SelectionRow} from '../Selection.ts'
 import type {Sql} from '../Sql.ts'
 import type {
@@ -14,32 +14,32 @@ import type {CTE} from './CTE.ts'
 
 export interface InnerJoin<Target> {
   innerJoin: Target
-  on: HasSql<boolean>
+  on: HasValue<boolean>
 }
 
 export interface InnerJoinLateral<Target> {
   innerJoinLateral: Target
-  on: HasSql<boolean>
+  on: HasValue<boolean>
 }
 
 export interface LeftJoin<Target> {
   leftJoin: Target
-  on: HasSql<boolean>
+  on: HasValue<boolean>
 }
 
 export interface LeftJoinLateral<Target> {
   leftJoinLateral: Target
-  on: HasSql<boolean>
+  on: HasValue<boolean>
 }
 
 export interface RightJoin<Target> {
   rightJoin: Target
-  on: HasSql<boolean>
+  on: HasValue<boolean>
 }
 
 export interface FullJoin<Target> {
   fullJoin: Target
-  on: HasSql<boolean>
+  on: HasValue<boolean>
 }
 
 export interface CrossJoin<Target> {
@@ -78,15 +78,15 @@ export interface QueryBase {
 }
 
 interface SelectBase<Returning> {
-  where?: HasSql<boolean>
+  where?: HasValue<boolean>
   distinct?: boolean
-  distinctOn?: Array<HasSql>
-  groupBy?: Array<HasSql>
-  having?: HasSql<boolean> | ((input: Returning) => HasSql<boolean>)
+  distinctOn?: Array<HasValue>
+  groupBy?: Array<HasValue>
+  having?: HasValue<boolean> | ((input: Returning) => HasValue<boolean>)
 }
 
 export interface ResultModifiers {
-  orderBy?: Array<HasSql>
+  orderBy?: Array<HasValue>
   limit?: Input<number>
   offset?: Input<number>
 }
@@ -99,7 +99,7 @@ interface SelectionBase<Returning = SelectionInput>
   extends SelectBase<Returning> {
   select: Returning
   from?: FromGuard
-  for?: HasSql
+  for?: HasValue
 }
 
 export interface SelectionQuery<Returning = SelectionInput>
@@ -189,8 +189,8 @@ export interface SelectQuery<Returning = SelectionInput>
   | FromQuery<Returning>*/
 
 export interface OnConflict {
-  target: HasSql | Array<HasSql>
-  targetWhere?: HasSql<boolean>
+  target: HasValue | Array<HasValue>
+  targetWhere?: HasValue<boolean>
 }
 
 export interface OnConflictSet<Definition extends TableDefinition> {
@@ -200,7 +200,7 @@ export interface OnConflictSet<Definition extends TableDefinition> {
 export interface OnConflictUpdate<Definition extends TableDefinition>
   extends OnConflict,
     OnConflictSet<Definition> {
-  where?: HasSql<boolean>
+  where?: HasValue<boolean>
 }
 
 export type Conflict<Definition extends TableDefinition = TableDefinition> =
@@ -227,7 +227,7 @@ export interface DeleteQuery<
 > extends QueryBase,
     ResultModifiers {
   delete: Table<Definition>
-  where?: HasSql<boolean>
+  where?: HasValue<boolean>
   returning?: Returning
 }
 
@@ -239,7 +239,7 @@ export interface UpdateQuery<
   update: Table<Definition>
   set?: TableUpdate<Definition>
   from?: FromGuard
-  where?: HasSql<boolean>
+  where?: HasValue<boolean>
   returning?: Returning
 }
 

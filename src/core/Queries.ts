@@ -2,6 +2,7 @@ import {
   type HasQuery,
   type HasResolver,
   type HasSql,
+  type Internal,
   getData,
   getResolver,
   hasSelection,
@@ -12,8 +13,7 @@ import type {Deliver, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
 import type {Sql} from './Sql.ts'
 
-export class QueryData<Meta extends QueryMeta> {
-  resolver?: Resolver<Meta>
+export interface QueryData extends Internal {
   first?: boolean
 }
 
@@ -90,7 +90,7 @@ export abstract class SingleQuery<
   Result,
   Meta extends QueryMeta
 > extends Executable<Result, Meta> {
-  readonly [internalData]: QueryData<Meta>
+  readonly [internal]: SelectData
   abstract [internalQuery]: Sql
 
   constructor(data: QueryData<Meta>) {

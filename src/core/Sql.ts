@@ -1,13 +1,6 @@
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
-import {
-  type HasSql,
-  getSql,
-  getTarget,
-  hasSql,
-  hasTarget,
-  internalSql
-} from './Internal.ts'
+import {type HasValue, get, internal} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import type {FieldData} from './expr/Field.ts'
 import type {JsonPath} from './expr/Json.ts'
@@ -18,14 +11,16 @@ export type Decoder<T = unknown> =
 
 const noop = () => {}
 
-export class Sql<Value = unknown> implements HasSql<Value> {
+export class Sql<Value = unknown> implements HasValue<Value> {
   static SELF_TARGET = '$$self'
   private declare brand: [Value]
   alias?: string
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
-  readonly [internalSql] = this
+  readonly [internal]: {value: Sql<Value>}
 
-  constructor(public emit: (emitter: Emitter) => void = noop) {}
+  constructor(public emit: (emitter: Emitter) => void = noop) {
+    this[internal] = {value: this}
+  }
 
   as(name: string): Sql<Value> {
     this.alias = name
@@ -74,7 +69,7 @@ class JsonPathSql<T> extends Sql<T> {
 
 export function sql<T>(
   strings: TemplateStringsArray,
-  ...inner: Array<HasSql | unknown>
+  ...inner: Array<HasValue | unknown>
 ): Sql<T> {
   return new Sql<T>(emitter => {
     for (let i = 0; i < strings.length; i++) {
@@ -83,9 +78,13 @@ export function sql<T>(
         const insert = inner[i]
         if (insert === undefined) continue
         const isObject = insert !== null && typeof insert === 'object'
-        if (isObject && hasSql(insert)) getSql(insert).emit(emitter)
-        else if (isObject && hasTarget(insert)) getTarget(insert).emit(emitter)
-        else emitter.emitValueOrInline(insert)
+        if (!isObject) emitter.emitValueOrInline(insert)
+        else {
+          const {value, target} = get(insert)
+          if (value) value.emit(emitter)
+          else if (target) target.emit(emitter)
+          else emitter.emitValueOrInline(insert)
+        }
       }
     }
   })
@@ -132,12 +131,12 @@ export namespace sql {
   }
 
   export function universal<T>(
-    runtimes: Partial<Record<Runtime | 'default', HasSql<T>>>
+    runtimes: Partial<Record<Runtime | 'default', HasValue<T>>>
   ): Sql<T> {
     return new Sql(emitter => emitter.emitUniversal(runtimes))
   }
 
-  type QueryChunk = HasSql | undefined
+  type QueryChunk = HasValue | undefined
   export function query(
     ...chunks: Array<
       QueryChunk | Record<string, boolean | QueryChunk | Array<QueryChunk>>
@@ -145,7 +144,8 @@ export namespace sql {
   ): Sql {
     return join(
       chunks.filter(Boolean).flatMap(chunk => {
-        if (hasSql(chunk!)) return chunk
+        const {value} = get(chunk!)
+        if (value) return chunk
         return Object.entries(chunk!).map(([key, value]) => {
           const statement = key.replace(/([A-Z])/g, ' $1').toLowerCase()
           if (value === true) return sql.unsafe(statement)
@@ -158,14 +158,14 @@ export namespace sql {
   }
 
   export function join<T>(
-    items: Array<Sql | HasSql | undefined | false>,
+    items: Array<Sql | HasValue | undefined | false>,
     separator: Sql = sql` `
   ): Sql<T> {
-    const parts = items.filter(Boolean) as Array<Sql | HasSql>
+    const parts = items.filter(Boolean) as Array<Sql | HasValue>
     return new Sql(emitter => {
       for (let i = 0; i < parts.length; i++) {
         if (i > 0) separator.emit(emitter)
-        getSql(parts[i]).emit(emitter)
+        get(parts[i]).value.emit(emitter)
       }
     })
   }

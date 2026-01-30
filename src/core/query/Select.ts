@@ -3,6 +3,7 @@ import {
   type HasSelection,
   type HasSql,
   type HasTarget,
+  type Internal,
   getData,
   getQuery,
   getSelection,
@@ -11,6 +12,7 @@ import {
   hasSelection,
   hasSql,
   hasTarget,
+  internal,
   internalData,
   internalQuery,
   internalSelection,
@@ -50,16 +52,17 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
-export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<SelectionRow<Input>, Meta>
-  implements HasQuery<SelectionRow<Input>>
-{
-  readonly [internalData]: QueryData<Meta> & SelectQuery
+interface SelectData extends Internal, SelectQuery {}
 
-  constructor(data: QueryData<Meta> & SelectQuery) {
-    const inner = {...data, first: true}
+export class SelectFirst<
+  Input,
+  Meta extends QueryMeta = QueryMeta
+> extends SingleQuery<SelectionRow<Input>, Meta> {
+  readonly [internal]: SelectData
+
+  constructor(inner: SelectData) {
     super(inner)
-    this[internalData] = inner
+    this[internal] = inner
   }
 
   get [internalSelection](): Selection {
@@ -75,16 +78,19 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
   }
 }
 
+interface UnionBaseData extends SelectData {
+  compound: CompoundSelect
+}
+
 export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasSelection
 {
-  readonly [internalData]: QueryData<Meta>
-  abstract [internalSelection]: Selection
+  readonly [internal]: UnionBaseData
 
-  constructor(data: QueryData<Meta> & {compound: CompoundSelect}) {
+  constructor(data: UnionBaseData) {
     super(data)
-    this[internalData] = data
+    this[internal] = data
   }
 
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {

@@ -23,6 +23,7 @@ import {
   internalCreate,
   internalDrop,
   internalSelection,
+  internalSql,
   internalTable,
   internalTarget
 } from './Internal.ts'
@@ -131,7 +132,7 @@ export class TableApi<
   }
 
   drop(): Array<Sql> {
-    return [sql`drop table if exists ${this.target()}`]
+    return [sql`drop table if exists ${this.identifier()}`]
   }
 
   indexes(): Record<string, Index> {
@@ -231,18 +232,21 @@ export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition,
   config?: (self: Table<Definition, Name>) => TableConfig<Name>,
-  schemaName?: string
+  schemaName?: string,
+  alias?: string
 ): Table<Definition, Name> {
   const api = assign(new TableApi<Definition, Name>(), {
     name,
     schemaName,
-    columns
+    columns,
+    alias
   })
   const fields = tableFields(api.aliased, api.columns)
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.target(),
     [internalSelection]: selection(fields),
+    [internalSql]: api.identifier(),
     get [internalCreate]() {
       return api.create()
     },
@@ -268,6 +272,7 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     [internalTable]: api,
     [internalTarget]: api.target(),
     [internalSelection]: selection(fields),
+    [internalSql]: api.identifier(),
     get [internalCreate]() {
       return getCreate(table)
     },
@@ -282,7 +287,7 @@ export function tableCreator(
   nameTable: (name: string) => string
 ): typeof table {
   return (name, columns, config, schemaName) => {
-    return table(<any>nameTable(name), columns, config, schemaName)
+    return table(<any>nameTable(name), columns, config, schemaName, name)
   }
 }
 
