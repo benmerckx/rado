@@ -100,7 +100,7 @@ interface FromBase<Target = FromGuard>
   from: Target
 }
 
-export interface FromQuery<Target>
+export interface FromQuery<Target = unknown>
   extends FromBase<Target>,
     QueryBase,
     ResultModifiers {}
@@ -220,13 +220,21 @@ export interface UpdateQuery<
   returning?: Returning
 }
 
-export type Query<
-  Returning = unknown,
-  From extends FromGuard | unknown = unknown,
-  Definition extends TableDefinition = TableDefinition
-> =
-  | FromQuery<From>
-  | SelectionQuery<Returning>
-  | InsertQuery<Returning, Definition>
-  | DeleteQuery<Returning, Definition>
-  | UpdateQuery<Returning, Definition>
+export type Query =
+  | FromQuery
+  | SelectionQuery
+  | InsertQuery
+  | DeleteQuery
+  | UpdateQuery
+
+export type QueryResult<T extends Query> = T extends FromQuery<infer Target>
+  ? FromRow<Target>
+  : T extends InsertQuery<infer Returning>
+    ? SelectionRow<Returning>
+    : T extends DeleteQuery<infer Returning>
+      ? SelectionRow<Returning>
+      : T extends UpdateQuery<infer Returning>
+        ? SelectionRow<Returning>
+        : T extends SelectionQuery<infer Returning>
+          ? SelectionRow<Returning>
+          : never

@@ -1,18 +1,17 @@
 import {type HasSql, getData, internalData} from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Queries.ts'
-import type {SelectionInput, SelectionRow} from './Selection.ts'
+import type {SelectionInput} from './Selection.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {type CTE, createCTE} from './query/CTE.ts'
 import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
 import type {
   DeleteQuery,
-  FromGuard,
-  FromRow,
   InsertQuery,
   Query,
   QueryBase,
+  QueryResult,
   SelectQuery,
   UpdateQuery
 } from './query/Query.ts'
@@ -31,16 +30,7 @@ class BuilderBase<Meta extends QueryMeta> {
     this[internalData] = data
   }
 
-  $query<
-    const From extends FromGuard,
-    Returning extends SelectionInput | unknown,
-    Definition extends TableDefinition
-  >(
-    query: Query<Returning, From, Definition>
-  ): SingleQuery<
-    Returning extends SelectionInput ? SelectionRow<Returning> : FromRow<From>,
-    Meta
-  > {
+  $query<const T extends Query>(query: T): SingleQuery<QueryResult<T>, Meta> {
     const data = {...getData(this), ...query}
     let result: SingleQuery<any, Meta>
     if ('delete' in query) result = new Delete(data as DeleteQuery)
