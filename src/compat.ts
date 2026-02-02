@@ -1,4 +1,4 @@
-import type {HasSql} from './core/Internal.ts'
+import type {HasValue} from './core/Internal.ts'
 import type {Sql} from './core/Sql.ts'
 import type {Table, TableDefinition, TableFields} from './core/Table.ts'
 
@@ -11,7 +11,7 @@ export type SQL<T = unknown> = Sql<T>
 export namespace SQL {
   export type Aliased<T = unknown> = Sql<T>
 }
-export type SQLWrapper<T = unknown> = HasSql<T>
+export type SQLWrapper<T = unknown> = HasValue<T>
 export function getTableColumns<Definition extends TableDefinition>(
   table: Table<Definition>
 ): TableFields<Definition> {

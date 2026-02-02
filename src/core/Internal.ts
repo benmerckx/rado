@@ -7,7 +7,7 @@ import type {FieldData} from './expr/Field.ts'
 
 export const internal: unique symbol = Symbol()
 
-export class HasInternal<Data extends Internal> {
+export class HasInternal<Data extends object> {
   readonly [internal]: Internal & Data
   constructor(data: Data) {
     this[internal] = data
@@ -30,19 +30,21 @@ export interface Internal {
 export function has(input: object): input is {readonly [internal]: Internal} {
   return internal in input
 }
-export function get<Input extends object>(
+export function get<Input extends {[internal]?: object}>(
   input: Input
-): Input extends HasInternal<infer Result> ? Internal & Result : Internal {
+): Input[typeof internal] & Internal {
   return (has(input) ? input[internal] : {}) as any
 }
 
-export declare class HasValue<Value = unknown> extends HasInternal<{
-  value: Sql<Value>
-}> {}
-export declare class HasSelection extends HasInternal<{selection: Selection}> {}
-export declare class HasTarget<
-  Name extends string = string
-> extends HasInternal<{target: Sql}> {}
+export declare class HasValue<Value = unknown> {
+  readonly [internal]: {value: Sql<Value>}
+}
+export declare class HasSelection {
+  readonly [internal]: {selection: Selection}
+}
+export declare class HasTarget<Name extends string = string> {
+  readonly [internal]: {target: Sql}
+}
 export declare class HasQuery<Result = unknown> extends HasInternal<{
   query: Sql<Result>
 }> {}

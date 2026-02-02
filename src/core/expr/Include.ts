@@ -1,5 +1,5 @@
 import type {DriverSpecs} from '../Driver.ts'
-import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
+import {type HasValue, get, internal} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
 import type {MapRowContext, RowOfRecord} from '../Selection.ts'
@@ -18,17 +18,25 @@ export type IncludeQuery = SelectQuery & {
 }
 
 export class Include<Result, Meta extends QueryMeta = QueryMeta>
-  implements HasSql<Result>
+  implements HasValue<Result>
 {
   private declare brand: [Result]
-  readonly [internalData]: QueryData<Meta> & IncludeQuery
+  readonly [internal]: QueryData & IncludeQuery & {value: Sql<Result>}
 
-  constructor(data: QueryData<Meta> & IncludeQuery) {
-    this[internalData] = data
+  constructor(data: QueryData & IncludeQuery) {
+    const mapFromDriverValue = this.#mapFromDriverValue
+    this[internal] = {
+      ...data,
+      get value() {
+        return includeQuery(this as IncludeQuery).mapWith<Result>({
+          mapFromDriverValue
+        })
+      }
+    }
   }
 
   #mapFromDriverValue = (value: any, specs: DriverSpecs): any => {
-    const query = getData(this)
+    const query = get(this)
     const parsed = specs.parsesJson ? value : JSON.parse(value)
     const selected = querySelection(query)
     if (query.first) {
@@ -51,18 +59,12 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
     }
     return rows ?? []
   }
-
-  get [internalSql](): Sql<Result> {
-    return includeQuery(getData(this)).mapWith<Result>({
-      mapFromDriverValue: this.#mapFromDriverValue
-    })
-  }
 }
 
 export function include<Input, Meta extends QueryMeta>(
   select: Select<Input, Meta>
 ): Include<Array<RowOfRecord<Input>>, Meta> {
-  return new Include({...getData(select), first: false})
+  return new Include({...get(select), first: false})
 }
 
 export namespace include {
@@ -70,7 +72,7 @@ export namespace include {
     select: SelectBase<Input, Meta>
   ): Include<RowOfRecord<Input> | null, Meta> {
     return new Include({
-      ...(getData(select) as QueryData<Meta> & SelectQuery),
+      ...(get(select) as QueryData & SelectQuery),
       first: true
     })
   }

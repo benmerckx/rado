@@ -1,16 +1,16 @@
-import {type HasData, type HasSql, getData, internalData} from './Internal.ts'
+import {type HasValue, get, internal} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field} from './expr/Field.ts'
 
 class IndexData {
-  fields!: Array<HasSql>
+  fields!: Array<HasValue>
   concurrently?: boolean
   unique?: boolean
   only?: boolean
-  using?: HasSql
+  using?: HasValue
   order?: 'asc' | 'desc'
   nulls?: 'first' | 'last'
-  where?: HasSql
+  where?: HasValue
 }
 
 export class IndexApi extends IndexData {
@@ -31,51 +31,50 @@ export class IndexApi extends IndexData {
 }
 
 export class Index<TableName extends string = string>
-  implements HasData<IndexData>
 {
   private declare brand: [TableName];
-  [internalData]: IndexApi
+  [internal]: IndexApi
 
   constructor(data: IndexData) {
-    this[internalData] = Object.assign(new IndexApi(), data)
+    this[internal] = Object.assign(new IndexApi(), data)
   }
 
   on<TableName extends string>(
-    ...fields: Array<Field<unknown, TableName> | HasSql>
+    ...fields: Array<Field<unknown, TableName> | HasValue>
   ): Index<TableName> {
-    return new Index({...getData(this), fields})
+    return new Index({...get(this), fields})
   }
 
   concurrently(): Index<TableName> {
-    return new Index({...getData(this), concurrently: true})
+    return new Index({...get(this), concurrently: true})
   }
 
   only(): Index<TableName> {
-    return new Index({...getData(this), only: true})
+    return new Index({...get(this), only: true})
   }
 
-  using<Sql>(using: HasSql<Sql>): Index<TableName> {
-    return new Index({...getData(this), using})
+  using<Sql>(using: HasValue<Sql>): Index<TableName> {
+    return new Index({...get(this), using})
   }
 
   asc(): Index<TableName> {
-    return new Index({...getData(this), order: 'asc'})
+    return new Index({...get(this), order: 'asc'})
   }
 
   desc(): Index<TableName> {
-    return new Index({...getData(this), order: 'desc'})
+    return new Index({...get(this), order: 'desc'})
   }
 
   nullsFirst(): Index<TableName> {
-    return new Index({...getData(this), nulls: 'first'})
+    return new Index({...get(this), nulls: 'first'})
   }
 
   nullsLast(): Index<TableName> {
-    return new Index({...getData(this), nulls: 'last'})
+    return new Index({...get(this), nulls: 'last'})
   }
 
-  where(where: HasSql<boolean>): Index<TableName> {
-    return new Index({...getData(this), where})
+  where(where: HasValue<boolean>): Index<TableName> {
+    return new Index({...get(this), where})
   }
 }
 

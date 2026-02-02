@@ -1,11 +1,4 @@
-import {
-  type HasConstraint,
-  type HasData,
-  getData,
-  getField,
-  internalConstraint,
-  internalData
-} from './Internal.ts'
+import {type HasConstraint, get, internal} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 
@@ -19,36 +12,38 @@ export interface UniqueConstraintData extends ConstraintData {
 }
 
 export class UniqueConstraint<TableName extends string = string>
-  implements HasData<UniqueConstraintData>, HasConstraint
+  implements HasConstraint
 {
   private declare brand: [TableName];
-  [internalData]: UniqueConstraintData
+  [internal]: UniqueConstraintData & {constraint: Sql}
 
   constructor(data: UniqueConstraintData) {
-    this[internalData] = data
+    const entry = {
+      ...data,
+      get constraint() {
+        const {fields, nullsNotDistinct} = this as UniqueConstraintData
+        return sql.join([
+          sql`unique`,
+          nullsNotDistinct ? sql`nulls not distinct` : undefined,
+          sql`(${sql.join(
+            fields.map(field => sql.identifier(field.fieldName)),
+            sql`, `
+          )})`
+        ])
+      }
+    } as UniqueConstraintData & {constraint: Sql}
+    this[internal] = entry
   }
 
   on<TableName extends string>(
     ...columns: Array<Field<unknown, TableName>>
   ): UniqueConstraint<TableName> {
-    const fields = columns.map(getField)
-    return new UniqueConstraint({...getData(this), fields})
+    const fields = columns.map(column => get(column).field)
+    return new UniqueConstraint({...get(this), fields})
   }
 
   nullsNotDistinct(): UniqueConstraint<TableName> {
-    return new UniqueConstraint({...getData(this), nullsNotDistinct: true})
-  }
-
-  get [internalConstraint](): Sql {
-    const {fields, nullsNotDistinct} = getData(this)
-    return sql.join([
-      sql`unique`,
-      nullsNotDistinct ? sql`nulls not distinct` : undefined,
-      sql`(${sql.join(
-        fields.map(field => sql.identifier(field.fieldName)),
-        sql`, `
-      )})`
-    ])
+    return new UniqueConstraint({...get(this), nullsNotDistinct: true})
   }
 }
 
@@ -61,21 +56,23 @@ export interface PrimaryKeyConstraintData extends ConstraintData {
 }
 
 export class PrimaryKeyConstraint<TableName extends string = string>
-  implements HasData<PrimaryKeyConstraintData>, HasConstraint
+  implements HasConstraint
 {
   private declare brand: [TableName];
-  [internalData]: PrimaryKeyConstraintData
+  [internal]: PrimaryKeyConstraintData & {constraint: Sql}
 
   constructor(public data: PrimaryKeyConstraintData) {
-    this[internalData] = data
-  }
-
-  get [internalConstraint](): Sql {
-    const {fields} = getData(this)
-    return sql`primary key (${sql.join(
-      fields.map(field => sql.identifier(field.fieldName)),
-      sql`, `
-    )})`
+    const entry = {
+      ...data,
+      get constraint() {
+        const {fields} = this as PrimaryKeyConstraintData
+        return sql`primary key (${sql.join(
+          fields.map(field => sql.identifier(field.fieldName)),
+          sql`, `
+        )})`
+      }
+    } as PrimaryKeyConstraintData & {constraint: Sql}
+    this[internal] = entry
   }
 }
 
@@ -92,9 +89,11 @@ export function primaryKey<TableName extends string = string>(
   if (args.length === 1 && 'columns' in args[0])
     return new PrimaryKeyConstraint({
       name: args[0].name,
-      fields: args[0].columns.map(getField)
+      fields: args[0].columns.map((column: Field) => get(column).field)
     })
-  return new PrimaryKeyConstraint({fields: args.map(getField)})
+  return new PrimaryKeyConstraint({
+    fields: args.map((column: Field) => get(column).field)
+  })
 }
 
 export interface ForeignKeyConstraintData extends ConstraintData {
@@ -103,33 +102,35 @@ export interface ForeignKeyConstraintData extends ConstraintData {
 }
 
 export class ForeignKeyConstraint<TableName extends string = string>
-  implements HasData<ForeignKeyConstraintData>, HasConstraint
+  implements HasConstraint
 {
   private declare brand: [TableName];
-  [internalData]: ForeignKeyConstraintData
+  [internal]: ForeignKeyConstraintData & {constraint: Sql}
 
   constructor(data: ForeignKeyConstraintData) {
-    this[internalData] = data
+    const entry = {
+      ...data,
+      get constraint() {
+        const {fields, references} = this as ForeignKeyConstraintData
+        return sql`foreign key (${sql.join(
+          fields.map(field => sql.identifier(field.fieldName)),
+          sql`, `
+        )}) references ${sql.identifier(references[0].targetName)} (${sql.join(
+          references.map(field => sql.identifier(field.fieldName)),
+          sql`, `
+        )})`
+      }
+    } as ForeignKeyConstraintData & {constraint: Sql}
+    this[internal] = entry
   }
 
   references<ForeignTable extends string>(
     ...fields: Array<Field<unknown, ForeignTable>>
   ): ForeignKeyConstraint<TableName> {
     return new ForeignKeyConstraint({
-      ...getData(this),
-      references: fields.map(getField)
+      ...get(this),
+      references: fields.map(field => get(field).field)
     })
-  }
-
-  get [internalConstraint](): Sql {
-    const {fields, references} = getData(this)
-    return sql`foreign key (${sql.join(
-      fields.map(field => sql.identifier(field.fieldName)),
-      sql`, `
-    )}) references ${sql.identifier(references[0].targetName)} (${sql.join(
-      references.map(field => sql.identifier(field.fieldName)),
-      sql`, `
-    )})`
   }
 }
 
@@ -147,11 +148,12 @@ export function foreignKey<TableName extends string = string>(
   if (args.length === 1 && 'columns' in args[0])
     return new ForeignKeyConstraint({
       name: args[0].name,
-      fields: args[0].columns.map(getField),
-      references: args[0].foreignColumns?.map(getField) ?? []
+      fields: args[0].columns.map((column: Field) => get(column).field),
+      references:
+        args[0].foreignColumns?.map((column: Field) => get(column).field) ?? []
     })
   return new ForeignKeyConstraint({
-    fields: args.map(getField),
+    fields: args.map((field: Field) => get(field).field),
     references: []
   })
 }

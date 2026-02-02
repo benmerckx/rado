@@ -1,10 +1,7 @@
 import {
-  type HasSql,
-  getData,
-  getTable,
-  internalData,
-  internalQuery,
-  internalSelection
+  type HasValue,
+  get,
+  internal
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {type QueryData, SingleQuery} from '../Queries.ts'
@@ -26,29 +23,29 @@ export class Delete<
   Input,
   Meta extends QueryMeta = QueryMeta
 > extends SingleQuery<Array<SelectionRow<Input>>, Meta> {
-  readonly [internalData]: QueryData<Meta> & DeleteQuery
-  declare readonly [internalSelection]?: Selection
+  readonly [internal]: QueryData & DeleteQuery & {query: Sql}
 
-  constructor(data: QueryData<Meta> & DeleteQuery) {
+  constructor(data: QueryData & DeleteQuery) {
     super(data)
-    this[internalData] = data
-    if (data.returning) this[internalSelection] = selection(data.returning)
-  }
-
-  get [internalQuery]() {
-    return deleteQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+    this[internal] = {
+      ...data,
+      get query() {
+        return deleteQuery(this as DeleteQuery)
+      },
+      selection: data.returning ? selection(data.returning) : undefined
+    }
   }
 
   limit(limit: UserInput<number>): Delete<Input, Meta> {
-    return new Delete({...getData(this), limit})
+    return new Delete({...get(this), limit})
   }
 
   offset(offset: UserInput<number>): Delete<Input, Meta> {
-    return new Delete({...getData(this), offset})
+    return new Delete({...get(this), offset})
   }
 
-  orderBy(...orderBy: Array<HasSql>): Delete<Input, Meta> {
-    return new Delete({...getData(this), orderBy})
+  orderBy(...orderBy: Array<HasValue>): Delete<Input, Meta> {
+    return new Delete({...get(this), orderBy})
   }
 }
 
@@ -57,9 +54,9 @@ export class DeleteFrom<
   Meta extends QueryMeta
 > extends Delete<void, Meta> {
   where(
-    ...where: Array<HasSql<boolean> | undefined>
+    ...where: Array<HasValue<boolean> | undefined>
   ): DeleteFrom<Definition, Meta> {
-    return new DeleteFrom({...getData(this), where: and(...where)})
+    return new DeleteFrom({...get(this), where: and(...where)})
   }
   returning(
     this: DeleteFrom<Definition, IsPostgres | IsSqlite>
@@ -69,7 +66,7 @@ export class DeleteFrom<
     returning: Input
   ): Delete<Input, Meta>
   returning(returning?: SelectionInput) {
-    const data = getData(this)
+    const data = get(this)
     return new Delete({
       ...data,
       returning: returning ?? data.delete
@@ -79,7 +76,7 @@ export class DeleteFrom<
 
 export function deleteQuery(query: DeleteQuery): Sql {
   const {delete: from, where, returning} = query
-  const table = getTable(from)
+  const table = get(from).table!
   return sql.query(
     formatCTE(query),
     {

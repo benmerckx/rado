@@ -1,12 +1,5 @@
 import type {DriverSpecs} from './Driver.ts'
-import {
-  type HasSql,
-  getData,
-  getField,
-  internalData,
-  internalEnum,
-  internalSql
-} from './Internal.ts'
+import {type HasValue, get, internal} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Field, FieldData} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
@@ -25,7 +18,7 @@ export interface ReferenceOptions {
 }
 
 export interface BaseColumnData {
-  type: HasSql
+  type: HasValue
   name?: string
   json?: boolean
   primary?: boolean
@@ -40,7 +33,7 @@ export interface BaseColumnData {
   mapToDriverValue?(value: unknown): unknown
   $default?(): Sql
   $onUpdate?(): Sql
-  readonly [internalEnum]?: unknown
+  enum?: unknown
 }
 
 export interface ColumnData extends BaseColumnData {
@@ -53,14 +46,14 @@ function formatType(kind: string, args: Array<Input<unknown>>): Sql {
     : sql`${sql.unsafe(kind)}(${sql.join(args.map(sql.inline), sql`, `)})`
 }
 
-export class ColumnType implements HasSql {
-  [internalSql]: Sql
+export class ColumnType implements HasValue {
+  readonly [internal]: {value: Sql}
   constructor(
     public kind: string,
     public args: Array<Input<unknown>>,
     sql: Sql = formatType(kind, args)
   ) {
-    this[internalSql] = sql
+    this[internal] = {value: sql}
   }
 }
 
@@ -69,13 +62,13 @@ export type Nullability = [allowsNull: boolean, isRequired: boolean]
 type WithoutNull<Value> = Exclude<Value, null>
 
 export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
-  readonly [internalData]: ColumnData
+  readonly [internal]: ColumnData
   constructor(data: ColumnData) {
-    this[internalData] = data
+    this[internal] = data
   }
   notNull(): Column<Value, [false, Nulls[1]]> {
     return new Column({
-      ...getData(this),
+      ...get(this),
       notNull: true
     })
   }
@@ -86,9 +79,9 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
     value: Input<Value> | (() => Input<Value>)
   ): Column<Value, [Nulls[0], false]> {
     return new Column({
-      ...getData(this),
+      ...get(this),
       $default: () =>
-        mapToColumn(getData(this), value instanceof Function ? value() : value)
+        mapToColumn(get(this), value instanceof Function ? value() : value)
     })
   }
   $onUpdateFn(fn: () => Input<Value>): Column<Value, Nulls> {
@@ -96,19 +89,19 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
   }
   $onUpdate(fn: () => Input<Value>): Column<Value, Nulls> {
     return new Column({
-      ...getData(this),
-      $onUpdate: () => mapToColumn(getData(this), fn())
+      ...get(this),
+      $onUpdate: () => mapToColumn(get(this), fn())
     })
   }
   default(value: Input<Value>): Column<Value, [Nulls[0], false]> {
     return new Column({
-      ...getData(this),
+      ...get(this),
       defaultValue: input(value)
     })
   }
   defaultNow(): Column<WithoutNull<Value>, [Nulls[0], false]> {
     return new Column({
-      ...getData(this),
+      ...get(this),
       defaultValue: sql.unsafe('now()')
     })
   }
@@ -116,21 +109,21 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
     Value,
     [false, false]
   > {
-    return new Column({...getData(this), ...options, primary: true})
+    return new Column({...get(this), ...options, primary: true})
   }
   unique(name?: string): Column<Value, Nulls> {
-    return new Column({...getData(this), isUnique: true})
+    return new Column({...get(this), isUnique: true})
   }
   references(
     foreignField: Field | (() => Field),
     options?: ReferenceOptions
   ): Column<Value, Nulls> {
     return new Column<Value, Nulls>({
-      ...getData(this),
+      ...get(this),
       references() {
-        return getField(
+        return get(
           typeof foreignField === 'function' ? foreignField() : foreignField
-        )
+        ).field as FieldData
       },
       referenceOptions: options
     })

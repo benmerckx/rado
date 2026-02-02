@@ -9,23 +9,14 @@ import {Index} from './Index.ts'
 import {
   type HasConstraint,
   type HasCreate,
-  type HasData,
   type HasDrop,
+  type HasInternal,
   type HasSelection,
-  type HasSql,
   type HasTable,
-  getConstraint,
-  getCreate,
-  getData,
-  getDrop,
-  getTable,
-  hasConstraint,
-  internalCreate,
-  internalDrop,
-  internalSelection,
-  internalSql,
-  internalTable,
-  internalTarget
+  type HasValue,
+  type HasTarget,
+  get,
+  internal
 } from './Internal.ts'
 import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
@@ -76,7 +67,7 @@ export class TableApi<
 
   columnDefinition(name: string): Sql {
     const columnData = this.columns[name]
-    const column = getData(columnData)
+    const column = get(columnData)
     const columnName = sql.identifier(column.name ?? name)
     return sql`${columnName} ${formatColumn(column)}`
   }
@@ -86,12 +77,12 @@ export class TableApi<
       this.columnDefinition(name)
     )
     const createConstraints = entries(this.config ?? {})
-      .filter(([, constraint]) => hasConstraint(constraint))
-      .map(([key, constraint]) => {
-        const {name} = getData(constraint as HasData<{name?: string}>)
-        return sql`constraint ${sql.identifier(name ?? key)} ${getConstraint(
-          constraint as HasConstraint
-        )}`
+      .filter(([, entry]) => 'constraint' in get(entry))
+      .map(([key, entry]) => {
+        const {name, constraint} = get(
+          entry as HasConstraint & HasInternal<{name?: string}>
+        )
+        return sql`constraint ${sql.identifier(name ?? key)} ${constraint}`
       })
     return sql.join(createColumns.concat(createConstraints), sql`, `)
   }
@@ -99,7 +90,7 @@ export class TableApi<
   listColumns(): Sql {
     return sql.join(
       entries(this.columns).map(([name, column]) => {
-        const columnApi = getData(column)
+        const columnApi = get(column)
         const {name: givenName} = columnApi
         return sql.identifier(givenName ?? name)
       }),
@@ -118,7 +109,7 @@ export class TableApi<
 
   createIndexes(): Array<Sql> {
     return entries(this.indexes()).map(([name, index]) => {
-      const indexApi = getData(index)
+      const indexApi = get(index)
       return indexApi.toSql(this.name, name, false)
     })
   }
@@ -145,10 +136,10 @@ export class TableApi<
 export function tableFields(
   tragetName: string,
   columns: TableDefinition
-): Record<string, HasSql> {
+): Record<string, HasValue> {
   return fromEntries(
     entries(columns).map(([name, column]) => {
-      const columnApi = getData(column)
+      const columnApi = get(column)
       const {name: givenName} = columnApi
       const field = new Field(tragetName, givenName ?? name, columnApi)
       if (columnApi.json) return [name, jsonExpr(field)]
@@ -162,7 +153,9 @@ export type Table<
   Name extends string = string
 > = TableFields<Definition, Name> &
   HasTable<Definition, Name> &
+  HasTarget<Name> &
   HasSelection &
+  HasValue &
   HasCreate &
   HasDrop
 
@@ -243,15 +236,17 @@ export function table<Definition extends TableDefinition, Name extends string>(
   })
   const fields = tableFields(api.aliased, api.columns)
   const table = <Table<Definition, Name>>{
-    [internalTable]: api,
-    [internalTarget]: api.target(),
-    [internalSelection]: selection(fields),
-    [internalSql]: api.identifier(),
-    get [internalCreate]() {
-      return api.create()
-    },
-    get [internalDrop]() {
-      return api.drop()
+    [internal]: {
+      table: api,
+      target: api.target(),
+      selection: selection(fields),
+      value: api.identifier(),
+      get create() {
+        return api.create()
+      },
+      get drop() {
+        return api.drop()
+      }
     },
     ...fields
   }
@@ -264,20 +259,22 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   alias: Alias
 ): Table<Definition, Alias> {
   const api = assign(new TableApi<Definition, Alias>(), {
-    ...getTable(table),
+    ...get(table).table,
     alias
   })
   const fields = tableFields(api.aliased, api.columns)
   return <Table<Definition, Alias>>{
-    [internalTable]: api,
-    [internalTarget]: api.target(),
-    [internalSelection]: selection(fields),
-    [internalSql]: api.identifier(),
-    get [internalCreate]() {
-      return getCreate(table)
-    },
-    get [internalDrop]() {
-      return getDrop(table)
+    [internal]: {
+      table: api,
+      target: api.target(),
+      selection: selection(fields),
+      value: api.identifier(),
+      get create() {
+        return get(table).create
+      },
+      get drop() {
+        return get(table).drop
+      }
     },
     ...fields
   }

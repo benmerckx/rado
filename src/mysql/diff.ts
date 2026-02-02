@@ -1,6 +1,6 @@
 import {formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
-import {type HasSql, getData, getTable} from '../core/Internal.ts'
+import {type HasValue, get} from '../core/Internal.ts'
 import {schema} from '../core/Schema.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {Table} from '../core/Table.ts'
@@ -36,11 +36,11 @@ const TableConstraints = ns.table('table_constraints', {
   table_schema: column.text().notNull()
 })
 
-const inline = (sql: HasSql) => mysqlDialect.inline(sql)
+const inline = (sql: HasValue) => mysqlDialect.inline(sql)
 
 export const mysqlDiff: Diff = (hasTable: Table) => {
   return txGenerator(function* (tx) {
-    const tableApi = getTable(hasTable)
+    const tableApi = get(hasTable).table!
     const stmts: Array<Sql> = []
 
     // Fetch current table column information from MySQL information_schema
@@ -114,7 +114,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
     // Map schema columns from code
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
-        const columnApi = getData(column)
+        const columnApi = get(column)
         return [columnApi.name ?? name, columnApi]
       })
     )
@@ -212,7 +212,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
 
     const schemaIndexes = new Map(
       Object.entries(tableApi.indexes()).map(([name, index]) => {
-        const indexApi = getData(index)
+        const indexApi = get(index)
         return [name, indexApi.toSql(tableApi.name, name, false)]
       })
     )

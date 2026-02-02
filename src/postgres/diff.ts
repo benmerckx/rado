@@ -1,6 +1,6 @@
 import {type BaseColumnData, formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
-import {type HasSql, getData, getTable} from '../core/Internal.ts'
+import {type HasValue, get} from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import {type Table, table} from '../core/Table.ts'
 import {
@@ -53,7 +53,7 @@ const AttrDef = table('pg_attrdef', {
   bin: column.text('adbin').notNull()
 })
 
-const inline = (sql: HasSql) => postgresDialect.inline(sql)
+const inline = (sql: HasValue) => postgresDialect.inline(sql)
 
 const columnType = sql<string>`pg_catalog.format_type(${Attr.typId}, ${Attr.typMod})`
 const columnDefaultValue = when<string | null>(
@@ -68,7 +68,7 @@ const identity = when<string | null>(
 
 export const postgresDiff: Diff = (hasTable: Table) => {
   return txGenerator(function* (tx) {
-    const tableApi = getTable(hasTable)
+    const tableApi = get(hasTable).table!
     const def = tx
       .select({
         table_name: Class.relname,
@@ -144,7 +144,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
 
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
-        const columnApi = getData(column)
+        const columnApi = get(column)
         return [columnApi.name ?? name, columnApi]
       })
     )

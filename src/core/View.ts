@@ -1,14 +1,10 @@
 import {
   type HasCreate,
   type HasDrop,
-  type HasSql,
+  type HasValue,
   type HasTarget,
-  getData,
-  getQuery,
-  getSelection,
-  internalCreate,
-  internalData,
-  internalDrop
+  get,
+  internal
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
 import {type Sql, sql} from './Sql.ts'
@@ -25,10 +21,10 @@ interface ViewData {
 }
 
 export class ViewBase {
-  readonly [internalData]: ViewData
+  readonly [internal]: ViewData
 
   constructor(data: ViewData) {
-    this[internalData] = data
+    this[internal] = data
   }
 }
 
@@ -40,7 +36,7 @@ function viewIdentifier({name, schemaName}: ViewData): Sql {
     : sql.identifier(name)
 }
 
-export function createView(data: ViewData, as: HasSql): Sql {
+export function createView(data: ViewData, as: HasValue): Sql {
   const createKeyword = data.materialized
     ? sql`create materialized view`
     : sql`create view`
@@ -48,7 +44,7 @@ export function createView(data: ViewData, as: HasSql): Sql {
   const columnList = columns
     ? sql.join(
         Object.entries(columns).map(([name, column]) => {
-          const columnData = getData(column)
+          const columnData = get(column)
           return sql.identifier(columnData.name ?? name)
         }),
         sql`, `
@@ -76,15 +72,19 @@ export class QueryView extends ViewBase {
   as<Input, Meta extends QueryMeta>(
     query: UnionBase<Input, Meta>
   ): View & Input {
-    const data = getData(this)
+    const data = get(this)
+    const base = virtualTarget(data.name, get(query).selection?.input as Input)
+    const querySql = get(query).query ?? (query as any)
     return {
-      ...virtualTarget(data.name, getSelection(query).input as Input),
-      get [internalCreate]() {
-        const result = createView(data, getQuery(query))
-        return [result]
-      },
-      get [internalDrop]() {
-        return [dropView(data)]
+      ...base,
+      [internal]: {
+        ...get(base),
+        get create() {
+          return [createView(data, querySql)]
+        },
+        get drop() {
+          return [dropView(data)]
+        }
       }
     }
   }
@@ -92,25 +92,28 @@ export class QueryView extends ViewBase {
 
 export class DefinedView<Definition extends TableDefinition> extends ViewBase {
   existing(): VirtualTarget<TableFields<Definition>> {
-    const {name, columns} = getData(this)
+    const {name, columns} = get(this)
     const fields = tableFields(name, columns!) as TableFields<Definition>
     return virtualTarget(name, fields)
   }
 
-  as(query: HasSql): View & TableFields<Definition> {
-    const data = getData(this)
+  as(query: HasValue): View & TableFields<Definition> {
+    const data = get(this)
     const fields = tableFields(
       data.name,
       data.columns!
     ) as TableFields<Definition>
+    const base = virtualTarget(data.name, fields)
     return {
-      ...virtualTarget(data.name, fields),
-      get [internalCreate]() {
-        const result = createView(data, query)
-        return [result]
-      },
-      get [internalDrop]() {
-        return [dropView(data)]
+      ...base,
+      [internal]: {
+        ...get(base),
+        get create() {
+          return [createView(data, query)]
+        },
+        get drop() {
+          return [dropView(data)]
+        }
       }
     }
   }

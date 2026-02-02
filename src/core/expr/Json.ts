@@ -1,23 +1,23 @@
-import {type HasSql, getSql} from '../Internal.ts'
+import {type HasValue, get} from '../Internal.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {callFunction} from './Functions.ts'
 import type {Input} from './Input.ts'
 
-export interface JsonArrayHasSql<Value> extends HasSql<Array<Value>> {
+export interface JsonArrayHasValue<Value> extends HasValue<Array<Value>> {
   [index: number]: JsonExpr<Value>
 }
 
-export type JsonRecordHasSql<Row> = HasSql<Row> & {
+export type JsonRecordHasValue<Row> = HasValue<Row> & {
   [K in keyof Row]: JsonExpr<Row[K]>
 }
 
 type NullableEach<T> = {[P in keyof T]: T[P] | null}
 
 export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
-  ? JsonArrayHasSql<null extends Value ? V | null : V>
+  ? JsonArrayHasValue<null extends Value ? V | null : V>
   : [NonNullable<Value>] extends [object]
-    ? JsonRecordHasSql<null extends Value ? NullableEach<Value> : Value>
-    : HasSql<Value>
+    ? JsonRecordHasValue<null extends Value ? NullableEach<Value> : Value>
+    : HasValue<Value>
 
 const INDEX_PROPERTY = /^\d+$/
 
@@ -27,15 +27,17 @@ export interface JsonPath {
   asSql: boolean
 }
 
-export function jsonExpr<Value>(e: HasSql<Value>): JsonExpr<Value> {
+export function jsonExpr<Value>(e: HasValue<Value>): JsonExpr<Value> {
   return new Proxy(<any>e, {
     get(target, prop) {
       if (typeof prop !== 'string') return Reflect.get(target, prop)
       const isNumber = INDEX_PROPERTY.test(prop)
+      const {value} = get(target)
+      if (!value) throw new Error('Missing sql value')
       return jsonExpr(
         sql
           .jsonPath({
-            target: getSql(target),
+            target: value,
             segments: [isNumber ? Number(prop) : prop],
             asSql: true
           })

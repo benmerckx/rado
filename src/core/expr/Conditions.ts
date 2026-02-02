@@ -1,4 +1,4 @@
-import {type HasSql, getQuery, hasSql} from '../Internal.ts'
+import {type HasValue, get} from '../Internal.ts'
 import type {Either} from '../MetaData.ts'
 import type {SingleQuery} from '../Queries.ts'
 import {type Sql, sql} from '../Sql.ts'
@@ -82,7 +82,9 @@ export function inArray<T>(
   left: Input<T>,
   right: SingleQuery<Array<T>, any> | Input<Array<T>>
 ): Sql<boolean> {
-  const value = hasSql(right) ? undefined : right
+  const isObject = right && typeof right === 'object'
+  const {value: sqlValue, query} = isObject ? get(right as object) : {}
+  const value = sqlValue || query ? undefined : right
   if (Array.isArray(value)) {
     if (value.length === 0) return sql`false`
     return bool(
@@ -99,7 +101,9 @@ export function notInArray<T>(
   left: Input<T>,
   right: SingleQuery<T, any> | Input<Array<T>>
 ): Sql<boolean> {
-  const value = hasSql(right) ? undefined : right
+  const isObject = right && typeof right === 'object'
+  const {value: sqlValue, query} = isObject ? get(right as object) : {}
+  const value = sqlValue || query ? undefined : right
   if (Array.isArray(value)) {
     if (value.length === 0) return sql`true`
     return bool(
@@ -138,15 +142,15 @@ export function notBetween<T>(
   )
 }
 
-export function asc<T>(input: HasSql<T>): Sql {
+export function asc<T>(input: HasValue<T>): Sql {
   return sql`${input} asc`
 }
 
-export function desc<T>(input: HasSql<T>): Sql {
+export function desc<T>(input: HasValue<T>): Sql {
   return sql`${input} desc`
 }
 
-export function distinct<T>(input: HasSql<T>): Sql {
+export function distinct<T>(input: HasValue<T>): Sql {
   return sql`distinct ${input}`
 }
 
@@ -182,5 +186,7 @@ export function when<Out, In = boolean>(
 }
 
 export function exists(query: SingleQuery<any, Either>): Sql<boolean> {
-  return bool(sql`exists (${getQuery(query)})`)
+  const {query: inner} = get(query)
+  if (!inner) throw new Error('Query has no sql')
+  return bool(sql`exists (${inner})`)
 }

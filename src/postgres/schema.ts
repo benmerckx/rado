@@ -1,11 +1,9 @@
 import {
   type HasCreate,
   type HasDrop,
-  internalCreate,
-  internalDrop,
-  internalTarget
+  internal
 } from '../core/Internal.ts'
-import {sql} from '../core/Sql.ts'
+import {type Sql, sql} from '../core/Sql.ts'
 import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {
@@ -18,20 +16,20 @@ import {type PgEnum, pgEnum} from './enum.ts'
 
 export class PgSchema<SchemaName extends string> implements HasCreate, HasDrop {
   #schemaName: SchemaName
+  readonly [internal]: {target: Sql; create: Array<Sql>; drop: Array<Sql>}
 
   constructor(schemaName: SchemaName) {
     this.#schemaName = schemaName
-  }
-
-  get [internalTarget]() {
-    return sql.identifier(this.#schemaName)
-  }
-
-  get [internalCreate]() {
-    return [sql`create schema if not exists ${this}`]
-  }
-  get [internalDrop]() {
-    return [sql`drop schema if exists ${this} cascade`]
+    const identifier = sql.identifier(schemaName)
+    this[internal] = {
+      target: identifier,
+      get create() {
+        return [sql`create schema if not exists ${identifier}`]
+      },
+      get drop() {
+        return [sql`drop schema if exists ${identifier} cascade`]
+      }
+    }
   }
 
   table<Definition extends TableDefinition, TableName extends string>(

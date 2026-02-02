@@ -2,12 +2,8 @@ import {ColumnType} from '../core/Column.ts'
 import {
   type HasCreate,
   type HasDrop,
-  getData,
-  getEnum,
-  hasEnum,
-  internalCreate,
-  internalDrop,
-  internalEnum
+  get,
+  internal
 } from '../core/Internal.ts'
 import type {Sql} from '../core/Sql.ts'
 import {sql} from '../core/Sql.ts'
@@ -41,15 +37,17 @@ export function pgEnum<
       return new PgColumn({
         name: columnName,
         type: enumType,
-        [internalEnum]: info
+        enum: info
       })
     },
     {
-      get [internalCreate](): Array<Sql> {
-        return [enumQuery(info)]
-      },
-      get [internalDrop](): Array<Sql> {
-        return [sql`drop type if exists ${enumIdentifier}`]
+      [internal]: {
+        get create() {
+          return [enumQuery(info)]
+        },
+        get drop() {
+          return [sql`drop type if exists ${enumIdentifier}`]
+        }
       }
     }
   )
@@ -72,9 +70,9 @@ export function collectEnumQuery(table: TableApi): Array<Sql> {
   const enums: Array<Sql> = []
   const seen = new Set<string>()
   for (const column of Object.values(table.columns)) {
-    const data = getData(column)
-    if (!hasEnum<PgEnumInfo>(data)) continue
-    const info = getEnum<PgEnumInfo>(data)
+    const data = get(column)
+    const info = data.enum as PgEnumInfo | undefined
+    if (!info) continue
     const enumKey = info.schema ? `${info.schema}.${info.name}` : info.name
     if (seen.has(enumKey)) continue
     seen.add(enumKey)

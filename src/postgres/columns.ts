@@ -6,7 +6,7 @@ import {
   column,
   columnConfig
 } from '../core/Column.ts'
-import {getData} from '../core/Internal.ts'
+import {get} from '../core/Internal.ts'
 import {sql} from '../core/Sql.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -65,7 +65,7 @@ export class PgColumn<
 > extends Column<Value, Nulls> {
   notNull(): PgColumn<Value, [false, Nulls[1]]> {
     return new PgColumn({
-      ...getData(this),
+      ...get(this),
       notNull: true
     })
   }
@@ -74,7 +74,7 @@ export class PgColumn<
     config?: {nulls: 'distinct' | 'not distinct'}
   ): PgColumn<Value, Nulls> {
     return new PgColumn({
-      ...getData(this),
+      ...get(this),
       isUnique: true,
       nullsNotDistinct: config?.nulls === 'not distinct',
       name
@@ -82,7 +82,7 @@ export class PgColumn<
   }
 
   array(size?: number): PgColumn<Array<Value>, Nulls> {
-    const data = getData(this)
+    const data = get(this)
     return new PgColumn({
       ...data,
       type: new ColumnType('array', [data.type], sql`${data.type}[${size}]`)
@@ -90,7 +90,7 @@ export class PgColumn<
   }
 
   generatedAlwaysAsIdentity(): PgColumn<Value, Nulls> {
-    const data = getData(this)
+    const data = get(this)
     return new PgColumn({
       ...data,
       type: new ColumnType(
@@ -102,7 +102,7 @@ export class PgColumn<
   }
 
   generatedByDefaultAsIdentity(): PgColumn<Value, Nulls> {
-    const data = getData(this)
+    const data = get(this)
     return new PgColumn({
       ...data,
       type: new ColumnType(

@@ -1,11 +1,8 @@
 import {
   type HasQuery,
-  type HasSql,
-  getData,
-  getTable,
-  internalData,
-  internalQuery,
-  internalSelection
+  type HasValue,
+  get,
+  internal
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {type QueryData, SingleQuery} from '../Queries.ts'
@@ -27,29 +24,29 @@ export class Update<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasQuery<Array<SelectionRow<Input>>>
 {
-  readonly [internalData]: QueryData<Meta> & UpdateQuery
-  declare readonly [internalSelection]?: Selection
+  readonly [internal]: QueryData & UpdateQuery & {query: Sql}
 
-  constructor(data: QueryData<Meta> & UpdateQuery) {
+  constructor(data: QueryData & UpdateQuery) {
     super(data)
-    this[internalData] = data
-    if (data.returning) this[internalSelection] = selection(data.returning)
-  }
-
-  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return updateQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+    this[internal] = {
+      ...data,
+      get query() {
+        return updateQuery(this as UpdateQuery)
+      },
+      selection: data.returning ? selection(data.returning) : undefined
+    }
   }
 
   limit(limit: UserInput<number>): Update<Input, Meta> {
-    return new Update({...getData(this), limit})
+    return new Update({...get(this), limit})
   }
 
   offset(offset: UserInput<number>): Update<Input, Meta> {
-    return new Update({...getData(this), offset})
+    return new Update({...get(this), offset})
   }
 
-  orderBy(...orderBy: Array<HasSql>): Update<Input, Meta> {
-    return new Update({...getData(this), orderBy})
+  orderBy(...orderBy: Array<HasValue>): Update<Input, Meta> {
+    return new Update({...get(this), orderBy})
   }
 }
 
@@ -58,14 +55,14 @@ export class UpdateTable<
   Meta extends QueryMeta
 > extends Update<void, Meta> {
   set(set: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
-    return new UpdateTable<Definition, Meta>({...getData(this), set})
+    return new UpdateTable<Definition, Meta>({...get(this), set})
   }
 
   where(
-    ...where: Array<HasSql<boolean> | undefined>
+    ...where: Array<HasValue<boolean> | undefined>
   ): UpdateTable<Definition, Meta> {
     return new UpdateTable<Definition, Meta>({
-      ...getData(this),
+      ...get(this),
       where: and(...where)
     })
   }
@@ -78,18 +75,18 @@ export class UpdateTable<
     returning?: Input
   ): Update<Input, Meta>
   returning(returning?: SelectionInput) {
-    const data = getData(this)
+    const data = get(this)
     return new Update({...data, returning: returning ?? data.update})
   }
 }
 
 export function updateQuery(query: UpdateQuery): Sql {
   const {update: table, set: values, where, returning} = query
-  const tableApi = getTable(table)
+  const tableApi = get(table).table!
   if (!values) throw new Error('Update values are required')
   const set = sql.join(
     Object.entries(tableApi.columns).map(([key, column]) => {
-      const columnApi = getData(column)
+      const columnApi = get(column)
       const {name, $onUpdate} = columnApi
       let expr: unknown
       if (!(key in values)) {

@@ -1,4 +1,4 @@
-import {getSql} from '../Internal.ts'
+import {get} from '../Internal.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {input} from '../expr/Input.ts'
 import type {ResultModifiers} from './Query.ts'
@@ -11,7 +11,8 @@ export function formatModifiers(modifiers: ResultModifiers): Sql | undefined {
       orderBy &&
       sql.join(
         orderBy.map(part => {
-          const {alias} = getSql(part)
+          const {value} = get(part)
+          const {alias} = value ?? {}
           if (alias) return sql.identifier(alias)
           return part
         }),

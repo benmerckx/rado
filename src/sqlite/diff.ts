@@ -1,7 +1,7 @@
 import {formatColumn} from '../core/Column.ts'
 import {Rollback} from '../core/Database.ts'
 import type {Diff} from '../core/Diff.ts'
-import {type HasSql, getData, getQuery, getTable} from '../core/Internal.ts'
+import {type HasValue, get} from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import {type Table, table} from '../core/Table.ts'
 import {eq} from '../core/expr/Conditions.ts'
@@ -26,11 +26,11 @@ const SqliteMaster = table('SqliteMaster', {
   sql: column.text().notNull()
 })
 
-const inline = (sql: HasSql) => sqliteDialect.inline(sql)
+const inline = (sql: HasValue) => sqliteDialect.inline(sql)
 
 export const sqliteDiff: Diff = (targetTable: Table) => {
   return txGenerator(function* (tx) {
-    const tableApi = getTable(targetTable)
+    const tableApi = get(targetTable).table!
     const columnInfo = yield* tx
       .select(TableInfo)
       .from(sql`pragma_table_info(${sql.inline(tableApi.name)}) as "TableInfo"`)
@@ -64,7 +64,7 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
 
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
-        const columnApi = getData(column)
+        const columnApi = get(column)
         return [columnApi.name ?? name, inline(formatColumn(columnApi))]
       })
     )
@@ -76,7 +76,7 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
     )
     const schemaIndexes = new Map(
       Object.entries(tableApi.indexes()).map(([name, index]) => {
-        const indexApi = getData(index)
+        const indexApi = get(index)
         return [name, inline(indexApi.toSql(tableApi.name, name, false))]
       })
     )
@@ -176,23 +176,25 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
       const missingColumns = new Set(
         Array.from(columnNames).filter(name => !localColumns.has(name))
       )
-      const selection: Record<string, HasSql> = Object.fromEntries(
+      const selection: Record<string, HasValue> = Object.fromEntries(
         Object.entries(tableApi.columns).map(([name, column]) => {
-          const columnApi = getData(column)
+          const columnApi = get(column)
           const key = columnApi.name ?? name
           if (missingColumns.has(key))
             return [name, columnApi.defaultValue ?? sql`null`]
           return [name, (<any>targetTable)[name]]
         })
       )
+      const querySql =
+        get(
+          tx.insert(tempTable).select(tx.select(selection).from(targetTable))
+        ).query ?? undefined
       return [
         // Create a new temporary table with the new definition
         tableApi.createTable(tempName),
 
         // Copy the data from the old table to the new table
-        getQuery(
-          tx.insert(tempTable).select(tx.select(selection).from(targetTable))
-        ),
+        querySql!,
 
         // Drop the old table
         sql.query({dropTable: sql.identifier(tableApi.name)}),

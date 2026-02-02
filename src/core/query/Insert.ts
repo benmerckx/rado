@@ -1,10 +1,7 @@
 import {
   type HasQuery,
-  getData,
-  getTable,
-  internalData,
-  internalQuery,
-  internalSelection
+  get,
+  internal
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {type QueryData, SingleQuery} from '../Queries.ts'
@@ -40,17 +37,17 @@ export class Insert<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasQuery<Array<SelectionRow<Input>>>
 {
-  readonly [internalData]: QueryData<Meta> & InsertQuery
-  declare readonly [internalSelection]?: Selection
+  readonly [internal]: QueryData & InsertQuery & {query: Sql}
 
-  constructor(data: QueryData<Meta> & InsertQuery) {
+  constructor(data: QueryData & InsertQuery) {
     super(data)
-    this[internalData] = data
-    if (data.returning) this[internalSelection] = selection(data.returning)
-  }
-
-  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return insertQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+    this[internal] = {
+      ...data,
+      get query() {
+        return insertQuery(this as InsertQuery)
+      },
+      selection: data.returning ? selection(data.returning) : undefined
+    }
   }
 }
 
@@ -66,7 +63,7 @@ class InsertCanReturn<
     returning: Input
   ): Insert<Input, Meta>
   returning(returning?: SelectionInput) {
-    const data = getData(this)
+    const data = get(this)
     return new Insert({
       ...data,
       returning: returning ?? data.insert
@@ -82,7 +79,7 @@ class InsertCanConflict<
     this: InsertCanConflict<Definition, Meta>,
     onConflictDoNothing?: OnConflict
   ): InsertCanConflict<Definition, Meta> {
-    const {on = [], ...data} = getData(this)
+    const {on = [], ...data} = get(this)
     return new InsertCanConflict({
       ...data,
       on: [...on, {conflictDoNothing: onConflictDoNothing ?? true}]
@@ -93,7 +90,7 @@ class InsertCanConflict<
     this: InsertCanConflict<Definition, Meta>,
     onConflict: OnConflictUpdate<Definition>
   ): InsertCanConflict<Definition, Meta> {
-    const {on = [], ...data} = getData(this)
+    const {on = [], ...data} = get(this)
     return new InsertCanConflict({
       ...data,
       on: [...on, {conflictDoUpdate: onConflict}]
@@ -104,7 +101,7 @@ class InsertCanConflict<
     this: InsertCanConflict<Definition, Meta>,
     onDuplicateKeyUpdate: OnConflictSet<Definition>
   ): InsertCanConflict<Definition, Meta> {
-    const {on = [], ...data} = getData(this)
+    const {on = [], ...data} = get(this)
     return new InsertCanConflict({
       ...data,
       on: [...on, {duplicateKeyUpdate: onDuplicateKeyUpdate}]
@@ -116,14 +113,14 @@ export class InsertInto<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > {
-  [internalData]: QueryData<Meta> & InsertQuery
-  constructor(data: QueryData<Meta> & InsertQuery) {
-    this[internalData] = data
+  [internal]: QueryData & InsertQuery
+  constructor(data: QueryData & InsertQuery) {
+    this[internal] = data
   }
 
   overridingSystemValue(): InsertInto<Definition, Meta> {
     return new InsertInto({
-      ...getData(this),
+      ...get(this),
       overridingSystemValue: true
     })
   }
@@ -134,7 +131,7 @@ export class InsertInto<
   ): InsertCanConflict<Definition, Meta>
   values(values: TableInsert<Definition> | Array<TableInsert<Definition>>) {
     return new InsertCanConflict({
-      ...getData(this),
+      ...get(this),
       values
     })
   }
@@ -143,8 +140,8 @@ export class InsertInto<
     query: SingleQuery<Array<TableRow<Definition>>, Meta>
   ): InsertCanConflict<Definition, Meta> {
     return new InsertCanConflict({
-      ...getData(this),
-      ...getData(query)
+      ...get(this),
+      ...get(query)
     })
   }
 }
@@ -167,7 +164,7 @@ function formatValues(
       return sql`(${sql.join(
         Object.entries(table.columns).map(([key, column]) => {
           const expr = row[key]
-          const columnApi = getData(column)
+          const columnApi = get(column)
           const {$onUpdate, $default, defaultValue} = columnApi
           if (expr !== undefined) return mapToColumn(columnApi, expr)
           if ($default) return $default()
@@ -234,7 +231,7 @@ function formatConflicts(on: Array<Conflict>): Sql | undefined {
 export function insertQuery(query: InsertQuery): Sql {
   const {insert, values, select, returning, overridingSystemValue} = query
   if (!values && !select) throw new Error('No values defined')
-  const table = getTable(insert)
+  const table = get(insert).table!
   const tableName = sql.identifier(table.name)
   const toInsert = values
     ? sql.query({

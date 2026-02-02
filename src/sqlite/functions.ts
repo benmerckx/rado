@@ -1,11 +1,11 @@
-import type {HasSql, HasTable} from '../core/Internal.ts'
+import type {HasValue, HasTable} from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import {Functions} from '../core/expr/Functions.ts'
 import {type Input, input} from '../core/expr/Input.ts'
 
 /*
-  json(json: HasSql): HasSql
-  jsonb(json: HasSql): HasSql
+  json(json: HasValue): HasValue
+  jsonb(json: HasValue): HasValue
   json_array<T>(...values: Sql<T>) => Sql<Array< = Functions.T>>
   jsonb_array<T>(...values: Sql<T>) => Sql<Array< = Functions.T>>
   json_array_length(json: Sql<Array<unknown>>) => Sql<number> = Functions.
@@ -36,9 +36,9 @@ import {type Input, input} from '../core/expr/Input.ts'
   jsonb_group_object(name,value)*/
 
 /**:  The count(X) function returns a count of the number of times that X is not NULL in a group. The count(*) function (with no arguments) returns the total number of rows in the group. */
-export const count: (x?: HasSql) => Sql<number> = Functions.count
+export const count: (x?: HasValue) => Sql<number> = Functions.count
 
-/** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE HasSql "CASE WHEN X THEN Y ELSE Z END".*/
+/** The iif(X,Y,Z) function returns the value Y if X is true, and Z otherwise. The iif(X,Y,Z) function is logically equivalent to and generates the same bytecode as the CASE HasValue "CASE WHEN X THEN Y ELSE Z END".*/
 export const iif: <T>(x: Input<boolean>, y: Input<T>, z: Input<T>) => Sql<T> =
   Functions.iif
 
@@ -129,7 +129,7 @@ export const nullif: <T>(x: Input<T>, y: Input<T>) => Sql<T | null> =
 /** The prnumberf(FORMAT,...) SQL function works like the sqlite3_mprnumberf() C-language function and the prnumberf() function from the standard C library. The first argument is a format string that specifies how to construct the output string using values taken from subsequent arguments. If the FORMAT argument is missing or NULL then the result is NULL. The %n format is silently ignored and does not consume an argument. The %p format is an alias for %X. The %z format is numbererchangeable with %s. If there are too few arguments in the argument list, missing arguments are assumed to have a NULL value, which is translated numbero 0 or 0.0 for numeric formats or an empty string for %s. See the built-in prnumberf() documentation for additional information.*/
 export const prnumberf: (
   format: string,
-  ...rest: Array<HasSql>
+  ...rest: Array<HasValue>
 ) => Sql<string> = Functions.prnumberf
 
 /** The quote(X) function returns the text of an SQL literal which is the value of its argument suitable for inclusion numbero an SQL statement. strings are surrounded by single-quotes with escapes on numbererior quotes as needed. BLOBs are encoded as hexadecimal literals. strings with embedded NUL characters cannot be represented as string literals in SQL and hence the returned string literal is truncated prior to the first NUL.*/
@@ -179,7 +179,7 @@ export const total_changes: () => Sql<number> = Functions.total_changes
 export const trim: (x: Input<string>, Y: Input<string>) => Sql<string> =
   Functions.trim
 
-/** The typeof(X) function returns a string that indicates the datatype of the HasSql X: "null", "numbereger", "real", "text", or "blob".*/
+/** The typeof(X) function returns a string that indicates the datatype of the HasValue X: "null", "numbereger", "real", "text", or "blob".*/
 export const sqliteTypeof: (x: Input) => Sql<string> = Functions.typeof
 
 /** The unicode(X) function returns the numeric unicode code ponumber corresponding to the first character of the string X. If the argument to unicode(X) is not a string then the result is undefined.*/
@@ -340,6 +340,6 @@ export function cast(x: Input, type: 'text'): Sql<string>
 export function cast(x: Input, type: 'real'): Sql<number>
 export function cast(x: Input, type: 'integer'): Sql<number>
 export function cast(x: Input, type: 'numeric'): Sql<number>
-export function cast(x: Input, type: string): HasSql {
+export function cast(x: Input, type: string): HasValue {
   return sql`cast(${input(x)} as ${sql.identifier(type)})`
 }

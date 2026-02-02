@@ -8,13 +8,10 @@ import {
   type HasDrop,
   type HasQuery,
   type HasResolver,
-  type HasSql,
+  type HasValue,
   type HasTarget,
-  getCreate,
-  getDrop,
-  getResolver,
-  getSql,
-  internalResolver
+  get,
+  internal
 } from './Internal.ts'
 import type {
   Async,
@@ -38,12 +35,12 @@ export class Database<Meta extends QueryMeta = Either>
   driver: Driver
   dialect: Dialect
   diff: Diff
-  readonly [internalResolver]: Resolver<Meta>
+  readonly [internal]: {resolver: Resolver<Meta>}
 
   constructor(driver: Driver, dialect: Dialect, diff: Diff) {
     const resolver = new Resolver<Meta>(driver, dialect)
     super({resolver})
-    this[internalResolver] = resolver
+    this[internal] = {resolver}
     this.driver = driver
     this.dialect = dialect
     this.diff = diff
@@ -64,14 +61,18 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   create(...createables: Array<HasCreate>): BatchQuery<unknown, Meta> {
-    return new BatchQuery(getResolver(this), createables.flatMap(getCreate))
+    const resolver = get(this).resolver
+    const queries = createables.flatMap(entry => get(entry).create ?? [])
+    return new BatchQuery(resolver, queries)
   }
 
   drop(...droppables: Array<HasDrop>): BatchQuery<unknown, Meta> {
-    return new BatchQuery(getResolver(this), droppables.flatMap(getDrop))
+    const resolver = get(this).resolver
+    const queries = droppables.flatMap(entry => get(entry).drop ?? [])
+    return new BatchQuery(resolver, queries)
   }
 
-  run(input: HasSql): Deliver<Meta, void> {
+  run(input: HasValue): Deliver<Meta, void> {
     const sql = this.dialect.inline(input)
     return this.driver.exec(sql) as Deliver<Meta, void>
   }
@@ -79,13 +80,13 @@ export class Database<Meta extends QueryMeta = Either>
   get<Result extends Array<unknown>>(
     input: HasQuery<Result>
   ): Deliver<Meta, Result[number]>
-  get<Result>(input: HasSql<Result>): Deliver<Meta, Result>
-  get(input: HasSql | HasQuery) {
+  get<Result>(input: HasValue<Result>): Deliver<Meta, Result>
+  get(input: HasValue | HasQuery) {
     const emitter = this.dialect.emit(input)
     return this.driver.prepare(emitter.sql).get(emitter.bind())
   }
 
-  all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {
+  all<Result>(input: HasValue<Result>): Deliver<Meta, Array<Result>> {
     const emitter = this.dialect.emit(input)
     return this.driver.prepare(emitter.sql).all(emitter.bind()) as Deliver<
       Meta,
@@ -105,16 +106,17 @@ export class Database<Meta extends QueryMeta = Either>
     )
   }
 
-  batch<Queries extends Array<HasSql | HasQuery>>(
+  batch<Queries extends Array<HasValue | HasQuery>>(
     queries: Queries
   ): BatchQuery<unknown, Meta> {
-    return new BatchQuery(getResolver(this), queries)
+    return new BatchQuery(get(this).resolver, queries)
   }
 
-  execute(input: HasSql): Deliver<Meta, void>
-  execute(input: HasSql) {
-    const inner = getSql(input)
-    const emitter = this.dialect.emit(inner.inlineValues())
+  execute(input: HasValue): Deliver<Meta, void>
+  execute(input: HasValue) {
+    const {value} = get(input)
+    const inner = (value ?? (input as any)).inlineValues()
+    const emitter = this.dialect.emit(inner)
     if (emitter.hasParams) throw new Error('Query has parameters')
     return this.driver.exec(emitter.sql)
   }
@@ -148,11 +150,11 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   $count(
-    source: Table | HasSql,
-    condition?: HasSql<boolean>
+    source: Table | HasValue,
+    condition?: HasValue<boolean>
   ): SelectFirst<Sql<number>, Meta> {
     return this.select(count())
-      .from(source as HasSql)
+      .from(source as HasValue)
       .where(condition)
       .$first()
   }

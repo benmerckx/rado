@@ -1,13 +1,10 @@
 import {
   type HasQuery,
   type HasResolver,
-  type HasSql,
+  type HasValue,
   type Internal,
-  getData,
-  getResolver,
-  hasSelection,
-  internalData,
-  internalQuery
+  get,
+  internal
 } from './Internal.ts'
 import type {Deliver, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
@@ -79,7 +76,7 @@ export class BatchQuery<Results, Meta extends QueryMeta> extends Executable<
   Array<Results>,
   Meta
 > {
-  constructor(queryResolver: Resolver, queries: Array<HasSql | HasQuery>) {
+  constructor(queryResolver: Resolver, queries: Array<HasValue | HasQuery>) {
     super(() => {
       return queryResolver.batch(queries).execute()
     })
@@ -90,19 +87,19 @@ export abstract class SingleQuery<
   Result,
   Meta extends QueryMeta
 > extends Executable<Result, Meta> {
-  readonly [internal]: SelectData
-  abstract [internalQuery]: Sql
+  readonly [internal]: QueryData
 
-  constructor(data: QueryData<Meta>) {
+  constructor(data: QueryData) {
     super(() => this.#exec(undefined))
-    this[internalData] = data
+    this[internal] = data
   }
 
   #exec(method: 'all' | 'get' | 'run' | undefined, db?: HasResolver) {
-    const data = getData(this)
-    const resolver = db ? getResolver(db) : data.resolver
+    const data = get(this)
+    const resolver = db ? get(db).resolver : data.resolver
     if (!resolver) throw new Error('Query has no resolver')
-    const isSelection = hasSelection(this)
+    const {selection} = get(this)
+    const isSelection = Boolean(selection)
     const isFirst = data.first
     const prepared = resolver.prepare(this, '')
     const resultType =
@@ -145,12 +142,12 @@ export abstract class SingleQuery<
     name?: string
   ): PreparedQuery<Result, Inputs, Meta> {
     return <PreparedQuery<Result, Inputs, Meta>>(
-      getData(this).resolver!.prepare(this, name)
+      get(this).resolver!.prepare(this, name)
     )
   }
 
   toSQL(db?: HasResolver): {sql: string; params: Array<unknown>} {
-    const resolver = db ? getResolver(db) : getData(this).resolver
+    const resolver = db ? get(db).resolver : get(this).resolver
     if (!resolver) throw new Error('Query has no resolver')
     return resolver.toSQL(this)
   }

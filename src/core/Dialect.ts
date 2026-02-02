@@ -1,11 +1,5 @@
 import type {Emitter} from './Emitter.ts'
-import {
-  type HasQuery,
-  type HasSql,
-  getQuery,
-  getSql,
-  hasQuery
-} from './Internal.ts'
+import {type HasQuery, type HasValue, get} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 
 export class Dialect {
@@ -20,14 +14,18 @@ export class Dialect {
     this.runtime = runtime
     this.#createEmitter = createEmitter
   }
-  emit = (input: HasSql | HasQuery): Emitter => {
-    const sql = hasQuery(input) ? getQuery(input) : getSql(input)
+  emit = (input: HasValue | HasQuery): Emitter => {
+    const {query, value} = get(input)
+    const sql = query ?? value
+    if (!sql) throw new Error('Invalid SQL input')
     const emitter = new this.#createEmitter(this.runtime)
     sql.emit(emitter)
     return emitter
   }
-  inline = (input: HasSql | HasQuery): string => {
-    const sql = hasQuery(input) ? getQuery(input) : getSql(input)
+  inline = (input: HasValue | HasQuery): string => {
+    const {query, value} = get(input)
+    const sql = query ?? value
+    if (!sql) throw new Error('Invalid SQL input')
     const emitter = new this.#createEmitter(this.runtime)
     sql.inlineValues().emit(emitter)
     return emitter.sql
