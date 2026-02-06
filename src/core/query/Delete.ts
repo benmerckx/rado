@@ -83,7 +83,7 @@ export function deleteQuery(query: DeleteQuery): Sql {
   return sql.query(
     formatCTE(query),
     {
-      deleteFrom: sql.identifier(table.name),
+      deleteFrom: table.identifier(),
       where,
       returning: returning && selection(returning)
     },

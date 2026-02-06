@@ -141,6 +141,21 @@ export abstract class SingleQuery<
     return this.#exec('run', db) as Deliver<Meta, void>
   }
 
+  async execute(
+    inputs?: Record<string, unknown>,
+    db?: HasResolver
+  ): Promise<Result> {
+    const data = getData(this)
+    const resolver = db ? getResolver(db) : data.resolver
+    if (!resolver) throw new Error('Query has no resolver')
+    const prepared = resolver.prepare(this, '')
+    try {
+      return (await prepared.execute(inputs)) as Result
+    } finally {
+      prepared.free()
+    }
+  }
+
   prepare<Inputs extends Record<string, unknown>>(
     name?: string
   ): PreparedQuery<Result, Inputs, Meta> {
