@@ -7,7 +7,10 @@ import {
   getQuery,
   getSelection,
   getSql,
+  getTable,
   getTarget,
+  hasQuery,
+  hasTable,
   hasSelection,
   hasSql,
   hasTarget,
@@ -91,6 +94,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     const fields = getSelection(this).makeVirtual<Input>(alias)
     return Object.assign(<any>fields, {
       [internalSelection]: selection(fields),
+      [internalSql]: sql`(${getQuery(this)})`,
       [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
         alias
       )}`.inlineFields(true)
@@ -546,22 +550,28 @@ function joinOp(join: Join) {
   return {target, op, on}
 }
 
+function formatTarget(target: HasTarget): Sql {
+  if (hasTable(target)) return getTable(target).target()
+  if (hasQuery(target)) return sql`(${getQuery(target)}) as ${getTarget(target)}`
+  return getTarget(target)
+}
+
 function formatFrom(from: SelectQuery['from']): Sql {
   if (!from) throw new Error('No target defined')
   if (Array.isArray(from)) {
     return sql.join(
       from.map(join => {
-        if (hasTarget(join)) return getTarget(join)
+        if (hasTarget(join)) return formatTarget(join)
         if (hasSql(join)) return getSql(join)
         const {target, op, on} = joinOp(join)
         return sql.query({
-          [op]: hasTarget(target) ? getTarget(target) : getSql(target),
+          [op]: hasTarget(target) ? formatTarget(target) : getSql(target),
           on
         })
       })
     )
   }
-  return hasTarget(from) ? getTarget(from) : getSql(from)
+  return hasTarget(from) ? formatTarget(from) : getSql(from)
 }
 
 export function selectQuery(query: SelectQuery): Sql {
