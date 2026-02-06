@@ -76,9 +76,9 @@ export class Batch<Meta extends QueryMeta> {
       if (!mapRow) continue
       const rows = results[i] as Array<Array<unknown>>
       for (let j = 0; j < results[i].length; j++) {
-        ctx.values = rows[i]
+        ctx.values = rows[j]
         ctx.index = 0
-        rows[i] = mapRow(ctx) as Array<unknown>
+        rows[j] = mapRow(ctx) as Array<unknown>
       }
     }
     return results
