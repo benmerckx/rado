@@ -10,7 +10,9 @@ export function virtualTarget<Input>(
   alias: string,
   source: Input
 ): VirtualTarget<Input> {
-  const targetSql = sql.identifier(alias)
+  const target = <any>{
+    [internal]: {target: sql.identifier(alias)}
+  }
   if (!source || typeof source !== 'object')
     throw new Error('Cannot alias a non-object')
   const {value} = get(source as object)
@@ -18,10 +20,13 @@ export function virtualTarget<Input>(
     const expr = value
     const name = expr.alias
     if (!name) throw new Error('Cannot alias a virtual field without a name')
-    const field = new Field(alias, name, expr)
-    const data = get(field)
-    data.target = targetSql
-    return field as VirtualTarget<Input>
+    const field = <any>new Field(alias, name, expr)
+    return Object.assign(field, {
+      [internal]: {
+        ...get(field),
+        ...target[internal]
+      }
+    })
   }
   const aliased = Object.fromEntries(
     Object.entries(source).map(([key, value]) => {
@@ -30,11 +35,9 @@ export function virtualTarget<Input>(
       return [key, new Field(alias, key, fieldValue)]
     })
   ) as Input
+  target[internal].selection = selection(aliased as SelectionInput)
   return {
-    [internal]: {
-      target: targetSql,
-      selection: selection(aliased as SelectionInput)
-    },
+    ...target,
     ...aliased
   }
 }

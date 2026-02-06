@@ -7,6 +7,7 @@ import {
   internal
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
+import type {Selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 import {type TableDefinition, type TableFields, tableFields} from './Table.ts'
 import {type VirtualTarget, virtualTarget} from './Virtual.ts'
@@ -28,7 +29,17 @@ export class ViewBase {
   }
 }
 
-export interface View extends HasTarget, HasCreate, HasDrop {}
+interface ViewInternal {
+  target: Sql
+  value?: Sql
+  selection?: Selection
+  create: Array<Sql>
+  drop: Array<Sql>
+}
+
+export interface View {
+  readonly [internal]: ViewInternal
+}
 
 function viewIdentifier({name, schemaName}: ViewData): Sql {
   return schemaName
@@ -71,14 +82,18 @@ export function dropView(data: ViewData): Sql {
 export class QueryView extends ViewBase {
   as<Input, Meta extends QueryMeta>(
     query: UnionBase<Input, Meta>
-  ): View & Input {
+  ): View & VirtualTarget<Input> {
     const data = get(this)
     const base = virtualTarget(data.name, get(query).selection?.input as Input)
-    const querySql = get(query).query ?? (query as any)
+    const querySql = get(query).query!
+    const baseInternal = get(base)
+    const target = baseInternal.target!
     return {
       ...base,
       [internal]: {
-        ...get(base),
+        ...baseInternal,
+        target,
+        value: target,
         get create() {
           return [createView(data, querySql)]
         },
@@ -97,17 +112,21 @@ export class DefinedView<Definition extends TableDefinition> extends ViewBase {
     return virtualTarget(name, fields)
   }
 
-  as(query: HasValue): View & TableFields<Definition> {
+  as(query: HasValue): View & VirtualTarget<TableFields<Definition>> {
     const data = get(this)
     const fields = tableFields(
       data.name,
       data.columns!
     ) as TableFields<Definition>
     const base = virtualTarget(data.name, fields)
+    const baseInternal = get(base)
+    const target = baseInternal.target!
     return {
       ...base,
       [internal]: {
-        ...get(base),
+        ...baseInternal,
+        target,
+        value: target,
         get create() {
           return [createView(data, query)]
         },

@@ -23,14 +23,15 @@ export class Delete<
   Input,
   Meta extends QueryMeta = QueryMeta
 > extends SingleQuery<Array<SelectionRow<Input>>, Meta> {
-  readonly [internal]: QueryData & DeleteQuery & {query: Sql}
+  readonly [internal]: Omit<QueryData, 'query' | 'selection'> &
+    DeleteQuery & {query: Sql<Array<SelectionRow<Input>>>; selection?: Selection}
 
   constructor(data: QueryData & DeleteQuery) {
     super(data)
     this[internal] = {
       ...data,
       get query() {
-        return deleteQuery(this as DeleteQuery)
+        return deleteQuery(this as DeleteQuery) as Sql<Array<SelectionRow<Input>>>
       },
       selection: data.returning ? selection(data.returning) : undefined
     }

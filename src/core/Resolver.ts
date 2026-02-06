@@ -26,7 +26,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   }
 
   prepare(
-    query: HasQuery | HasSelection,
+    query: HasQuery | (HasSelection & HasValue),
     name?: string
   ): PreparedStatement<Meta> {
     const {selection} = get(query)

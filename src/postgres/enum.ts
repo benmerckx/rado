@@ -10,7 +10,13 @@ import {sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
 import {PgColumn} from './columns.ts'
 
-export interface PgEnum<Values extends EnumInput> extends HasCreate, HasDrop {
+interface PgEnumInternal {
+  create: Array<Sql>
+  drop: Array<Sql>
+}
+
+export interface PgEnum<Values extends EnumInput> {
+  readonly [internal]: PgEnumInternal
   (name?: string): PgColumn<Values[keyof Values] | null>
 }
 

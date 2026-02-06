@@ -17,7 +17,7 @@ export function input<T>(value: Input<T>, maybeField?: Input<T>): Sql<T> {
     get(maybeField).field?.source
   return fieldSource && 'mapToDriverValue' in fieldSource
     ? mapToColumn(fieldSource as ColumnData, value)
-    : sql.value(value)
+    : (sql.value(value) as Sql<T>)
 }
 
 export function mapToColumn<T>(

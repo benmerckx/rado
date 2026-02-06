@@ -87,11 +87,10 @@ export abstract class SingleQuery<
   Result,
   Meta extends QueryMeta
 > extends Executable<Result, Meta> {
-  readonly [internal]: QueryData
+  abstract readonly [internal]: QueryData & {query: Sql}
 
   constructor(data: QueryData) {
     super(() => this.#exec(undefined))
-    this[internal] = data
   }
 
   #exec(method: 'all' | 'get' | 'run' | undefined, db?: HasResolver) {

@@ -2,9 +2,9 @@ import {Builder} from '../src/core/Builder.ts'
 import {formatColumn, type Column} from '../src/core/Column.ts'
 import {Dialect} from '../src/core/Dialect.ts'
 import {Emitter} from '../src/core/Emitter.ts'
-import {getData, type HasQuery, type HasSql} from '../src/core/Internal.ts'
 import type {DriverSpecs} from '../src/core/Driver.ts'
 import type {JsonPath} from '../src/core/expr/Json.ts'
+import {get, type HasQuery, type HasValue} from '../src/core/Internal.ts'
 
 const testDialect = new Dialect(
   'postgres',
@@ -28,7 +28,7 @@ const testDialect = new Dialect(
   }
 ).emit
 
-export function emit(input: HasSql | HasQuery): string {
+export function emit(input: HasValue | HasQuery): string {
   return testDialect(input).sql
 }
 
@@ -40,7 +40,7 @@ const defaultSpecs: DriverSpecs = {
 }
 
 export function columnSql(column: Column): string {
-  return emit(formatColumn(getData(column)))
+  return emit(formatColumn(get(column)))
 }
 
 export function mapFrom(
@@ -48,11 +48,11 @@ export function mapFrom(
   value: unknown,
   specs: DriverSpecs = defaultSpecs
 ): unknown {
-  const data = getData(column)
+  const data = get(column)
   return data.mapFromDriverValue ? data.mapFromDriverValue(value, specs) : value
 }
 
 export function mapTo(column: Column, value: unknown): unknown {
-  const data = getData(column)
+  const data = get(column)
   return data.mapToDriverValue ? data.mapToDriverValue(value) : value
 }

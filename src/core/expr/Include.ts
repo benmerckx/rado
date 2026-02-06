@@ -4,16 +4,16 @@ import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
 import type {MapRowContext, RowOfRecord} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
-import type {SelectQuery} from '../query/Query.ts'
+import type {CompoundSelect, SelectQuery} from '../query/Query.ts'
 import {
-  type Select,
   type SelectBase,
   querySelection,
   selectQuery
 } from '../query/Select.ts'
 import {jsonAggregateArray, jsonArray} from './Json.ts'
 
-export type IncludeQuery = SelectQuery & {
+export type IncludeQuery = Omit<SelectQuery, 'select'> & {
+  select?: SelectQuery['select'] | CompoundSelect
   first: boolean
 }
 
@@ -62,7 +62,7 @@ export class Include<Result, Meta extends QueryMeta = QueryMeta>
 }
 
 export function include<Input, Meta extends QueryMeta>(
-  select: Select<Input, Meta>
+  select: SelectBase<Input, Meta>
 ): Include<Array<RowOfRecord<Input>>, Meta> {
   return new Include({...get(select), first: false})
 }
@@ -72,7 +72,7 @@ export namespace include {
     select: SelectBase<Input, Meta>
   ): Include<RowOfRecord<Input> | null, Meta> {
     return new Include({
-      ...(get(select) as QueryData & SelectQuery),
+      ...get(select),
       first: true
     })
   }

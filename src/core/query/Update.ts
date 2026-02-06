@@ -24,14 +24,18 @@ export class Update<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasQuery<Array<SelectionRow<Input>>>
 {
-  readonly [internal]: QueryData & UpdateQuery & {query: Sql}
+  readonly [internal]: Omit<QueryData, 'query' | 'selection'> &
+    UpdateQuery & {
+      query: Sql<Array<SelectionRow<Input>>>
+      selection?: Selection
+    }
 
   constructor(data: QueryData & UpdateQuery) {
     super(data)
     this[internal] = {
       ...data,
       get query() {
-        return updateQuery(this as UpdateQuery)
+        return updateQuery(this as UpdateQuery) as Sql<Array<SelectionRow<Input>>>
       },
       selection: data.returning ? selection(data.returning) : undefined
     }

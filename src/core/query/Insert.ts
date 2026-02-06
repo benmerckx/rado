@@ -37,14 +37,18 @@ export class Insert<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasQuery<Array<SelectionRow<Input>>>
 {
-  readonly [internal]: QueryData & InsertQuery & {query: Sql}
+  readonly [internal]: Omit<QueryData, 'query' | 'selection'> &
+    InsertQuery & {
+      query: Sql<Array<SelectionRow<Input>>>
+      selection?: Selection
+    }
 
   constructor(data: QueryData & InsertQuery) {
     super(data)
     this[internal] = {
       ...data,
       get query() {
-        return insertQuery(this as InsertQuery)
+        return insertQuery(this as InsertQuery) as Sql<Array<SelectionRow<Input>>>
       },
       selection: data.returning ? selection(data.returning) : undefined
     }
@@ -113,7 +117,7 @@ export class InsertInto<
   Definition extends TableDefinition,
   Meta extends QueryMeta
 > {
-  [internal]: QueryData & InsertQuery
+  [internal]: Omit<QueryData, 'query' | 'selection'> & InsertQuery
   constructor(data: QueryData & InsertQuery) {
     this[internal] = data
   }

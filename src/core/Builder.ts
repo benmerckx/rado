@@ -142,13 +142,14 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
     return {
       as(query: HasQuery | HasValue) {
         const {query: querySql, selection, value} = get(query)
-        const input = querySql ? selection?.input : columns
+        const input = (querySql ? selection?.input : columns) ?? {}
         const sql = querySql ? querySql.nameSelf(cteName) : value
         const base = virtualTarget(cteName, input)
+        const {selection: _selection, ...baseData} = get(base)
         return {
           ...base,
           [internal]: {
-            ...get(base),
+            ...baseData,
             query: sql!
           }
         }

@@ -47,6 +47,14 @@ interface Column {
   targetName?: string
   result(ctx: MapRowContext): unknown
 }
+
+function plainEntries(
+  input: unknown
+): Array<[string, SelectionInput]> {
+  if (!input || typeof input !== 'object') return []
+  if (Object.getPrototypeOf(input) !== Object.prototype) return []
+  return Object.entries(input) as Array<[string, SelectionInput]>
+}
 class SqlColumn implements Column {
   constructor(
     public sql: Sql,
@@ -109,15 +117,18 @@ export class Selection extends HasInternal<{value: Sql}> {
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {
+    const entries = plainEntries(input)
+    if (entries.length > 0) {
+      return new ObjectColumn(
+        nullable,
+        entries.flatMap(([name, value]) =>
+          value === undefined ? [] : [[name, this.#defineColumn(nullable, value)]]
+        )
+      )
+    }
     const {value, field} = get(input)
     if (value) return new SqlColumn(value, field?.targetName)
-    return new ObjectColumn(
-      nullable,
-      Object.entries(input).map(([name, value]) => [
-        name,
-        this.#defineColumn(nullable, value)
-      ])
-    )
+    return new ObjectColumn(nullable, [])
   }
 
   fieldNames(): Array<string> {
@@ -129,6 +140,11 @@ export class Selection extends HasInternal<{value: Sql}> {
     names: Set<string>,
     name?: string
   ): Array<string> {
+    const entries = plainEntries(input)
+    if (entries.length > 0)
+      return entries.flatMap(([name, value]) =>
+        value === undefined ? [] : this.#fieldNames(value, names, name)
+      )
     const {value} = get(input)
     if (value) {
       let exprName = name ?? value.alias
@@ -136,9 +152,7 @@ export class Selection extends HasInternal<{value: Sql}> {
       while (names.has(exprName)) exprName = `${exprName}_`
       return [exprName]
     }
-    return Object.entries(input).flatMap(([name, value]) =>
-      this.#fieldNames(value, names, name)
-    )
+    return []
   }
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
@@ -151,6 +165,12 @@ function selectionToSql(
   names: Set<string>,
   name?: string
 ): Array<Sql> {
+  const entries = plainEntries(input)
+  if (entries.length > 0) {
+    return entries.flatMap(([name, value]) =>
+      value === undefined ? [] : selectionToSql(value, names, name)
+    )
+  }
   const {field, value} = get(input)
   if (value) {
     let exprName = name ?? value.alias
@@ -165,26 +185,24 @@ function selectionToSql(
     }
     return [value]
   }
-  return Object.entries(input).flatMap(([name, value]) =>
-    selectionToSql(value, names, name)
-  )
+  return []
 }
 
 export class TableSelection extends Selection {
   constructor(public table: HasTable) {
-    super(table, new Set())
+    super(get(table).selection?.input ?? table, new Set())
   }
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
     const {table: leftTable} = get(this.table)
+    if (!hasTableInput(right)) return this
     const {table: rightTable} = get(right)
-    if (!rightTable) return this
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
       nullable.add(leftTable.aliased)
     if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
-    return new JoinSelection([this.table, right as HasTable], nullable)
+    return new JoinSelection([this.table, right], nullable)
   }
 }
 
@@ -195,35 +213,44 @@ export class JoinSelection extends Selection {
   ) {
     super(
       Object.fromEntries(
-        tables.map(table => [get(table).table.aliased, table])
+        tables.map(table => [
+          get(table).table!.aliased,
+          get(table).selection?.input ?? table
+        ])
       ),
       nullable
     )
   }
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
+    if (!hasTableInput(right)) return this
     const {table: rightTable} = get(right)
-    if (!rightTable) return this
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
       this.tables
-        .map(table => get(table).table.aliased)
+        .map(table => get(table).table!.aliased)
         .forEach(nullable.add, nullable)
     if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
-    return new JoinSelection([...this.tables, right as HasTable], nullable)
+    return new JoinSelection([...this.tables, right], nullable)
   }
 }
 
 const selected = new WeakMap<SelectionInput, Selection>()
 
+function hasTableInput(input: SelectionInput | HasTarget | Sql): input is HasTable {
+  const {table} = get(input)
+  if (!table || !input || typeof input !== 'object') return false
+  return Object.values(input as Record<string, unknown>).every(value => {
+    const {field} = get(value as object)
+    return Boolean(field && field.targetName === table.aliased)
+  })
+}
+
 export function selection(input: SelectionInput): Selection {
   if (input instanceof Selection) return input
   if (selected.has(input)) return selected.get(input)!
-  const {table} = get(input)
-  const selection = table
-    ? new TableSelection(input as HasTable)
-    : new Selection(input)
+  const selection = hasTableInput(input) ? new TableSelection(input) : new Selection(input)
   selected.set(input, selection)
   return selection
 }

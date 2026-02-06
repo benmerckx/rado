@@ -28,19 +28,35 @@ const SqliteMaster = table('SqliteMaster', {
 
 const inline = (sql: HasValue) => sqliteDialect.inline(sql)
 
+interface TableInfoRow {
+  cid: number
+  name: string
+  type: string
+  notnull: boolean
+  dflt_value: string | null
+  pk: number
+}
+
+interface SqliteIndexRow {
+  name: string
+  sql: string
+}
+
 export const sqliteDiff: Diff = (targetTable: Table) => {
   return txGenerator(function* (tx) {
     const tableApi = get(targetTable).table!
-    const columnInfo = yield* tx
+    const columnInfo = (yield* tx
       .select(TableInfo)
       .from(sql`pragma_table_info(${sql.inline(tableApi.name)}) as "TableInfo"`)
-    const indexInfo = yield* tx
+    ) as Array<TableInfoRow>
+    const indexInfo = (yield* tx
       .select(SqliteMaster)
       .from(sql`sqlite_master as "SqliteMaster"`)
       .where(
         eq(SqliteMaster.tbl_name, tableApi.name),
         eq(SqliteMaster.type, 'index')
       )
+    ) as Array<SqliteIndexRow>
     const hasSinglePrimaryKey =
       columnInfo.reduce((acc, column) => acc + column.pk, 0) === 1
     const localColumns = new Map(

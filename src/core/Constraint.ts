@@ -18,7 +18,7 @@ export class UniqueConstraint<TableName extends string = string>
   [internal]: UniqueConstraintData & {constraint: Sql}
 
   constructor(data: UniqueConstraintData) {
-    const entry = {
+    this[internal] = {
       ...data,
       get constraint() {
         const {fields, nullsNotDistinct} = this as UniqueConstraintData
@@ -31,8 +31,7 @@ export class UniqueConstraint<TableName extends string = string>
           )})`
         ])
       }
-    } as UniqueConstraintData & {constraint: Sql}
-    this[internal] = entry
+    }
   }
 
   on<TableName extends string>(
@@ -62,7 +61,7 @@ export class PrimaryKeyConstraint<TableName extends string = string>
   [internal]: PrimaryKeyConstraintData & {constraint: Sql}
 
   constructor(public data: PrimaryKeyConstraintData) {
-    const entry = {
+    this[internal] = {
       ...data,
       get constraint() {
         const {fields} = this as PrimaryKeyConstraintData
@@ -71,8 +70,7 @@ export class PrimaryKeyConstraint<TableName extends string = string>
           sql`, `
         )})`
       }
-    } as PrimaryKeyConstraintData & {constraint: Sql}
-    this[internal] = entry
+    }
   }
 }
 
@@ -108,7 +106,7 @@ export class ForeignKeyConstraint<TableName extends string = string>
   [internal]: ForeignKeyConstraintData & {constraint: Sql}
 
   constructor(data: ForeignKeyConstraintData) {
-    const entry = {
+    this[internal] = {
       ...data,
       get constraint() {
         const {fields, references} = this as ForeignKeyConstraintData
@@ -120,8 +118,7 @@ export class ForeignKeyConstraint<TableName extends string = string>
           sql`, `
         )})`
       }
-    } as ForeignKeyConstraintData & {constraint: Sql}
-    this[internal] = entry
+    }
   }
 
   references<ForeignTable extends string>(

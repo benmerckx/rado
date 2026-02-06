@@ -28,6 +28,7 @@ import type {Input as UserInput} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
+  FromGuard,
   Join,
   JoinOp,
   SelectQuery,
@@ -41,26 +42,34 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
 interface SelectData extends Internal, SelectQuery {}
+interface SelectInternal<Row>
+  extends Omit<QueryData, 'query' | 'selection' | 'value'>,
+    SelectQuery {
+  compound: CompoundSelect
+  selection: Selection
+  query: Sql<Array<Row>>
+  value: Sql<Row>
+}
 
 export class SelectFirst<
   Input,
   Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<SelectionRow<Input>, Meta> {
-  readonly [internal]: SelectData & {query: Sql<SelectionRow<Input>>}
+> extends SingleQuery<SelectionRow<Input>, Meta> implements HasValue<SelectionRow<Input>> {
+  readonly [internal]: Omit<SelectData, 'query' | 'selection' | 'value'> & {
+    selection: Selection
+    query: Sql<SelectionRow<Input>>
+    value: Sql<SelectionRow<Input>>
+  }
 
   constructor(inner: SelectData) {
-    super(inner)
-    this[internal] = {
-      ...inner,
-      get query() {
-        return selectQuery(this as SelectQuery) as Sql<SelectionRow<Input>>
-      },
-      selection: querySelection(inner)
-    }
+    const query = selectQuery(inner) as Sql<SelectionRow<Input>>
+    super({...inner, query})
+    this[internal] = {...inner, selection: querySelection(inner), query, value: sql`(${query})`}
   }
 }
 
-interface UnionBaseData extends SelectData {
+interface UnionBaseData extends QueryData, Internal {
+  select?: SelectionInput | CompoundSelect
   compound: CompoundSelect
 }
 
@@ -68,14 +77,36 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasSelection
 {
-  readonly [internal]: UnionBaseData
+  readonly [internal]: Omit<
+    UnionBaseData,
+    'query' | 'selection' | 'value'
+  > &
+    {
+      selection: Selection
+      query: Sql<Array<SelectionRow<Input>>>
+      value: Sql<SelectionRow<Input>>
+    }
+
+  constructor(
+    data: UnionBaseData &
+      {
+        selection: Selection
+        query: Sql<Array<SelectionRow<Input>>>
+        value: Sql<SelectionRow<Input>>
+      }
+  ) {
+    super(data)
+    this[internal] = data
+  }
 
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {
     const {selection: selected} = get(this)
     const fields = selected!.makeVirtual<Input>(alias)
     const querySql = get(this).query!
+    const fieldsInternal = get(fields)
     return Object.assign(<any>fields, {
       [internal]: {
+        ...fieldsInternal,
         selection: selection(fields),
         target: sql`(${querySql}) as ${sql.identifier(alias)}`.inlineFields(true)
       }
@@ -144,21 +175,30 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   implements
     HasSelection,
     SelectBase<Input, Meta>,
-    HasQuery<Array<SelectionRow<Input>>>
+    HasQuery<Array<SelectionRow<StripFieldMeta<Input>>>>,
+    HasValue<SelectionRow<StripFieldMeta<Input>>>
 {
-  readonly [internal]: QueryData & SelectQuery & {query: Sql}
+  declare readonly [internal]: SelectInternal<SelectionRow<StripFieldMeta<Input>>>
 
   constructor(data: QueryData & SelectQuery) {
     const compound: CompoundSelect = [data]
-    const withCompound = {...data, compound}
-    super(withCompound)
-    this[internal] = {
-      ...withCompound,
-      get query() {
-        return selectQuery(this as SelectQuery) as Sql<Array<SelectionRow<Input>>>
+    const withCompound = {
+      ...data,
+      compound,
+      get selection() {
+        return querySelection(this as SelectionQueryData)
       },
-      selection: querySelection(withCompound)
-    }
+      get query() {
+        return selectQuery(this as SelectQuery) as Sql<
+          Array<SelectionRow<StripFieldMeta<Input>>>
+        >
+      },
+      get value() {
+        const querySql = (this as {query: Sql<Array<SelectionRow<StripFieldMeta<Input>>>>}).query
+        return sql`(${querySql})` as Sql<SelectionRow<StripFieldMeta<Input>>>
+      }
+    } as SelectInternal<SelectionRow<StripFieldMeta<Input>>>
+    super(withCompound as SelectInternal<SelectionRow<StripFieldMeta<Input>>>)
   }
 
   from(from: HasTarget | Sql): Select<Input, Meta> {
@@ -305,8 +345,7 @@ type RetypeSubQueryInput<
     : Input
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends UnionBase<StripFieldMeta<Input>, Meta>,
-    HasValue<SelectionRow<Input>> {
+  extends UnionBase<StripFieldMeta<Input>, Meta> {
   for(
     keyword: (typeof forKeywords)[number],
     config?: {
@@ -333,12 +372,14 @@ export interface WithoutSelection<Meta extends QueryMeta> {
     Record<Name, TableFields<Definition>>
   >
   from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
+  from<Input extends Record<keyof Input, SelectionInput>>(
+    from: Input & HasTarget
+  ): SelectionFrom<Input, Meta>
   from<Input>(from: VirtualTarget<Input>): SelectionFrom<Input, Meta>
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
-  extends SelectBase<Input, Meta>,
-    HasValue<SelectionRow<Input>> {
+  extends SelectBase<Input, Meta> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
@@ -499,8 +540,14 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
   fullJoin(right: HasTarget, on: HasValue<boolean>): SelectionFrom<Input, Meta>
 }
 
-export function querySelection({select, from}: SelectQuery): Selection {
-  if (select) return selection(select as SelectionInput)
+interface SelectionQueryData {
+  select?: SelectionInput | CompoundSelect
+  from?: FromGuard
+}
+
+export function querySelection({select, from}: SelectionQueryData): Selection {
+  if (Array.isArray(select)) return querySelection(select[0])
+  if (select) return selection(select)
   if (!from) throw new Error('No selection defined')
   if (Array.isArray(from)) {
     const [target, ...joins] = from
@@ -524,10 +571,12 @@ function formatFrom(from: SelectQuery['from']): Sql {
   if (Array.isArray(from)) {
     return sql.join(
       from.map(join => {
-        const joinInternal = get(join)
-        if (joinInternal.target) return joinInternal.target
-        if (joinInternal.value) return joinInternal.value
-        const {target, op, on} = joinOp(join)
+        if (typeof join === 'object' && join && internal in join) {
+          const joinInternal = get(join)
+          if (joinInternal.target) return joinInternal.target
+          if (joinInternal.value) return joinInternal.value
+        }
+        const {target, op, on} = joinOp(join as Join)
         return sql.query({
           [op]: get(target).target ?? get(target).value!,
           on
@@ -538,7 +587,14 @@ function formatFrom(from: SelectQuery['from']): Sql {
   return get(from).target ?? get(from).value!
 }
 
-export function selectQuery(query: SelectQuery): Sql {
+export function selectQuery(
+  query: SelectionQueryData &
+    Pick<
+      SelectQuery,
+      'where' | 'groupBy' | 'having' | 'distinct' | 'distinctOn' | 'for'
+    > &
+    Partial<Pick<SelectQuery, 'with' | 'withRecursive' | 'orderBy' | 'limit' | 'offset'>>
+): Sql {
   const {from, where, groupBy, having, distinct, distinctOn} = query
   const prefix = distinctOn
     ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
@@ -564,31 +620,41 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<Result, Meta>
   implements HasSelection
 {
-  readonly [internal]: QueryData & UnionQuery & {query: Sql}
+  declare readonly [internal]: Omit<
+    UnionBaseData & UnionQuery,
+    'query' | 'selection' | 'value'
+  > &
+    {
+      selection: Selection
+      query: Sql<Array<SelectionRow<Result>>>
+      value: Sql<SelectionRow<Result>>
+    }
 
   constructor(data: QueryData & UnionQuery) {
     const compound = data.select
     const withCompound = {...data, compound}
-    super(withCompound)
-    this[internal] = {
+    const query = unionQuery(withCompound) as Sql<Array<SelectionRow<Result>>>
+    super({
       ...withCompound,
-      get query() {
-        return unionQuery(this as UnionQuery)
-      },
-      selection: querySelection(withCompound.select[0] as SelectQuery)
-    }
+      selection: querySelection(withCompound.select[0] as SelectQuery),
+      query,
+      value: sql`(${query})`
+    })
   }
 
   orderBy(...orderBy: Array<HasValue>): Union<Result, Meta> {
-    return new Union({...get(this), orderBy})
+    const data = get(this)
+    return new Union({...data, orderBy})
   }
 
   limit(limit: UserInput<number>): Union<Result, Meta> {
-    return new Union({...get(this), limit})
+    const data = get(this)
+    return new Union({...data, limit})
   }
 
   offset(offset: UserInput<number>): Union<Result, Meta> {
-    return new Union({...get(this), offset})
+    const data = get(this)
+    return new Union({...data, offset})
   }
 }
 
@@ -597,10 +663,9 @@ export function union<Result, Meta extends QueryMeta>(
   right: UnionBase<Result, Meta>,
   ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return [right, ...rest].reduce(
-    (acc, query) => acc.union(query),
-    left
-  ) as Union<Result, Meta>
+  let result = left.union(right)
+  for (const query of rest) result = result.union(query)
+  return result
 }
 
 export function unionAll<Result, Meta extends QueryMeta>(
@@ -608,10 +673,9 @@ export function unionAll<Result, Meta extends QueryMeta>(
   right: UnionBase<Result, Meta>,
   ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return [right, ...rest].reduce(
-    (acc, query) => acc.unionAll(query),
-    left
-  ) as Union<Result, Meta>
+  let result = left.unionAll(right)
+  for (const query of rest) result = result.unionAll(query)
+  return result
 }
 
 export function intersect<Result, Meta extends QueryMeta>(
@@ -619,10 +683,9 @@ export function intersect<Result, Meta extends QueryMeta>(
   right: UnionBase<Result, Meta>,
   ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return [right, ...rest].reduce(
-    (acc, query) => acc.intersect(query),
-    left
-  ) as Union<Result, Meta>
+  let result = left.intersect(right)
+  for (const query of rest) result = result.intersect(query)
+  return result
 }
 
 export function intersectAll<Result, Meta extends IsPostgres | IsMysql>(
@@ -630,10 +693,9 @@ export function intersectAll<Result, Meta extends IsPostgres | IsMysql>(
   right: UnionBase<Result, Meta>,
   ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return [right, ...rest].reduce(
-    (acc, query) => acc.intersectAll(query),
-    left
-  ) as Union<Result, Meta>
+  let result = left.intersectAll(right)
+  for (const query of rest) result = result.intersectAll(query)
+  return result
 }
 
 export function except<Result, Meta extends QueryMeta>(
@@ -641,10 +703,9 @@ export function except<Result, Meta extends QueryMeta>(
   right: UnionBase<Result, Meta>,
   ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return [right, ...rest].reduce(
-    (acc, query) => acc.except(query),
-    left
-  ) as Union<Result, Meta>
+  let result = left.except(right)
+  for (const query of rest) result = result.except(query)
+  return result
 }
 
 export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
@@ -652,10 +713,9 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
   right: UnionBase<Result, Meta>,
   ...rest: Array<UnionBase<Result, Meta>>
 ): Union<Result, Meta> {
-  return [right, ...rest].reduce(
-    (acc, query) => acc.exceptAll(query),
-    left
-  ) as Union<Result, Meta>
+  let result = left.exceptAll(right)
+  for (const query of rest) result = result.exceptAll(query)
+  return result
 }
 
 export function unionQuery(query: UnionQuery): Sql {
