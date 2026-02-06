@@ -131,7 +131,7 @@ export class TableApi<
   }
 
   drop(): Array<Sql> {
-    return [sql`drop table if exists ${this.target()}`]
+    return [sql`drop table if exists ${this.identifier()}`]
   }
 
   indexes(): Record<string, Index> {
@@ -241,7 +241,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
   const fields = tableFields(api.aliased, api.columns)
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
-    [internalTarget]: api.target(),
+    [internalTarget]: api.identifier(),
     [internalSelection]: selection(fields),
     get [internalCreate]() {
       return api.create()
@@ -266,7 +266,7 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   const fields = tableFields(api.aliased, api.columns)
   return <Table<Definition, Alias>>{
     [internalTable]: api,
-    [internalTarget]: api.target(),
+    [internalTarget]: api.identifier(),
     [internalSelection]: selection(fields),
     get [internalCreate]() {
       return getCreate(table)
