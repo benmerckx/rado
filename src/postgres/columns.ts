@@ -185,7 +185,7 @@ export function date(name?: string, options?: {mode: 'date' | 'string'}) {
     name,
     type: column.date(),
     mapFromDriverValue(value: string) {
-      return options?.mode === 'date' ? Date.parse(value) : value
+      return options?.mode === 'date' ? new Date(value) : value
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date ? value.toISOString() : value
@@ -466,7 +466,7 @@ export function timestamp(
       options?.precision
     ),
     mapFromDriverValue(value: string) {
-      return options?.mode === 'string' ? value : Date.parse(value)
+      return options?.mode === 'string' ? value : new Date(value)
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date ? value.toISOString() : value
