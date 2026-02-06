@@ -4,12 +4,17 @@ import {
   type HasSql,
   type HasTarget,
   getData,
+  getSql,
   getQuery,
   getSelection,
   internalCreate,
   internalData,
-  internalDrop
+  internalDrop,
+  internalQuery,
+  internalSelection,
+  internalTarget,
 } from './Internal.ts'
+import {selection} from './Selection.ts'
 import type {QueryMeta} from './MetaData.ts'
 import {type Sql, sql} from './Sql.ts'
 import {type TableDefinition, type TableFields, tableFields} from './Table.ts'
@@ -77,8 +82,12 @@ export class QueryView extends ViewBase {
     query: UnionBase<Input, Meta>
   ): View & Input {
     const data = getData(this)
+    const input = getSelection(query).input as Input
+    const target = virtualTarget(data.name, input)
     return {
-      ...virtualTarget(data.name, getSelection(query).input as Input),
+      ...target,
+      [internalSelection]: selection(target),
+      [internalQuery]: getQuery(query),
       get [internalCreate]() {
         const result = createView(data, getQuery(query))
         return [result]
@@ -92,9 +101,14 @@ export class QueryView extends ViewBase {
 
 export class DefinedView<Definition extends TableDefinition> extends ViewBase {
   existing(): VirtualTarget<TableFields<Definition>> {
-    const {name, columns} = getData(this)
+    const data = getData(this)
+    const {name, columns} = data
     const fields = tableFields(name, columns!) as TableFields<Definition>
-    return virtualTarget(name, fields)
+    return {
+      [internalTarget]: viewIdentifier(data),
+      ...fields,
+      [internalSelection]: selection(fields)
+    }
   }
 
   as(query: HasSql): View & TableFields<Definition> {
@@ -104,7 +118,10 @@ export class DefinedView<Definition extends TableDefinition> extends ViewBase {
       data.columns!
     ) as TableFields<Definition>
     return {
-      ...virtualTarget(data.name, fields),
+      [internalTarget]: viewIdentifier(data),
+      ...fields,
+      [internalSelection]: selection(fields),
+      [internalQuery]: getSql(query),
       get [internalCreate]() {
         const result = createView(data, query)
         return [result]
