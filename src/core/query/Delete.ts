@@ -28,13 +28,18 @@ export class Delete<
 
   constructor(data: QueryData & DeleteQuery) {
     super(data)
-    this[internal] = {
+    const entry = {
       ...data,
-      get query() {
-        return deleteQuery(this as DeleteQuery) as Sql<Array<SelectionRow<Input>>>
-      },
       selection: data.returning ? selection(data.returning) : undefined
-    }
+    } as Omit<QueryData, 'query' | 'selection'> &
+      DeleteQuery & {query: Sql<Array<SelectionRow<Input>>>; selection?: Selection}
+    Object.defineProperty(entry, 'query', {
+      enumerable: false,
+      get() {
+        return deleteQuery(this as DeleteQuery) as Sql<Array<SelectionRow<Input>>>
+      }
+    })
+    this[internal] = entry
   }
 
   limit(limit: UserInput<number>): Delete<Input, Meta> {

@@ -18,9 +18,10 @@ export class UniqueConstraint<TableName extends string = string>
   [internal]: UniqueConstraintData & {constraint: Sql}
 
   constructor(data: UniqueConstraintData) {
-    this[internal] = {
-      ...data,
-      get constraint() {
+    const entry = {...data} as UniqueConstraintData & {constraint: Sql}
+    Object.defineProperty(entry, 'constraint', {
+      enumerable: false,
+      get() {
         const {fields, nullsNotDistinct} = this as UniqueConstraintData
         return sql.join([
           sql`unique`,
@@ -31,7 +32,8 @@ export class UniqueConstraint<TableName extends string = string>
           )})`
         ])
       }
-    }
+    })
+    this[internal] = entry
   }
 
   on<TableName extends string>(
@@ -61,16 +63,18 @@ export class PrimaryKeyConstraint<TableName extends string = string>
   [internal]: PrimaryKeyConstraintData & {constraint: Sql}
 
   constructor(public data: PrimaryKeyConstraintData) {
-    this[internal] = {
-      ...data,
-      get constraint() {
+    const entry = {...data} as PrimaryKeyConstraintData & {constraint: Sql}
+    Object.defineProperty(entry, 'constraint', {
+      enumerable: false,
+      get() {
         const {fields} = this as PrimaryKeyConstraintData
         return sql`primary key (${sql.join(
           fields.map(field => sql.identifier(field.fieldName)),
           sql`, `
         )})`
       }
-    }
+    })
+    this[internal] = entry
   }
 }
 
@@ -106,9 +110,10 @@ export class ForeignKeyConstraint<TableName extends string = string>
   [internal]: ForeignKeyConstraintData & {constraint: Sql}
 
   constructor(data: ForeignKeyConstraintData) {
-    this[internal] = {
-      ...data,
-      get constraint() {
+    const entry = {...data} as ForeignKeyConstraintData & {constraint: Sql}
+    Object.defineProperty(entry, 'constraint', {
+      enumerable: false,
+      get() {
         const {fields, references} = this as ForeignKeyConstraintData
         return sql`foreign key (${sql.join(
           fields.map(field => sql.identifier(field.fieldName)),
@@ -118,7 +123,8 @@ export class ForeignKeyConstraint<TableName extends string = string>
           sql`, `
         )})`
       }
-    }
+    })
+    this[internal] = entry
   }
 
   references<ForeignTable extends string>(

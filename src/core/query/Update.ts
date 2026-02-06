@@ -32,13 +32,21 @@ export class Update<Input, Meta extends QueryMeta = QueryMeta>
 
   constructor(data: QueryData & UpdateQuery) {
     super(data)
-    this[internal] = {
+    const entry = {
       ...data,
-      get query() {
-        return updateQuery(this as UpdateQuery) as Sql<Array<SelectionRow<Input>>>
-      },
       selection: data.returning ? selection(data.returning) : undefined
-    }
+    } as Omit<QueryData, 'query' | 'selection'> &
+      UpdateQuery & {
+        query: Sql<Array<SelectionRow<Input>>>
+        selection?: Selection
+      }
+    Object.defineProperty(entry, 'query', {
+      enumerable: false,
+      get() {
+        return updateQuery(this as UpdateQuery) as Sql<Array<SelectionRow<Input>>>
+      }
+    })
+    this[internal] = entry
   }
 
   limit(limit: UserInput<number>): Update<Input, Meta> {

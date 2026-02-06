@@ -45,13 +45,21 @@ export class Insert<Input, Meta extends QueryMeta = QueryMeta>
 
   constructor(data: QueryData & InsertQuery) {
     super(data)
-    this[internal] = {
+    const entry = {
       ...data,
-      get query() {
-        return insertQuery(this as InsertQuery) as Sql<Array<SelectionRow<Input>>>
-      },
       selection: data.returning ? selection(data.returning) : undefined
-    }
+    } as Omit<QueryData, 'query' | 'selection'> &
+      InsertQuery & {
+        query: Sql<Array<SelectionRow<Input>>>
+        selection?: Selection
+      }
+    Object.defineProperty(entry, 'query', {
+      enumerable: false,
+      get() {
+        return insertQuery(this as InsertQuery) as Sql<Array<SelectionRow<Input>>>
+      }
+    })
+    this[internal] = entry
   }
 }
 

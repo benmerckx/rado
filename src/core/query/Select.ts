@@ -184,20 +184,32 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     const compound: CompoundSelect = [data]
     const withCompound = {
       ...data,
-      compound,
-      get selection() {
+      compound
+    } as Omit<
+      SelectInternal<SelectionRow<StripFieldMeta<Input>>>,
+      'selection' | 'query' | 'value'
+    >
+    Object.defineProperty(withCompound, 'selection', {
+      enumerable: false,
+      get() {
         return querySelection(this as SelectionQueryData)
-      },
-      get query() {
+      }
+    })
+    Object.defineProperty(withCompound, 'query', {
+      enumerable: false,
+      get() {
         return selectQuery(this as SelectQuery) as Sql<
           Array<SelectionRow<StripFieldMeta<Input>>>
         >
-      },
-      get value() {
+      }
+    })
+    Object.defineProperty(withCompound, 'value', {
+      enumerable: false,
+      get() {
         const querySql = (this as {query: Sql<Array<SelectionRow<StripFieldMeta<Input>>>>}).query
         return sql`(${querySql})` as Sql<SelectionRow<StripFieldMeta<Input>>>
       }
-    } as SelectInternal<SelectionRow<StripFieldMeta<Input>>>
+    })
     super(withCompound as SelectInternal<SelectionRow<StripFieldMeta<Input>>>)
   }
 
