@@ -1151,6 +1151,7 @@ test('select with group by as sql + column', async ctx => {
     .select({name: usersTable.name})
     .from(usersTable)
     .groupBy(sql`${usersTable.name}`, usersTable.id)
+    .orderBy(asc(usersTable.name))
 
   expect(result).toEqual([{name: 'Jane'}, {name: 'Jane'}, {name: 'John'}])
 })
@@ -1166,6 +1167,7 @@ test('select with group by as column + sql', async ctx => {
     .select({name: usersTable.name})
     .from(usersTable)
     .groupBy(usersTable.id, sql`${usersTable.name}`)
+    .orderBy(asc(usersTable.name))
 
   expect(result).toEqual([{name: 'Jane'}, {name: 'Jane'}, {name: 'John'}])
 })
@@ -1197,7 +1199,7 @@ test('build query', async ctx => {
     .toSQL()
 
   expect(query).toEqual({
-    sql: 'select "id", "name" from "users" group by "users"."id", "users"."name"',
+    sql: 'select "users"."id", "users"."name" from "users" group by "users"."id", "users"."name"',
     params: []
   })
 })
@@ -1272,7 +1274,7 @@ test('full join with alias', async ctx => {
 
   expect(result).toEqual([
     {
-      users: {
+      prefixed_users: {
         id: 10,
         name: 'Ivan'
       },
@@ -5073,6 +5075,7 @@ test('mySchema :: select with group by as column + sql', async ctx => {
     .select({name: usersMySchemaTable.name})
     .from(usersMySchemaTable)
     .groupBy(usersMySchemaTable.id, sql`${usersMySchemaTable.name}`)
+    .orderBy(asc(usersMySchemaTable.name))
 
   expect(result).toEqual([{name: 'Jane'}, {name: 'Jane'}, {name: 'John'}])
 })
@@ -5087,7 +5090,7 @@ test('mySchema :: build query', async ctx => {
     .toSQL()
 
   expect(query).toEqual({
-    sql: 'select "id", "name" from "mySchema"."users" group by "mySchema"."users"."id", "mySchema"."users"."name"',
+    sql: 'select "users"."id", "users"."name" from "mySchema"."users" group by "users"."id", "users"."name"',
     params: []
   })
 })
