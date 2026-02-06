@@ -107,7 +107,7 @@ export function updateQuery(query: UpdateQuery): Sql {
     .query(
       formatCTE(query),
       {
-        update: sql.identifier(tableApi.name),
+        update: tableApi.identifier(),
         set,
         where,
         returning: returning && selection(returning)

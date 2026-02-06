@@ -235,7 +235,6 @@ export function insertQuery(query: InsertQuery): Sql {
   const {insert, values, select, returning, overridingSystemValue} = query
   if (!values && !select) throw new Error('No values defined')
   const table = getTable(insert)
-  const tableName = sql.identifier(table.name)
   const toInsert = values
     ? sql.query({
         values: formatValues(table, Array.isArray(values) ? values : [values])
@@ -245,7 +244,7 @@ export function insertQuery(query: InsertQuery): Sql {
   return sql
     .query(
       formatCTE(query),
-      {insertInto: sql`${tableName} (${table.listColumns()})`},
+      {insertInto: sql`${table.identifier()} (${table.listColumns()})`},
       {overridingSystemValue},
       toInsert,
       conflicts,

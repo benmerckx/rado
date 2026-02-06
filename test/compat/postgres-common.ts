@@ -1480,14 +1480,15 @@ test('prepared statement built using $dynamic', async ctx => {
   }
 
   await db.insert(usersTable).values([{name: 'John'}, {name: 'John1'}])
-  const stmt: any = db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name
-    })
-    .from(usersTable)
-    .$dynamic()
-  withLimitOffset(stmt).prepare('stmt_limit')
+  const stmt: any = withLimitOffset(
+    db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name
+      })
+      .from(usersTable)
+      .$dynamic()
+  ).prepare('stmt_limit')
 
   const result = await stmt.execute({limit: 1, offset: 1})
 
@@ -1605,7 +1606,7 @@ test('build query insert with onConflict do update / multiple columns', async ct
     .toSQL()
 
   expect(query).toEqual({
-    sql: 'insert into "users" ("id", "name", "verified", "jsonb", "created_at") values (default, $1, default, $2, default) on conflict ("id","name") do update set "name" = $3',
+    sql: 'insert into "users" ("id", "name", "verified", "jsonb", "created_at") values (default, $1, default, $2, default) on conflict ("id", "name") do update set "name" = $3',
     params: ['John', '["foo","bar"]', 'John1']
   })
 })
@@ -5166,7 +5167,7 @@ test('mySchema :: build query insert with onConflict do update / multiple column
     .toSQL()
 
   expect(query).toEqual({
-    sql: 'insert into "mySchema"."users" ("id", "name", "verified", "jsonb", "created_at") values (default, $1, default, $2, default) on conflict ("id","name") do update set "name" = $3',
+    sql: 'insert into "mySchema"."users" ("id", "name", "verified", "jsonb", "created_at") values (default, $1, default, $2, default) on conflict ("id", "name") do update set "name" = $3',
     params: ['John', '["foo","bar"]', 'John1']
   })
 })
