@@ -516,16 +516,27 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
 }
 
 export function querySelection({select, from}: SelectQuery): Selection {
-  if (select) return selection(select as SelectionInput)
+  if (select) {
+    if (!from || !Array.isArray(from)) return selection(select as SelectionInput)
+    const [, ...joins] = from
+    return applyJoins(selection(select as SelectionInput), joins)
+  }
+
   if (!from) throw new Error('No selection defined')
   if (Array.isArray(from)) {
     const [target, ...joins] = from
-    return joins.reduce((result, join) => {
-      const {target, op} = joinOp(join)
-      return result.join(target, op)
-    }, selection(target))
+    return applyJoins(selection(target), joins)
   }
   return hasSelection(from) ? getSelection(from) : selection(sql`*`)
+}
+
+function applyJoins(base: Selection, joins: Array<Join>): Selection {
+  let current = base
+  for (const join of joins) {
+    const {target, op} = joinOp(join)
+    current = current.join(target, op)
+  }
+  return current
 }
 
 function joinOp(join: Join) {

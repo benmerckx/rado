@@ -169,8 +169,31 @@ export class Selection implements HasSql {
     return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
   }
 
+  #collectTargetNames(input: SelectionInput, names: Set<string>) {
+    const expr = getSql(input as HasSql)
+    if (expr) {
+      if (hasField(input)) names.add(getField(input).targetName)
+      return
+    }
+    for (const value of Object.values(input))
+      this.#collectTargetNames(value, names)
+  }
+
+  #targetNames(): Set<string> {
+    const names = new Set<string>()
+    this.#collectTargetNames(this.input, names)
+    return names
+  }
+
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
-    return this
+    if (!hasTable(right)) return this
+    const rightTable = getTable(right)
+    const nullable = new Set(this.nullable)
+    if (operator === 'leftJoin' || operator === 'fullJoin')
+      nullable.add(rightTable.aliased)
+    if (operator === 'rightJoin' || operator === 'fullJoin')
+      for (const name of this.#targetNames()) nullable.add(name)
+    return new Selection(this.input, nullable)
   }
 }
 
@@ -208,9 +231,7 @@ export class JoinSelection extends Selection {
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)
     if (operator === 'rightJoin' || operator === 'fullJoin')
-      this.tables
-        .map(table => getTable(table).aliased)
-        .forEach(nullable.add, nullable)
+      for (const table of this.tables) nullable.add(getTable(table).aliased)
     if (operator === 'leftJoin' || operator === 'fullJoin')
       nullable.add(rightTable.aliased)
     return new JoinSelection([...this.tables, right], nullable)
