@@ -282,7 +282,8 @@ export function tableCreator(
   nameTable: (name: string) => string
 ): typeof table {
   return (name, columns, config, schemaName) => {
-    return table(<any>nameTable(name), columns, config, schemaName)
+    const created = table(<any>nameTable(name), columns, config, schemaName)
+    return alias(created, name)
   }
 }
 

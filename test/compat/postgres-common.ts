@@ -1274,7 +1274,7 @@ test('full join with alias', async ctx => {
 
   expect(result).toEqual([
     {
-      prefixed_users: {
+      users: {
         id: 10,
         name: 'Ivan'
       },
