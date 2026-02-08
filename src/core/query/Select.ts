@@ -6,9 +6,11 @@ import {
   getData,
   getQuery,
   getSelection,
+  getField,
   getSql,
   getTable,
   getTarget,
+  hasField,
   hasQuery,
   hasTable,
   hasSelection,
@@ -53,6 +55,22 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
+function mapScalarSelection(
+  query: Sql,
+  selected: SelectionInput
+): Sql {
+  if (hasSql(selected)) return query.mapWith(getSql(selected))
+  if (selected && typeof selected === 'object') {
+    const values = Object.values(selected)
+    if (values.length === 1) {
+      const first = values[0]
+      if (first && typeof first === 'object' && hasSql(first))
+        return query.mapWith(getSql(first))
+    }
+  }
+  return query
+}
+
 export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<SelectionRow<Input>, Meta>
   implements HasQuery<SelectionRow<Input>>
@@ -74,7 +92,10 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
-    return sql`(${getQuery(this)})`
+    return mapScalarSelection(
+      sql`(${getQuery(this)})`,
+      getSelection(this).input
+    ) as Sql<SelectionRow<Input>>
   }
 }
 
@@ -91,10 +112,14 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {
-    const fields = getSelection(this).makeVirtual<Input>(alias)
-    return Object.assign(<any>fields, {
+    const selected = getSelection(this)
+    const fields = selected.makeVirtual<Input>(alias)
+    return Object.assign(<any>{}, fields, {
       [internalSelection]: selection(fields),
-      [internalSql]: sql`(${getQuery(this)})`,
+      [internalSql]: mapScalarSelection(
+        sql`(${getQuery(this)})`,
+        selected.input
+      ),
       [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
         alias
       )}`.inlineFields(true)
@@ -112,15 +137,57 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     return data.compound as CompoundSelect
   }
 
+  #selectFields(select: SelectQuery): Array<string> {
+    return querySelection(select).fieldNames()
+  }
+
+  #assertMatchingFields(
+    left: CompoundSelect,
+    right: CompoundSelect
+  ): Array<string> {
+    const getSelect = (segment: SelectQuery | Union): SelectQuery => {
+      if ('select' in segment) return segment
+      const op = Object.keys(segment)[0] as UnionOp
+      return segment[op]
+    }
+
+    const fields = this.#selectFields(left[0]!)
+    const assert = (query: SelectQuery) => {
+      const names = this.#selectFields(query)
+      if (fields.length !== names.length)
+        throw new Error('Union segments must have the same fields')
+      for (let i = 0; i < fields.length; i++)
+        if (fields[i] !== names[i])
+          throw new Error('Union segments must have the same fields')
+    }
+
+    for (const segment of left.slice(1)) assert(getSelect(segment))
+    for (const segment of right) assert(getSelect(segment))
+    return fields
+  }
+
   #compound(op: UnionOp, target: UnionTarget<Input, Meta>): Union<Input, Meta> {
     const left = this.#getSelect(this)
-    const right = this.#getSelect(
+    const rightBase =
       typeof target === 'function' ? target(this.#makeSelf()) : target
-    )
-    const [on, ...rest] = right
-    const select = [...left, {[op]: on}, ...rest] as CompoundSelect
+    const right = this.#getSelect(rightBase)
+    this.#assertMatchingFields(left, right)
+    const select =
+      right.length > 1
+        ? ([
+            ...left,
+            {
+              [op]: {
+                from: rightBase.as('__setop_right')
+              } as SelectQuery
+            }
+          ] as CompoundSelect)
+        : ([...left, {[op]: right[0]!}] as CompoundSelect)
+    const {resolver, with: withDefs, withRecursive} = getData(this)
     return new Union({
-      ...getData(this),
+      resolver,
+      with: withDefs,
+      withRecursive,
       select
     })
   }
@@ -519,8 +586,72 @@ export interface SelectionFrom<Input, Meta extends QueryMeta>
   fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
 }
 
+function collectReferencedTargets(input: SelectionInput, names: Set<string>) {
+  if (hasSql(input as HasSql)) {
+    if (hasField(input)) {
+      const field = getField(input)
+      const source = field.source
+      if (!(source && typeof source === 'object' && hasSql(source as HasSql)))
+        names.add(field.targetName)
+    }
+    return
+  }
+  if (!input || typeof input !== 'object') return
+  for (const value of Object.values(input as Record<string, SelectionInput>))
+    collectReferencedTargets(value, names)
+}
+
+function collectFromTargets(from: SelectQuery['from'], names: Set<string>) {
+  if (!from) return
+  const collect = (target: HasTarget) => {
+    if (hasTable(target)) {
+      names.add(getTable(target).aliased)
+      return
+    }
+    if (!hasSelection(target)) return
+    collectReferencedTargets(getSelection(target).input, names)
+  }
+  if (Array.isArray(from)) {
+    for (const entry of from) {
+      if (hasTarget(entry)) collect(entry)
+      else if (!hasSql(entry)) {
+        const {target} = joinOp(entry)
+        if (hasTarget(target)) collect(target)
+      }
+    }
+    return
+  }
+  if (hasTarget(from)) collect(from)
+}
+
+function hasUnnamedDerivedSource(input: SelectionInput): boolean {
+  if (hasField(input)) {
+    const source = getField(input).source
+    if (source && typeof source === 'object' && hasSql(source as HasSql)) {
+      if (!hasField(source) && !getSql(source).alias) return true
+    }
+    return false
+  }
+  if (hasSql(input as HasSql)) return false
+  if (!input || typeof input !== 'object') return false
+  return Object.values(input as Record<string, SelectionInput>).some(
+    hasUnnamedDerivedSource
+  )
+}
+
 export function querySelection({select, from}: SelectQuery): Selection {
   if (select) {
+    if (from) {
+      const selectedTargets = new Set<string>()
+      const fromTargets = new Set<string>()
+      collectReferencedTargets(select as SelectionInput, selectedTargets)
+      collectFromTargets(from, fromTargets)
+      if (fromTargets.size > 0) {
+        for (const targetName of selectedTargets)
+          if (!fromTargets.has(targetName))
+            throw new Error(`Unknown target in select: ${targetName}`)
+      }
+    }
     if (!from || !Array.isArray(from)) return selection(select as SelectionInput)
     const [, ...joins] = from
     return applyJoins(selection(select as SelectionInput), joins)
@@ -531,7 +662,13 @@ export function querySelection({select, from}: SelectQuery): Selection {
     const [target, ...joins] = from
     return applyJoins(selection(target), joins)
   }
-  return hasSelection(from) ? getSelection(from) : selection(sql`*`)
+  if (hasSelection(from)) {
+    const selected = getSelection(from)
+    if (hasUnnamedDerivedSource(selected.input))
+      throw new Error('Cannot select all from subquery without alias')
+    return selected
+  }
+  return selection(sql`*`)
 }
 
 function applyJoins(base: Selection, joins: Array<Join>): Selection {
@@ -706,15 +843,17 @@ export function unionQuery(query: UnionQuery): Sql {
     select.map((segment, i) => {
       if (i === 0) {
         fields = querySelection(segment as SelectQuery).fieldNames()
-        return selectQuery(segment as SelectQuery)
+        return sql`(${selectQuery(segment as SelectQuery)})`
       }
       const op = Object.keys(segment)[0] as UnionOp
       const query = (<Record<UnionOp, SelectQuery>>segment)[op]
       const names = querySelection(query).fieldNames()
+      if (fields.length !== names.length)
+        throw new Error('Union segments must have the same fields')
       for (let i = 0; i < fields.length; i++)
         if (fields[i] !== names[i])
           throw new Error('Union segments must have the same fields')
-      return sql.query({[op]: selectQuery(query)})
+      return sql.query({[op]: sql`(${selectQuery(query)})`})
     })
   )
   return sql.query(formatCTE(query), segments, formatModifiers(query))

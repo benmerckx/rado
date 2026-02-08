@@ -7,6 +7,13 @@ import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = PGlite | Transaction
 
+const RAW_DATE_TIME_PARSERS = {
+  20: (value: string) => value, // int8 / bigint (e.g. count(*))
+  1082: (value: string) => value, // date
+  1114: (value: string) => value, // timestamp
+  1184: (value: string) => value // timestamptz
+}
+
 class PreparedStatement implements AsyncStatement {
   constructor(
     private client: Queryable,
@@ -16,14 +23,16 @@ class PreparedStatement implements AsyncStatement {
   all(params: Array<unknown>): Promise<Array<object>> {
     return this.client
       .query<object>(this.sql, params, {
-        rowMode: 'object'
+        rowMode: 'object',
+        parsers: RAW_DATE_TIME_PARSERS
       })
       .then(res => res.rows)
   }
 
   async run(params: Array<unknown>) {
     await this.client.query(this.sql, params, {
-      rowMode: 'array'
+      rowMode: 'array',
+      parsers: RAW_DATE_TIME_PARSERS
     })
   }
 
@@ -34,7 +43,8 @@ class PreparedStatement implements AsyncStatement {
   values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
     return this.client
       .query<Array<unknown>>(this.sql, params, {
-        rowMode: 'array'
+        rowMode: 'array',
+        parsers: RAW_DATE_TIME_PARSERS
       })
       .then(res => res.rows)
   }
