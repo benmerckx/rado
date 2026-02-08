@@ -59,6 +59,118 @@ function formatLine(value: LineTuple | LineABC | string): string {
   return `{${value.a},${value.b},${value.c}}`
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function pad3(value: number): string {
+  return String(value).padStart(3, '0')
+}
+
+function formatDateString(value: Date): string {
+  return `${value.getUTCFullYear()}-${pad2(value.getUTCMonth() + 1)}-${pad2(
+    value.getUTCDate()
+  )}`
+}
+
+function formatTimestampString(value: Date, withTimeZone: boolean): string {
+  const date = formatDateString(value)
+  const time = `${pad2(value.getUTCHours())}:${pad2(
+    value.getUTCMinutes()
+  )}:${pad2(value.getUTCSeconds())}.${pad3(value.getUTCMilliseconds())}`
+  return withTimeZone ? `${date} ${time}+00` : `${date} ${time}`
+}
+
+function parsePgArrayValue(input: string): Array<unknown> {
+  if (!input.startsWith('{') || !input.endsWith('}')) return [input]
+  const source = input.slice(1, -1)
+  const parts: Array<string> = []
+  let token = ''
+  let depth = 0
+  let inQuotes = false
+  let wasQuoted = false
+
+  const pushToken = () => {
+    if (!wasQuoted && token === 'NULL') parts.push('\0NULL')
+    else parts.push(token)
+    token = ''
+    wasQuoted = false
+  }
+
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i]!
+    if (inQuotes) {
+      if (char === '\\') {
+        const next = source[++i]
+        if (next !== undefined) token += next
+        continue
+      }
+      if (char === '"') {
+        inQuotes = false
+        wasQuoted = true
+        continue
+      }
+      token += char
+      continue
+    }
+    if (char === '"') {
+      inQuotes = true
+      continue
+    }
+    if (char === '{') {
+      depth++
+      token += char
+      continue
+    }
+    if (char === '}') {
+      depth--
+      token += char
+      continue
+    }
+    if (char === ',' && depth === 0) {
+      pushToken()
+      continue
+    }
+    token += char
+  }
+  pushToken()
+
+  return parts.map(part => {
+    if (part === '\0NULL') return null
+    if (part.startsWith('{') && part.endsWith('}')) return parsePgArrayValue(part)
+    return part
+  })
+}
+
+function serializePgArrayValue(value: Array<unknown>): string {
+  return `{${value.map(serializePgArrayItem).join(',')}}`
+}
+
+function serializePgArrayItem(value: unknown): string {
+  if (Array.isArray(value)) return serializePgArrayValue(value)
+  if (value === null || value === undefined) return 'NULL'
+  let normalized: string
+  if (value instanceof Date) normalized = value.toISOString()
+  else if (typeof value === 'string') normalized = value
+  else if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  )
+    normalized = String(value)
+  else normalized = JSON.stringify(value)
+  const escaped = normalized.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return `"${escaped}"`
+}
+
+function mapArrayItems(
+  value: unknown,
+  mapper: (item: unknown) => unknown
+): unknown {
+  if (!Array.isArray(value)) return value
+  return value.map(item => mapper(item))
+}
+
 export class PgColumn<
   Value = unknown,
   Nulls extends Nullability = Nullability
@@ -83,9 +195,27 @@ export class PgColumn<
 
   array(size?: number): PgColumn<Array<Value>, Nulls> {
     const data = getData(this)
+    const mapTo = data.mapToDriverValue
+    const mapFrom = data.mapFromDriverValue
     return new PgColumn({
       ...data,
-      type: new ColumnType('array', [data.type], sql`${data.type}[${size}]`)
+      type: new ColumnType('array', [data.type], sql`${data.type}[${size}]`),
+      mapToDriverValue(value: unknown) {
+        if (!Array.isArray(value)) return value
+        const mapped = mapArrayItems(value, item =>
+          item !== null && item !== undefined && mapTo ? mapTo(item) : item
+        )
+        return serializePgArrayValue(mapped as Array<unknown>)
+      },
+      mapFromDriverValue(value: unknown, specs) {
+        const parsed = typeof value === 'string' ? parsePgArrayValue(value) : value
+        if (!Array.isArray(parsed)) return parsed
+        return mapArrayItems(parsed, item =>
+          item !== null && item !== undefined && mapFrom
+            ? mapFrom(item, specs)
+            : item
+        )
+      }
     })
   }
 
@@ -181,11 +311,13 @@ export function date(
   options: {mode: 'date'}
 ): PgColumn<Date>
 export function date(name?: string, options?: {mode: 'date' | 'string'}) {
+  const mode = options?.mode ?? 'date'
   return new PgColumn({
     name,
     type: column.date(),
-    mapFromDriverValue(value: string) {
-      return options?.mode === 'date' ? new Date(value) : value
+    mapFromDriverValue(value: string | Date) {
+      if (mode === 'date') return value instanceof Date ? value : new Date(value)
+      return value instanceof Date ? formatDateString(value) : value
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date ? value.toISOString() : value
@@ -460,13 +592,19 @@ export function timestamp(
 ) {
   const {name, options} = columnConfig(args)
   const withTimeZone = options?.withTimeZone ?? options?.withTimezone
+  const mode = options?.mode ?? 'date'
   return new PgColumn({
     name,
     type: column[withTimeZone ? 'timestamp with time zone' : 'timestamp'](
       options?.precision
     ),
-    mapFromDriverValue(value: string) {
-      return options?.mode === 'string' ? value : new Date(value)
+    mapFromDriverValue(value: string | Date) {
+      if (mode === 'string') {
+        return value instanceof Date
+          ? formatTimestampString(value, !!withTimeZone)
+          : value
+      }
+      return value instanceof Date ? value : new Date(value)
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date ? value.toISOString() : value

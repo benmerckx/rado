@@ -58,7 +58,15 @@ export class UpdateTable<
   Meta extends QueryMeta
 > extends Update<void, Meta> {
   set(set: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
-    return new UpdateTable<Definition, Meta>({...getData(this), set})
+    const data = getData(this)
+    const hasDefinedValue = Object.values(set).some(value => value !== undefined)
+    if (!hasDefinedValue) {
+      const hasOnUpdate = Object.values(getTable(data.update).columns).some(
+        column => !!getData(column).$onUpdate
+      )
+      if (!hasOnUpdate) throw new Error('No values to set')
+    }
+    return new UpdateTable<Definition, Meta>({...data, set})
   }
 
   where(
@@ -87,22 +95,24 @@ export function updateQuery(query: UpdateQuery): Sql {
   const {update: table, set: values, where, returning} = query
   const tableApi = getTable(table)
   if (!values) throw new Error('Update values are required')
-  const set = sql.join(
-    Object.entries(tableApi.columns).map(([key, column]) => {
+  const assignments = Object.entries(tableApi.columns).flatMap(
+    ([key, column]) => {
       const columnApi = getData(column)
       const {name, $onUpdate} = columnApi
+      const value = values[key]
       let expr: unknown
-      if (!(key in values)) {
+      if (value === undefined) {
         if ($onUpdate) expr = $onUpdate()
-        else return
+        else return []
       } else {
-        expr = mapToColumn(columnApi, values[key])
+        expr = mapToColumn(columnApi, value)
       }
       const fieldName = name ?? key
-      return sql`${sql.identifier(fieldName)} = ${expr}`
-    }),
-    sql`, `
+      return [sql`${sql.identifier(fieldName)} = ${expr}`]
+    }
   )
+  if (assignments.length === 0) throw new Error('No values to set')
+  const set = sql.join(assignments, sql`, `)
   return sql
     .query(
       formatCTE(query),

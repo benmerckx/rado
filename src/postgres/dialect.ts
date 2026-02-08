@@ -15,6 +15,7 @@ export const postgresDialect: Dialect = new Dialect(
   'postgres',
   class extends Emitter {
     runtime: Runtime = 'postgres'
+
     emitValue(value: unknown) {
       this.params.push(new ValueParam(value))
       this.sql += `$${this.params.length}`

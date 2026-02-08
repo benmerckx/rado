@@ -5,7 +5,10 @@ import type {ResultModifiers} from './Query.ts'
 
 export function formatModifiers(modifiers: ResultModifiers): Sql | undefined {
   const {orderBy, limit, offset} = modifiers
-  if (!orderBy && limit === undefined && offset === undefined) return undefined
+  const normalizedLimit =
+    typeof limit === 'number' && limit < 0 ? undefined : limit
+  if (!orderBy && normalizedLimit === undefined && offset === undefined)
+    return undefined
   return sql.query({
     orderBy:
       orderBy &&
@@ -17,7 +20,7 @@ export function formatModifiers(modifiers: ResultModifiers): Sql | undefined {
         }),
         sql`, `
       ),
-    limit: limit !== undefined && input(limit),
+    limit: normalizedLimit !== undefined && input(normalizedLimit),
     offset: offset !== undefined && input(offset)
   })
 }

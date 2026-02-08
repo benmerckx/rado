@@ -28,11 +28,15 @@ export function input<T>(value: Input<T>, maybeField?: Input<T>): Sql<T> {
 }
 
 export function mapToColumn<T>(
-  {mapToDriverValue}: ColumnData,
+  {mapToDriverValue, type}: ColumnData,
   expr: Input<T>
 ): Sql<T> {
   const isObject = expr && typeof expr === 'object'
   if (isObject && hasSql(expr)) return getSql(expr)
+  if (Array.isArray(expr) && type.kind === 'array') {
+    if (!mapToDriverValue) return input(expr as T)
+    return input(mapToDriverValue(expr) as T)
+  }
   return input(
     expr !== null && mapToDriverValue ? mapToDriverValue(expr) : expr
   ) as Sql<T>
