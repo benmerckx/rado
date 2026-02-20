@@ -4,17 +4,16 @@ import {
   type HasSql,
   type HasTarget,
   getData,
+  getField,
   getQuery,
   getSelection,
-  getField,
   getSql,
   getTable,
   getTarget,
   hasField,
-  hasQuery,
-  hasTable,
   hasSelection,
   hasSql,
+  hasTable,
   hasTarget,
   internalData,
   internalQuery,
@@ -55,10 +54,7 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 
-function mapScalarSelection(
-  query: Sql,
-  selected: SelectionInput
-): Sql {
+function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
   if (hasSql(selected)) return query.mapWith(getSql(selected))
   if (selected && typeof selected === 'object') {
     const values = Object.values(selected)
@@ -652,7 +648,8 @@ export function querySelection({select, from}: SelectQuery): Selection {
             throw new Error(`Unknown target in select: ${targetName}`)
       }
     }
-    if (!from || !Array.isArray(from)) return selection(select as SelectionInput)
+    if (!from || !Array.isArray(from))
+      return selection(select as SelectionInput)
     const [, ...joins] = from
     return applyJoins(selection(select as SelectionInput), joins)
   }
@@ -689,7 +686,6 @@ function joinOp(join: Join) {
 
 function formatTarget(target: HasTarget): Sql {
   if (hasTable(target)) return getTable(target).target()
-  if (hasQuery(target)) return sql`(${getQuery(target)}) as ${getTarget(target)}`
   return getTarget(target)
 }
 
@@ -843,7 +839,7 @@ export function unionQuery(query: UnionQuery): Sql {
     select.map((segment, i) => {
       if (i === 0) {
         fields = querySelection(segment as SelectQuery).fieldNames()
-        return sql`(${selectQuery(segment as SelectQuery)})`
+        return selectQuery(segment as SelectQuery)
       }
       const op = Object.keys(segment)[0] as UnionOp
       const query = (<Record<UnionOp, SelectQuery>>segment)[op]
@@ -853,7 +849,7 @@ export function unionQuery(query: UnionQuery): Sql {
       for (let i = 0; i < fields.length; i++)
         if (fields[i] !== names[i])
           throw new Error('Union segments must have the same fields')
-      return sql.query({[op]: sql`(${selectQuery(query)})`})
+      return sql.query({[op]: selectQuery(query)})
     })
   )
   return sql.query(formatCTE(query), segments, formatModifiers(query))
