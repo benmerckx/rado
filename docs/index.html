@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>rado</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --font-size: 0.90625rem;
+      --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-title: Rubik, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: JetBrainsMono, ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      --tx-1: #000000;
+      --tx-2: #363636;
+      --bg-1: #ffffff;
+      --bg-2: #fafafa;
+      --bg-3: #84adff;
+      --line: #e6e6e6;
+      --lk-1: #ff6030;
+      --lk-2: #ff4f19;
+      --lk-tx: #ffffff;
+      --ac-1: #79ffe1;
+      --ac-tx: #0c4047;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --tx-1: #ffffff;
+        --tx-2: #eeeeee;
+        --bg-1: #000000;
+        --bg-2: #111111;
+        --bg-3: #222222;
+        --line: #262626;
+        --lk-1: #ff4f19;
+        --lk-2: #ff6030;
+        --lk-tx: #ffffff;
+        --ac-1: #7928ca;
+        --ac-tx: #ffffff;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-family: var(--font-sans);
+    }
+
+    body {
+      margin: 0 auto;
+      max-width: 92ch;
+      padding: 2.5rem 2rem;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      background: var(--bg-1);
+      color: var(--tx-2);
+      font-size: var(--font-size);
+      line-height: 1.25rem;
+    }
+
+    main {
+      padding: 0 0 4rem;
+    }
+
+    ::selection {
+      background: var(--ac-1);
+      color: var(--ac-tx);
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: var(--font-title);
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h1,
+    h2 {
+      color: var(--lk-1);
+      font-size: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    h1 {
+      padding-top: 0;
+      margin-bottom: 1.5rem;
+      font-size: 1.2rem;
+    }
+
+    h2 {
+      margin-top: 3rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+    }
+
+    h3 {
+      color: var(--tx-1);
+      font-size: var(--font-size);
+      margin: 1.5rem 0 0.8rem;
+      padding-top: 1rem;
+    }
+
+    p,
+    table,
+    blockquote,
+    ul,
+    ol,
+    details {
+      margin-bottom: 1.5rem;
+    }
+
+    h1 + p {
+      max-width: 62ch;
+      color: var(--tx-1);
+      font-size: 1rem;
+      line-height: 1.45rem;
+    }
+
+    a {
+      color: var(--lk-1);
+      text-decoration: none;
+    }
+
+    a:hover {
+      color: var(--lk-2);
+    }
+
+    table {
+      width: 100%;
+      display: block;
+      overflow-x: auto;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+    }
+
+    th,
+    td {
+      padding: 0.5rem;
+      border: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-2);
+      color: var(--tx-1);
+    }
+
+    tr:nth-child(even) {
+      background: var(--bg-2);
+    }
+
+    details {
+      padding: 0;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--bg-3);
+      border-radius: 4px;
+      background: var(--bg-1);
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--tx-1);
+      font-family: var(--font-title);
+      font-weight: 700;
+      padding: 0.75rem 1rem;
+      list-style-position: outside;
+    }
+
+    summary::marker {
+      color: var(--lk-1);
+    }
+
+    details[open] {
+      background: var(--bg-2);
+    }
+
+    details[open] summary {
+      margin-bottom: 0.25rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    details > :not(summary) {
+      margin-left: 1rem;
+      margin-right: 1rem;
+    }
+
+    details[open] > *:last-child {
+      margin-bottom: 0;
+    }
+
+    pre {
+      max-width: 100%;
+      margin: 0 -1rem 1rem;
+      overflow: auto;
+      padding: 1rem;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--bg-2);
+      line-height: 1.25rem;
+    }
+
+    code {
+      font-family: var(--font-mono);
+    }
+
+    :not(pre) > code {
+      padding: 3px 6px;
+      border-radius: 4px;
+      background: var(--bg-2);
+      font-size: 0.9em;
+    }
+
+    pre code {
+      background: inherit;
+      color: inherit;
+      font-size: 0.9em;
+      border: 0;
+      padding: 0;
+    }
+
+    pre.shiki {
+      background: var(--bg-2) !important;
+      color: var(--tx-2) !important;
+    }
+
+    .line {
+      min-height: 1.25rem;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .shiki,
+      .shiki span {
+        color: var(--shiki-dark) !important;
+      }
+    }
+
+    blockquote {
+      padding: 1.5rem;
+      border-left: 5px solid var(--lk-1);
+      background: var(--bg-2);
+      color: var(--tx-2);
+    }
+
+    ul,
+    ol {
+      padding-left: 2rem;
+    }
+
+    li {
+      margin-top: 0.4rem;
+    }
+
+    hr {
+      border: 0;
+      border-bottom: 1px solid var(--bg-3);
+      margin: 1rem auto;
+    }
+
+    @media (max-width: 720px) {
+      body {
+        max-width: none;
+        padding: 1.25rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+<h1>rado</h1>
+<p>Fully typed, lightweight TypeScript query builder.</p>
+<p>Rado lets you describe tables in TypeScript and write SQL-shaped queries with
+inferred result, insert, and update types. The API is organized around SQL:
+define tables and views, connect a driver, select rows, insert rows, update
+rows, delete rows, compose expressions, and run transactions.</p>
+<h2>Installation</h2>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">npm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> install</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rado</span></span>
+<span class="line"></span></code></pre>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {table} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {integer, text} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/postgres'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {connect} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/driver/pg'</span></span>
+<span class="line"></span></code></pre>
+<h2>Quick start</h2>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {eq, table} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {integer, text} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/postgres'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {connect} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/driver/pg'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {Pool} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'pg'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> User</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> table</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'user'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  id: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">primaryKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  name: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">text</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">notNull</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  email: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">text</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">unique</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> db</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> connect</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Pool</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({database: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'app'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> users</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({id: User.id, name: User.name})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.email, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"></span></code></pre>
+<h2>Supported databases</h2>
+<table>
+<thead>
+<tr><th>Database</th><th>Driver package</th><th>Rado import</th></tr>
+</thead>
+<tbody>
+<tr><td>PostgreSQL</td><td><code>pg</code></td><td><code>rado/driver/pg</code></td></tr>
+<tr><td>PostgreSQL</td><td><code>@electric-sql/pglite</code></td><td><code>rado/driver/pglite</code></td></tr>
+<tr><td>PostgreSQL</td><td><code>@neondatabase/serverless</code></td><td><code>rado/driver/pg</code></td></tr>
+<tr><td>PostgreSQL</td><td><code>@vercel/postgres</code></td><td><code>rado/driver/pg</code></td></tr>
+<tr><td>SQLite</td><td><code>better-sqlite3</code></td><td><code>rado/driver/better-sqlite3</code></td></tr>
+<tr><td>SQLite</td><td><code>bun:sqlite</code></td><td><code>rado/driver/bun-sqlite</code></td></tr>
+<tr><td>SQLite</td><td><code>sql.js</code></td><td><code>rado/driver/sql.js</code></td></tr>
+<tr><td>SQLite</td><td><code>@libsql/client</code></td><td><code>rado/driver/libsql</code></td></tr>
+<tr><td>SQLite</td><td>Cloudflare D1</td><td><code>rado/driver/d1</code></td></tr>
+<tr><td>MySQL</td><td><code>mysql2</code></td><td><code>rado/driver/mysql2</code></td></tr>
+</tbody>
+</table>
+<h2>Schema definition</h2>
+<details open>
+<summary>Tables</summary>
+<p>Tables are the typed source for <code>select</code>, <code>insert</code>, <code>update</code>, and <code>delete</code>.</p>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {table, alias, </span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> InsertRow, </span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> SelectRow, </span><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> UpdateRow} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {integer, text} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/postgres'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> User</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> table</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'user'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  id: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">primaryKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  name: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">text</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">notNull</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  email: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">text</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> Author</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> alias</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'author'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> UserRow</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> SelectRow</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#D73A49;--shiki-dark:#F97583">typeof</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> User></span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> NewUser</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> InsertRow</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#D73A49;--shiki-dark:#F97583">typeof</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> User></span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">type</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> UserPatch</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> UpdateRow</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#D73A49;--shiki-dark:#F97583">typeof</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> User></span></span>
+<span class="line"></span></code></pre>
+<p>Public table APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>table(name, columns, config?)</code></td><td><code>rado</code></td><td>Define a table with inferred fields and row types.</td></tr>
+<tr><td><code>alias(table, alias)</code></td><td><code>rado</code></td><td>Reuse a table in self-joins or shorter query names.</td></tr>
+<tr><td><code>tableCreator(fn)</code></td><td><code>rado</code></td><td>Create a table helper that maps TypeScript names to SQL names.</td></tr>
+<tr><td><code>pgTable</code>, <code>pgTableCreator</code></td><td><code>rado/postgres</code></td><td>PostgreSQL aliases for <code>table</code> and <code>tableCreator</code>.</td></tr>
+<tr><td><code>sqliteTable</code>, <code>sqliteTableCreator</code></td><td><code>rado/sqlite</code></td><td>SQLite aliases for <code>table</code> and <code>tableCreator</code>.</td></tr>
+<tr><td><code>mysqlTable</code>, <code>mysqlTableCreator</code></td><td><code>rado/mysql</code></td><td>MySQL aliases for <code>table</code> and <code>tableCreator</code>.</td></tr>
+<tr><td><code>Table</code>, <code>TableRow</code>, <code>TableInsert</code>, <code>TableUpdate</code></td><td><code>rado</code></td><td>Type helpers for table definitions and row shapes.</td></tr>
+<tr><td><code>SelectRow&lt;T&gt;</code>, <code>InsertRow&lt;T&gt;</code>, <code>UpdateRow&lt;T&gt;</code></td><td><code>rado</code></td><td>Extract row/input types from a table.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Columns</summary>
+<p>Columns define SQL types and TypeScript value types.</p>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {Column, column, table, sql} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> bool</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">name</span><span style="color:#D73A49;--shiki-dark:#F97583">?:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> string</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Column</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">boolean</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#D73A49;--shiki-dark:#F97583"> new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Column</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    name,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    type: column[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'tinyint'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">](</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">),</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    mapFromDriverValue</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">      return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> value </span><span style="color:#D73A49;--shiki-dark:#F97583">===</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    mapToDriverValue</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">      return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> value </span><span style="color:#D73A49;--shiki-dark:#F97583">?</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span><span style="color:#D73A49;--shiki-dark:#F97583"> :</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"></span></code></pre>
+<p>Column modifiers:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.notNull()</code></td><td>Mark the column as non-nullable.</td></tr>
+<tr><td><code>.primaryKey(options?)</code></td><td>Mark as primary key. <code>options.autoIncrement</code> emits auto-increment where supported.</td></tr>
+<tr><td><code>.unique(name?)</code></td><td>Add a single-column unique constraint.</td></tr>
+<tr><td><code>.default(value)</code></td><td>Add a SQL default value.</td></tr>
+<tr><td><code>.defaultNow()</code></td><td>Add <code>now()</code> as the SQL default.</td></tr>
+<tr><td><code>.$default(valueOrFn)</code> / <code>.$defaultFn(fn)</code></td><td>Runtime insert default used when a value is omitted.</td></tr>
+<tr><td><code>.$onUpdate(fn)</code> / <code>.$onUpdateFn(fn)</code></td><td>Runtime update value used by insert/update formatting.</td></tr>
+<tr><td><code>.references(fieldOrFn, options?)</code></td><td>Add a foreign key reference with optional <code>onDelete</code> and <code>onUpdate</code>.</td></tr>
+<tr><td><code>.$type&lt;T&gt;()</code></td><td>Override the TypeScript value type.</td></tr>
+<tr><td><code>.mapWith(decoder)</code></td><td>Available on <code>Sql</code>; map driver output for expressions.</td></tr>
+</tbody>
+</table>
+<p>Core column APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Column</code></td><td><code>rado</code></td><td>Build custom column types.</td></tr>
+<tr><td><code>JsonColumn</code></td><td><code>rado</code></td><td>Column class with JSON path access.</td></tr>
+<tr><td><code>ColumnType</code></td><td><code>rado</code></td><td>Low-level SQL type representation.</td></tr>
+<tr><td><code>column</code></td><td><code>rado</code></td><td>Proxy for arbitrary SQL type constructors.</td></tr>
+<tr><td><code>columnConfig(args)</code></td><td><code>rado</code></td><td>Helper for <code>(name?, options?)</code> column factories.</td></tr>
+</tbody>
+</table>
+<p>Universal columns from <code>rado/universal</code>: <code>id</code>, <code>text</code>, <code>varchar</code>, <code>integer</code>,
+<code>number</code>, <code>boolean</code>, <code>json</code>, <code>jsonb</code>, <code>blob</code>.</p>
+<p>PostgreSQL columns from <code>rado/postgres</code>: <code>bigint</code>, <code>bigserial</code>, <code>bit</code>,
+<code>boolean</code>, <code>bytea</code>, <code>char</code>, <code>cidr</code>, <code>date</code>, <code>doublePrecision</code>, <code>geometry</code>,
+<code>halfvec</code>, <code>inet</code>, <code>integer</code>, <code>int</code>, <code>interval</code>, <code>json</code>, <code>jsonb</code>, <code>line</code>,
+<code>macaddr</code>, <code>macaddr8</code>, <code>numeric</code>, <code>oid</code>, <code>point</code>, <code>real</code>, <code>serial</code>, <code>smallint</code>,
+<code>smallserial</code>, <code>sparsevec</code>, <code>text</code>, <code>time</code>, <code>timestamp</code>, <code>uuid</code>, <code>varbit</code>,
+<code>varchar</code>, <code>vector</code>.</p>
+<p>SQLite columns from <code>rado/sqlite</code>: <code>boolean</code>, <code>integer</code>, <code>int</code>, <code>blob</code>, <code>text</code>,
+<code>real</code>, <code>numeric</code>, <code>json</code>, <code>jsonb</code>.</p>
+<p>MySQL columns from <code>rado/mysql</code>: <code>bigint</code>, <code>binary</code>, <code>boolean</code>, <code>blob</code>, <code>char</code>,
+<code>date</code>, <code>datetime</code>, <code>decimal</code>, <code>float</code>, <code>integer</code>, <code>int</code>, <code>json</code>, <code>longtext</code>,
+<code>mediumint</code>, <code>mediumtext</code>, <code>real</code>, <code>serial</code>, <code>smallint</code>, <code>text</code>, <code>time</code>,
+<code>timestamp</code>, <code>tinyint</code>, <code>tinytext</code>, <code>varbinary</code>, <code>varchar</code>, <code>year</code>.</p>
+</details>
+<details>
+<summary>Constraints and indexes</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {foreignKey, index, primaryKey, table, unique, uniqueIndex} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {integer, text} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/postgres'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> User</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> table</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  'user'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    id: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    orgId: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    email: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">text</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">notNull</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#E36209;--shiki-dark:#FFAB70">  t</span><span style="color:#D73A49;--shiki-dark:#F97583"> =></span><span style="color:#24292E;--shiki-dark:#E1E4E8"> ({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    pk: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">primaryKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(t.id),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    emailUnique: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">unique</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(t.orgId, t.email).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">nullsNotDistinct</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    orgIndex: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">index</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(t.orgId),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    emailIndex: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">uniqueIndex</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">on</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(t.email),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    orgFk: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">foreignKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(t.orgId).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">references</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Org.id)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>primaryKey(...fields)</code></td><td><code>rado</code>, dialect modules</td><td>Multi-column primary key.</td></tr>
+<tr><td><code>primaryKey({name, columns})</code></td><td><code>rado</code>, dialect modules</td><td>Named multi-column primary key.</td></tr>
+<tr><td><code>foreignKey(...fields).references(...foreignFields)</code></td><td><code>rado</code>, dialect modules</td><td>Table-level foreign key.</td></tr>
+<tr><td><code>foreignKey({name, columns, foreignColumns})</code></td><td><code>rado</code>, dialect modules</td><td>Named table-level foreign key.</td></tr>
+<tr><td><code>unique(name?).on(...fields)</code></td><td><code>rado</code>, dialect modules</td><td>Table-level unique constraint.</td></tr>
+<tr><td><code>.nullsNotDistinct()</code></td><td><code>UniqueConstraint</code></td><td>PostgreSQL-style null equality for unique constraints.</td></tr>
+<tr><td><code>index().on(...fields)</code></td><td><code>rado</code>, dialect modules</td><td>Non-unique index.</td></tr>
+<tr><td><code>uniqueIndex().on(...fields)</code></td><td><code>rado</code>, dialect modules</td><td>Unique index.</td></tr>
+<tr><td><code>.concurrently()</code></td><td><code>Index</code></td><td>Mark index as concurrent.</td></tr>
+<tr><td><code>.only()</code></td><td><code>Index</code></td><td>Mark index as only.</td></tr>
+<tr><td><code>.using(expr)</code></td><td><code>Index</code></td><td>Set index method/expression.</td></tr>
+<tr><td><code>.asc()</code>, <code>.desc()</code></td><td><code>Index</code></td><td>Set sort direction.</td></tr>
+<tr><td><code>.nullsFirst()</code>, <code>.nullsLast()</code></td><td><code>Index</code></td><td>Set null ordering.</td></tr>
+<tr><td><code>.where(condition)</code></td><td><code>Index</code></td><td>Add a partial-index predicate.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Select</h2>
+<details open>
+<summary>Basic select</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> allUsers</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> names</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({id: User.id, name: User.name})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"></span></code></pre>
+<p>Builder APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.select()</code></td><td>Select all fields from the source.</td></tr>
+<tr><td><code>db.select(selection)</code></td><td>Select a typed object, table, field, or SQL expression.</td></tr>
+<tr><td><code>db.selectDistinct()</code></td><td>Select distinct rows.</td></tr>
+<tr><td><code>db.selectDistinct(selection)</code></td><td>Select distinct values from a selection.</td></tr>
+<tr><td><code>db.selectDistinctOn(columns, selection?)</code></td><td>PostgreSQL <code>distinct on</code>.</td></tr>
+<tr><td><code>db.$query(queryObject)</code></td><td>Build a query from a structured query object.</td></tr>
+</tbody>
+</table>
+<p>Select chain APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.from(tableOrSubqueryOrSql)</code></td><td>Set the select source.</td></tr>
+<tr><td><code>.where(...conditions)</code></td><td>Add predicates. Undefined conditions are ignored.</td></tr>
+<tr><td><code>.groupBy(...expressions)</code></td><td>Add <code>group by</code>.</td></tr>
+<tr><td><code>.having(conditionOrFn)</code></td><td>Add <code>having</code>; may receive selected aliases.</td></tr>
+<tr><td><code>.orderBy(...expressions)</code></td><td>Add <code>order by</code>.</td></tr>
+<tr><td><code>.limit(value)</code></td><td>Add <code>limit</code>.</td></tr>
+<tr><td><code>.offset(value)</code></td><td>Add <code>offset</code>.</td></tr>
+<tr><td><code>.$first()</code></td><td>Execute/select as one row instead of an array.</td></tr>
+<tr><td><code>.$dynamic()</code></td><td>Preserve the query for dynamic composition.</td></tr>
+<tr><td><code>.for(keyword, config?)</code></td><td>PostgreSQL row locking: <code>update</code>, <code>no key update</code>, <code>share</code>, <code>key share</code>.</td></tr>
+<tr><td><code>.as(name)</code></td><td>Alias a select/union as a subquery.</td></tr>
+</tbody>
+</table>
+<p>Executable query APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>await query</code></td><td>Execute using the default result mode.</td></tr>
+<tr><td><code>.all(db?)</code></td><td>Execute and return all rows.</td></tr>
+<tr><td><code>.get(db?)</code></td><td>Execute and return one row or <code>null</code>.</td></tr>
+<tr><td><code>.run(db?)</code></td><td>Execute without returning rows.</td></tr>
+<tr><td><code>.execute(inputs?, db?)</code></td><td>Execute a prepared-style query with inputs.</td></tr>
+<tr><td><code>.prepare&lt;Inputs&gt;(name?)</code></td><td>Prepare a reusable statement.</td></tr>
+<tr><td><code>.toSQL(db?)</code></td><td>Return <code>{sql, params}</code> without executing.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Joins</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> rows</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    userName: User.name,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    postTitle: Post.title</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">leftJoin</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post, </span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.authorId, User.id))</span></span>
+<span class="line"></span></code></pre>
+<p>Join APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>SQL</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.innerJoin(target, on)</code></td><td><code>inner join</code></td></tr>
+<tr><td><code>.innerJoinLateral(target, on)</code></td><td><code>inner join lateral</code></td></tr>
+<tr><td><code>.leftJoin(target, on)</code></td><td><code>left join</code></td></tr>
+<tr><td><code>.leftJoinLateral(target, on)</code></td><td><code>left join lateral</code></td></tr>
+<tr><td><code>.rightJoin(target, on)</code></td><td><code>right join</code></td></tr>
+<tr><td><code>.fullJoin(target, on)</code></td><td><code>full join</code></td></tr>
+<tr><td><code>.crossJoin(target)</code></td><td><code>cross join</code></td></tr>
+<tr><td><code>.crossJoinLateral(target)</code></td><td><code>cross join lateral</code></td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Set operations</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {unionAll} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> active</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({id: User.id}).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.active, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> invited</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({id: Invite.userId}).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Invite)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> users</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> unionAll</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(active, invited).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">orderBy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(sql.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">identifier</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'id'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>union(left, right, ...rest)</code> / <code>.union(query)</code></td><td><code>rado</code>, dialect modules</td><td>Standard union.</td></tr>
+<tr><td><code>unionAll(left, right, ...rest)</code> / <code>.unionAll(query)</code></td><td><code>rado</code>, dialect modules</td><td>Keep duplicates.</td></tr>
+<tr><td><code>intersect(left, right, ...rest)</code> / <code>.intersect(query)</code></td><td><code>rado</code>, dialect modules</td><td>Common rows.</td></tr>
+<tr><td><code>intersectAll(left, right, ...rest)</code> / <code>.intersectAll(query)</code></td><td><code>rado/postgres</code>, <code>rado/mysql</code></td><td>Keep duplicates where supported.</td></tr>
+<tr><td><code>except(left, right, ...rest)</code> / <code>.except(query)</code></td><td><code>rado</code>, dialect modules</td><td>Rows in left but not right.</td></tr>
+<tr><td><code>exceptAll(left, right, ...rest)</code> / <code>.exceptAll(query)</code></td><td><code>rado/postgres</code>, <code>rado/mysql</code></td><td>Keep duplicates where supported.</td></tr>
+<tr><td><code>Union.orderBy</code>, <code>Union.limit</code>, <code>Union.offset</code></td><td>query instance</td><td>Modifiers on compound selects.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Subqueries and CTEs</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> prolific</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({authorId: Post.authorId})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">groupBy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.authorId)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">having</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">gt</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.id), </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'prolific'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> rows</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">innerJoin</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(prolific, </span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(prolific.authorId, User.id))</span></span>
+<span class="line"></span></code></pre>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> recentPosts</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">$with</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'recent_posts'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">gt</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.createdAt, since)))</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> rows</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">with</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(recentPosts)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(recentPosts)</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.as(name)</code></td><td>Alias a query as a subquery target.</td></tr>
+<tr><td><code>db.$with(name).as(query)</code></td><td>Define a CTE from a query.</td></tr>
+<tr><td><code>db.$with(name, columns).as(sql)</code></td><td>Define a CTE from raw SQL and explicit columns.</td></tr>
+<tr><td><code>db.with(...ctes)</code></td><td>Add <code>with</code> definitions to the next query.</td></tr>
+<tr><td><code>db.withRecursive(...ctes)</code></td><td>Add <code>with recursive</code> definitions to the next query.</td></tr>
+<tr><td><code>exists(query)</code></td><td>Build an <code>exists (...)</code> condition.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Include</summary>
+<p><code>include</code> aggregates a related select into a JSON-backed field.</p>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {include} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> users</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    ...</span><span style="color:#24292E;--shiki-dark:#E1E4E8">User,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    posts: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">include</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.authorId, User.id))</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    )</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"></span></code></pre>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>include(select)</code></td><td>Include many related rows as an array.</td></tr>
+<tr><td><code>include.one(select)</code></td><td>Include one related row or <code>null</code>.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Insert</h2>
+<details open>
+<summary>Insert rows</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> user</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">returning</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">$first</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"></span></code></pre>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">([</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Grace'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'grace@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">])</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.insert(table)</code></td><td>Start an insert.</td></tr>
+<tr><td><code>.overridingSystemValue()</code></td><td>Emit <code>overriding system value</code>.</td></tr>
+<tr><td><code>.values(row)</code></td><td>Insert one row.</td></tr>
+<tr><td><code>.values(rows)</code></td><td>Insert many rows.</td></tr>
+<tr><td><code>.select(query)</code></td><td>Insert from a select with matching fields.</td></tr>
+<tr><td><code>.returning()</code></td><td>PostgreSQL/SQLite: return inserted table fields.</td></tr>
+<tr><td><code>.returning(selection)</code></td><td>PostgreSQL/SQLite: return a typed selection.</td></tr>
+<tr><td><code>insertQuery(queryObject)</code></td><td>Format a structured insert query object.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Conflicts and upserts</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">onConflictDoUpdate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    target: User.email,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    set: {name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada Lovelace'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"></span></code></pre>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">onConflictDoNothing</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({target: User.email})</span></span>
+<span class="line"></span></code></pre>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">onDuplicateKeyUpdate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({set: {name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada Lovelace'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}})</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Dialects</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.onConflictDoNothing(options?)</code></td><td>PostgreSQL, SQLite</td><td><code>on conflict ... do nothing</code>.</td></tr>
+<tr><td><code>.onConflictDoUpdate(options)</code></td><td>PostgreSQL, SQLite</td><td><code>on conflict ... do update set ...</code>.</td></tr>
+<tr><td><code>.onDuplicateKeyUpdate(options)</code></td><td>MySQL</td><td><code>on duplicate key update ...</code>.</td></tr>
+</tbody>
+</table>
+<p>Conflict options:</p>
+<table>
+<thead>
+<tr><th>Option</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>target</code></td><td>Conflict target field or fields.</td></tr>
+<tr><td><code>targetWhere</code></td><td>Predicate on the conflict target.</td></tr>
+<tr><td><code>set</code></td><td>Values for the update.</td></tr>
+<tr><td><code>where</code></td><td>Predicate on the conflict update.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Update</h2>
+<details open>
+<summary>Update rows</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> changed</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">update</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">set</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada Lovelace'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.email, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">returning</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({id: User.id, name: User.name})</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.update(table)</code></td><td>Start an update.</td></tr>
+<tr><td><code>.set(values)</code></td><td>Set typed update values.</td></tr>
+<tr><td><code>.where(...conditions)</code></td><td>Add predicates. Undefined conditions are ignored.</td></tr>
+<tr><td><code>.orderBy(...expressions)</code></td><td>Add <code>order by</code> where supported.</td></tr>
+<tr><td><code>.limit(value)</code></td><td>Add <code>limit</code> where supported.</td></tr>
+<tr><td><code>.offset(value)</code></td><td>Add <code>offset</code> where supported.</td></tr>
+<tr><td><code>.returning()</code></td><td>PostgreSQL/SQLite: return updated table fields.</td></tr>
+<tr><td><code>.returning(selection)</code></td><td>PostgreSQL/SQLite: return a typed selection.</td></tr>
+<tr><td><code>updateQuery(queryObject)</code></td><td>Format a structured update query object.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Delete</h2>
+<details open>
+<summary>Delete rows</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.email, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.delete(table)</code></td><td>Start a delete.</td></tr>
+<tr><td><code>.where(...conditions)</code></td><td>Add predicates. Undefined conditions are ignored.</td></tr>
+<tr><td><code>.orderBy(...expressions)</code></td><td>Add <code>order by</code> where supported.</td></tr>
+<tr><td><code>.limit(value)</code></td><td>Add <code>limit</code> where supported.</td></tr>
+<tr><td><code>.offset(value)</code></td><td>Add <code>offset</code> where supported.</td></tr>
+<tr><td><code>.returning()</code></td><td>PostgreSQL/SQLite: return deleted table fields.</td></tr>
+<tr><td><code>.returning(selection)</code></td><td>PostgreSQL/SQLite: return a typed selection.</td></tr>
+<tr><td><code>deleteQuery(queryObject)</code></td><td>Format a structured delete query object.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Views and schema objects</h2>
+<details open>
+<summary>Views</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {view} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> ActiveUsers</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> view</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'active_users'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({id: User.id, name: User.name})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.active, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">create</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(ActiveUsers)</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>view(name).as(query)</code></td><td><code>rado</code></td><td>Define a view from a select/union query.</td></tr>
+<tr><td><code>view(name, columns).existing()</code></td><td><code>rado</code></td><td>Reference an existing view with declared fields.</td></tr>
+<tr><td><code>view(name, columns).as(sql)</code></td><td><code>rado</code></td><td>Define a view from raw SQL and declared fields.</td></tr>
+<tr><td><code>materializedView(...)</code></td><td><code>rado</code>, <code>rado/postgres</code></td><td>Same API for materialized views.</td></tr>
+<tr><td><code>pgView</code>, <code>pgMaterializedView</code></td><td><code>rado/postgres</code></td><td>PostgreSQL named exports.</td></tr>
+<tr><td><code>sqliteView</code></td><td><code>rado/sqlite</code></td><td>SQLite named export.</td></tr>
+<tr><td><code>mysqlView</code></td><td><code>rado/mysql</code></td><td>MySQL named export.</td></tr>
+<tr><td><code>db.refreshMaterializedView(view)</code></td><td>database</td><td>PostgreSQL refresh helper.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Schemas and enums</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {pgSchema, pgEnum} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/postgres'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> app</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> pgSchema</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'app'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> Role</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> app.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">enum</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'role'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'admin'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'member'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">as</span><span style="color:#D73A49;--shiki-dark:#F97583"> const</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> User</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> app.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">table</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'user'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  id: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">primaryKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  role: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">Role</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">notNull</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pgSchema(name)</code></td><td><code>rado/postgres</code></td><td>PostgreSQL schema object with create/drop support.</td></tr>
+<tr><td><code>schema.table(name, columns, config?)</code></td><td><code>PgSchema</code></td><td>Define a table inside a schema.</td></tr>
+<tr><td><code>schema.enum(name, values)</code></td><td><code>PgSchema</code></td><td>Define a PostgreSQL enum inside a schema.</td></tr>
+<tr><td><code>schema.view(name, columns?)</code></td><td><code>PgSchema</code></td><td>Define a view inside a schema.</td></tr>
+<tr><td><code>schema.materializedView(name, columns?)</code></td><td><code>PgSchema</code></td><td>Define a materialized view inside a schema.</td></tr>
+<tr><td><code>mysqlSchema(name)</code></td><td><code>rado/mysql</code></td><td>MySQL schema helper.</td></tr>
+<tr><td><code>pgEnum(name, values)</code></td><td><code>rado/postgres</code></td><td>PostgreSQL enum column factory with create/drop support.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Create, drop, and migrations</h2>
+<details open>
+<summary>Create and drop</summary>
+<p>Tables, views, materialized views, PostgreSQL schemas, and PostgreSQL enums can
+be passed to <code>db.create</code> and <code>db.drop</code>.</p>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">create</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(app, User, ActiveUsers)</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">drop</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(ActiveUsers, User, app)</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.create(...createables)</code></td><td>Execute all create SQL from each object as a batch.</td></tr>
+<tr><td><code>db.drop(...droppables)</code></td><td>Execute all drop SQL from each object as a batch.</td></tr>
+<tr><td><code>db.migrate(...tables)</code></td><td>Compute table diffs and execute migration SQL in a transaction.</td></tr>
+<tr><td><code>postgresDiff</code>, <code>sqliteDiff</code>, <code>mysqlDiff</code></td><td>Dialect diff functions exported by dialect modules.</td></tr>
+<tr><td><code>HasCreate</code>, <code>HasDrop</code></td><td>Low-level interfaces for create/drop-capable objects.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>Transactions</h2>
+<details open>
+<summary>Transactions</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> result</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">transaction</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#E36209;--shiki-dark:#FFAB70"> tx</span><span style="color:#D73A49;--shiki-dark:#F97583"> =></span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> user</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tx</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'Ada'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, email: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'ada@example.com'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">returning</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">$first</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tx.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">insert</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Profile).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({userId: user.id})</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> user</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"></span></code></pre>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">transaction</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">async</span><span style="color:#E36209;--shiki-dark:#FFAB70"> tx</span><span style="color:#D73A49;--shiki-dark:#F97583"> =></span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> user</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> tx.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.id, id)).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">$first</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#D73A49;--shiki-dark:#F97583">!</span><span style="color:#24292E;--shiki-dark:#E1E4E8">user) tx.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">rollback</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({reason: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'missing-user'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.transaction(callback, options?)</code></td><td>Run sync or async work in a transaction.</td></tr>
+<tr><td><code>tx.rollback(data?)</code></td><td>Abort and throw a typed <code>Rollback</code>.</td></tr>
+<tr><td><code>Rollback</code></td><td>Error class carrying rollback data.</td></tr>
+<tr><td><code>txGenerator(generator)</code></td><td>Universal transaction helper for generator-based flows.</td></tr>
+</tbody>
+</table>
+<p>Transaction options:</p>
+<table>
+<thead>
+<tr><th>Dialect</th><th>Options</th></tr>
+</thead>
+<tbody>
+<tr><td>universal</td><td><code>async</code></td></tr>
+<tr><td>SQLite</td><td><code>async</code>, `behavior: 'deferred'</td></tr>
+<tr><td>PostgreSQL</td><td><code>async</code>, <code>isolationLevel</code>, <code>accessMode</code>, <code>deferrable</code></td></tr>
+<tr><td>MySQL</td><td><code>async</code>, <code>isolationLevel</code>, <code>accessMode</code>, <code>withConsistentSnapshot</code></td></tr>
+</tbody>
+</table>
+</details>
+<h2>SQL expressions</h2>
+<details open>
+<summary>Conditions</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {and, eq, gt, ilike, isNotNull, or} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> adults</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    and</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">      gt</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.age, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">18</span><span style="color:#24292E;--shiki-dark:#E1E4E8">),</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">      isNotNull</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.email),</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">      or</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">ilike</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.name, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'a%'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">), </span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.role, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">'admin'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    )</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  )</span></span>
+<span class="line"></span></code></pre>
+<p>Condition APIs from <code>rado</code>:</p>
+<table>
+<thead>
+<tr><th>API</th><th>SQL</th></tr>
+</thead>
+<tbody>
+<tr><td><code>eq(left, right)</code></td><td><code>=</code></td></tr>
+<tr><td><code>ne(left, right)</code></td><td><code>&lt;&gt;</code></td></tr>
+<tr><td><code>gt(left, right)</code></td><td><code>&gt;</code></td></tr>
+<tr><td><code>gte(left, right)</code></td><td><code>&gt;=</code></td></tr>
+<tr><td><code>lt(left, right)</code></td><td><code>&lt;</code></td></tr>
+<tr><td><code>lte(left, right)</code></td><td><code>&lt;=</code></td></tr>
+<tr><td><code>like(left, right)</code> / <code>notLike(left, right)</code></td><td><code>like</code> / <code>not like</code></td></tr>
+<tr><td><code>ilike(left, right)</code> / <code>notILike(left, right)</code></td><td><code>ilike</code> / <code>not ilike</code></td></tr>
+<tr><td><code>arrayContains(left, right)</code></td><td><code>@&gt;</code></td></tr>
+<tr><td><code>arrayContained(left, right)</code></td><td><code>&lt;@</code></td></tr>
+<tr><td><code>arrayOverlaps(left, right)</code></td><td><code>&amp;&amp;</code></td></tr>
+<tr><td><code>and(...conditions)</code></td><td><code>and</code>, ignoring <code>undefined</code>.</td></tr>
+<tr><td><code>or(...conditions)</code></td><td><code>or</code>, ignoring <code>undefined</code>.</td></tr>
+<tr><td><code>not(condition)</code></td><td><code>not</code>.</td></tr>
+<tr><td><code>inArray(left, valuesOrQuery)</code></td><td><code>in (...)</code>.</td></tr>
+<tr><td><code>notInArray(left, valuesOrQuery)</code></td><td><code>not in (...)</code>.</td></tr>
+<tr><td><code>isNull(value)</code> / <code>isNotNull(value)</code></td><td><code>is null</code> / <code>is not null</code>.</td></tr>
+<tr><td><code>between(value, left, right)</code> / <code>notBetween(...)</code></td><td><code>between</code> / <code>not between</code>.</td></tr>
+<tr><td><code>exists(query)</code></td><td><code>exists (...)</code>.</td></tr>
+<tr><td><code>when(...)</code></td><td>SQL <code>case</code> expression.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Ordering, distinct, and aggregates</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {asc, count, desc, max} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> rows</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    authorId: Post.authorId,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    postCount: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.id),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    newest: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">max</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.createdAt)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">groupBy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.authorId)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">orderBy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">desc</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">max</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.createdAt)), </span><span style="color:#6F42C1;--shiki-dark:#B392F0">asc</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(Post.authorId))</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>asc(expr)</code> / <code>desc(expr)</code></td><td>Ordering expressions.</td></tr>
+<tr><td><code>distinct(expr)</code></td><td><code>distinct expr</code>.</td></tr>
+<tr><td><code>count(expr?)</code></td><td>Count rows or values.</td></tr>
+<tr><td><code>countDistinct(expr)</code></td><td>Count distinct values.</td></tr>
+<tr><td><code>avg(expr)</code> / <code>avgDistinct(expr)</code></td><td>Average values.</td></tr>
+<tr><td><code>sum(expr)</code> / <code>sumDistinct(expr)</code></td><td>Sum values.</td></tr>
+<tr><td><code>min(expr)</code> / <code>max(expr)</code></td><td>Minimum and maximum.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Raw SQL</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {sql} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> minAge</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 18</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> rows</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">sql</span><span style="color:#032F62;--shiki-dark:#9ECBFF">`${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">User</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.</span><span style="color:#24292E;--shiki-dark:#E1E4E8">age</span><span style="color:#032F62;--shiki-dark:#9ECBFF">} >= ${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">minAge</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}`</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sql`...` </code></td><td>Parameterized SQL template.</td></tr>
+<tr><td><code>sql.empty()</code></td><td>Empty SQL fragment.</td></tr>
+<tr><td><code>sql.unsafe(value)</code></td><td>Direct SQL text. Use only for trusted SQL.</td></tr>
+<tr><td><code>sql.value(value)</code></td><td>Bound parameter or inline value depending on emitter mode.</td></tr>
+<tr><td><code>sql.inline(value)</code></td><td>Inline a literal value.</td></tr>
+<tr><td><code>sql.placeholder(name)</code></td><td>Named placeholder for prepared execution.</td></tr>
+<tr><td><code>sql.identifier(name)</code></td><td>Escape an SQL identifier.</td></tr>
+<tr><td><code>sql.field(fieldData)</code></td><td>Low-level field SQL.</td></tr>
+<tr><td><code>sql.jsonPath(path)</code></td><td>Low-level JSON path SQL.</td></tr>
+<tr><td><code>sql.universal({sqlite, postgres, mysql, default})</code></td><td>Dialect-specific expression.</td></tr>
+<tr><td><code>sql.query(...chunks)</code></td><td>Compose SQL clauses from fragments and clause objects.</td></tr>
+<tr><td><code>sql.join(items, separator?)</code></td><td>Join SQL fragments.</td></tr>
+<tr><td><code>.as(name)</code></td><td>Alias an expression.</td></tr>
+<tr><td><code>.mapWith(decoder)</code></td><td>Decode driver output.</td></tr>
+<tr><td><code>.inlineFields(withTableName)</code></td><td>Change field rendering mode.</td></tr>
+<tr><td><code>.inlineValues()</code></td><td>Inline values for DDL or direct execution.</td></tr>
+<tr><td><code>.nameSelf(name)</code></td><td>Name <code>$$self</code> references.</td></tr>
+<tr><td><code>.if(condition)</code></td><td>Return the fragment only when truthy.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>JSON</summary>
+<p>JSON columns expose typed path access.</p>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> User</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> table</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'user'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  id: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">().</span><span style="color:#6F42C1;--shiki-dark:#B392F0">primaryKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  metadata: </span><span style="color:#6F42C1;--shiki-dark:#B392F0">jsonb</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;{</span><span style="color:#E36209;--shiki-dark:#FFAB70">subscribed</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> boolean</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; </span><span style="color:#E36209;--shiki-dark:#FFAB70">plan</span><span style="color:#D73A49;--shiki-dark:#F97583">?:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> string</span><span style="color:#24292E;--shiki-dark:#E1E4E8">}>()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">})</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> subscribers</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> await</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> db</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">select</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  .</span><span style="color:#6F42C1;--shiki-dark:#B392F0">where</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">eq</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.metadata.subscribed, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"></span></code></pre>
+<p>Public JSON helpers exported from <code>rado</code>:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>jsonExpr(expr)</code></td><td>Convert a SQL expression into typed JSON path access.</td></tr>
+<tr><td><code>jsonArray(...values)</code></td><td>Build a JSON array expression.</td></tr>
+<tr><td><code>jsonAggregateArray(...values)</code></td><td>Aggregate rows into a JSON array expression.</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Functions</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {Functions} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> lowerName</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> Functions.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">lower</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(User.name).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'lowerName'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"></span></code></pre>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>callFunction(name, args?)</code></td><td><code>rado</code></td><td>Build an SQL function call.</td></tr>
+<tr><td><code>Functions</code></td><td><code>rado</code></td><td>Proxy for arbitrary SQL functions.</td></tr>
+<tr><td><code>lastInsertId()</code></td><td><code>rado/universal</code></td><td>Dialect-aware last inserted id expression.</td></tr>
+<tr><td><code>concat(...values)</code></td><td><code>rado/universal</code></td><td>Dialect-aware string concatenation.</td></tr>
+</tbody>
+</table>
+<p>SQLite functions exported from <code>rado/sqlite</code>: <code>abs</code>, <code>acos</code>, <code>acosh</code>, <code>asin</code>,
+<code>asinh</code>, <code>atan</code>, <code>atan2</code>, <code>atanh</code>, <code>avg</code>, <code>bm25</code>, <code>cast</code>, <code>ceil</code>, <code>changes</code>,
+<code>char</code>, <code>coalesce</code>, <code>cos</code>, <code>cosh</code>, <code>count</code>, <code>date</code>, <code>datetime</code>, <code>degrees</code>,
+<code>exp</code>, <code>floor</code>, <code>group_concat</code>, <code>hex</code>, <code>highlight</code>, <code>ifnull</code>, <code>iif</code>, <code>instr</code>,
+<code>julianday</code>, <code>last_insert_rowid</code>, <code>length</code>, <code>likelihood</code>, <code>likely</code>, <code>ln</code>,
+<code>log</code>, <code>log2</code>, <code>lower</code>, <code>ltrim</code>, <code>max</code>, <code>min</code>, <code>mod</code>, <code>nullif</code>, <code>pi</code>, <code>pow</code>,
+<code>prnumberf</code>, <code>quote</code>, <code>radians</code>, <code>random</code>, <code>randomblob</code>, <code>replace</code>, <code>round</code>,
+<code>rtrim</code>, <code>sign</code>, <code>sin</code>, <code>sinh</code>, <code>snippet</code>, <code>soundex</code>, <code>sqlite_version</code>,
+<code>sqliteTypeof</code>, <code>strftime</code>, <code>substr</code>, <code>sum</code>, <code>tan</code>, <code>tanh</code>, <code>time</code>,
+<code>total_changes</code>, <code>trim</code>, <code>trunc</code>, <code>unicode</code>, <code>unlikely</code>, <code>upper</code>.</p>
+</details>
+<h2>Database and drivers</h2>
+<details open>
+<summary>Connect</summary>
+<pre class="shiki shiki-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8" tabindex="0"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> Database </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'better-sqlite3'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {connect} </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'rado/driver/better-sqlite3'</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> db</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> connect</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Database</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'app.db'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">))</span></span>
+<span class="line"></span></code></pre>
+<p>Each driver module exports <code>connect(client)</code>.</p>
+<table>
+<thead>
+<tr><th>Import</th><th>Result</th></tr>
+</thead>
+<tbody>
+<tr><td><code>rado/driver/pg</code></td><td><code>AsyncDatabase&lt;'postgres'&gt;</code></td></tr>
+<tr><td><code>rado/driver/pglite</code></td><td><code>AsyncDatabase&lt;'postgres'&gt;</code></td></tr>
+<tr><td><code>rado/driver/mysql2</code></td><td><code>AsyncDatabase&lt;'mysql'&gt;</code></td></tr>
+<tr><td><code>rado/driver/better-sqlite3</code></td><td><code>SyncDatabase&lt;'sqlite'&gt;</code></td></tr>
+<tr><td><code>rado/driver/bun-sqlite</code></td><td><code>SyncDatabase&lt;'sqlite'&gt;</code></td></tr>
+<tr><td><code>rado/driver/sql.js</code></td><td><code>SyncDatabase&lt;'sqlite'&gt;</code></td></tr>
+<tr><td><code>rado/driver/libsql</code></td><td><code>AsyncDatabase&lt;'sqlite'&gt;</code></td></tr>
+<tr><td><code>rado/driver/d1</code></td><td><code>AsyncDatabase&lt;'sqlite'&gt;</code></td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>Database utilities</summary>
+<p>Public APIs:</p>
+<table>
+<thead>
+<tr><th>API</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db.close()</code></td><td>Close the underlying driver.</td></tr>
+<tr><td><code>db.run(sql)</code></td><td>Execute SQL after dialect inlining.</td></tr>
+<tr><td><code>db.execute(sql)</code></td><td>Execute SQL with inline values; throws if parameters remain.</td></tr>
+<tr><td><code>db.get(sqlOrQuery)</code></td><td>Execute and return one value/row.</td></tr>
+<tr><td><code>db.all(sql)</code></td><td>Execute and return all rows for a SQL expression.</td></tr>
+<tr><td><code>db.batch(queries)</code></td><td>Execute multiple SQL/query objects.</td></tr>
+<tr><td><code>db.$count(source, condition?)</code></td><td>Select a single count from a table or SQL source.</td></tr>
+<tr><td><code>SyncDatabase</code>, <code>AsyncDatabase</code>, <code>Database</code></td><td>Database classes exported from <code>rado</code>.</td></tr>
+<tr><td><code>Driver</code>, <code>SyncDriver</code>, <code>AsyncDriver</code></td><td>Driver interfaces for custom drivers.</td></tr>
+</tbody>
+</table>
+</details>
+<h2>API index</h2>
+<p>This index lists public APIs that are intended to be documented on this page.
+Lower-level interfaces and types are included when they are useful for custom
+drivers, custom columns, or advanced query composition.</p>
+<table>
+<thead>
+<tr><th>API</th><th>Import</th><th>Section</th></tr>
+</thead>
+<tbody>
+<tr><td><code>alias</code></td><td><code>rado</code>, dialect modules</td><td>Tables</td></tr>
+<tr><td><code>and</code>, <code>or</code>, <code>not</code></td><td><code>rado</code></td><td>Conditions</td></tr>
+<tr><td><code>asc</code>, <code>desc</code>, <code>distinct</code></td><td><code>rado</code></td><td>Ordering</td></tr>
+<tr><td><code>avg</code>, <code>avgDistinct</code>, <code>count</code>, <code>countDistinct</code>, <code>max</code>, <code>min</code>, <code>sum</code>, <code>sumDistinct</code></td><td><code>rado</code></td><td>Aggregates</td></tr>
+<tr><td><code>between</code>, <code>notBetween</code></td><td><code>rado</code></td><td>Conditions</td></tr>
+<tr><td><code>callFunction</code>, <code>Functions</code></td><td><code>rado</code></td><td>Functions</td></tr>
+<tr><td><code>Column</code>, <code>JsonColumn</code>, <code>ColumnType</code>, <code>column</code>, <code>columnConfig</code></td><td><code>rado</code></td><td>Columns</td></tr>
+<tr><td><code>Database</code>, <code>SyncDatabase</code>, <code>AsyncDatabase</code></td><td><code>rado</code></td><td>Database utilities</td></tr>
+<tr><td><code>db.$count</code>, <code>db.$query</code>, <code>db.$with</code></td><td>database</td><td>Database utilities, CTEs</td></tr>
+<tr><td><code>db.all</code>, <code>db.batch</code>, <code>db.close</code>, <code>db.create</code>, <code>db.delete</code>, <code>db.drop</code>, <code>db.execute</code>, <code>db.get</code>, <code>db.insert</code>, <code>db.migrate</code>, <code>db.refreshMaterializedView</code>, <code>db.run</code>, <code>db.select</code>, <code>db.selectDistinct</code>, <code>db.selectDistinctOn</code>, <code>db.transaction</code>, <code>db.update</code>, <code>db.with</code>, <code>db.withRecursive</code></td><td>database</td><td>Relevant SQL sections</td></tr>
+<tr><td><code>deleteQuery</code>, <code>insertQuery</code>, <code>selectQuery</code>, <code>unionQuery</code>, <code>updateQuery</code></td><td><code>rado</code></td><td>Query formatting</td></tr>
+<tr><td><code>eq</code>, <code>ne</code>, <code>gt</code>, <code>gte</code>, <code>lt</code>, <code>lte</code></td><td><code>rado</code></td><td>Conditions</td></tr>
+<tr><td><code>exists</code>, <code>inArray</code>, <code>notInArray</code></td><td><code>rado</code></td><td>Conditions, subqueries</td></tr>
+<tr><td><code>foreignKey</code>, <code>primaryKey</code>, <code>unique</code></td><td><code>rado</code>, dialect modules</td><td>Constraints</td></tr>
+<tr><td><code>include</code>, <code>include.one</code></td><td><code>rado</code></td><td>Include</td></tr>
+<tr><td><code>index</code>, <code>uniqueIndex</code></td><td><code>rado</code>, dialect modules</td><td>Indexes</td></tr>
+<tr><td><code>InsertRow</code>, <code>SelectRow</code>, <code>UpdateRow</code>, <code>Table</code>, <code>TableInsert</code>, <code>TableRow</code>, <code>TableUpdate</code></td><td><code>rado</code></td><td>Tables</td></tr>
+<tr><td><code>isNull</code>, <code>isNotNull</code></td><td><code>rado</code></td><td>Conditions</td></tr>
+<tr><td><code>jsonAggregateArray</code>, <code>jsonArray</code>, <code>jsonExpr</code></td><td><code>rado</code></td><td>JSON</td></tr>
+<tr><td><code>like</code>, <code>notLike</code>, <code>ilike</code>, <code>notILike</code></td><td><code>rado</code></td><td>Conditions</td></tr>
+<tr><td><code>materializedView</code>, <code>view</code></td><td><code>rado</code></td><td>Views</td></tr>
+<tr><td><code>pgEnum</code>, <code>pgSchema</code>, <code>pgTable</code>, <code>pgTableCreator</code>, <code>pgView</code>, <code>pgMaterializedView</code></td><td><code>rado/postgres</code></td><td>Schema objects</td></tr>
+<tr><td><code>Rollback</code></td><td><code>rado</code></td><td>Transactions</td></tr>
+<tr><td><code>sql</code> and namespace helpers</td><td><code>rado</code></td><td>Raw SQL</td></tr>
+<tr><td><code>sqliteTable</code>, <code>sqliteTableCreator</code>, <code>sqliteView</code></td><td><code>rado/sqlite</code></td><td>Tables, views</td></tr>
+<tr><td><code>mysqlSchema</code>, <code>mysqlTable</code>, <code>mysqlTableCreator</code>, <code>mysqlView</code></td><td><code>rado/mysql</code></td><td>Tables, views</td></tr>
+<tr><td><code>table</code>, <code>tableCreator</code></td><td><code>rado</code></td><td>Tables</td></tr>
+<tr><td><code>txGenerator</code>, <code>concat</code>, <code>lastInsertId</code></td><td><code>rado/universal</code></td><td>Transactions, functions</td></tr>
+<tr><td><code>union</code>, <code>unionAll</code>, <code>intersect</code>, <code>intersectAll</code>, <code>except</code>, <code>exceptAll</code></td><td><code>rado</code>, dialect modules</td><td>Set operations</td></tr>
+<tr><td>Driver <code>connect</code></td><td><code>rado/driver/*</code></td><td>Connect</td></tr>
+</tbody>
+</table>
+
+  </main>
+</body>
+</html>

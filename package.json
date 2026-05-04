@@ -11,7 +11,8 @@
     "cycles": "madge --circular src/index.ts src/sqlite.ts src/mysql.ts src/postgres.ts",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
-    "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi"
+    "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi",
+    "docs": "bun docs/build.ts"
   },
   "sideEffects": false,
   "exports": {
@@ -46,6 +47,7 @@
     "madge": "^8.0.0",
     "mysql2": "^3.11.0",
     "pg": "^8.12.0",
+    "shiki": "^4.0.2",
     "speedscope": "^1.15.0",
     "sql.js": "^1.11.0",
     "sqlite3": "^5.1.7",
