@@ -144,6 +144,8 @@ export class InsertInto<
     const insert = getTable(getData(this).insert)
     const expected = Object.keys(insert.columns)
     const actual = querySelection(getData(query) as SelectQuery).fieldNames()
+    if (expected.length !== actual.length)
+      throw new Error('Insert select fields must match table columns')
     for (let i = 0; i < expected.length; i++) {
       if (expected[i] !== actual[i])
         throw new Error('Insert select fields must match table columns')

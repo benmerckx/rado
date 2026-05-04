@@ -57,4 +57,29 @@ suite(import.meta, test => {
       'insert into "Node" ("id", "withDefault", "required", "nullable", "withRuntimeDefault") values (1, default, 3, default, 5) on conflict ("id") do update set "required" = 4'
     )
   })
+
+  test('insert select rejects extra fields', () => {
+    let error: unknown
+    try {
+      const malformedSelect = builder
+        .select({
+          id: Node.id,
+          withDefault: Node.withDefault,
+          required: Node.required,
+          nullable: Node.nullable,
+          withRuntimeDefault: Node.withRuntimeDefault,
+          extra: Node.id
+        })
+        .from(Node)
+      ;(builder as Builder<IsPostgres>)
+        .insert(Node)
+        .select(malformedSelect as any)
+    } catch (caught) {
+      error = caught
+    }
+    test.equal(
+      error instanceof Error ? error.message : undefined,
+      'Insert select fields must match table columns'
+    )
+  })
 })
