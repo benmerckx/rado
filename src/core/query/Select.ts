@@ -648,6 +648,12 @@ export function querySelection({select, from}: SelectQuery): Selection {
             throw new Error(`Unknown target in select: ${targetName}`)
       }
     }
+    if (hasSql(select) && hasSelection(select)) {
+      const selected = getSelection(select as HasSelection)
+      if (!from || !Array.isArray(from)) return selected
+      const [, ...joins] = from
+      return applyJoins(selected, joins)
+    }
     if (!from || !Array.isArray(from))
       return selection(select as SelectionInput)
     const [, ...joins] = from
@@ -725,7 +731,7 @@ export function selectQuery(query: SelectQuery): Sql {
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having: typeof having === 'function' ? having(selected.input) : having
     },
-    formatModifiers(query)
+    formatModifiers(query, selected)
   )
 }
 
@@ -835,11 +841,19 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
 export function unionQuery(query: UnionQuery): Sql {
   const {select} = query
   let fields: Array<string>
+  const segmentQuery = (query: SelectQuery) => {
+    const inner = selectQuery(query)
+    return query.orderBy ||
+      query.limit !== undefined ||
+      query.offset !== undefined
+      ? sql`(${inner})`
+      : inner
+  }
   const segments = sql.join(
     select.map((segment, i) => {
       if (i === 0) {
         fields = querySelection(segment as SelectQuery).fieldNames()
-        return selectQuery(segment as SelectQuery)
+        return segmentQuery(segment as SelectQuery)
       }
       const op = Object.keys(segment)[0] as UnionOp
       const query = (<Record<UnionOp, SelectQuery>>segment)[op]
@@ -849,7 +863,7 @@ export function unionQuery(query: UnionQuery): Sql {
       for (let i = 0; i < fields.length; i++)
         if (fields[i] !== names[i])
           throw new Error('Union segments must have the same fields')
-      return sql.query({[op]: selectQuery(query)})
+      return sql.query({[op]: segmentQuery(query)})
     })
   )
   return sql.query(formatCTE(query), segments, formatModifiers(query))
