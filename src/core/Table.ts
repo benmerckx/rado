@@ -1,4 +1,4 @@
-import {collectEnumQuery} from '../postgres.ts'
+import {collectEnumQuery} from '../postgres/enum.ts'
 import {type Column, type JsonColumn, formatColumn} from './Column.ts'
 import type {
   ForeignKeyConstraint,
