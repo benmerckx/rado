@@ -44,9 +44,11 @@ import type {
   CompoundSelect,
   Join,
   JoinOp,
+  QueryBase,
   SelectQuery,
   UnionOp,
-  UnionQuery
+  UnionQuery,
+  Union as UnionSegment
 } from './Query.ts'
 import {formatModifiers} from './Shared.ts'
 
@@ -137,16 +139,34 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(select).fieldNames()
   }
 
-  #assertMatchingFields(
-    left: CompoundSelect,
-    right: CompoundSelect
-  ): Array<string> {
-    const getSelect = (segment: SelectQuery | Union): SelectQuery => {
-      if ('select' in segment) return segment
-      const op = Object.keys(segment)[0] as UnionOp
-      return segment[op]
-    }
+  #segmentSelect(segment: SelectQuery | UnionSegment): SelectQuery {
+    if ('select' in segment) return segment
+    if ('union' in segment) return segment.union
+    if ('unionAll' in segment) return segment.unionAll
+    if ('intersect' in segment) return segment.intersect
+    if ('intersectAll' in segment) return segment.intersectAll
+    if ('except' in segment) return segment.except
+    return segment.exceptAll
+  }
 
+  #unionSegment(op: UnionOp, query: SelectQuery): UnionSegment {
+    switch (op) {
+      case 'union':
+        return {union: query}
+      case 'unionAll':
+        return {unionAll: query}
+      case 'intersect':
+        return {intersect: query}
+      case 'intersectAll':
+        return {intersectAll: query}
+      case 'except':
+        return {except: query}
+      case 'exceptAll':
+        return {exceptAll: query}
+    }
+  }
+
+  #assertMatchingFields(left: CompoundSelect, right: CompoundSelect): void {
     const fields = this.#selectFields(left[0]!)
     const assert = (query: SelectQuery) => {
       const names = this.#selectFields(query)
@@ -157,9 +177,17 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
           throw new Error('Union segments must have the same fields')
     }
 
-    for (const segment of left.slice(1)) assert(getSelect(segment))
-    for (const segment of right) assert(getSelect(segment))
-    return fields
+    for (const segment of left.slice(1)) assert(this.#segmentSelect(segment))
+    for (const segment of right) assert(this.#segmentSelect(segment))
+  }
+
+  #appendCompound(
+    left: CompoundSelect,
+    op: UnionOp,
+    right: CompoundSelect
+  ): CompoundSelect {
+    const [firstRight, ...restRight] = right
+    return [...left, this.#unionSegment(op, firstRight), ...restRight]
   }
 
   #compound(op: UnionOp, target: UnionTarget<Input, Meta>): Union<Input, Meta> {
@@ -168,18 +196,12 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
       typeof target === 'function' ? target(this.#makeSelf()) : target
     const right = this.#getSelect(rightBase)
     this.#assertMatchingFields(left, right)
-    const select =
-      right.length > 1
-        ? ([
-            ...left,
-            {
-              [op]: {
-                from: rightBase.as('__setop_right')
-              } as SelectQuery
-            }
-          ] as CompoundSelect)
-        : ([...left, {[op]: right[0]!}] as CompoundSelect)
-    const {resolver, with: withDefs, withRecursive} = getData(this)
+    const select = this.#appendCompound(left, op, right)
+    const {
+      resolver,
+      with: withDefs,
+      withRecursive
+    } = getData(this) as QueryData<Meta> & QueryBase
     return new Union({
       resolver,
       with: withDefs,
@@ -624,7 +646,8 @@ function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   if (hasField(input)) {
     const source = getField(input).source
     if (source && typeof source === 'object' && hasSql(source as HasSql)) {
-      if (!hasField(source) && !getSql(source).alias) return true
+      const sourceSql = source as HasSql
+      if (!hasField(sourceSql) && !getSql(sourceSql).alias) return true
     }
     return false
   }
