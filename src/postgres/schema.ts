@@ -5,7 +5,7 @@ import {
   internalDrop,
   internalTarget
 } from '../core/Internal.ts'
-import {sql} from '../core/Sql.ts'
+import {type Sql, sql} from '../core/Sql.ts'
 import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {
@@ -23,14 +23,14 @@ export class PgSchema<SchemaName extends string> implements HasCreate, HasDrop {
     this.#schemaName = schemaName
   }
 
-  get [internalTarget]() {
+  get [internalTarget](): Sql {
     return sql.identifier(this.#schemaName)
   }
 
-  get [internalCreate]() {
+  get [internalCreate](): Array<Sql> {
     return [sql`create schema if not exists ${this}`]
   }
-  get [internalDrop]() {
+  get [internalDrop](): Array<Sql> {
     return [sql`drop schema if exists ${this} cascade`]
   }
 
