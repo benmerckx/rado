@@ -2400,6 +2400,8 @@ test('view', async ctx => {
     cityId: integer('city_id').notNull()
   }).existing()
 
+  await db.create(newYorkers1)
+
   await db.insert(citiesTable).values([{name: 'New York'}, {name: 'Paris'}])
 
   await db.insert(users2Table).values([

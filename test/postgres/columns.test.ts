@@ -45,7 +45,9 @@ test('pg date mapping', () => {
   const dateDate = pg.date(undefined, {mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
-  test.equal(mapFrom(dateDate, '2020-01-01'), Date.parse('2020-01-01'))
+  const mapped = mapFrom(dateDate, '2020-01-01')
+  test.ok(mapped instanceof Date)
+  test.equal(mapped.getTime(), Date.parse('2020-01-01'))
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(dateDate, date), date.toISOString())
   test.equal(mapTo(dateDate, '2020-02-01'), '2020-02-01')
@@ -56,10 +58,9 @@ test('pg timestamp mapping', () => {
   const tsDate = pg.timestamp()
   test.equal(columnSql(tsStr), 'timestamp')
   test.equal(mapFrom(tsStr, '2020-01-01 00:00:00'), '2020-01-01 00:00:00')
-  test.equal(
-    mapFrom(tsDate, '2020-01-01T00:00:00.000Z'),
-    Date.parse('2020-01-01T00:00:00.000Z')
-  )
+  const mapped = mapFrom(tsDate, '2020-01-01T00:00:00.000Z')
+  test.ok(mapped instanceof Date)
+  test.equal(mapped.getTime(), Date.parse('2020-01-01T00:00:00.000Z'))
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(tsDate, date), date.toISOString())
   test.equal(

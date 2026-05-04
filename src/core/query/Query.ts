@@ -157,12 +157,12 @@ export type FromRow<Target> = Target extends [
   : SelectionRow<Target>
 
 export type Union<Returning = SelectionInput> =
-  | {union: SelectQuery<Returning>}
-  | {unionAll: SelectQuery<Returning>}
-  | {intersect: SelectQuery<Returning>}
-  | {intersectAll: SelectQuery<Returning>}
-  | {except: SelectQuery<Returning>}
-  | {exceptAll: SelectQuery<Returning>}
+  | {union: SelectQuery<Returning> | UnionQuery<Returning>}
+  | {unionAll: SelectQuery<Returning> | UnionQuery<Returning>}
+  | {intersect: SelectQuery<Returning> | UnionQuery<Returning>}
+  | {intersectAll: SelectQuery<Returning> | UnionQuery<Returning>}
+  | {except: SelectQuery<Returning> | UnionQuery<Returning>}
+  | {exceptAll: SelectQuery<Returning> | UnionQuery<Returning>}
 
 export type UnionOp =
   | 'union'

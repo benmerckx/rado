@@ -55,6 +55,11 @@ import {formatModifiers} from './Shared.ts'
 type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
+type UnionSegmentQuery = SelectQuery | UnionQuery
+
+function isUnionQuery(query: UnionSegmentQuery): query is UnionQuery {
+  return Array.isArray((query as UnionQuery).select)
+}
 
 function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
   if (hasSql(selected)) return query.mapWith(getSql(selected))
@@ -139,17 +144,20 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(select).fieldNames()
   }
 
-  #segmentSelect(segment: SelectQuery | UnionSegment): SelectQuery {
-    if ('select' in segment) return segment
-    if ('union' in segment) return segment.union
-    if ('unionAll' in segment) return segment.unionAll
-    if ('intersect' in segment) return segment.intersect
-    if ('intersectAll' in segment) return segment.intersectAll
-    if ('except' in segment) return segment.except
-    return segment.exceptAll
+  #segmentSelect(segment: SelectQuery | UnionQuery | UnionSegment): SelectQuery {
+    const query = segment as UnionSegmentQuery
+    if (isUnionQuery(query)) return query.select[0]!
+    if ('union' in segment) return this.#segmentSelect(segment.union)
+    if ('unionAll' in segment) return this.#segmentSelect(segment.unionAll)
+    if ('intersect' in segment) return this.#segmentSelect(segment.intersect)
+    if ('intersectAll' in segment)
+      return this.#segmentSelect(segment.intersectAll)
+    if ('except' in segment) return this.#segmentSelect(segment.except)
+    if ('exceptAll' in segment) return this.#segmentSelect(segment.exceptAll)
+    return segment as SelectQuery
   }
 
-  #unionSegment(op: UnionOp, query: SelectQuery): UnionSegment {
+  #unionSegment(op: UnionOp, query: UnionSegmentQuery): UnionSegment {
     switch (op) {
       case 'union':
         return {union: query}
@@ -184,18 +192,22 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   #appendCompound(
     left: CompoundSelect,
     op: UnionOp,
-    right: CompoundSelect
+    right: UnionQuery
   ): CompoundSelect {
-    const [firstRight, ...restRight] = right
-    return [...left, this.#unionSegment(op, firstRight), ...restRight]
+    const [firstRight, ...restRight] = right.select
+    if (restRight.length === 0)
+      return [...left, this.#unionSegment(op, firstRight)]
+    return [...left, this.#unionSegment(op, right)] as CompoundSelect
   }
 
   #compound(op: UnionOp, target: UnionTarget<Input, Meta>): Union<Input, Meta> {
     const left = this.#getSelect(this)
     const rightBase =
       typeof target === 'function' ? target(this.#makeSelf()) : target
-    const right = this.#getSelect(rightBase)
-    this.#assertMatchingFields(left, right)
+    const rightData = getData(rightBase) as QueryData<Meta> & UnionQuery
+    const rightSelect = this.#getSelect(rightBase)
+    const right = {...rightData, select: rightSelect}
+    this.#assertMatchingFields(left, rightSelect)
     const select = this.#appendCompound(left, op, right)
     const {
       resolver,
@@ -864,7 +876,10 @@ export function exceptAll<Result, Meta extends IsPostgres | IsMysql>(
 export function unionQuery(query: UnionQuery): Sql {
   const {select} = query
   let fields: Array<string>
-  const segmentQuery = (query: SelectQuery) => {
+  const firstSelect = (query: UnionSegmentQuery): SelectQuery =>
+    isUnionQuery(query) ? query.select[0]! : query
+  const segmentQuery = (query: UnionSegmentQuery) => {
+    if (isUnionQuery(query)) return sql`(${unionQuery(query)})`
     const inner = selectQuery(query)
     return query.orderBy ||
       query.limit !== undefined ||
@@ -879,8 +894,8 @@ export function unionQuery(query: UnionQuery): Sql {
         return segmentQuery(segment as SelectQuery)
       }
       const op = Object.keys(segment)[0] as UnionOp
-      const query = (<Record<UnionOp, SelectQuery>>segment)[op]
-      const names = querySelection(query).fieldNames()
+      const query = (<Record<UnionOp, UnionSegmentQuery>>segment)[op]
+      const names = querySelection(firstSelect(query)).fieldNames()
       if (fields.length !== names.length)
         throw new Error('Union segments must have the same fields')
       for (let i = 0; i < fields.length; i++)
