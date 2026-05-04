@@ -35,7 +35,7 @@ export class Delete<
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery]() {
+  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
     return deleteQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
   }
 
