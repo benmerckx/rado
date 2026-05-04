@@ -289,6 +289,12 @@ export class JoinSelection extends Selection {
   }
 }
 
+export class StarSelection extends Selection {
+  get [internalSql](): Sql {
+    return sql`*`
+  }
+}
+
 const selected = new WeakMap<SelectionInput, Selection>()
 
 export function selection(input: SelectionInput): Selection {

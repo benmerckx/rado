@@ -4,26 +4,32 @@ import {
   type HasSql,
   type HasTarget,
   getData,
-  getSql,
+  getField,
   getQuery,
   getSelection,
+  getSql,
+  hasField,
+  hasSql,
   internalCreate,
   internalData,
   internalDrop,
   internalQuery,
   internalSelection,
-  internalTarget,
+  internalTarget
 } from './Internal.ts'
-import {selection} from './Selection.ts'
 import type {QueryMeta} from './MetaData.ts'
+import type {SelectionInput} from './Selection.ts'
+import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 import {type TableDefinition, type TableFields, tableFields} from './Table.ts'
-import {type VirtualTarget, virtualTarget} from './Virtual.ts'
+import type {VirtualTarget} from './Virtual.ts'
+import {Field} from './expr/Field.ts'
 import type {UnionBase} from './query/Select.ts'
 
 interface ViewData {
   name: string
   columns?: TableDefinition
+  columnNames?: Array<string>
   schemaName?: string
   materialized?: boolean
   query?: Sql
@@ -49,16 +55,21 @@ export function createView(data: ViewData, as: HasSql): Sql {
   const createKeyword = data.materialized
     ? sql`create materialized view`
     : sql`create view`
-  const {columns} = data
-  const columnList = columns
+  const {columns, columnNames} = data
+  const columnList = columnNames
     ? sql.join(
-        Object.entries(columns).map(([name, column]) => {
-          const columnData = getData(column)
-          return sql.identifier(columnData.name ?? name)
-        }),
+        columnNames.map(name => sql.identifier(name)),
         sql`, `
       )
-    : undefined
+    : columns
+      ? sql.join(
+          Object.entries(columns).map(([name, column]) => {
+            const columnData = getData(column)
+            return sql.identifier(columnData.name ?? name)
+          }),
+          sql`, `
+        )
+      : undefined
   return sql
     .join([
       createKeyword,
@@ -68,6 +79,34 @@ export function createView(data: ViewData, as: HasSql): Sql {
       as
     ])
     .inlineValues()
+}
+
+function viewColumnNames(input: SelectionInput): Array<string> {
+  const expr = getSql(input as HasSql)
+  if (expr) {
+    if (hasField(input)) return [getField(input).fieldName]
+    if (expr.alias) return [expr.alias]
+    throw new Error('Missing field name')
+  }
+  return Object.entries(input).flatMap(([name, value]) => {
+    const expr = getSql(value as HasSql)
+    if (expr && !hasField(value)) return [expr.alias ?? name]
+    return viewColumnNames(value)
+  })
+}
+
+function viewFields(
+  alias: string,
+  source: SelectionInput
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(source).map(([key, value]) => {
+      if (value && typeof value === 'object' && !hasSql(value))
+        return [key, viewFields(alias, value as SelectionInput)]
+      const fieldName = hasField(value) ? getField(value).fieldName : key
+      return [key, new Field(alias, fieldName, getSql(value as HasSql))]
+    })
+  )
 }
 
 export function dropView(data: ViewData): Sql {
@@ -83,19 +122,26 @@ export class QueryView extends ViewBase {
   ): View & Input {
     const data = getData(this)
     const input = getSelection(query).input as Input
-    const target = virtualTarget(data.name, input)
-    return {
+    const target = {
+      [internalTarget]: viewIdentifier(data),
+      ...viewFields(data.name, input as SelectionInput)
+    }
+    const createData = {
+      ...data,
+      columnNames: viewColumnNames(input as SelectionInput)
+    }
+    return <View & Input>(<unknown>{
       ...target,
       [internalSelection]: selection(target),
       [internalQuery]: getQuery(query),
       get [internalCreate]() {
-        const result = createView(data, getQuery(query))
+        const result = createView(createData, getQuery(query))
         return [result]
       },
       get [internalDrop]() {
         return [dropView(data)]
       }
-    }
+    })
   }
 }
 

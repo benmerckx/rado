@@ -5,7 +5,9 @@ import {
   getQuery,
   getSelection,
   getSql,
+  hasData,
   hasQuery,
+  hasSql,
   hasSelection,
   internalData,
   internalSelection,
@@ -13,8 +15,13 @@ import {
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Queries.ts'
-import {selection, type SelectionInput, type SelectionRow} from './Selection.ts'
-import type {Sql} from './Sql.ts'
+import {
+  StarSelection,
+  selection,
+  type SelectionInput,
+  type SelectionRow
+} from './Selection.ts'
+import {Sql} from './Sql.ts'
 import type {Table, TableDefinition} from './Table.ts'
 import {virtualTarget} from './Virtual.ts'
 import type {CTE} from './query/CTE.ts'
@@ -39,6 +46,32 @@ import type {
 } from './query/Select.ts'
 import {Select} from './query/Select.ts'
 import {Update, UpdateTable} from './query/Update.ts'
+
+function aliasSql(input: HasSql, name: string): Sql {
+  const expr = getSql(input)
+  if (expr.alias) return expr
+  const aliased = new Sql(emitter => expr.emit(emitter))
+  aliased.alias = name
+  aliased.mapFromDriverValue = expr.mapFromDriverValue
+  return aliased
+}
+
+function aliasUnnamedFields(
+  input: SelectionInput,
+  name?: string
+): SelectionInput {
+  if (hasSql(input as HasSql)) {
+    if (!name) return input
+    return aliasSql(input as HasSql, name)
+  }
+  if (!input || typeof input !== 'object') return input
+  return Object.fromEntries(
+    Object.entries(input).map(([key, value]) => [
+      key,
+      aliasUnnamedFields(value, key)
+    ])
+  )
+}
 
 class BuilderBase<Meta extends QueryMeta> {
   readonly [internalData]: QueryData<Meta> & QueryBase
@@ -148,15 +181,18 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   ): {as(query: HasQuery): CTE} | {as(query: HasSql): CTE} {
     return {
       as(query: HasQuery | HasSql) {
-        const input = hasQuery(query)
+        let input = hasQuery(query)
           ? hasSelection(query)
             ? getSelection(query).input
             : undefined
           : columns
+        const data =
+          hasQuery(query) && hasData(query) ? getData<any>(query) : undefined
+        if (input && data?.compound?.length > 1) input = aliasUnnamedFields(input)
         const target = virtualTarget(cteName, input)
         return {
           ...target,
-          [internalSelection]: selection(target),
+          [internalSelection]: new StarSelection(target),
           get [internalQuery]() {
             return hasQuery(query)
               ? getQuery(query).nameSelf(cteName)
