@@ -3203,11 +3203,7 @@ test('select from sql', async ctx => {
       .groupBy(intervals.startTime, intervals.endTime)
       .orderBy(asc(intervals.startTime))
 
-  await expect(
-    (async () => {
-      func()
-    })()
-  ).resolves.not.toThrowError()
+  await func()
 })
 
 test('timestamp timezone', async ctx => {
@@ -3628,11 +3624,7 @@ test('insert undefined', async ctx => {
     sql`create table ${users} (id serial not null primary key, name text)`
   )
 
-  await expect(
-    (async () => {
-      await db.insert(users).values({name: undefined})
-    })()
-  ).resolves.not.toThrowError()
+  await db.insert(users).values({name: undefined})
 
   await db.execute(sql`drop table ${users}`)
 })
