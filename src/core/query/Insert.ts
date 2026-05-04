@@ -33,8 +33,7 @@ import type {
   OnConflictUpdate,
   SelectQuery
 } from './Query.ts'
-import {selectQuery} from './Select.ts'
-import {formatModifiers} from './Shared.ts'
+import {querySelection, selectQuery} from './Select.ts'
 
 export class Insert<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
@@ -142,6 +141,13 @@ export class InsertInto<
   select(
     query: SingleQuery<Array<TableRow<Definition>>, Meta>
   ): InsertCanConflict<Definition, Meta> {
+    const insert = getTable(getData(this).insert)
+    const expected = Object.keys(insert.columns)
+    const actual = querySelection(getData(query) as SelectQuery).fieldNames()
+    for (let i = 0; i < expected.length; i++) {
+      if (expected[i] !== actual[i])
+        throw new Error('Insert select fields must match table columns')
+    }
     return new InsertCanConflict({
       ...getData(this),
       ...getData(query)
@@ -248,8 +254,7 @@ export function insertQuery(query: InsertQuery): Sql {
       {overridingSystemValue},
       toInsert,
       conflicts,
-      returning && sql.query({returning: selection(returning)}),
-      formatModifiers(query)
+      returning && sql.query({returning: selection(returning)})
     )
     .inlineFields(false)
 }

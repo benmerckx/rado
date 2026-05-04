@@ -316,7 +316,8 @@ export function date(name?: string, options?: {mode: 'date' | 'string'}) {
     name,
     type: column.date(),
     mapFromDriverValue(value: string | Date) {
-      if (mode === 'date') return value instanceof Date ? value : new Date(value)
+      if (mode === 'date')
+        return value instanceof Date ? value : new Date(value)
       return value instanceof Date ? formatDateString(value) : value
     },
     mapToDriverValue(value: Date) {

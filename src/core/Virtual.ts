@@ -5,6 +5,16 @@ import {Field} from './expr/Field.ts'
 export type VirtualQuery<Input> = VirtualTarget<Input> & HasQuery
 export type VirtualTarget<Input> = Input & {readonly [internalTarget]: Sql}
 
+function virtualFields(alias: string, source: object): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(source).map(([key, value]) => {
+      if (value && typeof value === 'object' && !hasSql(value))
+        return [key, virtualFields(alias, value)]
+      return [key, new Field(alias, key, getSql(value))]
+    })
+  )
+}
+
 export function virtualTarget<Input>(
   alias: string,
   source: Input
@@ -20,13 +30,8 @@ export function virtualTarget<Input>(
     if (!name) throw new Error('Cannot alias a virtual field without a name')
     return Object.assign(new Field(alias, name, expr), target)
   }
-  const aliased = Object.fromEntries(
-    Object.entries(source).map(([key, value]) => {
-      return [key, new Field(alias, key, getSql(value))]
-    })
-  ) as Input
   return {
-    [internalTarget]: sql.identifier(alias),
-    ...aliased
+    ...target,
+    ...virtualFields(alias, source)
   }
 }

@@ -4,9 +4,11 @@ import {
   type HasTable,
   type HasTarget,
   getField,
+  getSelection,
   getSql,
   getTable,
   hasField,
+  hasSelection,
   hasTable,
   internalSql
 } from './Internal.ts'
@@ -92,6 +94,16 @@ class ObjectColumn implements Column {
   }
 }
 
+function firstTargetName(input: SelectionInput): string | undefined {
+  const expr = getSql(input as HasSql)
+  if (expr) return hasField(input) ? getField(input).targetName : undefined
+  if (!input || typeof input !== 'object') return
+  for (const value of Object.values(input)) {
+    const name = firstTargetName(value)
+    if (name) return name
+  }
+}
+
 export class Selection implements HasSql {
   mapRow: (ctx: MapRowContext) => unknown
 
@@ -121,6 +133,31 @@ export class Selection implements HasSql {
 
   fieldNames(): Array<string> {
     return this.#fieldNames(this.input, new Set())
+  }
+
+  aliasOf(input: HasSql): string | undefined {
+    return this.#aliasOf(this.input, new Set(), getSql(input))
+  }
+
+  #aliasOf(
+    input: SelectionInput,
+    names: Set<string>,
+    target: Sql,
+    name?: string
+  ): string | undefined {
+    const expr = getSql(input as HasSql)
+    if (expr) {
+      let exprName = name ?? expr.alias
+      if (!exprName) return
+      while (names.has(exprName)) exprName = `${exprName}_`
+      names.add(exprName)
+      if (expr === target) return exprName
+      return
+    }
+    for (const [name, value] of Object.entries(input)) {
+      const alias = this.#aliasOf(value, names, target, name)
+      if (alias) return alias
+    }
   }
 
   #fieldNames(
@@ -204,6 +241,20 @@ export class TableSelection extends Selection {
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
     const leftTable = getTable(this.table)
+    if (hasSelection(right)) {
+      const selected = getSelection(right)
+      const alias = firstTargetName(selected.input)
+      if (!alias) return this
+      const nullable = new Set(this.nullable)
+      if (operator === 'rightJoin' || operator === 'fullJoin')
+        nullable.add(leftTable.aliased)
+      if (operator === 'leftJoin' || operator === 'fullJoin')
+        nullable.add(alias)
+      return new Selection(
+        {[leftTable.aliased]: this.table, [alias]: selected.input},
+        nullable
+      )
+    }
     if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)
