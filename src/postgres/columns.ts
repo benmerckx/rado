@@ -31,6 +31,28 @@ type LineTuple = [number, number, number]
 type LineABC = {a: number; b: number; c: number}
 type IntegerMode = 'number' | 'bigint'
 type NumericMode = 'number' | 'bigint'
+type GeometryBaseType =
+  | 'geometry'
+  | 'point'
+  | 'line'
+  | 'linestring'
+  | 'polygon'
+  | 'multipoint'
+  | 'multilinestring'
+  | 'multipolygon'
+  | 'geometrycollection'
+  | 'circularstring'
+  | 'compoundcurve'
+  | 'curvepolygon'
+  | 'multicurve'
+  | 'multisurface'
+  | 'polyhedralsurface'
+  | 'triangle'
+  | 'tin'
+type GeometryType = `${GeometryBaseType}${'' | 'z' | 'm' | 'zm'}`
+
+const GEOMETRY_TYPE =
+  /^(geometry|point|line|linestring|polygon|multipoint|multilinestring|multipolygon|geometrycollection|circularstring|compoundcurve|curvepolygon|multicurve|multisurface|polyhedralsurface|triangle|tin)(z|m|zm)?$/
 
 function parsePoint(value: string): PointTuple {
   const cleaned = value.trim().replace(/^\(/, '').replace(/\)$/, '')
@@ -137,7 +159,8 @@ function parsePgArrayValue(input: string): Array<unknown> {
 
   return parts.map(part => {
     if (part === '\0NULL') return null
-    if (part.startsWith('{') && part.endsWith('}')) return parsePgArrayValue(part)
+    if (part.startsWith('{') && part.endsWith('}'))
+      return parsePgArrayValue(part)
     return part
   })
 }
@@ -208,7 +231,8 @@ export class PgColumn<
         return serializePgArrayValue(mapped as Array<unknown>)
       },
       mapFromDriverValue(value: unknown, specs) {
-        const parsed = typeof value === 'string' ? parsePgArrayValue(value) : value
+        const parsed =
+          typeof value === 'string' ? parsePgArrayValue(value) : value
         if (!Array.isArray(parsed)) return parsed
         return mapArrayItems(parsed, item =>
           item !== null && item !== undefined && mapFrom
@@ -451,10 +475,14 @@ export function jsonb<T>(name?: string): PgColumn<T> {
 }
 
 export function geometry(
-  ...args: ColumnArguments<{type?: string; mode?: 'tuple' | 'xy'}>
+  ...args: ColumnArguments<{type?: GeometryType; mode?: 'tuple' | 'xy'}>
 ): PgColumn<PointTuple | PointXY | string> {
   const {name, options} = columnConfig(args)
-  const typeArg = options?.type ? sql.unsafe(options.type) : undefined
+  const geometryTypeName = options?.type?.toLowerCase()
+  if (geometryTypeName && !GEOMETRY_TYPE.test(geometryTypeName)) {
+    throw new Error(`Invalid geometry type: ${options?.type}`)
+  }
+  const typeArg = geometryTypeName ? sql.unsafe(geometryTypeName) : undefined
   const geometryType = options?.type
     ? new ColumnType('geometry', [], sql`geometry(${typeArg})`)
     : column.geometry()
