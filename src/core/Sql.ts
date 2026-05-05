@@ -25,7 +25,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
   readonly [internalSql] = this
 
-  constructor(public emit: (emitter: Emitter) => void = noop) {}
+  constructor(public emit: (emitter: Emitter) => void) {}
 
   as(name: string): Sql<Value> {
     this.alias = name
@@ -93,7 +93,7 @@ export function sql<T>(
 
 export namespace sql {
   export function empty<T>(): Sql<T> {
-    return new Sql()
+    return new Sql(noop)
   }
 
   export function unsafe<T>(directSql: string | number): Sql<T> {
