@@ -62,13 +62,7 @@ export class PGliteDriver implements AsyncDriver {
   ) {}
 
   async exec(query: string) {
-    try {
-      await this.client.exec(query)
-    } catch (error) {
-      throw new Error(
-        `Failed to execute query: ${query}\n${(error as Error).message}`
-      )
-    }
+    await this.client.exec(query)
   }
 
   close(): Promise<void> {
