@@ -8,7 +8,7 @@
         "@alinea/suite": "^0.6.3",
         "@biomejs/biome": "^1.9.4",
         "@cloudflare/workers-types": "^4.20230628.0",
-        "@electric-sql/pglite": "^0.2.12",
+        "@electric-sql/pglite": "^0.4.5",
         "@libsql/client": "^0.10.0",
         "@miniflare/d1": "^2.14.2",
         "@miniflare/shared": "^2.14.2",
@@ -66,7 +66,7 @@
 
     "@dependents/detective-less": ["@dependents/detective-less@5.0.0", "", { "dependencies": { "gonzales-pe": "^4.3.0", "node-source-walk": "^7.0.0" } }, "sha512-D/9dozteKcutI5OdxJd8rU+fL6XgaaRg60sPPJWkT33OCiRfkCu5wO5B/yXTaaL2e6EB0lcCBGe5E0XscZCvvQ=="],
 
-    "@electric-sql/pglite": ["@electric-sql/pglite@0.2.12", "", {}, "sha512-J/X42ujcoFEbOkgRyoNqZB5qcqrnJRWVlwpH3fKYoJkTz49N91uAK/rDSSG/85WRas9nC9mdV4FnMTxnQWE/rw=="],
+    "@electric-sql/pglite": ["@electric-sql/pglite@0.4.5", "", {}, "sha512-aGG2zGEyZzGWKy8P+9ZoNUV0jxt1+hgbeTf+bVAYyxVZZLXg3/9aFlfLxb08AYZVAfAkQlQIysmWjhc5hwDG8g=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.23.1", "", { "os": "aix", "cpu": "ppc64" }, "sha512-6VhYk1diRqrhBAqpJEdjASR/+WVRtfjpqKuNw11cLiaWpAT/Uu+nokB+UJnevzy/P9C/ty6AOe0dwueMrGh/iQ=="],
 
