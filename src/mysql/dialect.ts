@@ -7,6 +7,8 @@ import type {JsonPath} from '../core/expr/Json.ts'
 const BACKTICK = '`'
 const ESCAPE_BACKTICK = '``'
 const MATCH_BACKTICK = /`/g
+const ESCAPE_BACKSLASH = '\\\\'
+const MATCH_BACKSLASH = /\\/g
 const SINGLE_QUOTE = "'"
 const ESCAPE_SINGLE_QUOTE = "''"
 const MATCH_SINGLE_QUOTE = /'/g
@@ -28,7 +30,9 @@ export const mysqlDialect: Dialect = new Dialect(
       this.sql += asSql ? '->>' : '->'
       this.sql += this.quoteString(
         `$${segments
-          .map(p => (typeof p === 'number' ? `[${p}]` : `.${p}`))
+          .map(p =>
+            typeof p === 'number' ? `[${p}]` : `.${JSON.stringify(p)}`
+          )
           .join('')}`
       )
     }
@@ -43,7 +47,9 @@ export const mysqlDialect: Dialect = new Dialect(
     quoteString(input: string): string {
       return (
         SINGLE_QUOTE +
-        input.replace(MATCH_SINGLE_QUOTE, ESCAPE_SINGLE_QUOTE) +
+        input
+          .replace(MATCH_BACKSLASH, ESCAPE_BACKSLASH)
+          .replace(MATCH_SINGLE_QUOTE, ESCAPE_SINGLE_QUOTE) +
         SINGLE_QUOTE
       )
     }

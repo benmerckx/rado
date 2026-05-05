@@ -29,7 +29,9 @@ export const sqliteDialect: Dialect = new Dialect(
       this.sql += asSql ? '->>' : '->'
       this.sql += this.quoteString(
         `$${segments
-          .map(p => (typeof p === 'number' ? `[${p}]` : `.${p}`))
+          .map(p =>
+            typeof p === 'number' ? `[${p}]` : `.${JSON.stringify(p)}`
+          )
           .join('')}`
       )
     }
