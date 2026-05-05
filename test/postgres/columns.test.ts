@@ -173,14 +173,17 @@ test('pg geometry mapping', () => {
   const geomDefault = pg.geometry()
   const geomPointTuple = pg.geometry({type: 'point'})
   const geomPoint = pg.geometry({type: 'point', mode: 'xy'})
+  const geomPointZm = pg.geometry({type: 'pointzm'})
   const geomLine = pg.geometry({type: 'line'})
   test.equal(columnSql(geomDefault), 'geometry')
   test.equal(mapFrom(geomPointTuple, '(5,6)'), [5, 6])
   test.equal(columnSql(geomPoint), 'geometry(point)')
+  test.equal(columnSql(geomPointZm), 'geometry(pointzm)')
   test.equal(mapFrom(geomPoint, '(1,2)'), {x: 1, y: 2})
   test.equal(mapTo(geomPoint, {x: 3, y: 4}), '(3,4)')
   test.equal(mapFrom(geomLine, 'LINESTRING(0 0,1 1)'), 'LINESTRING(0 0,1 1)')
   test.equal(mapTo(geomLine, 'LINESTRING(0 0,1 1)'), 'LINESTRING(0 0,1 1)')
+  test.throws(() => pg.geometry({type: 'point); drop table users; --' as any}))
 })
 
 test('pg vector types sql', () => {
