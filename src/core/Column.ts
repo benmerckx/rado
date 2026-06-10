@@ -90,7 +90,7 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
       $default: () =>
         mapToColumn(
           getData(this),
-          typeof value === 'function' ? value() : value
+          typeof value === 'function' ? (value as Function)() : value
         )
     })
   }
