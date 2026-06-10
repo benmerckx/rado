@@ -223,6 +223,17 @@ export class Selection implements HasSql {
   }
 
   join(right: HasTarget | Sql, operator: JoinOp): Selection {
+    if (hasSelection(right)) {
+      const selected = getSelection(right)
+      const alias = firstTargetName(selected.input)
+      if (!alias) return this
+      const nullable = new Set(this.nullable)
+      if (operator === 'leftJoin' || operator === 'fullJoin')
+        nullable.add(alias)
+      if (operator === 'rightJoin' || operator === 'fullJoin')
+        for (const name of this.#targetNames()) nullable.add(name)
+      return new Selection(this.input, nullable)
+    }
     if (!hasTable(right)) return this
     const rightTable = getTable(right)
     const nullable = new Set(this.nullable)

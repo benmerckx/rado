@@ -142,14 +142,14 @@ export class TableApi<
 }
 
 export function tableFields(
-  tragetName: string,
+  targetName: string,
   columns: TableDefinition
 ): Record<string, HasSql> {
   return fromEntries(
     entries(columns).map(([name, column]) => {
       const columnApi = getData(column)
       const {name: givenName} = columnApi
-      const field = new Field(tragetName, givenName ?? name, columnApi)
+      const field = new Field(targetName, givenName ?? name, columnApi)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })
