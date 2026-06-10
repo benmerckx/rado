@@ -1,7 +1,7 @@
 # Tables
 
 A table in rado is a plain value: a name plus an object of columns. Define it
-once and use it everywhere — in queries, in `db.create`, in `db.migrate`, in
+once and use it everywhere: in queries, in `db.create`, in `db.migrate`, in
 type inference.
 
 ## Defining a table
@@ -74,7 +74,7 @@ const Post = table('post', {
 
 ### `$default(fn)` / `$defaultFn(fn)`
 
-A _runtime_ default, computed in JavaScript at insert time. The database never
+A runtime default is computed in JavaScript at insert time. The database never
 knows:
 
 ```ts
@@ -106,7 +106,7 @@ auto-increment behavior:
 id: integer().primaryKey({autoIncrement: true})
 ```
 
-PostgreSQL users probably want identity columns instead — see
+PostgreSQL users probably want identity columns instead. See
 [PostgreSQL column types](columns-postgres.md#serial-and-identity-columns).
 
 ### `unique(name?)`
@@ -129,13 +129,13 @@ const Post = table('post', {
 `onDelete` and `onUpdate` accept the usual actions: `'cascade'`,
 `'restrict'`, `'set null'`, `'set default'`, `'no action'`.
 
-For composite or named foreign keys, use the table-level `foreignKey` helper —
-see [Indexes & constraints](indexes-and-constraints.md).
+For composite or named foreign keys, use the table-level `foreignKey` helper.
+See [Indexes & constraints](indexes-and-constraints.md).
 
 ### `$type<T>()`
 
-Narrows the TypeScript type without changing the SQL type. Great for branded
-IDs and string unions:
+Narrows the TypeScript type without changing the SQL type. Use it for branded
+IDs or string unions:
 
 ```ts
 type UserId = number & {brand: 'UserId'}

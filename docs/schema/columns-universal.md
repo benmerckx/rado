@@ -2,7 +2,7 @@
 
 Import from `rado/universal`. These columns emit the right SQL type for
 whatever database the query lands on, letting you define one schema that runs
-on SQLite, PostgreSQL _and_ MySQL — chosen at runtime.
+on SQLite, PostgreSQL and MySQL. The database is chosen at runtime.
 
 ```ts
 import {table} from 'rado'
@@ -30,8 +30,8 @@ const User = table('user', {
 | `jsonb<T>()`        | `T`             | `jsonb`           | `jsonb`                                | `json`                        |
 | `blob()`            | `Uint8Array`    | `blob`            | `bytea`                                | `blob`                        |
 
-`id()` is the star of the show: an auto-incrementing, non-null primary key on
-every dialect, with the boilerplate spelled correctly for each.
+`id()` creates an auto-incrementing, non-null primary key on every dialect,
+with the boilerplate spelled correctly for each.
 
 ## How it works
 
@@ -47,7 +47,7 @@ sql.universal({
 ```
 
 You can use the same mechanism for your own
-[custom column types](custom-types.md) or even inside queries — see
+[custom column types](custom-types.md) or even inside queries. See
 [The sql tag](../queries/sql.md#per-dialect-sql-with-sqluniversal).
 
 ## Universal functions and transactions
@@ -60,10 +60,10 @@ need something dialect-specific, drop down to the dialect module or the
 ## When to use universal columns
 
 - Libraries that ship with embedded database support but let users bring
-  their own database (this is why rado exists — [Alinea](https://alineacms.com)
+  their own database (this is why rado exists; [Alinea](https://alineacms.com)
   needed it)
 - Test suites that run the same logic against multiple engines
 - Apps that start on SQLite and want a believable Postgres exit strategy
 
-For the full pattern — defining once, connecting differently per environment —
-see [Universal queries](../runtime/universal-queries.md).
+For the full pattern of defining once and connecting differently per
+environment, see [Universal queries](../runtime/universal-queries.md).

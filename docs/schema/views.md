@@ -5,7 +5,7 @@ plain views on every dialect and materialized views on PostgreSQL.
 
 ## Defining a view from a query
 
-Give `view` a name and a select query — the columns (and their types) are
+Give `view` a name and a select query. The columns (and their types) are
 inferred from the selection:
 
 ```ts
@@ -57,7 +57,7 @@ const Reporting = view('reporting', {
   region: text()
 }).existing()
 
-// .existing() views are never created or dropped by rado — just queried
+// .existing() views are never created or dropped by rado, just queried
 const rows = await db.select().from(Reporting)
 ```
 
@@ -100,8 +100,8 @@ See [PostgreSQL schemas & enums](postgres-schemas-and-enums.md).
 
 ## Creating and dropping
 
-Views participate in `db.create` and `db.drop` like tables. Order matters —
-create the tables a view depends on first, drop the view before its tables:
+Views participate in `db.create` and `db.drop` like tables. Order matters:
+create the tables a view depends on first, and drop the view before its tables:
 
 ```ts
 await db.create(User, ActiveUsers)

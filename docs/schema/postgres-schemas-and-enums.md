@@ -62,7 +62,7 @@ const MoodEntry = pgTable('mood_entry', {
 
 The enum is a column factory: call it (optionally with a column name) wherever
 you'd use a column type. The TypeScript type is the union of its values, so
-`db.insert(MoodEntry).values({state: 'grumpy'})` is a compile error — as it
+`db.insert(MoodEntry).values({state: 'grumpy'})` is a compile error, as it
 should be.
 
 ### Creating the type
@@ -89,7 +89,7 @@ await db.run(sql`drop type if exists ${sql.identifier('mood')}`)
 ## Enums on other databases
 
 SQLite and MySQL don't get `pgEnum`, but you can constrain text columns at the
-type level with SQLite's `text({enum: [...]})` option — same TypeScript
+type level with SQLite's `text({enum: [...]})` option. You get the same TypeScript
 ergonomics, no database-side enforcement:
 
 ```ts

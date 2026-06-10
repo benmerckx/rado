@@ -1,7 +1,7 @@
 # Insert
 
 Add rows with `db.insert(Table).values(...)`, with full type checking of what
-goes in — and, where the database supports it, `returning` for what comes
+goes in. Where the database supports it, use `returning` for what comes
 back.
 
 ## Inserting rows
@@ -38,8 +38,8 @@ const [id] = await db.insert(User).values({name: 'Ada'}).returning(User.id)
 ```
 
 `returning()` without arguments returns complete rows; pass a field or
-selection object to shape the result. MySQL doesn't support `returning` — the
-types won't offer it there.
+selection object to shape the result. MySQL doesn't support `returning`, so
+the types won't offer it there.
 
 ## SQL expressions as values
 
@@ -81,10 +81,10 @@ await db
 
 Options:
 
-- `target` — the conflicting column(s); pass an array for composite targets
-- `targetWhere` — condition on the conflict target (partial indexes)
-- `set` — the columns to update
-- `setWhere` — only perform the update when this condition holds
+- `target`: the conflicting column(s); pass an array for composite targets
+- `targetWhere`: condition on the conflict target (partial indexes)
+- `set`: the columns to update
+- `setWhere`: only perform the update when this condition holds
 
 ## Upserts, MySQL style
 

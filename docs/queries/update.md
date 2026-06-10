@@ -14,7 +14,7 @@ await db.update(User).set({name: 'Ada Lovelace'}).where(eq(User.id, 1))
 ## Setting values
 
 `set` takes a partial row, type-checked against the table. Values can be
-literals or SQL expressions — including ones referencing the current row:
+literals or SQL expressions, including ones referencing the current row:
 
 ```ts
 import {sql} from 'rado'

@@ -32,7 +32,7 @@ const [avgViews] = await db.select(avg(Post.views)).from(Post)
 
 Note the return type: `string | null`. Sums and averages can exceed the safe
 integer range or carry precision, so the database's exact answer is returned
-as a string — convert explicitly when you know it's safe, or use `mapWith`:
+as a string. Convert explicitly when you know it's safe, or use `mapWith`:
 
 ```ts
 const [avgViews] = await db.select(avg(Post.views).mapWith(Number)).from(Post)
@@ -79,7 +79,8 @@ const prolific = await db
 ## Aggregating into JSON
 
 To collect grouped values into an array instead of collapsing them, see
-[Include](include.md) — or reach for the JSON aggregation functions directly:
+[Include](include.md). You can also reach for the JSON aggregation functions
+directly:
 
 ```ts
 import {jsonAggregateArray} from 'rado'
@@ -98,7 +99,7 @@ const titlesPerAuthor = await db
 
 ## Arbitrary functions
 
-Any SQL function — built-in or extension-provided — can be called through the
+Any SQL function, whether built in or extension-provided, can be called through the
 `Functions` proxy:
 
 ```ts

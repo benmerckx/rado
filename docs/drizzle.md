@@ -1,7 +1,7 @@
 # Coming from Drizzle
 
 Rado deliberately aligns its query building API with
-[Drizzle ORM](https://orm.drizzle.team) — there's no reason for people to
+[Drizzle ORM](https://orm.drizzle.team). There is no reason for people to
 learn two slightly different ways to spell the same SQL. If you know Drizzle,
 you mostly know rado already. This page collects everything comparison-related
 in one place: what's identical, what's different, what's missing, and how to
@@ -10,7 +10,7 @@ port a project.
 For the full origin story, read
 [Taking the Drizzle challenge](https://ben.mk/notes/taking-the-drizzle-challenge).
 
-## TL;DR
+## Summary
 
 Rado might be for you if you like Drizzle but:
 
@@ -21,7 +21,7 @@ Rado might be for you if you like Drizzle but:
   versus ~20.9 kB for the Drizzle equivalent)
 - want migrations that run anywhere, including the browser
 
-Mind the trade-offs: a much smaller ecosystem, no drizzle-kit, no memes.
+Mind the trade-offs: rado has a much smaller ecosystem and no drizzle-kit.
 
 ## Changing imports
 
@@ -54,7 +54,7 @@ const db = connect(new Database('app.db'))
 
 ## What's the same
 
-Tables, columns, operators, query chaining — the muscle memory transfers:
+Tables, columns, operators and query chaining will all feel familiar:
 
 ```ts
 // This is valid in both libraries
@@ -156,7 +156,7 @@ declarative method:
 await db.migrate(User, Post)
 ```
 
-It diffs schema against database and applies changes on the spot — anywhere,
+It diffs schema against database and applies changes on the spot, anywhere,
 including browsers and edge runtimes. Less ceremony, less control: for
 carefully reviewed production migrations you may still prefer a dedicated
 tool. See [Migrations](runtime/migrations.md).
@@ -171,11 +171,11 @@ without filling in a row of `any`s.
 
 ## What's missing
 
-- **The relational query API** (`db.query.*.findMany`) — by design; use
+- **The relational query API** (`db.query.*.findMany`): by design; use
   [Include](queries/include.md)
-- **drizzle-kit** style SQL-file migrations — use `db.migrate` or an external
+- **drizzle-kit** style SQL-file migrations: use `db.migrate` or an external
   migration tool
-- **Ecosystem** — Drizzle has integrations, studio tooling and a large
+- **Ecosystem**: Drizzle has integrations, studio tooling and a large
   community; rado is a focused query builder
-- Some driver coverage — rado supports the
+- Some driver coverage: rado supports the
   [drivers listed here](drivers.md); Drizzle supports more

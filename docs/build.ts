@@ -308,7 +308,7 @@ function renderPage(input: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} – ${siteName}</title>
+<title>${escapeHtml(title)} - ${siteName}</title>
 <link rel="icon" type="image/svg+xml" href="${prefix}favicon.svg">
 <link rel="stylesheet" href="${prefix}style.css">
 </head>

@@ -1,7 +1,7 @@
 # SQLite column types
 
 Import from `rado/sqlite`. SQLite famously has only a handful of storage
-classes, so rado's SQLite columns lean on _modes_ to map them to useful
+classes, so rado's SQLite columns use modes to map them to useful
 JavaScript types.
 
 ```ts
@@ -42,7 +42,7 @@ text({enum: ['draft', 'published']}) // 'draft' | 'published'
 text<Settings>({mode: 'json'}) // typed JSON stored as text
 ```
 
-The `enum` option is purely a TypeScript constraint — SQLite stores plain
+The `enum` option is purely a TypeScript constraint. SQLite stores plain
 text. The `json` mode serializes on write and parses on read, and supports
 [typed JSON field access](../queries/json.md).
 
@@ -102,7 +102,7 @@ keyword.
 
 ## SQLite-specific functions
 
-`rado/sqlite` also exports a set of SQLite functions usable in queries —
+`rado/sqlite` also exports a set of SQLite functions usable in queries,
 including `iif`, full-text search helpers (`bm25`, `highlight`, `snippet`) and
 the JSON function family. Use them like any expression:
 
@@ -112,5 +112,5 @@ import {iif} from 'rado/sqlite'
 await db.select({label: iif(eq(User.id, 1), 'first', 'other')}).from(User)
 ```
 
-For anything not exported, the generic `Functions` proxy or the
-[`sql` tag](../queries/sql.md) has you covered.
+For anything not exported, use the generic `Functions` proxy or the
+[`sql` tag](../queries/sql.md).

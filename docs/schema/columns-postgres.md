@@ -110,7 +110,7 @@ Every Postgres column can become an array with `.array(size?)`:
 ```ts
 const Post = pgTable('post', {
   tags: text().array(), // string[]
-  matrix: integer().array().array() // number[][] — yes, it nests
+  matrix: integer().array().array() // number[][], and yes, it nests
 })
 ```
 
@@ -163,7 +163,7 @@ sparsevec({dimensions: 1536}) // string
 
 ## Enums
 
-Postgres enums are declared with `pgEnum` and used as column types — they get
+Postgres enums are declared with `pgEnum` and used as column types. They get
 their own page: [PostgreSQL schemas & enums](postgres-schemas-and-enums.md).
 
 ```ts
@@ -180,7 +180,7 @@ const MoodEntry = pgTable('mood_entry', {
 
 On top of the [shared modifiers](tables.md#column-modifiers), `PgColumn` adds:
 
-- `.array(size?)` — see above
+- `.array(size?)`: see above
 - `.generatedAlwaysAsIdentity()` / `.generatedByDefaultAsIdentity()`
-- `.unique(name?, {nulls: 'not distinct'})` — treat nulls as equal in the
+- `.unique(name?, {nulls: 'not distinct'})`: treat nulls as equal in the
   unique constraint

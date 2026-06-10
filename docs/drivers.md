@@ -1,6 +1,6 @@
 # Drivers
 
-Rado doesn't talk to your database directly — it wraps a client you provide.
+Rado doesn't talk to your database directly. It wraps a client you provide.
 Each supported client has a thin driver under `rado/driver/*` exporting a
 `connect` function. You hand it a client instance, it hands you a typed
 database.
@@ -20,7 +20,7 @@ database.
 
 ## Sync vs async databases
 
-This is a rado specialty. Drivers that operate synchronously (better-sqlite3,
+Drivers that operate synchronously (better-sqlite3,
 `bun:sqlite`, sql.js) produce a `SyncDatabase`: query results are available
 immediately, no event loop round-trips.
 
@@ -34,7 +34,7 @@ const same = await db.select().from(User)
 ```
 
 Async drivers produce an `AsyncDatabase`, where queries must be awaited. The
-type system keeps track for you — `db.transaction` callbacks, `.all()`,
+type system keeps track for you. `db.transaction` callbacks, `.all()`,
 `.get()` and friends are typed sync or async to match the driver.
 
 ## PostgreSQL
@@ -52,8 +52,8 @@ const db = connect(new Pool({connectionString: process.env.DATABASE_URL}))
 
 ### PGlite
 
-Postgres compiled to WASM — runs in Node.js and the browser. Great for tests
-and local-first apps.
+Postgres compiled to WASM runs in Node.js and the browser. It works well for
+tests and local-first apps.
 
 ```ts
 import {PGlite} from '@electric-sql/pglite'
@@ -166,10 +166,10 @@ Handy when the driver choice itself is dynamic.
 
 ## What the driver determines
 
-- **Dialect** — which SQL gets emitted (quoting, parameter style, type names)
-- **Sync or async** — whether results need `await`
-- **JSON handling** — drivers that parse JSON natively (pg, pglite, mysql2)
+- **Dialect**: which SQL gets emitted (quoting, parameter style, type names)
+- **Sync or async**: whether results need `await`
+- **JSON handling**: drivers that parse JSON natively (pg, pglite, mysql2)
   are handled transparently; SQLite drivers receive JSON as text and rado
   parses it for you
-- **Available features** — e.g. `returning` exists on PostgreSQL and SQLite
+- **Available features**: e.g. `returning` exists on PostgreSQL and SQLite
   but not MySQL; the types only offer what your dialect supports

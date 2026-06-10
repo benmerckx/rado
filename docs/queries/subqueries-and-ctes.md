@@ -34,13 +34,13 @@ const users = await db
   .from(User)
 ```
 
-(For fetching related _rows_ rather than scalars, see
+(For fetching related rows rather than scalars, see
 [Include](include.md).)
 
 ## Subqueries as sources with `.as()`
 
-Name a query with `.as(alias)` and it becomes selectable and joinable —
-its fields available as typed properties:
+Name a query with `.as(alias)` and it becomes selectable and joinable. Its
+fields are available as typed properties:
 
 ```ts
 const postCounts = db
@@ -83,7 +83,7 @@ other.
 
 ### CTEs over inserts, updates and deletes
 
-Data-modifying queries can be CTEs as well — useful for moving rows around in
+Data-modifying queries can be CTEs as well. This is useful for moving rows around in
 one statement (PostgreSQL):
 
 ```ts
@@ -118,5 +118,5 @@ const numbers = await db
 // [1, 1, 2, 3, 5, 8, 13]
 ```
 
-The classic use case — walking a tree of categories or an org chart — looks
-the same: anchor query, `unionAll`, recursive part joining `self`.
+The classic use case is walking a tree of categories or an org chart. The
+shape is the same: anchor query, `unionAll`, recursive part joining `self`.

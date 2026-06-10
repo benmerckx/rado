@@ -1,6 +1,6 @@
 # JSON
 
-JSON columns in rado aren't opaque blobs — they're typed structures you can
+JSON columns in rado aren't opaque blobs. They are typed structures you can
 reach into, select from and filter on with plain property access.
 
 ## Defining a typed JSON column
@@ -29,7 +29,7 @@ Every dialect has JSON columns: `json`/`jsonb` on PostgreSQL and SQLite,
 
 ## Property access in queries
 
-A JSON column's fields are accessible as typed expressions — just keep dotting:
+A JSON column's fields are accessible as typed expressions. Just keep dotting:
 
 ```ts
 import {eq} from 'rado'
@@ -46,7 +46,7 @@ const firstTag = await db.select(User.settings.tags[0]).from(User)
 ```
 
 TypeScript knows the shape: `User.settings.thmee` is a compile error, and
-`eq(User.settings.notifications, 'yes')` won't fly either. The access compiles
+`eq(User.settings.notifications, 'yes')` fails too. The access compiles
 to the right operator per dialect (`->`/`->>` and friends).
 
 ## Inserting and updating JSON
@@ -94,9 +94,9 @@ this up for you.
 
 ## Notes per dialect
 
-- **PostgreSQL** — prefer `jsonb` over `json` for indexing and operators
-- **SQLite** — JSON is stored as text (or jsonb); rado parses results
+- **PostgreSQL**: prefer `jsonb` over `json` for indexing and operators
+- **SQLite**: JSON is stored as text (or jsonb); rado parses results
   transparently. JSON functions like `json_extract` are available via
   `rado/sqlite` exports or the `Functions` proxy
-- **MySQL** — the native `json` type is used; results are parsed by the
+- **MySQL**: the native `json` type is used; results are parsed by the
   driver
