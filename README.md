@@ -9,10 +9,7 @@ MySQL.
 ```ts
 import {eq} from 'rado'
 
-const greatPosts = await db
-  .select()
-  .from(Post)
-  .where(eq(Post.rating, 5))
+const greatPosts = await db.select().from(Post).where(eq(Post.rating, 5))
 ```
 
 If you've used [Drizzle ORM](https://orm.drizzle.team), the code above looks
@@ -161,9 +158,7 @@ import {eq, include} from 'rado'
 const usersWithPosts = await db
   .select({
     ...User,
-    posts: include(
-      db.select().from(Post).where(eq(Post.authorId, User.id))
-    )
+    posts: include(db.select().from(Post).where(eq(Post.authorId, User.id)))
   })
   .from(User)
 ```
@@ -228,10 +223,10 @@ read [Migrations](docs/runtime/migrations.md) before pointing it at production.
 Most queries port by changing imports:
 
 ```ts
-import {sql, eq, and, or} from 'rado'              // was 'drizzle-orm'
+import {sql, eq, and, or} from 'rado' // was 'drizzle-orm'
 import {pgTable, integer, text} from 'rado/postgres' // was 'drizzle-orm/pg-core'
-import {sqliteTable} from 'rado/sqlite'              // was 'drizzle-orm/sqlite-core'
-import {mysqlTable} from 'rado/mysql'                // was 'drizzle-orm/mysql-core'
+import {sqliteTable} from 'rado/sqlite' // was 'drizzle-orm/sqlite-core'
+import {mysqlTable} from 'rado/mysql' // was 'drizzle-orm/mysql-core'
 ```
 
 Rado also exposes compatibility helpers such as `InferSelectModel`,

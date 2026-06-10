@@ -26,9 +26,9 @@ statements (PostgreSQL, MySQL); SQLite drivers prepare by statement text.
 A prepared query exposes the usual executors:
 
 ```ts
-await userByName.all({name: 'Ada'})    // Array<Row>
-await userByName.get({name: 'Ada'})    // Row | undefined
-await userByName.run({name: 'Ada'})    // void
+await userByName.all({name: 'Ada'}) // Array<Row>
+await userByName.get({name: 'Ada'}) // Row | undefined
+await userByName.run({name: 'Ada'}) // void
 await userByName.execute({name: 'Ada'})
 userByName.free() // release the underlying statement when done
 ```
@@ -70,11 +70,7 @@ await db
 Every query can show you what it compiles to:
 
 ```ts
-const {sql: text, params} = db
-  .select()
-  .from(User)
-  .where(eq(User.id, 1))
-  .toSQL()
+const {sql: text, params} = db.select().from(User).where(eq(User.id, 1)).toSQL()
 
 // text: 'select "user"."id", "user"."name", ... from "user" where "user"."id" = $1'
 // params: [1]

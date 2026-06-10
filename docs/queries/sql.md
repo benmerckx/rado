@@ -25,9 +25,7 @@ Give the tag a generic to type the result:
 ```ts
 const nameLength = sql<number>`length(${User.name})`
 
-const rows = await db
-  .select({name: User.name, len: nameLength})
-  .from(User)
+const rows = await db.select({name: User.name, len: nameLength}).from(User)
 // Array<{name: string, len: number}>
 ```
 
@@ -50,9 +48,7 @@ sql`${db.select(...).from(...)}` // a query → parenthesized subquery
 sql<string>`upper(${User.name})`.as('upper_name')
 
 // Convert the driver value on read
-const [average] = await db
-  .select(avg(Post.views).mapWith(Number))
-  .from(Post)
+const [average] = await db.select(avg(Post.views).mapWith(Number)).from(Post)
 // number | null instead of string | null
 ```
 

@@ -91,7 +91,10 @@ await db.select().from(User).where(eq(User.name, 'Ada'))
 
 // These two are equivalent:
 await db.select().from(User).where(gt(User.id, 10), isNull(User.email))
-await db.select().from(User).where(and(gt(User.id, 10), isNull(User.email)))
+await db
+  .select()
+  .from(User)
+  .where(and(gt(User.id, 10), isNull(User.email)))
 
 // Compose freely
 await db
@@ -176,9 +179,9 @@ Queries are thenable and iterate to an array by default. Two execution
 helpers change that:
 
 ```ts
-const all = await db.select().from(User)          // Array<Row>
+const all = await db.select().from(User) // Array<Row>
 const allToo = await db.select().from(User).all() // same
-const first = await db.select().from(User).get()  // Row | undefined
+const first = await db.select().from(User).get() // Row | undefined
 ```
 
 On synchronous drivers (better-sqlite3, `bun:sqlite`, sql.js) both `.all()`
@@ -196,21 +199,14 @@ const filtered = await db.$count(User, gt(User.id, 10))
 ## Row locking (PostgreSQL/MySQL)
 
 ```ts
-await db
-  .select()
-  .from(User)
-  .where(eq(User.id, 1))
-  .for('update')                  // select ... for update
+await db.select().from(User).where(eq(User.id, 1)).for('update') // select ... for update
 
-await db
-  .select()
-  .from(User)
-  .for('share', {of: User, skipLocked: true})
+await db.select().from(User).for('share', {of: User, skipLocked: true})
 ```
 
 ## Immutability: build once, branch freely
 
-Every method returns a *new* query. A base query can safely fan out:
+Every method returns a _new_ query. A base query can safely fan out:
 
 ```ts
 const posts = db.select().from(Post)
@@ -241,11 +237,7 @@ const results = await query
 Curious what a query compiles to? Every query exposes `toSQL`:
 
 ```ts
-const {sql, params} = db
-  .select()
-  .from(User)
-  .where(eq(User.id, 1))
-  .toSQL()
+const {sql, params} = db.select().from(User).where(eq(User.id, 1)).toSQL()
 // sql: 'select "user"."id", ... from "user" where "user"."id" = $1'
 ```
 

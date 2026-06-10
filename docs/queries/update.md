@@ -5,10 +5,7 @@ Modify existing rows with `db.update(Table).set(...)`.
 ```ts
 import {eq} from 'rado'
 
-await db
-  .update(User)
-  .set({name: 'Ada Lovelace'})
-  .where(eq(User.id, 1))
+await db.update(User).set({name: 'Ada Lovelace'}).where(eq(User.id, 1))
 ```
 
 > No `where`? Then you're updating every row in the table. Rado will happily

@@ -37,7 +37,7 @@ identical for PostgreSQL and MySQL — see [Drivers](drivers.md) for the full
 list of supported clients.
 
 One nice detail: better-sqlite3 is a synchronous driver, so `db` is a
-*synchronous* database. You can `await` queries (they're thenable), or skip the
+_synchronous_ database. You can `await` queries (they're thenable), or skip the
 `await` entirely and get results right away. Async drivers like `pg` give you
 an async database where `await` is required. The query building API is the
 same either way.

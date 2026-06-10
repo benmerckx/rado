@@ -6,10 +6,7 @@ Group statements so they succeed or fail together.
 
 ```ts
 const result = await db.transaction(async tx => {
-  const [user] = await tx
-    .insert(User)
-    .values({name: 'Ada'})
-    .returning()
+  const [user] = await tx.insert(User).values({name: 'Ada'}).returning()
 
   await tx.insert(Post).values({
     authorId: user.id,
@@ -104,7 +101,7 @@ const [users, , posts] = await db.batch([
 ])
 ```
 
-On Cloudflare D1 — which has no interactive transactions — `batch` is *the*
+On Cloudflare D1 — which has no interactive transactions — `batch` is _the_
 way to get atomicity, mapping directly onto D1's native batch API.
 
 ## Creating and dropping in bulk

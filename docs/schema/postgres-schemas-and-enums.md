@@ -30,7 +30,7 @@ The schema object itself can be passed to `db.create` / `db.drop`:
 
 ```ts
 await db.create(app, User) // create schema if not exists "app"; create table ...
-await db.drop(app)         // drop schema if exists "app" cascade
+await db.drop(app) // drop schema if exists "app" cascade
 ```
 
 Everything a schema can contain:

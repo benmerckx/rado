@@ -1,7 +1,7 @@
 # Include
 
 `include` fetches related rows as part of a select — nested arrays or objects,
-fully typed, declared inline. It's rado's answer to "I want the user *and*
+fully typed, declared inline. It's rado's answer to "I want the user _and_
 their posts" without a separate ORM API, a relations file or N+1 queries.
 
 ```ts
@@ -10,9 +10,7 @@ import {eq, include} from 'rado'
 const users = await db
   .select({
     ...User,
-    posts: include(
-      db.select().from(Post).where(eq(Post.authorId, User.id))
-    )
+    posts: include(db.select().from(Post).where(eq(Post.authorId, User.id)))
   })
   .from(User)
 

@@ -38,8 +38,8 @@ Most code ports by swapping import sources:
 | `drizzle-orm/mysql2`         | `rado/driver/mysql2`         |
 
 ```ts
-import {sql, eq, and, or} from 'rado'                 // was 'drizzle-orm'
-import {pgTable, integer, text} from 'rado/postgres'  // was 'drizzle-orm/pg-core'
+import {sql, eq, and, or} from 'rado' // was 'drizzle-orm'
+import {pgTable, integer, text} from 'rado/postgres' // was 'drizzle-orm/pg-core'
 ```
 
 Connecting differs slightly: rado's driver modules export `connect` rather

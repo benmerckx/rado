@@ -31,12 +31,16 @@
     "check": "bun run format:check && bun run lint",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
-    "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi"
+    "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi",
+    "docs:build": "bun docs/build.ts",
+    "docs:dev": "bun docs/build.ts --serve"
   },
   "devDependencies": {
     "@alinea/suite": "^0.6.3",
     "@cloudflare/workers-types": "^4.20230628.0",
     "@electric-sql/pglite": "^0.4.5",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
     "@libsql/client": "^0.10.0",
     "@miniflare/d1": "^2.14.2",
     "@miniflare/shared": "^2.14.2",
