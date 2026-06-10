@@ -19,5 +19,7 @@ await testDriver(suite(import.meta), async () => {
   })
   await client.connect()
 
-  return connect(client)
+  // VercelClient bundles its own copy of pg's Client type which lacks the
+  // internal connection property, but is compatible at runtime
+  return connect(client as unknown as Parameters<typeof connect>[0])
 })
