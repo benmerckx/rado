@@ -2,7 +2,7 @@
 
 Import from `rado/universal`. These columns emit the right SQL type for
 whatever database the query lands on, letting you define one schema that runs
-on SQLite, PostgreSQL *and* MySQL — chosen at runtime.
+on SQLite, PostgreSQL _and_ MySQL — chosen at runtime.
 
 ```ts
 import {table} from 'rado'

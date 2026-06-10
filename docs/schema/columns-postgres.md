@@ -11,17 +11,17 @@ import {pgTable, integer, text, timestamp} from 'rado/postgres'
 ## Numbers
 
 ```ts
-smallint()                       // number
-integer() / int()                // number
-bigint({mode: 'number'})         // number
-bigint({mode: 'bigint'})         // bigint
-doublePrecision()                // number
-real()                           // number
-numeric()                        // string (exact, arbitrary precision)
-numeric({mode: 'number'})        // number
-numeric({mode: 'bigint'})        // bigint
+smallint() // number
+integer() / int() // number
+bigint({mode: 'number'}) // number
+bigint({mode: 'bigint'}) // bigint
+doublePrecision() // number
+real() // number
+numeric() // string (exact, arbitrary precision)
+numeric({mode: 'number'}) // number
+numeric({mode: 'bigint'}) // bigint
 numeric({precision: 10, scale: 2})
-oid()                            // number
+oid() // number
 ```
 
 `numeric` defaults to `string` so you never silently lose precision. Opt into
@@ -30,8 +30,8 @@ oid()                            // number
 ## Serial and identity columns
 
 ```ts
-smallserial()  // number
-serial()       // number
+smallserial() // number
+serial() // number
 bigserial({mode: 'number' | 'bigint'})
 ```
 
@@ -48,31 +48,33 @@ const User = pgTable('user', {
 ## Text
 
 ```ts
-text()                  // string
-varchar({length: 255})  // string
-char({length: 10})      // string
+text() // string
+varchar({length: 255}) // string
+char({length: 10}) // string
 ```
 
 ## Booleans, binary, UUID
 
 ```ts
 boolean() // boolean
-bytea()   // Uint8Array
-uuid()    // string
+bytea() // Uint8Array
+uuid() // string
 ```
 
 ```ts
 const Session = pgTable('session', {
-  id: uuid().primaryKey().default(sql`gen_random_uuid()`)
+  id: uuid()
+    .primaryKey()
+    .default(sql`gen_random_uuid()`)
 })
 ```
 
 ## Dates and times
 
 ```ts
-date({mode: 'date'})      // Date
-date({mode: 'string'})    // string
-time({precision: 6, withTimeZone: true})  // string
+date({mode: 'date'}) // Date
+date({mode: 'string'}) // string
+time({precision: 6, withTimeZone: true}) // string
 timestamp({mode: 'date'}) // Date
 timestamp({mode: 'string', precision: 3, withTimeZone: true})
 interval({fields: 'day to hour', precision: 6}) // string
@@ -87,7 +89,7 @@ const Post = pgTable('post', {
 ## JSON
 
 ```ts
-json<T>()  // typed JSON
+json<T>() // typed JSON
 jsonb<T>() // typed JSON, binary storage (you usually want this one)
 ```
 
@@ -107,7 +109,7 @@ Every Postgres column can become an array with `.array(size?)`:
 
 ```ts
 const Post = pgTable('post', {
-  tags: text().array(),          // string[]
+  tags: text().array(), // string[]
   matrix: integer().array().array() // number[][] — yes, it nests
 })
 ```
@@ -117,18 +119,24 @@ Filter with the array operators:
 ```ts
 import {arrayContains, arrayOverlaps} from 'rado'
 
-await db.select().from(Post).where(arrayContains(Post.tags, ['sql']))
-await db.select().from(Post).where(arrayOverlaps(Post.tags, ['sql', 'ts']))
+await db
+  .select()
+  .from(Post)
+  .where(arrayContains(Post.tags, ['sql']))
+await db
+  .select()
+  .from(Post)
+  .where(arrayOverlaps(Post.tags, ['sql', 'ts']))
 ```
 
 ## Network and bit types
 
 ```ts
-inet()     // string
-cidr()     // string
-macaddr()  // string
+inet() // string
+cidr() // string
+macaddr() // string
 macaddr8() // string
-bit({dimensions: 3})   // string
+bit({dimensions: 3}) // string
 varbit({dimensions: 8}) // string
 ```
 
@@ -136,9 +144,9 @@ varbit({dimensions: 8}) // string
 
 ```ts
 point({mode: 'tuple'}) // [x, y]
-point({mode: 'xy'})    // {x, y}
-line({mode: 'tuple'})  // [a, b, c]
-line({mode: 'abc'})    // {a, b, c}
+point({mode: 'xy'}) // {x, y}
+line({mode: 'tuple'}) // [a, b, c]
+line({mode: 'abc'}) // {a, b, c}
 geometry({type: 'point', mode: 'xy'}) // PostGIS geometry
 ```
 
@@ -148,8 +156,8 @@ For similarity search with the [pgvector](https://github.com/pgvector/pgvector)
 extension:
 
 ```ts
-vector({dimensions: 1536})    // number[]
-halfvec({dimensions: 1536})   // number[]
+vector({dimensions: 1536}) // number[]
+halfvec({dimensions: 1536}) // number[]
 sparsevec({dimensions: 1536}) // string
 ```
 

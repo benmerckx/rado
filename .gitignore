@@ -4,6 +4,7 @@
 /node_modules
 /dist
 /bin
+/docs/dist
 /*.cpuprofile
 /deno.lock
 .DS_Store

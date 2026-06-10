@@ -15,11 +15,11 @@ const rows = await db
 ## Available joins
 
 ```ts
-db.select().from(A).innerJoin(B, on)   // rows with a match in both
-db.select().from(A).leftJoin(B, on)    // all of A, B nullable
-db.select().from(A).rightJoin(B, on)   // all of B, A nullable
-db.select().from(A).fullJoin(B, on)    // all of both, either side nullable
-db.select().from(A).crossJoin(B)       // cartesian product, no condition
+db.select().from(A).innerJoin(B, on) // rows with a match in both
+db.select().from(A).leftJoin(B, on) // all of A, B nullable
+db.select().from(A).rightJoin(B, on) // all of B, A nullable
+db.select().from(A).fullJoin(B, on) // all of both, either side nullable
+db.select().from(A).crossJoin(B) // cartesian product, no condition
 ```
 
 The join condition is any boolean expression — typically `eq` between two

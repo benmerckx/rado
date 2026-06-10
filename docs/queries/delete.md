@@ -51,8 +51,5 @@ const removed = await db
 Where the dialect allows it:
 
 ```ts
-await db
-  .delete(LogEntry)
-  .orderBy(asc(LogEntry.createdAt))
-  .limit(1000)
+await db.delete(LogEntry).orderBy(asc(LogEntry.createdAt)).limit(1000)
 ```

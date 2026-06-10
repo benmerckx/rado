@@ -35,8 +35,8 @@ The property name becomes the column name. Only pass a name when they differ:
 
 ```ts
 const User = table('user', {
-  id: integer().primaryKey(),       // column "id"
-  createdAt: integer('created_at')  // column "created_at", property createdAt
+  id: integer().primaryKey(), // column "id"
+  createdAt: integer('created_at') // column "created_at", property createdAt
 })
 ```
 
@@ -46,11 +46,11 @@ Modifiers chain off any column type, and each one refines the TypeScript type
 of the column:
 
 ```ts
-text()                          // string | null
-text().notNull()                // string
-text().default('hello')        // string | null, optional on insert
+text() // string | null
+text().notNull() // string
+text().default('hello') // string | null, optional on insert
 text().notNull().default('hi') // string, optional on insert
-integer().primaryKey()          // number, non-null, optional if auto-generated
+integer().primaryKey() // number, non-null, optional if auto-generated
 ```
 
 ### `notNull()`
@@ -74,12 +74,14 @@ const Post = table('post', {
 
 ### `$default(fn)` / `$defaultFn(fn)`
 
-A *runtime* default, computed in JavaScript at insert time. The database never
+A _runtime_ default, computed in JavaScript at insert time. The database never
 knows:
 
 ```ts
 const Post = table('post', {
-  id: text().primaryKey().$default(() => crypto.randomUUID())
+  id: text()
+    .primaryKey()
+    .$default(() => crypto.randomUUID())
 })
 ```
 

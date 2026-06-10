@@ -31,16 +31,10 @@ Columns you omit fall back to their database or runtime defaults.
 
 ```ts
 // The full row, including generated ids and defaults
-const [user] = await db
-  .insert(User)
-  .values({name: 'Ada'})
-  .returning()
+const [user] = await db.insert(User).values({name: 'Ada'}).returning()
 
 // Or a specific selection
-const [id] = await db
-  .insert(User)
-  .values({name: 'Ada'})
-  .returning(User.id)
+const [id] = await db.insert(User).values({name: 'Ada'}).returning(User.id)
 ```
 
 `returning()` without arguments returns complete rows; pass a field or
@@ -64,10 +58,7 @@ await db.insert(User).values({
 ### Do nothing on conflict
 
 ```ts
-await db
-  .insert(User)
-  .values({id: 1, name: 'Ada'})
-  .onConflictDoNothing()
+await db.insert(User).values({id: 1, name: 'Ada'}).onConflictDoNothing()
 
 // Or scoped to a specific conflict target
 await db

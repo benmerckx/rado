@@ -11,10 +11,7 @@ operators:
 ```ts
 import {eq, inArray} from 'rado'
 
-const activeUserIds = db
-  .select(User.id)
-  .from(User)
-  .where(eq(User.active, true))
+const activeUserIds = db.select(User.id).from(User).where(eq(User.active, true))
 
 const posts = await db
   .select()
@@ -37,7 +34,7 @@ const users = await db
   .from(User)
 ```
 
-(For fetching related *rows* rather than scalars, see
+(For fetching related _rows_ rather than scalars, see
 [Include](include.md).)
 
 ## Subqueries as sources with `.as()`
@@ -64,13 +61,15 @@ CTEs hoist a subquery to a named `with` clause. Define with `$with(name)`,
 attach the query with `.as(...)`, then activate with `with(...)`:
 
 ```ts
-const popular = db.$with('popular').as(
-  db
-    .select({authorId: Post.authorId, total: count()})
-    .from(Post)
-    .groupBy(Post.authorId)
-    .having(gt(count(), 5))
-)
+const popular = db
+  .$with('popular')
+  .as(
+    db
+      .select({authorId: Post.authorId, total: count()})
+      .from(Post)
+      .groupBy(Post.authorId)
+      .having(gt(count(), 5))
+  )
 
 const rows = await db
   .with(popular)

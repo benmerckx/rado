@@ -24,16 +24,16 @@ number. Columns can be compared to other columns, expressions, subqueries and
 plain values:
 
 ```ts
-eq(Post.authorId, User.id)              // column to column
-eq(User.id, 1)                          // column to value
-eq(sql`lower(${User.name})`, 'ada')     // expression to value
+eq(Post.authorId, User.id) // column to column
+eq(User.id, 1) // column to value
+eq(sql`lower(${User.name})`, 'ada') // expression to value
 ```
 
 ## Null checks
 
 ```ts
-isNull(User.email)     // "email" is null
-isNotNull(User.email)  // "email" is not null
+isNull(User.email) // "email" is null
+isNotNull(User.email) // "email" is not null
 ```
 
 ## Logical combinators
@@ -72,16 +72,16 @@ Edge case handled for you: `inArray(x, [])` compiles to `false` (and
 ## Ranges
 
 ```ts
-between(Post.views, 10, 100)     // "views" between 10 and 100
+between(Post.views, 10, 100) // "views" between 10 and 100
 notBetween(Post.views, 10, 100)
 ```
 
 ## Pattern matching
 
 ```ts
-like(User.name, 'A%')        // case-sensitive
+like(User.name, 'A%') // case-sensitive
 notLike(User.name, 'A%')
-ilike(User.name, 'a%')       // case-insensitive (PostgreSQL)
+ilike(User.name, 'a%') // case-insensitive (PostgreSQL)
 notILike(User.name, 'a%')
 ```
 
@@ -90,9 +90,9 @@ notILike(User.name, 'a%')
 For [array columns](../schema/columns-postgres.md#arrays):
 
 ```ts
-arrayContains(Post.tags, ['sql'])         // tags @> '{sql}'
-arrayContained(Post.tags, ['sql', 'ts'])  // tags <@ '{sql,ts}'
-arrayOverlaps(Post.tags, ['sql', 'ts'])   // tags && '{sql,ts}'
+arrayContains(Post.tags, ['sql']) // tags @> '{sql}'
+arrayContained(Post.tags, ['sql', 'ts']) // tags <@ '{sql,ts}'
+arrayOverlaps(Post.tags, ['sql', 'ts']) // tags && '{sql,ts}'
 ```
 
 ## Existence
@@ -121,11 +121,7 @@ const label = when(
 )
 
 // case <subject> when <value> then <result> ... end
-const parity = when(
-  sql<number>`${User.id} % 2`,
-  [0, 'even'],
-  [1, 'odd']
-)
+const parity = when(sql<number>`${User.id} % 2`, [0, 'even'], [1, 'odd'])
 
 await db.select({name: User.name, label}).from(User)
 ```

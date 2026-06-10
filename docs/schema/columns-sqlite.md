@@ -1,7 +1,7 @@
 # SQLite column types
 
 Import from `rado/sqlite`. SQLite famously has only a handful of storage
-classes, so rado's SQLite columns lean on *modes* to map them to useful
+classes, so rado's SQLite columns lean on _modes_ to map them to useful
 JavaScript types.
 
 ```ts
@@ -11,11 +11,11 @@ import {sqliteTable, integer, text} from 'rado/sqlite'
 ## `integer` / `int`
 
 ```ts
-integer()                       // number
-integer('renamed')              // explicit column name
-integer({mode: 'number'})       // number (explicit)
-integer({mode: 'boolean'})      // boolean, stored as 0/1
-integer({mode: 'timestamp'})    // Date, stored as unix seconds
+integer() // number
+integer('renamed') // explicit column name
+integer({mode: 'number'}) // number (explicit)
+integer({mode: 'boolean'}) // boolean, stored as 0/1
+integer({mode: 'timestamp'}) // Date, stored as unix seconds
 integer({mode: 'timestamp_ms'}) // Date, stored as unix milliseconds
 ```
 
@@ -36,10 +36,10 @@ post.createdAt // Date
 ## `text`
 
 ```ts
-text()                                  // string
-text({length: 255})                     // text(255)
-text({enum: ['draft', 'published']})    // 'draft' | 'published'
-text<Settings>({mode: 'json'})          // typed JSON stored as text
+text() // string
+text({length: 255}) // text(255)
+text({enum: ['draft', 'published']}) // 'draft' | 'published'
+text<Settings>({mode: 'json'}) // typed JSON stored as text
 ```
 
 The `enum` option is purely a TypeScript constraint — SQLite stores plain
@@ -55,23 +55,23 @@ boolean() // boolean, stored as integer 0/1
 ## `real` and `numeric`
 
 ```ts
-real()    // number, floating point
+real() // number, floating point
 numeric() // number
 ```
 
 ## `blob`
 
 ```ts
-blob()                  // Uint8Array
-blob({mode: 'buffer'})  // ArrayBuffer
-blob({mode: 'bigint'})  // bigint, stored as text in a blob
+blob() // Uint8Array
+blob({mode: 'buffer'}) // ArrayBuffer
+blob({mode: 'bigint'}) // bigint, stored as text in a blob
 blob<T>({mode: 'json'}) // typed JSON
 ```
 
 ## `json` and `jsonb`
 
 ```ts
-json<T>()  // typed JSON stored as text
+json<T>() // typed JSON stored as text
 jsonb<T>() // typed JSON stored in SQLite's binary jsonb format
 ```
 

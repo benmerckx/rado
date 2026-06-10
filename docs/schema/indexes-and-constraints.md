@@ -80,8 +80,8 @@ understands):
 ```ts
 index()
   .on(self.title)
-  .using(sql`gin`)      // index method (postgres)
-  .concurrently()        // create index concurrently (postgres)
+  .using(sql`gin`) // index method (postgres)
+  .concurrently() // create index concurrently (postgres)
   .where(isNotNull(self.title)) // partial index
 ```
 

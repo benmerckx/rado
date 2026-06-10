@@ -35,10 +35,7 @@ A JSON column's fields are accessible as typed expressions — just keep dotting
 import {eq} from 'rado'
 
 // In a where
-const dark = await db
-  .select()
-  .from(User)
-  .where(eq(User.settings.theme, 'dark'))
+const dark = await db.select().from(User).where(eq(User.settings.theme, 'dark'))
 
 // In a selection
 const themes = await db.select(User.settings.theme).from(User)

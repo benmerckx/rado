@@ -35,9 +35,7 @@ integer range or carry precision, so the database's exact answer is returned
 as a string — convert explicitly when you know it's safe, or use `mapWith`:
 
 ```ts
-const [avgViews] = await db
-  .select(avg(Post.views).mapWith(Number))
-  .from(Post)
+const [avgViews] = await db.select(avg(Post.views).mapWith(Number)).from(Post)
 // number | null
 ```
 
