@@ -19,10 +19,11 @@ export class QueryData<Meta extends QueryMeta> {
 
 type Exec = Function
 
-class Executable<Result, Meta extends QueryMeta>
-  implements PromiseLike<Result>
-{
-  private declare brand: [Meta]
+class Executable<
+  Result,
+  Meta extends QueryMeta
+> implements PromiseLike<Result> {
+  declare private brand: [Meta]
 
   #execute: Exec
   constructor(exec: Exec) {
@@ -42,7 +43,6 @@ class Executable<Result, Meta extends QueryMeta>
     return this.#execute()
   }
 
-  // biome-ignore lint/suspicious/noThenProperty:
   async then<TResult1 = Result, TResult2 = never>(
     onfulfilled?:
       | ((value: Result) => TResult1 | PromiseLike<TResult1>)
@@ -90,7 +90,7 @@ export abstract class SingleQuery<
   Result,
   Meta extends QueryMeta
 > extends Executable<Result, Meta> {
-  readonly [internalData]: QueryData<Meta>
+  readonly [internalData]: QueryData<Meta>;
   abstract [internalQuery]: Sql
 
   constructor(data: QueryData<Meta>) {

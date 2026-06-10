@@ -1,3 +1,4 @@
+import {Field} from './expr/Field.ts'
 import {
   type HasCreate,
   type HasDrop,
@@ -18,13 +19,12 @@ import {
   internalTarget
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
+import type {UnionBase} from './query/Select.ts'
 import type {SelectionInput} from './Selection.ts'
 import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 import {type TableDefinition, type TableFields, tableFields} from './Table.ts'
 import type {VirtualTarget} from './Virtual.ts'
-import {Field} from './expr/Field.ts'
-import type {UnionBase} from './query/Select.ts'
 
 interface ViewData {
   name: string

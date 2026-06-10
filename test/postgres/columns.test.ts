@@ -1,6 +1,6 @@
+import {suite} from '@alinea/suite'
 import {pgEnum, pgSchema} from '@/postgres.ts'
 import * as pg from '@/postgres/columns.ts'
-import {suite} from '@alinea/suite'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
 
 const test = suite(import.meta)

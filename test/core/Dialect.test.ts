@@ -1,7 +1,7 @@
+import {suite} from '@alinea/suite'
 import {sql} from '@/core/Sql.ts'
 import {mysqlDialect} from '@/mysql/dialect.ts'
 import {sqliteDialect} from '@/sqlite/dialect.ts'
-import {suite} from '@alinea/suite'
 
 const test = suite(import.meta)
 

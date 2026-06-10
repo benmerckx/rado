@@ -15,15 +15,6 @@ import {
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
 import type {QueryData, SingleQuery} from './Queries.ts'
-import {
-  StarSelection,
-  selection,
-  type SelectionInput,
-  type SelectionRow
-} from './Selection.ts'
-import {Sql} from './Sql.ts'
-import type {Table, TableDefinition} from './Table.ts'
-import {virtualTarget} from './Virtual.ts'
 import type {CTE} from './query/CTE.ts'
 import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
@@ -46,6 +37,15 @@ import type {
 } from './query/Select.ts'
 import {Select} from './query/Select.ts'
 import {Update, UpdateTable} from './query/Update.ts'
+import {
+  StarSelection,
+  selection,
+  type SelectionInput,
+  type SelectionRow
+} from './Selection.ts'
+import {Sql} from './Sql.ts'
+import type {Table, TableDefinition} from './Table.ts'
+import {virtualTarget} from './Virtual.ts'
 
 function aliasSql(input: HasSql, name: string): Sql {
   const expr = getSql(input)
@@ -188,7 +188,8 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
           : columns
         const data =
           hasQuery(query) && hasData(query) ? getData<any>(query) : undefined
-        if (input && data?.compound?.length > 1) input = aliasUnnamedFields(input)
+        if (input && data?.compound?.length > 1)
+          input = aliasUnnamedFields(input)
         const target = virtualTarget(cteName, input ?? {})
         return {
           ...target,

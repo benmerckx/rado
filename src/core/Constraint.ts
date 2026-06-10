@@ -1,3 +1,4 @@
+import type {Field, FieldData} from './expr/Field.ts'
 import {
   type HasConstraint,
   type HasData,
@@ -7,7 +8,6 @@ import {
   internalData
 } from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
-import type {Field, FieldData} from './expr/Field.ts'
 
 export interface ConstraintData {
   name?: string
@@ -21,7 +21,7 @@ export interface UniqueConstraintData extends ConstraintData {
 export class UniqueConstraint<TableName extends string = string>
   implements HasData<UniqueConstraintData>, HasConstraint
 {
-  private declare brand: [TableName];
+  declare private brand: [TableName];
   [internalData]: UniqueConstraintData
 
   constructor(data: UniqueConstraintData) {
@@ -63,7 +63,7 @@ export interface PrimaryKeyConstraintData extends ConstraintData {
 export class PrimaryKeyConstraint<TableName extends string = string>
   implements HasData<PrimaryKeyConstraintData>, HasConstraint
 {
-  private declare brand: [TableName];
+  declare private brand: [TableName];
   [internalData]: PrimaryKeyConstraintData
 
   constructor(public data: PrimaryKeyConstraintData) {
@@ -105,7 +105,7 @@ export interface ForeignKeyConstraintData extends ConstraintData {
 export class ForeignKeyConstraint<TableName extends string = string>
   implements HasData<ForeignKeyConstraintData>, HasConstraint
 {
-  private declare brand: [TableName];
+  declare private brand: [TableName];
   [internalData]: ForeignKeyConstraintData
 
   constructor(data: ForeignKeyConstraintData) {

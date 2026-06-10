@@ -1,6 +1,6 @@
+import type {DefineTest} from '@alinea/suite'
 import {sql, table, type Database} from '@/index.ts'
 import {pgEnum} from '@/postgres.ts'
-import type {DefineTest} from '@alinea/suite'
 
 export function testEnums(db: Database, test: DefineTest) {
   test('postgres enum create + insert', async () => {

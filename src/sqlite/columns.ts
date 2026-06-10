@@ -59,7 +59,7 @@ export function integer(
 export const int = integer
 
 export function blob(name?: string): Column<Uint8Array>
-export function blob(...args: ColumnArguments<{mode: 'bigint'}>): Column<BigInt>
+export function blob(...args: ColumnArguments<{mode: 'bigint'}>): Column<bigint>
 export function blob<T>(...args: ColumnArguments<{mode: 'json'}>): Column<T>
 export function blob(
   ...args: ColumnArguments<{mode: 'buffer'}>
@@ -76,7 +76,7 @@ export function blob(
       mapFromDriverValue(value: string) {
         return BigInt(value)
       },
-      mapToDriverValue(value: BigInt) {
+      mapToDriverValue(value: bigint) {
         return value.toString()
       }
     })

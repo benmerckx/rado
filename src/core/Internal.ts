@@ -1,9 +1,9 @@
+import type {FieldData} from './expr/Field.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {Resolver} from './Resolver.ts'
 import type {Selection} from './Selection.ts'
 import type {Sql} from './Sql.ts'
 import type {TableApi, TableDefinition} from './Table.ts'
-import type {FieldData} from './expr/Field.ts'
 
 export const internalData: unique symbol = Symbol()
 export const internalSql: unique symbol = Symbol()

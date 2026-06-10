@@ -1,4 +1,7 @@
 import type {DriverSpecs} from './Driver.ts'
+import type {Field, FieldData} from './expr/Field.ts'
+import {callFunction} from './expr/Functions.ts'
+import {type Input, input, mapToColumn} from './expr/Input.ts'
 import {
   type HasSql,
   getData,
@@ -8,9 +11,6 @@ import {
   internalSql
 } from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
-import type {Field, FieldData} from './expr/Field.ts'
-import {callFunction} from './expr/Functions.ts'
-import {type Input, input, mapToColumn} from './expr/Input.ts'
 
 export type ReferenceAction =
   | 'cascade'
@@ -88,7 +88,10 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
     return new Column({
       ...getData(this),
       $default: () =>
-        mapToColumn(getData(this), value instanceof Function ? value() : value)
+        mapToColumn(
+          getData(this),
+          typeof value === 'function' ? value() : value
+        )
     })
   }
   $onUpdateFn(fn: () => Input<Value>): Column<Value, Nulls> {
@@ -112,10 +115,9 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
       defaultValue: sql.unsafe('now()')
     })
   }
-  primaryKey(options?: {autoIncrement: boolean}): Column<
-    Value,
-    [false, false]
-  > {
+  primaryKey(options?: {
+    autoIncrement: boolean
+  }): Column<Value, [false, false]> {
     return new Column({...getData(this), ...options, primary: true})
   }
   unique(name?: string): Column<Value, Nulls> {
@@ -144,7 +146,7 @@ export class JsonColumn<
   Value,
   Meta extends Nullability = Nullability
 > extends Column<Value, Meta> {
-  private declare brand: [Value]
+  declare private brand: [Value]
   constructor(data: ColumnData) {
     super({...data, json: true})
   }

@@ -1,3 +1,5 @@
+import {and} from '../expr/Conditions.ts'
+import {type Input as UserInput, mapToColumn} from '../expr/Input.ts'
 import {
   type HasQuery,
   type HasSql,
@@ -17,8 +19,6 @@ import {
 } from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields, TableUpdate} from '../Table.ts'
-import {and} from '../expr/Conditions.ts'
-import {type Input as UserInput, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 import {formatModifiers} from './Shared.ts'
@@ -59,7 +59,9 @@ export class UpdateTable<
 > extends Update<void, Meta> {
   set(set: TableUpdate<Definition>): UpdateTable<Definition, Meta> {
     const data = getData(this)
-    const hasDefinedValue = Object.values(set).some(value => value !== undefined)
+    const hasDefinedValue = Object.values(set).some(
+      value => value !== undefined
+    )
     if (!hasDefinedValue) {
       const hasOnUpdate = Object.values(getTable(data.update).columns).some(
         column => !!getData(column).$onUpdate

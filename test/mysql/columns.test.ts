@@ -54,7 +54,10 @@ test('mysql binary and varbinary sql', () => {
 
 test('mysql decimal and numeric sql', () => {
   test.equal(columnSql(mysql.decimal()), 'decimal')
-  test.equal(columnSql(mysql.decimal({precision: 10, scale: 2})), 'decimal(10, 2)')
+  test.equal(
+    columnSql(mysql.decimal({precision: 10, scale: 2})),
+    'decimal(10, 2)'
+  )
 })
 
 test('mysql json mapping', () => {

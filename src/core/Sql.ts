@@ -1,5 +1,7 @@
 import type {DriverSpecs} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
+import type {FieldData} from './expr/Field.ts'
+import type {JsonPath} from './expr/Json.ts'
 import {
   type HasSql,
   getSql,
@@ -9,8 +11,6 @@ import {
   internalSql
 } from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
-import type {FieldData} from './expr/Field.ts'
-import type {JsonPath} from './expr/Json.ts'
 
 export type Decoder<T = unknown> =
   | ((value: unknown) => T)
@@ -20,7 +20,7 @@ const noop = () => {}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
   static SELF_TARGET = '$$self'
-  private declare brand: [Value]
+  declare private brand: [Value]
   alias?: string
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
   readonly [internalSql] = this

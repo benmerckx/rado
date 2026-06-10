@@ -1,4 +1,5 @@
 import type {DriverSpecs} from './Driver.ts'
+import type {Include} from './expr/Include.ts'
 import {
   type HasSql,
   type HasTable,
@@ -12,12 +13,11 @@ import {
   hasTable,
   internalSql
 } from './Internal.ts'
+import type {JoinOp} from './query/Query.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
 import {type VirtualTarget, virtualTarget} from './Virtual.ts'
-import type {Include} from './expr/Include.ts'
-import type {JoinOp} from './query/Query.ts'
 
 declare const nullable: unique symbol
 export interface SelectionRecord extends Record<string, SelectionInput> {}
@@ -34,15 +34,16 @@ export type RowOfRecord<Input> = Expand<{
     Input[Key]
   >
 }>
-export type SelectionRow<Input> = Input extends HasSql<infer Value>
-  ? Value
-  : Input extends IsNullable
-    ? RowOfRecord<Input> | null
-    : Input extends Table<infer Definition>
-      ? TableRow<Definition>
-      : Input extends object
-        ? RowOfRecord<Input>
-        : never
+export type SelectionRow<Input> =
+  Input extends HasSql<infer Value>
+    ? Value
+    : Input extends IsNullable
+      ? RowOfRecord<Input> | null
+      : Input extends Table<infer Definition>
+        ? TableRow<Definition>
+        : Input extends object
+          ? RowOfRecord<Input>
+          : never
 
 export interface MapRowContext {
   values: Array<unknown>

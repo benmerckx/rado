@@ -1,6 +1,6 @@
+import type {Field} from './expr/Field.ts'
 import {type HasData, type HasSql, getData, internalData} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
-import type {Field} from './expr/Field.ts'
 
 class IndexData {
   fields!: Array<HasSql>
@@ -30,10 +30,10 @@ export class IndexApi extends IndexData {
   }
 }
 
-export class Index<TableName extends string = string>
-  implements HasData<IndexData>
-{
-  private declare brand: [TableName];
+export class Index<
+  TableName extends string = string
+> implements HasData<IndexData> {
+  declare private brand: [TableName];
   [internalData]: IndexApi
 
   constructor(data: IndexData) {
