@@ -309,6 +309,7 @@ function renderPage(input: {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)} – ${siteName}</title>
+<link rel="icon" type="image/svg+xml" href="${prefix}favicon.svg">
 <link rel="stylesheet" href="${prefix}style.css">
 </head>
 <body>
@@ -348,6 +349,16 @@ for (const button of document.querySelectorAll('.codeblock .copy')) {
 </body>
 </html>`
 }
+
+// #endregion
+
+// #region Favicon
+
+const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<rect width="64" height="64" rx="14" fill="#ff6030"/>
+<text x="32" y="46" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="40" font-weight="700" fill="#ffffff">R</text>
+</svg>
+`
 
 // #endregion
 
@@ -755,6 +766,7 @@ async function build(): Promise<void> {
     await Bun.write(join(outDir, outFile), page)
   }
   await Bun.write(join(outDir, 'style.css'), styles)
+  await Bun.write(join(outDir, 'favicon.svg'), favicon)
   for (const file of fontFiles) {
     const name = file.split('/').at(-1)!
     const source = Bun.file(
