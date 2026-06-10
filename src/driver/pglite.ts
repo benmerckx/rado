@@ -66,11 +66,7 @@ export class PGliteDriver implements AsyncDriver {
   }
 
   close(): Promise<void> {
-    if ('close' in this.client) {
-      return Promise.resolve()
-      // This fails currently
-      // return this.client.close()
-    }
+    if ('close' in this.client) return this.client.close()
     throw new Error('Cannot close a transaction')
   }
 
