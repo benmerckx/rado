@@ -12,6 +12,21 @@ import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = Client | Pool | PoolClient
 
+/**
+ * The query interface used by the driver. Packages providing a pg-compatible
+ * client, such as @vercel/postgres and @neondatabase/serverless, ship their
+ * own copy of the pg types which are not directly assignable to pg's. They
+ * are accepted through this minimal structural interface instead.
+ */
+export interface PgCompatible {
+  query(queryConfig: {
+    name?: string
+    text: string
+    values?: Array<unknown>
+    rowMode?: string
+  }): Promise<{rows: Array<any>}>
+}
+
 class PreparedStatement implements AsyncStatement {
   constructor(
     private client: Queryable,
@@ -114,6 +129,10 @@ export class PgDriver implements AsyncDriver {
   }
 }
 
-export function connect(client: Queryable): AsyncDatabase<'postgres'> {
-  return new AsyncDatabase(new PgDriver(client), postgresDialect, postgresDiff)
+export function connect(client: PgCompatible): AsyncDatabase<'postgres'> {
+  return new AsyncDatabase(
+    new PgDriver(client as Queryable),
+    postgresDialect,
+    postgresDiff
+  )
 }
