@@ -1,9 +1,9 @@
+import type {FieldData} from './expr/Field.ts'
+import type {JsonPath} from './expr/Json.ts'
 import {type HasSql, getSql} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
 import {type Param, ValueParam} from './Param.ts'
 import {Sql} from './Sql.ts'
-import type {FieldData} from './expr/Field.ts'
-import type {JsonPath} from './expr/Json.ts'
 
 export abstract class Emitter {
   #runtime: Runtime

@@ -1,7 +1,7 @@
 import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
-import {NamedParam, ValueParam} from '../core/Param.ts'
 import type {JsonPath} from '../core/expr/Json.ts'
+import {NamedParam, ValueParam} from '../core/Param.ts'
 
 const DOUBLE_QUOTE = '"'
 const ESCAPE_DOUBLE_QUOTE = '""'

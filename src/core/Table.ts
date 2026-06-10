@@ -5,6 +5,9 @@ import type {
   PrimaryKeyConstraint,
   UniqueConstraint
 } from './Constraint.ts'
+import {Field} from './expr/Field.ts'
+import type {Input} from './expr/Input.ts'
+import {type JsonExpr, jsonExpr} from './expr/Json.ts'
 import {Index} from './Index.ts'
 import {
   type HasConstraint,
@@ -28,9 +31,6 @@ import {
 } from './Internal.ts'
 import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
-import {Field} from './expr/Field.ts'
-import type {Input} from './expr/Input.ts'
-import {type JsonExpr, jsonExpr} from './expr/Json.ts'
 
 const {assign, fromEntries, entries, keys} = Object
 
@@ -50,7 +50,7 @@ export class TableApi<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends TableData {
-  private declare brand: [Definition, Name]
+  declare private brand: [Definition, Name]
 
   get aliased(): string {
     return this.alias ?? this.name
@@ -185,14 +185,12 @@ export type TableRow<Definition extends TableDefinition> = {
   [K in keyof Definition]: Definition[K] extends Column<infer T> ? T : never
 } & {}
 
-type IsReq<Col> = Col extends Column<
-  unknown,
-  [boolean, infer Required extends boolean]
->
-  ? [Required] extends [true]
-    ? true
+type IsReq<Col> =
+  Col extends Column<unknown, [boolean, infer Required extends boolean]>
+    ? [Required] extends [true]
+      ? true
+      : false
     : false
-  : false
 type RequiredInput<D> = {
   readonly [K in keyof D as true extends IsReq<D[K]>
     ? K
@@ -224,8 +222,10 @@ export type TableConfigSetting<Name extends string> =
   | ForeignKeyConstraint<Name>
   | Index<Name>
 
-export interface TableConfig<Name extends string = string>
-  extends Record<string, TableConfigSetting<Name>> {}
+export interface TableConfig<Name extends string = string> extends Record<
+  string,
+  TableConfigSetting<Name>
+> {}
 
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
@@ -287,12 +287,9 @@ export function tableCreator(
   }
 }
 
-export type InsertRow<T> = T extends Table<infer Definition>
-  ? TableInsert<Definition>
-  : never
-export type SelectRow<T> = T extends Table<infer Definition>
-  ? TableRow<Definition>
-  : never
-export type UpdateRow<T> = T extends Table<infer Definition>
-  ? TableUpdate<Definition>
-  : never
+export type InsertRow<T> =
+  T extends Table<infer Definition> ? TableInsert<Definition> : never
+export type SelectRow<T> =
+  T extends Table<infer Definition> ? TableRow<Definition> : never
+export type UpdateRow<T> =
+  T extends Table<infer Definition> ? TableUpdate<Definition> : never

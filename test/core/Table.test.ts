@@ -1,6 +1,6 @@
+import {suite} from '@alinea/suite'
 import {table} from '@/core/Table.ts'
 import {integer} from '@/sqlite/columns.ts'
-import {suite} from '@alinea/suite'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

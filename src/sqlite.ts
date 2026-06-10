@@ -1,11 +1,6 @@
 export {foreignKey, primaryKey, unique} from './core/Constraint.ts'
 export {index, uniqueIndex} from './core/Index.ts'
-export {
-  except,
-  intersect,
-  union,
-  unionAll
-} from './core/query/Select.ts'
+export {except, intersect, union, unionAll} from './core/query/Select.ts'
 export {
   alias,
   table as sqliteTable,

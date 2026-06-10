@@ -1,10 +1,10 @@
 import {Builder} from '../src/core/Builder.ts'
 import {formatColumn, type Column} from '../src/core/Column.ts'
 import {Dialect} from '../src/core/Dialect.ts'
-import {Emitter} from '../src/core/Emitter.ts'
-import {getData, type HasQuery, type HasSql} from '../src/core/Internal.ts'
 import type {DriverSpecs} from '../src/core/Driver.ts'
+import {Emitter} from '../src/core/Emitter.ts'
 import type {JsonPath} from '../src/core/expr/Json.ts'
+import {getData, type HasQuery, type HasSql} from '../src/core/Internal.ts'
 
 const testDialect = new Dialect(
   'postgres',

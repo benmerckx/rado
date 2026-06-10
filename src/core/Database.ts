@@ -3,6 +3,7 @@ import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Diff} from './Diff.ts'
 import type {Driver} from './Driver.ts'
+import {count} from './expr/Aggregate.ts'
 import {
   type HasCreate,
   type HasDrop,
@@ -25,11 +26,10 @@ import type {
   Sync
 } from './MetaData.ts'
 import {BatchQuery} from './Queries.ts'
+import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
-import {count} from './expr/Aggregate.ts'
-import type {SelectFirst} from './query/Select.ts'
 
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>

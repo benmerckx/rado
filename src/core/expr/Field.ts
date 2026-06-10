@@ -8,10 +8,11 @@ export interface FieldData {
   source: Decoder
 }
 
-export class Field<Value = unknown, Table extends string = string>
-  implements HasSql<Value>
-{
-  private declare brand: [Table]
+export class Field<
+  Value = unknown,
+  Table extends string = string
+> implements HasSql<Value> {
+  declare private brand: [Table]
   readonly [internalField]: FieldData
   readonly [internalSql]: Sql<Value>
   constructor(
@@ -26,8 +27,9 @@ export class Field<Value = unknown, Table extends string = string>
   }
 }
 
-export type StripFieldMeta<Input> = Input extends HasSql<infer Value>
-  ? HasSql<Value>
-  : Input extends SelectionRecord
-    ? {[Key in keyof Input]: StripFieldMeta<Input[Key]>}
-    : Input
+export type StripFieldMeta<Input> =
+  Input extends HasSql<infer Value>
+    ? HasSql<Value>
+    : Input extends SelectionRecord
+      ? {[Key in keyof Input]: StripFieldMeta<Input[Key]>}
+      : Input

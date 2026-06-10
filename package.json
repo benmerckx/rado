@@ -2,32 +2,39 @@
   "name": "rado",
   "version": "1.2.1",
   "license": "MIT",
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "sideEffects": false,
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*"
+      ]
+    }
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./dist/index.js",
+    "./*": "./dist/*.js"
+  },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && bun build.ts",
     "size": "esbuild src/index.ts --bundle --minify --format=esm --outdir=dist",
     "profile": "PROFILE=true bun build.ts && cd bin && (rimraf CPU*.cpuprofile || true) && node --cpu-prof --cpu-prof-interval=100 test && speedscope CPU*.cpuprofile",
     "prepublishOnly": "bun run build",
     "cycles": "madge --circular src/index.ts src/sqlite.ts src/mysql.ts src/postgres.ts",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint .",
+    "check": "bun run format:check && bun run lint",
     "test:bun": "bun test",
     "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
     "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi"
   },
-  "sideEffects": false,
-  "exports": {
-    "./package.json": "./package.json",
-    ".": "./dist/index.js",
-    "./*": "./dist/*.js"
-  },
-  "typesVersions": {
-    "*": {
-      "*": ["./dist/*"]
-    }
-  },
-  "files": ["dist"],
   "devDependencies": {
     "@alinea/suite": "^0.6.3",
-    "@biomejs/biome": "^1.9.4",
     "@cloudflare/workers-types": "^4.20230628.0",
     "@electric-sql/pglite": "^0.4.5",
     "@libsql/client": "^0.10.0",
@@ -45,6 +52,8 @@
     "glob": "^11.0.0",
     "madge": "^8.0.0",
     "mysql2": "^3.11.0",
+    "oxfmt": "^0.54.0",
+    "oxlint": "^1.69.0",
     "pg": "^8.12.0",
     "speedscope": "^1.15.0",
     "sql.js": "^1.11.0",

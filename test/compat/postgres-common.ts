@@ -1,5 +1,8 @@
 // Source: https://github.com/drizzle-team/drizzle-orm/blob/main/integration-tests/tests/pg/pg-common.ts
 
+import {expect} from 'bun:test'
+import {suite} from '@alinea/suite'
+import {PGlite} from '@electric-sql/pglite'
 import {'@electric-sql/pglite' as connect} from '@/driver.ts'
 import {
   type Column,
@@ -80,9 +83,6 @@ import {
   uuid,
   varchar
 } from '@/postgres.ts'
-import {suite} from '@alinea/suite'
-import {PGlite} from '@electric-sql/pglite'
-import {expect} from 'bun:test'
 
 type Equal<A, B extends A & (A extends B ? unknown : never)> = true
 const Expect = <T extends true>() => {}
@@ -2786,8 +2786,12 @@ test('select from enum as ts enum', async ctx => {
     category: categoryEnum('category'),
     primaryMuscles: muscleEnum('primary_muscles').array(),
     secondaryMuscles: muscleEnum('secondary_muscles').array(),
-    createdAt: timestamp('created_at').notNull().default(sql`now()`),
-    updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+    createdAt: timestamp('created_at')
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .default(sql`now()`)
   })
 
   await db.drop(
@@ -2909,8 +2913,12 @@ test('select from enum', async ctx => {
     category: categoryEnum('category'),
     primaryMuscles: muscleEnum('primary_muscles').array(),
     secondaryMuscles: muscleEnum('secondary_muscles').array(),
-    createdAt: timestamp('created_at').notNull().default(sql`now()`),
-    updatedAt: timestamp('updated_at').notNull().default(sql`now()`)
+    createdAt: timestamp('created_at')
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp('updated_at')
+      .notNull()
+      .default(sql`now()`)
   })
   await db.drop(
     muscleEnum,

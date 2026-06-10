@@ -10,9 +10,7 @@ import type {Runtime} from './MetaData.ts'
 
 export class Dialect {
   runtime: Runtime
-  #createEmitter: new (
-    runtime: Runtime
-  ) => Emitter
+  #createEmitter: new (runtime: Runtime) => Emitter
   constructor(
     runtime: Runtime,
     createEmitter: new (runtime: Runtime) => Emitter

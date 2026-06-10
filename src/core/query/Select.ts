@@ -1,3 +1,6 @@
+import {and} from '../expr/Conditions.ts'
+import type {Field, StripFieldMeta} from '../expr/Field.ts'
+import type {Input as UserInput} from '../expr/Input.ts'
 import {
   type HasQuery,
   type HasSelection,
@@ -36,9 +39,6 @@ import {Sql, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import type {VirtualTarget} from '../Virtual.ts'
-import {and} from '../expr/Conditions.ts'
-import type {Field, StripFieldMeta} from '../expr/Field.ts'
-import type {Input as UserInput} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
@@ -106,7 +106,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
   implements HasSelection
 {
-  readonly [internalData]: QueryData<Meta>
+  readonly [internalData]: QueryData<Meta>;
   abstract [internalSelection]: Selection
 
   constructor(data: QueryData<Meta> & {compound: CompoundSelect}) {
@@ -144,7 +144,9 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(select).fieldNames()
   }
 
-  #segmentSelect(segment: SelectQuery | UnionQuery | UnionSegment): SelectQuery {
+  #segmentSelect(
+    segment: SelectQuery | UnionQuery | UnionSegment
+  ): SelectQuery {
     const query = segment as UnionSegmentQuery
     if (isUnionQuery(query)) return query.select[0]!
     if ('union' in segment) return this.#segmentSelect(segment.union)
@@ -410,20 +412,17 @@ export type SubQuery<Input, Name extends string = string> = RetypeSubQueryInput<
   HasTarget<Name> &
   HasSelection
 
-type RetypeSubQueryInput<
-  Input,
-  TableName extends string
-> = Input extends HasSql<infer Value>
-  ? Field<Value, TableName>
-  : Input extends SelectionRecord
-    ? Expand<{
-        [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
-      }>
-    : Input
+type RetypeSubQueryInput<Input, TableName extends string> =
+  Input extends HasSql<infer Value>
+    ? Field<Value, TableName>
+    : Input extends SelectionRecord
+      ? Expand<{
+          [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
+        }>
+      : Input
 
 export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends UnionBase<StripFieldMeta<Input>, Meta>,
-    HasSql<SelectionRow<Input>> {
+  extends UnionBase<StripFieldMeta<Input>, Meta>, HasSql<SelectionRow<Input>> {
   for(
     keyword: (typeof forKeywords)[number],
     config?: {
@@ -454,8 +453,7 @@ export interface WithoutSelection<Meta extends QueryMeta> {
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
-  extends SelectBase<Input, Meta>,
-    HasSql<SelectionRow<Input>> {
+  extends SelectBase<Input, Meta>, HasSql<SelectionRow<Input>> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
@@ -464,8 +462,11 @@ export interface WithSelection<Input, Meta extends QueryMeta>
   from(from: HasSql): Select<Input, Meta>
 }
 
-export interface AllFrom<Input, Meta extends QueryMeta, Tables = Input>
-  extends SelectBase<Input, Meta> {
+export interface AllFrom<
+  Input,
+  Meta extends QueryMeta,
+  Tables = Input
+> extends SelectBase<Input, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -560,8 +561,10 @@ type MarkFieldsAsNullable<Input, TableName extends string> = Expand<{
           : Input[K]
 }>
 
-export interface SelectionFrom<Input, Meta extends QueryMeta>
-  extends SelectBase<Input, Meta> {
+export interface SelectionFrom<
+  Input,
+  Meta extends QueryMeta
+> extends SelectBase<Input, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>

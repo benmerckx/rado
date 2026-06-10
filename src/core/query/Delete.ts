@@ -1,3 +1,5 @@
+import {and} from '../expr/Conditions.ts'
+import type {Input as UserInput} from '../expr/Input.ts'
 import {
   type HasSql,
   getData,
@@ -16,8 +18,6 @@ import {
 } from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields} from '../Table.ts'
-import {and} from '../expr/Conditions.ts'
-import type {Input as UserInput} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {DeleteQuery} from './Query.ts'
 import {formatModifiers} from './Shared.ts'

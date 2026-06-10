@@ -2,8 +2,6 @@ import type {DriverSpecs} from '../Driver.ts'
 import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
-import type {MapRowContext, RowOfRecord} from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
 import type {SelectQuery} from '../query/Query.ts'
 import {
   type Select,
@@ -11,16 +9,19 @@ import {
   querySelection,
   selectQuery
 } from '../query/Select.ts'
+import type {MapRowContext, RowOfRecord} from '../Selection.ts'
+import {type Sql, sql} from '../Sql.ts'
 import {jsonAggregateArray, jsonArray} from './Json.ts'
 
 export type IncludeQuery = SelectQuery & {
   first: boolean
 }
 
-export class Include<Result, Meta extends QueryMeta = QueryMeta>
-  implements HasSql<Result>
-{
-  private declare brand: [Result]
+export class Include<
+  Result,
+  Meta extends QueryMeta = QueryMeta
+> implements HasSql<Result> {
+  declare private brand: [Result]
   readonly [internalData]: QueryData<Meta> & IncludeQuery
 
   constructor(data: QueryData<Meta> & IncludeQuery) {

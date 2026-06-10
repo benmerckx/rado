@@ -1,5 +1,8 @@
 // Source: https://github.com/drizzle-team/drizzle-orm/blob/e5c63db0df0eaff5cae8321d97a77e5b47c5800d/integration-tests/tests/sqlite/sqlite-common.ts
 
+import {Database as BunDb} from 'bun:sqlite'
+import {expect} from 'bun:test'
+import {suite} from '@alinea/suite'
 import {'bun:sqlite' as connect} from '@/driver.ts'
 import {
   type Column,
@@ -40,10 +43,6 @@ import {
   union,
   unionAll
 } from '@/sqlite.ts'
-import {suite} from '@alinea/suite'
-
-import {Database as BunDb} from 'bun:sqlite'
-import {expect} from 'bun:test'
 
 export const usersTable = sqliteTable('users', {
   id: integer('id').primaryKey(),
@@ -907,7 +906,10 @@ test('select from alias', async ctx => {
 test('insert with spaces', async ctx => {
   const {db} = ctx.sqlite
 
-  await db.insert(usersTable).values({name: sql`'Jo   h     n'`}).run()
+  await db
+    .insert(usersTable)
+    .values({name: sql`'Jo   h     n'`})
+    .run()
   const result = await db
     .select({id: usersTable.id, name: usersTable.name})
     .from(usersTable)
@@ -1545,7 +1547,10 @@ test('select count()', async ctx => {
     .values([{name: 'John'}, {name: 'Jane'}])
     .run()
 
-  const res = await db.select({count: sql`count(*)`}).from(usersTable).all()
+  const res = await db
+    .select({count: sql`count(*)`})
+    .from(usersTable)
+    .all()
 
   expect(res).toEqual([{count: 2}])
 })

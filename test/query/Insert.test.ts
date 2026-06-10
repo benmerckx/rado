@@ -1,8 +1,8 @@
+import {suite} from '@alinea/suite'
 import type {Builder} from '@/core/Builder.ts'
 import type {IsPostgres} from '@/core/MetaData.ts'
 import {eq, table} from '@/index.ts'
 import {integer} from '@/sqlite/columns.ts'
-import {suite} from '@alinea/suite'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

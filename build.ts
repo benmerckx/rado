@@ -1,6 +1,6 @@
+import {readFileSync, writeFileSync} from 'node:fs'
 import {type Plugin, build} from 'esbuild'
 import {glob} from 'glob'
-import {readFileSync, writeFileSync} from 'node:fs'
 
 const entryPoints = process.env.PROFILE ? '{src,test}/**/*.ts' : 'src/**/*.ts'
 const outdir = process.env.PROFILE ? 'bin' : 'dist'

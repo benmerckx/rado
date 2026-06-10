@@ -27,17 +27,19 @@ import {connect} from 'rado/driver/pg'
 import {Pool} from 'pg'
 
 // Define your schema
-const User = table("user", {
+const User = table('user', {
   id: integer().primaryKey(),
   name: text().notNull(),
   email: text().unique()
 })
 
 // Connect to the database
-const db = connect(new Pool({
-  host: 'localhost',
-  database: 'my_database'
-}))
+const db = connect(
+  new Pool({
+    host: 'localhost',
+    database: 'my_database'
+  })
+)
 
 // Perform a query
 const users = await db.select().from(User)
@@ -101,14 +103,10 @@ import {eq, and, or, gt, isNull} from 'rado'
 const john = await db.select().from(User).where(eq(User.name, 'John'))
 
 // Complex conditions
-const users = await db.select().from(User)
-  .where(
-    gt(User.age, 18),
-    or(
-      eq(User.name, 'Alice'),
-      isNull(User.email)
-    )
-  )
+const users = await db
+  .select()
+  .from(User)
+  .where(gt(User.age, 18), or(eq(User.name, 'Alice'), isNull(User.email)))
 ```
 
 ### Joins
@@ -116,12 +114,13 @@ const users = await db.select().from(User)
 Joins allow you to combine data from multiple tables.
 
 ```typescript
-const usersWithPosts = await db.select({
-  userName: User.name,
-  postTitle: Post.title,
-})
-.from(User)
-.leftJoin(Post, eq(User.id, Post.authorId))
+const usersWithPosts = await db
+  .select({
+    userName: User.name,
+    postTitle: Post.title
+  })
+  .from(User)
+  .leftJoin(Post, eq(User.id, Post.authorId))
 ```
 
 ### Ordering and Grouping
@@ -131,17 +130,16 @@ You can order and group your query results:
 ```typescript
 import {desc, asc, count} from 'rado'
 
-const orderedUsers = await db.select()
-  .from(User)
-  .orderBy(asc(User.name))
+const orderedUsers = await db.select().from(User).orderBy(asc(User.name))
 
-const userPostCounts = await db.select({
-  userName: User.name,
-  postCount: count(Post.id)
-})
-.from(User)
-.leftJoin(Post, eq(User.id, Post.authorId))
-.groupBy(User.name)
+const userPostCounts = await db
+  .select({
+    userName: User.name,
+    postCount: count(Post.id)
+  })
+  .from(User)
+  .leftJoin(Post, eq(User.id, Post.authorId))
+  .groupBy(User.name)
 ```
 
 ### Pagination
@@ -152,7 +150,8 @@ Pagination helps you manage large datasets by retrieving results in smaller chun
 const pageSize = 10
 const page = 2
 
-const paginatedUsers = await db.select()
+const paginatedUsers = await db
+  .select()
   .from(User)
   .limit(pageSize)
   .offset((page - 1) * pageSize)
@@ -165,13 +164,14 @@ Rado provides first-class support for JSON columns:
 ```typescript
 import {pgTable, serial, text, jsonb} from 'rado/postgres'
 
-const User = pgTable("user", {
+const User = pgTable('user', {
   id: serial().primaryKey(),
   name: text(),
   metadata: jsonb<{subscribed: boolean}>()
 })
 
-const subscribedUsers = await db.select()
+const subscribedUsers = await db
+  .select()
   .from(User)
   .where(eq(User.metadata.subscribed, true))
 ```
@@ -179,13 +179,15 @@ const subscribedUsers = await db.select()
 ### Subqueries
 
 ```typescript
-const subquery = db.select({authorId: Post.authorId})
+const subquery = db
+  .select({authorId: Post.authorId})
   .from(Post)
   .groupBy(Post.authorId)
   .having(gt(count(Post.id), 5))
   .as('authorIds')
 
-const prolificAuthors = await db.select()
+const prolificAuthors = await db
+  .select()
   .from(User)
   .where(inArray(User.id, subquery))
 ```
@@ -197,24 +199,27 @@ Aggregate rows using the `include` function:
 ```typescript
 import {include} from 'rado'
 
-const usersWithPosts = await db.select({
-  ...User,
-  posts: include(
-    db.select().from(Post).where(eq(Post.authorId, User.id))
-  )
-}).from(User)
+const usersWithPosts = await db
+  .select({
+    ...User,
+    posts: include(db.select().from(Post).where(eq(Post.authorId, User.id)))
+  })
+  .from(User)
 
 // Use include.one for a single related record
-const usersWithLatestPost = await db.select({
-  ...User,
-  latestPost: include.one(
-    db.select()
-      .from(Post)
-      .where(eq(Post.authorId, User.id))
-      .orderBy(desc(Post.createdAt))
-      .limit(1)
-  )
-}).from(User)
+const usersWithLatestPost = await db
+  .select({
+    ...User,
+    latestPost: include.one(
+      db
+        .select()
+        .from(Post)
+        .where(eq(Post.authorId, User.id))
+        .orderBy(desc(Post.createdAt))
+        .limit(1)
+    )
+  })
+  .from(User)
 ```
 
 ### SQL Operator
@@ -225,7 +230,8 @@ The `sql` operator allows you to write raw SQL and interpolate values safely:
 import {sql} from 'rado'
 
 const minAge = 18
-const adultUsers = await db.select()
+const adultUsers = await db
+  .select()
   .from(User)
   .where(sql`${User.age} >= ${minAge}`)
 ```
@@ -238,15 +244,17 @@ Insert operations allow you to add new records to your database:
 
 ```typescript
 // Single insert
-const newUser = await db.insert(User)
+const newUser = await db
+  .insert(User)
   .values({name: 'Alice', email: 'alice@example.com'})
   .returning()
 
 // Bulk insert
-const newUsers = await db.insert(User)
+const newUsers = await db
+  .insert(User)
   .values([
     {name: 'Bob', email: 'bob@example.com'},
-    {name: 'Charlie', email: 'charlie@example.com'},
+    {name: 'Charlie', email: 'charlie@example.com'}
   ])
   .returning()
 ```
@@ -256,7 +264,8 @@ const newUsers = await db.insert(User)
 Update operations modify existing records:
 
 ```typescript
-const updatedCount = await db.update(User)
+const updatedCount = await db
+  .update(User)
   .set({name: 'Johnny'})
   .where(eq(User.name, 'John'))
 ```
@@ -274,12 +283,14 @@ await db.delete(User).where(eq(User.name, 'John'))
 Transactions allow you to group multiple operations into a single atomic unit.
 
 ```typescript
-const result = await db.transaction(async (tx) => {
-  const user = await tx.insert(User)
-    .values({ name: 'Alice', email: 'alice@example.com' })
+const result = await db.transaction(async tx => {
+  const user = await tx
+    .insert(User)
+    .values({name: 'Alice', email: 'alice@example.com'})
     .returning()
-  const post = await tx.insert(Post)
-    .values({ title: 'My First Post', authorId: user.id })
+  const post = await tx
+    .insert(Post)
+    .values({title: 'My First Post', authorId: user.id})
     .returning()
   return {user, post}
 })
@@ -287,7 +298,7 @@ const result = await db.transaction(async (tx) => {
 
 ## Universal Queries
 
-Rado provides a universal query builder that works across different database 
+Rado provides a universal query builder that works across different database
 engines, whether they run synchronously or asynchronously. This is useful for
 writing database-agnostic code.
 
@@ -297,7 +308,7 @@ import {id, text} from 'rado/universal'
 
 const User = table('user', {
   id: id(),
-  name: text() 
+  name: text()
 })
 
 const db = process.env.SQLITE ? sqliteDb : postgresDb

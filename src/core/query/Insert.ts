@@ -1,3 +1,4 @@
+import {type Input as UserInput, input, mapToColumn} from '../expr/Input.ts'
 import {
   type HasQuery,
   getData,
@@ -23,7 +24,6 @@ import type {
   TableRow,
   TableUpdate
 } from '../Table.ts'
-import {type Input as UserInput, input, mapToColumn} from '../expr/Input.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   Conflict,

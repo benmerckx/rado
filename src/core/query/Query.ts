@@ -1,3 +1,4 @@
+import type {Input} from '../expr/Input.ts'
 import type {HasSql, HasTarget} from '../Internal.ts'
 import type {MakeNullable, SelectionInput, SelectionRow} from '../Selection.ts'
 import type {Sql} from '../Sql.ts'
@@ -9,7 +10,6 @@ import type {
   TableUpdate
 } from '../Table.ts'
 import type {Expand} from '../Types.ts'
-import type {Input} from '../expr/Input.ts'
 import type {CTE} from './CTE.ts'
 
 export interface InnerJoin<Target> {
@@ -95,26 +95,23 @@ export type FromGuard<Target = HasTarget | Sql> =
   | Target
   | [Target, ...Array<Join<Target>>]
 
-interface SelectionBase<Returning = SelectionInput>
-  extends SelectBase<Returning> {
+interface SelectionBase<
+  Returning = SelectionInput
+> extends SelectBase<Returning> {
   select: Returning
   from?: FromGuard
   for?: HasSql
 }
 
 export interface SelectionQuery<Returning = SelectionInput>
-  extends SelectionBase<Returning>,
-    QueryBase,
-    ResultModifiers {}
+  extends SelectionBase<Returning>, QueryBase, ResultModifiers {}
 
 interface FromBase<Target = FromGuard> extends SelectBase<undefined> {
   from: Target
 }
 
 export interface FromQuery<Target>
-  extends FromBase<Target>,
-    QueryBase,
-    ResultModifiers {}
+  extends FromBase<Target>, QueryBase, ResultModifiers {}
 
 type FoldJoins<T extends Array<unknown>, Result> = T extends [
   infer Join,
@@ -178,13 +175,13 @@ export type CompoundSelect<Returning = SelectionInput> = [
 ]
 
 export interface UnionQuery<Returning = SelectionInput>
-  extends QueryBase,
-    ResultModifiers {
+  extends QueryBase, ResultModifiers {
   select: CompoundSelect<Returning>
 }
 
-export interface SelectQuery<Returning = SelectionInput>
-  extends SelectionQuery<Returning> {} /*=
+export interface SelectQuery<
+  Returning = SelectionInput
+> extends SelectionQuery<Returning> {} /*=
   | SelectionQuery<Returning>
   | FromQuery<Returning>*/
 
@@ -198,8 +195,7 @@ export interface OnConflictSet<Definition extends TableDefinition> {
 }
 
 export interface OnConflictUpdate<Definition extends TableDefinition>
-  extends OnConflict,
-    OnConflictSet<Definition> {
+  extends OnConflict, OnConflictSet<Definition> {
   where?: HasSql<boolean>
 }
 
@@ -211,9 +207,8 @@ export type Conflict<Definition extends TableDefinition = TableDefinition> =
 export interface InsertQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends Partial<SelectionQuery<Returning>>,
-    QueryBase,
-    ResultModifiers {
+>
+  extends Partial<SelectionQuery<Returning>>, QueryBase, ResultModifiers {
   insert: Table<Definition>
   values?: TableInsert<Definition> | Array<TableInsert<Definition>>
   returning?: Returning
@@ -224,8 +219,8 @@ export interface InsertQuery<
 export interface DeleteQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends QueryBase,
-    ResultModifiers {
+>
+  extends QueryBase, ResultModifiers {
   delete: Table<Definition>
   where?: HasSql<boolean>
   returning?: Returning
@@ -234,8 +229,8 @@ export interface DeleteQuery<
 export interface UpdateQuery<
   Returning = SelectionInput,
   Definition extends TableDefinition = TableDefinition
-> extends QueryBase,
-    ResultModifiers {
+>
+  extends QueryBase, ResultModifiers {
   update: Table<Definition>
   set?: TableUpdate<Definition>
   from?: FromGuard

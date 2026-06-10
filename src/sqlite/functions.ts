@@ -1,7 +1,7 @@
-import type {HasSql, HasTable} from '../core/Internal.ts'
-import {type Sql, sql} from '../core/Sql.ts'
 import {Functions} from '../core/expr/Functions.ts'
 import {type Input, input} from '../core/expr/Input.ts'
+import type {HasSql, HasTable} from '../core/Internal.ts'
+import {type Sql, sql} from '../core/Sql.ts'
 
 /*
   json(json: HasSql): HasSql
@@ -204,7 +204,7 @@ export const group_concat: (
   y?: Input<string>
 ) => Sql<string> = Functions.group_concat
 
-/** The sum() and total() aggregate functions return sum of all non-NULL values in the group. If there are no non-NULL input rows then sum() returns NULL but total() returns 0.0. NULL is not normally a helpful result for the sum of no rows but the SQL standard requires it and most other SQL database engines implement sum() that way so SQLite does it in the same way in order to be compatible. The non-standard total() function is provided as a convenient way to work around this design problem in the SQL language. 
+/** The sum() and total() aggregate functions return sum of all non-NULL values in the group. If there are no non-NULL input rows then sum() returns NULL but total() returns 0.0. NULL is not normally a helpful result for the sum of no rows but the SQL standard requires it and most other SQL database engines implement sum() that way so SQLite does it in the same way in order to be compatible. The non-standard total() function is provided as a convenient way to work around this design problem in the SQL language.
 
     The result of total() is always a numbering ponumber value. The result of sum() is an numbereger value if all non-NULL inputs are numberegers. If any input to sum() is neither an numbereger or a NULL then sum() returns a numbering ponumber value which might be an approximation to the true sum.
 
@@ -259,7 +259,7 @@ export const floor: (x: Input<number>) => Sql<number> = Functions.floor
 /** Return the natural logarithm of X. */
 export const ln: (x: Input<number>) => Sql<number> = Functions.ln
 
-/** 
+/**
     Return the base-10 logarithm for X. Or, for the two-argument version, return the base-B logarithm of X.
     Compatibility note: SQLite works like PostgreSQL in that the log() function computes a base-10 logarithm. Most other SQL database engines compute a natural logarithm for log(). In the two-argument version of log(B,X), the first argument is the base and the second argument is the operand. This is the same as in PostgreSQL and MySQL, but is reversed from SQL Server which uses the second argument as the base and the first argument as the operand.
    */

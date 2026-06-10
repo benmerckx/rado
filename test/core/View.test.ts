@@ -1,7 +1,7 @@
-import {createView, dropView} from '@/core/View.ts'
-import {sql} from '@/core/Sql.ts'
-import {integer, text} from '@/sqlite/columns.ts'
 import {suite} from '@alinea/suite'
+import {sql} from '@/core/Sql.ts'
+import {createView, dropView} from '@/core/View.ts'
+import {integer, text} from '@/sqlite/columns.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

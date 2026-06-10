@@ -11,7 +11,7 @@ import type {QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
 
 export class Resolver<Meta extends QueryMeta = QueryMeta> {
-  private declare brand: [Meta]
+  declare private brand: [Meta]
   #driver: Driver
   #dialect: Dialect
 
@@ -56,7 +56,7 @@ interface QueryWithMapRow extends BatchedQuery {
 }
 
 export class Batch<Meta extends QueryMeta> {
-  private declare brand: [Meta]
+  declare private brand: [Meta]
   #driver: Driver
   #queries: Array<QueryWithMapRow>
 
@@ -92,7 +92,7 @@ export class Batch<Meta extends QueryMeta> {
 }
 
 export class PreparedStatement<Meta extends QueryMeta> {
-  private declare brand: [Meta]
+  declare private brand: [Meta]
   #emitter: Emitter
   #stmt: Statement
   #mapRow: RowMapper

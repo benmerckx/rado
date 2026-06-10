@@ -1,6 +1,6 @@
-import {type Sql, sql} from '../core/Sql.ts'
 import {Functions} from '../core/expr/Functions.ts'
 import {type Input, input} from '../core/expr/Input.ts'
+import {type Sql, sql} from '../core/Sql.ts'
 
 const insertId = sql
   .universal({

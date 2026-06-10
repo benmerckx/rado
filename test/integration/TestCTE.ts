@@ -1,5 +1,5 @@
-import {lte, sql, type Database} from '@/index.ts'
 import type {DefineTest} from '@alinea/suite'
+import {lte, sql, type Database} from '@/index.ts'
 
 export function testCTE(db: Database, test: DefineTest) {
   test('recursive common table expression', async () => {

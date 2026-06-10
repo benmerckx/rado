@@ -1,6 +1,6 @@
+import type {DefineTest} from '@alinea/suite'
 import {eq, type Database} from '@/index.ts'
 import {lastInsertId} from '@/universal.ts'
-import type {DefineTest} from '@alinea/suite'
 import {Post, User} from './schema.ts'
 
 export function testJoins(db: Database, test: DefineTest) {

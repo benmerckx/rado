@@ -60,10 +60,7 @@ test('sqlite blob modes', () => {
 test('sqlite text modes', () => {
   test.equal(columnSql(sqlite.text()), 'text')
   test.equal(columnSql(sqlite.text({mode: 'text', length: 5})), 'text(5)')
-  test.equal(
-    columnSql(sqlite.text({enum: ['a', 'b'] as const})),
-    'text'
-  )
+  test.equal(columnSql(sqlite.text({enum: ['a', 'b'] as const})), 'text')
 
   const jsonCol = sqlite.text<{foo: string}>({mode: 'json'})
   test.equal(columnSql(jsonCol), 'text')

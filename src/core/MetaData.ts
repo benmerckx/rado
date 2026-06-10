@@ -13,14 +13,16 @@ export interface QueryMeta {
   dialect: QueryDialect
 }
 
-export interface Sync<Dialect extends QueryDialect = QueryDialect>
-  extends QueryMeta {
+export interface Sync<
+  Dialect extends QueryDialect = QueryDialect
+> extends QueryMeta {
   mode: 'sync'
   dialect: Dialect
 }
 
-export interface Async<Dialect extends QueryDialect = QueryDialect>
-  extends QueryMeta {
+export interface Async<
+  Dialect extends QueryDialect = QueryDialect
+> extends QueryMeta {
   mode: 'async'
   dialect: Dialect
 }

@@ -1,8 +1,8 @@
+import {suite} from '@alinea/suite'
 import * as e from '@/core/expr/Conditions.ts'
 import {Functions} from '@/core/expr/Functions.ts'
 import {jsonExpr} from '@/core/expr/Json.ts'
 import {sql} from '@/index.ts'
-import {suite} from '@alinea/suite'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

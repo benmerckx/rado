@@ -1,8 +1,5 @@
 import {type BaseColumnData, formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
-import {type HasSql, getData, getTable} from '../core/Internal.ts'
-import {type Sql, sql} from '../core/Sql.ts'
-import {type Table, table} from '../core/Table.ts'
 import {
   and,
   asc,
@@ -15,6 +12,9 @@ import {
   or,
   when
 } from '../core/expr/Conditions.ts'
+import {type HasSql, getData, getTable} from '../core/Internal.ts'
+import {type Sql, sql} from '../core/Sql.ts'
+import {type Table, table} from '../core/Table.ts'
 import {concat, txGenerator} from '../universal.ts'
 import * as column from './columns.ts'
 import {postgresDialect} from './dialect.ts'
