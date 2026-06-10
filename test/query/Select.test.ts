@@ -168,4 +168,15 @@ suite(import.meta, test => {
     })
     test.equal(emit(direct), expected)
   })
+
+  test('dml cte without returning', () => {
+    const remove = builder
+      .$with('removed')
+      .as(builder.delete(Node).where(eq(Node.id, 1)))
+    const query = builder.with(remove).select().from(Node)
+    test.equal(
+      emit(query),
+      'with "removed" as (delete from "Node" where "Node"."id" = 1) select "Node"."id", "Node"."field1" from "Node"'
+    )
+  })
 })

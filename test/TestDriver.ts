@@ -23,6 +23,11 @@ export async function testDriver(
 ) {
   const db = await createDb()
   if (!db) return
+  const closeDb = () => {
+    test('close database', async () => {
+      await Promise.resolve(db.driver.close())
+    })
+  }
   if (db.dialect.runtime === 'postgres') testEnums(db, test)
   testBasic(db, test)
   testBatch(db, test)
@@ -37,7 +42,11 @@ export async function testDriver(
   testConflicts(db, test)
   testUpdate(db, test)
   testViews(db, test)
-  if (!db.driver.supportsTransactions) return
+  if (!db.driver.supportsTransactions) {
+    closeDb()
+    return
+  }
   testTransactions(db, test)
   testMigration(db, test)
+  closeDb()
 }

@@ -184,12 +184,12 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
         let input = hasQuery(query)
           ? hasSelection(query)
             ? getSelection(query).input
-            : undefined
+            : columns
           : columns
         const data =
           hasQuery(query) && hasData(query) ? getData<any>(query) : undefined
         if (input && data?.compound?.length > 1) input = aliasUnnamedFields(input)
-        const target = virtualTarget(cteName, input)
+        const target = virtualTarget(cteName, input ?? {})
         return {
           ...target,
           [internalSelection]: new StarSelection(target),

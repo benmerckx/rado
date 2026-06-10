@@ -879,7 +879,13 @@ export function unionQuery(query: UnionQuery): Sql {
   const firstSelect = (query: UnionSegmentQuery): SelectQuery =>
     isUnionQuery(query) ? query.select[0]! : query
   const segmentQuery = (query: UnionSegmentQuery) => {
-    if (isUnionQuery(query)) return sql`(${unionQuery(query)})`
+    if (isUnionQuery(query)) {
+      const nested = unionQuery(query)
+      return sql.universal({
+        sqlite: sql`select * from (${nested})`,
+        default: sql`(${nested})`
+      })
+    }
     const inner = selectQuery(query)
     return query.orderBy ||
       query.limit !== undefined ||

@@ -487,16 +487,17 @@ export function geometry(
     ? new ColumnType('geometry', [], sql`geometry(${typeArg})`)
     : column.geometry()
   const mode = options?.mode ?? 'tuple'
+  const mapsPoint = geometryTypeName === 'point'
   return new PgColumn({
     name,
     type: geometryType,
     mapFromDriverValue(value: string) {
-      if (options?.type !== 'point') return value
+      if (!mapsPoint) return value
       const [x, y] = parsePoint(value)
       return mode === 'xy' ? {x, y} : [x, y]
     },
     mapToDriverValue(value: PointTuple | PointXY | string) {
-      if (options?.type !== 'point') return value
+      if (!mapsPoint) return value
       return formatPoint(value)
     }
   })

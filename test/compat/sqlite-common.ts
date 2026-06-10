@@ -1908,7 +1908,7 @@ test('nested transaction rollback', async ctx => {
   await db.run(sql`drop table ${users}`)
 })
 
-test.skip('join subquery with join', async ctx => {
+test('join subquery with join', async ctx => {
   const {db} = ctx.sqlite
 
   const internalStaff = sqliteTable('internal_staff', {
@@ -2906,12 +2906,9 @@ test('set operations (mixed) from query builder', async ctx => {
       )
     )
 
-  expect(result).toHaveLength(2)
+  expect(result).toHaveLength(1)
 
-  expect(result).toEqual([
-    {id: 1, name: 'New York'},
-    {id: 2, name: 'London'}
-  ])
+  expect(result).toEqual([{id: 1, name: 'New York'}])
 
   await expect(
     (async () => {
@@ -3395,7 +3392,7 @@ test('$count embedded with filters', async ctx => {
   expect(count).toStrictEqual([{count: 3}, {count: 3}, {count: 3}, {count: 3}])
 })
 
-test.skip('update with limit and order by', async ctx => {
+test('update with limit and order by', async ctx => {
   const {db} = ctx.sqlite
 
   await db.insert(usersTable).values([
@@ -3422,7 +3419,7 @@ test.skip('update with limit and order by', async ctx => {
   ])
 })
 
-test.skip('delete with limit and order by', async ctx => {
+test('delete with limit and order by', async ctx => {
   const {db} = ctx.sqlite
 
   await db.insert(usersTable).values([
@@ -3742,7 +3739,7 @@ test('insert into ... select', async ctx => {
   ])
 })*/
 
-test.skip('insert into ... select with keys in different order', async ctx => {
+test('insert into ... select with keys in different order', async ctx => {
   const {db} = ctx.sqlite
 
   const users1 = sqliteTable('users1', {
