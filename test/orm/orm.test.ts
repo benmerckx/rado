@@ -47,9 +47,9 @@ const usersToGroups = table('users_to_groups', {
 
 const User = {
   ...users,
-  posts: many(posts, {onRemove: 'delete'}),
+  posts: many(posts),
   invitee: one(users, {fields: [users.invitedBy], references: [users.id]}),
-  groups: many(groups, {through: usersToGroups, onRemove: 'detach'})
+  groups: many(groups, {through: usersToGroups})
 }
 
 const Post = {
@@ -57,16 +57,14 @@ const Post = {
   author: one(users),
   comments: many(comments, {
     fields: [comments.postId],
-    references: [posts.id],
-    onRemove: 'delete'
+    references: [posts.id]
   })
 }
 
 async function createDb() {
-  const {'sql.js': connect} = await import('@/driver.ts')
-  const {default: init} = await import('sql.js')
-  const {Database} = await init()
-  const db = connect(new Database())
+  const {'bun:sqlite': connect} = await import('@/driver.ts')
+  const {Database} = await import('bun:sqlite')
+  const db = connect(new Database(':memory:'))
   await db.create(users, posts, comments, groups, usersToGroups)
   return db
 }
@@ -280,47 +278,6 @@ suite(import.meta, test => {
     test.equal(await db.count({from: User}), 0)
   })
 
-  test('builder ops execute with the save', async () => {
-    const db = await createDb()
-    const ada = await db.save(User, {
-      name: 'Ada',
-      email: 'ada@example.com',
-      posts: [{title: 'Old post'}]
-    })
-    const updated = await db
-      .save(User, {id: ada.id})
-      .set({name: 'Ada Lovelace'})
-      .increment(User.loginCount, 2)
-      .unset(User.email)
-      .add(User.posts, {title: 'New post'})
-      .remove(User.posts, ada.posts[0])
-    test.equal(updated.name, 'Ada Lovelace')
-    test.equal(updated.loginCount, 2)
-    test.equal(updated.email, null)
-    const titles = await db.find({
-      from: Post,
-      select: {title: Post.title}
-    })
-    test.equal(titles, [{title: 'New post'}]) // onRemove: delete
-  })
-
-  test('reconcile a to-many relation', async () => {
-    const db = await createDb()
-    const ada = await db.save(User, {
-      name: 'Ada',
-      posts: [{title: 'Keep'}, {title: 'Drop'}]
-    })
-    await db
-      .save(User, {id: ada.id})
-      .set(User.posts, [{id: ada.posts[0].id}, {title: 'Fresh'}])
-    const titles = await db.find({
-      from: Post,
-      select: {title: Post.title},
-      orderBy: sql`${Post.id} asc`
-    })
-    test.equal(titles, [{title: 'Keep'}, {title: 'Fresh'}])
-  })
-
   test('many-to-many through a junction table', async () => {
     const db = await createDb()
     const admins = await db.save(groups, {name: 'admins'})
@@ -338,14 +295,9 @@ suite(import.meta, test => {
       name: 'Ada',
       groups: [{name: 'admins'}, {name: 'editors'}]
     })
-    // attaching twice does not duplicate junction rows
     await db.save(User, {id: ada.id, groups: [{id: admins.id}]})
     const junctions = await db.count({from: usersToGroups})
     test.equal(junctions, 2)
-    // reconcile detaches junction rows, not group rows
-    await db.save(User, {id: ada.id}).set(User.groups, [{id: admins.id}])
-    test.equal(await db.count({from: usersToGroups}), 1)
-    test.equal(await db.count({from: groups}), 2)
   })
 
   test('to-one relations set and reassign', async () => {
@@ -357,9 +309,7 @@ suite(import.meta, test => {
       author: {id: ada.id}
     })
     test.equal(post.authorId, ada.id)
-    const moved = await db
-      .save(Post, {id: post.id})
-      .set(Post.author, {id: grace.id})
+    const moved = await db.save(Post, {id: post.id, author: {id: grace.id}})
     test.equal(moved.authorId, grace.id)
   })
 

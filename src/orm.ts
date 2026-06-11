@@ -1,37 +1,11 @@
-// The rado ORM layer.
-//
-// Design notes:
-// - A "model" is a plain spread of a table plus relation pointers:
-//     const User = {...users, posts: many(posts)}
-//   The spread keeps the table's symbol-keyed metadata, so a model is still a
-//   fully working Table (select/join/where) and every column field passes
-//   through: User.name is the same Field as users.name. Application code only
-//   ever needs the model identifier; tables can stay module-private.
-// - No registry: ORM helpers live on Database and are typed locally by the
-//   model argument. Works with transactions for free since Transaction extends
-//   Database.
-// - Loading relations is unified with shaping: relation pointers appear
-//   directly in select shapes and can be refined with
-//   .select/.where/.orderBy/.limit. `select: {...User}` means "all columns +
-//   all relations", `select: columns(User)` means columns only.
-// - Writes are builder style: ops chain on save() and execute together in
-//   one transaction when the Save is awaited (or .run() for sync drivers):
-//     db.save(User, user).increment(User.loginCount).add(User.posts, post)
-// - Everything preserves rado's sync/async dual nature: reads return regular
-//   queries (await, or .all()/.get() for sync drivers) and writes expose
-//   .run() plus the generator protocol used by txGenerator.
-//
-// The ORM class sits between Builder and Database so end users get db.find,
-// db.first and db.save without importing a separate ORM namespace.
-
 import {Builder} from './core/Builder.ts'
 import type {Column} from './core/Column.ts'
 import type {Transaction} from './core/Database.ts'
 import {count as countRows} from './core/expr/Aggregate.ts'
-import {and, eq, notInArray} from './core/expr/Conditions.ts'
+import {and, eq} from './core/expr/Conditions.ts'
 import {Field, type FieldData} from './core/expr/Field.ts'
 import {Include, type IncludeQuery} from './core/expr/Include.ts'
-import {type Input, input} from './core/expr/Input.ts'
+import type {Input} from './core/expr/Input.ts'
 import {
   type HasSql,
   type HasTable,
@@ -81,7 +55,6 @@ type TxGenerator<Meta extends QueryMeta, Result> = Generator<
 >
 type FirstSelectionQuery<Returning = SelectionInput> =
   SelectionQuery<Returning> & {first: true}
-type RuntimeTable = Table<TableDefinition>
 
 interface OrmDatabase<Meta extends QueryMeta> extends ORM<Meta> {
   transaction<T>(
@@ -90,29 +63,16 @@ interface OrmDatabase<Meta extends QueryMeta> extends ORM<Meta> {
   ): Deliver<Meta, T>
 }
 
-// ── Relations ──────────────────────────────────────────────────────────────
-
-export type OnRemove = 'delete' | 'detach' | 'ignore'
 
 export interface RelationConfig {
-  /** Local fields of the FK. Inferred from references() when omitted. */
   fields?: Array<HasSql>
-  /** Foreign fields the FK points at. Inferred when omitted. */
   references?: Array<HasSql>
 }
 
 export interface ManyConfig extends RelationConfig {
-  /** Junction table for many-to-many. */
   through?: Table
-  /**
-   * What happens to related rows missing from a reconciling Save.set:
-   * delete the row, detach it (null the FK / delete the junction row),
-   * or ignore (default — arrays are merge-only).
-   */
-  onRemove?: OnRemove
 }
 
-/** Any value allowed inside a relation/select shape. */
 export type Shape =
   | HasSql
   | Table
@@ -131,6 +91,14 @@ interface RelationData<
 }
 
 type RelationLike = {readonly [internalData]: RelationData<any, any, any>}
+
+function relationData<Card extends 'one' | 'many'>(
+  card: Card,
+  target: Table,
+  config: ManyConfig = {}
+): RelationData<TableDefinition, Card> {
+  return {card, target, config, shape: undefined, select: undefined!, from: target}
+}
 
 function isRelation(value: unknown): value is RelationLike {
   if (!value || typeof value !== 'object') return false
@@ -151,34 +119,27 @@ export abstract class Relation<
 > extends Select<SelectionInput> {
   readonly [internalData]: RelationData<Def, Card, Shaped>
 
-  protected constructor(data: RelationData<Def, Card, Shaped>) {
+  protected constructor(data: RelationData<any, Card, any>) {
     super(data)
-    this[internalData] = data
+    this[internalData] = data as RelationData<Def, Card, Shaped>
   }
 }
 
-export abstract class OneRelation<
+export class OneRelation<
   Def extends TableDefinition = TableDefinition,
   Shaped = Table<Def>
 > extends Relation<Def, 'one', Shaped> {
-  protected constructor(target: Table, config?: RelationConfig)
-  protected constructor(data: RelationData<Def, 'one', Shaped>)
-  protected constructor(
+  constructor(target: Table, config?: RelationConfig)
+  constructor(data: RelationData<Def, 'one', Shaped>)
+  constructor(
     targetOrData: Table | RelationData<Def, 'one', Shaped>,
     config: RelationConfig = {}
   ) {
-    if ('card' in targetOrData) {
-      super(targetOrData)
-      return
-    }
-    super({
-      card: 'one',
-      target: targetOrData,
-      config,
-      shape: undefined,
-      select: undefined!,
-      from: targetOrData
-    })
+    super(
+      ('card' in targetOrData
+        ? targetOrData
+        : relationData('one', targetOrData, config))
+    )
   }
 
   exists(): HasSql<boolean> {
@@ -195,50 +156,28 @@ export abstract class OneRelation<
   }
 
   select<S extends Shape>(shape: S): OneRelation<Def, S> {
-    return new One({...getData(this), shape} as RelationData<Def, 'one', S>)
+    return new OneRelation({
+      ...getData(this),
+      shape
+    } as RelationData<Def, 'one', S>)
   }
 }
 
-class One<
-  Def extends TableDefinition = TableDefinition,
-  Shaped = Table<Def>
-> extends OneRelation<
-  Def,
-  Shaped
-> {
-  constructor(data: RelationData<Def, 'one', Shaped>)
-  constructor(target: Table, config?: RelationConfig)
-  constructor(
-    targetOrData: Table | RelationData<Def, 'one', Shaped>,
-    config?: RelationConfig
-  ) {
-    if ('card' in targetOrData) super(targetOrData)
-    else super(targetOrData, config)
-  }
-}
-
-export abstract class ManyRelation<
+export class ManyRelation<
   Def extends TableDefinition = TableDefinition,
   Shaped = Table<Def>
 > extends Relation<Def, 'many', Shaped> {
-  protected constructor(target: Table, config?: ManyConfig)
-  protected constructor(data: RelationData<Def, 'many', Shaped>)
-  protected constructor(
+  constructor(target: Table, config?: ManyConfig)
+  constructor(data: RelationData<Def, 'many', Shaped>)
+  constructor(
     targetOrData: Table | RelationData<Def, 'many', Shaped>,
     config: ManyConfig = {}
   ) {
-    if ('card' in targetOrData) {
-      super(targetOrData)
-      return
-    }
-    super({
-      card: 'many',
-      target: targetOrData,
-      config,
-      shape: undefined,
-      select: undefined!,
-      from: targetOrData
-    })
+    super(
+      ('card' in targetOrData
+        ? targetOrData
+        : relationData('many', targetOrData, config))
+    )
   }
 
   #parts(extra: Array<HasSql<boolean>>): {from: Sql; cond: HasSql<boolean>} {
@@ -287,47 +226,28 @@ export abstract class ManyRelation<
   }
 
   select<S extends Shape>(shape: S): ManyRelation<Def, S> {
-    return new Many({...getData(this), shape} as RelationData<Def, 'many', S>)
+    return new ManyRelation({
+      ...getData(this),
+      shape
+    } as RelationData<Def, 'many', S>)
   }
 }
 
-class Many<
-  Def extends TableDefinition = TableDefinition,
-  Shaped = Table<Def>
-> extends ManyRelation<
-  Def,
-  Shaped
-> {
-  constructor(data: RelationData<Def, 'many', Shaped>)
-  constructor(target: Table, config?: ManyConfig)
-  constructor(
-    targetOrData: Table | RelationData<Def, 'many', Shaped>,
-    config?: ManyConfig
-  ) {
-    if ('card' in targetOrData) super(targetOrData)
-    else super(targetOrData, config)
-  }
-}
-
-/** To-one relation. FK lives on the declaring table, inferred via references(). */
 export function one<Def extends TableDefinition>(
   target: Table<Def>,
   config?: RelationConfig
 ): OneRelation<Def> {
-  return new One(target as Table, config)
+  return new OneRelation(target as Table, config)
 }
 
-/** To-many relation. FK lives on the target (or on `through` for m2m). */
 export function many<Def extends TableDefinition>(
   target: Table<Def>,
   config?: ManyConfig
 ): ManyRelation<Def> {
-  return new Many(target as Table, config)
+  return new ManyRelation(target as Table, config)
 }
 
-// ── Models ─────────────────────────────────────────────────────────────────
 
-/** A model is a table spread carrying extra relation pointers. */
 export type Model = object
 
 type ModelInput<M extends Model> = M extends HasTable
@@ -339,7 +259,6 @@ type ModelInput<M extends Model> = M extends HasTable
 export type ModelDefinition<M> =
   M extends HasTable<infer Def, string> ? Def : DefinitionOfFields<M>
 
-/** Row type of a definition, accounting for column nullability. */
 type RowOf<Def extends TableDefinition> = {
   [K in keyof Def]: Def[K] extends Column<
     infer T,
@@ -351,7 +270,6 @@ type RowOf<Def extends TableDefinition> = {
     : never
 }
 
-/** Columns-only row of a model (no relations). */
 export type ModelRow<M> = Expand<RowOf<ModelDefinition<M>>>
 
 type RelationsOf<M> = {
@@ -360,7 +278,6 @@ type RelationsOf<M> = {
     : never]: M[K]
 }
 
-/** Columns-only shape of a model (relations and metadata excluded). */
 export type ModelColumns<M> = {
   [K in keyof M as M[K] extends Relation<any, any, any>
     ? never
@@ -382,17 +299,12 @@ type DefinitionOfFields<M> = {
     : never
 }
 
-/**
- * Columns-only select shape, so partial selects never need the underlying
- * table: select: {...columns(User), extra: sql`...`}
- */
 export function columns<M extends Model>(model: M): ModelColumns<M> {
   return fromEntries(
     entries(model).filter(([, value]) => !isRelation(value))
   ) as ModelColumns<M>
 }
 
-// ── Internals: FK resolution ───────────────────────────────────────────────
 
 function lazy<T>(create: () => Sql<T>): HasSql<T> {
   return {
@@ -420,14 +332,8 @@ function fieldOf(api: TableApi, key: string): Field {
   return new Field(api.aliased, data.name ?? key, data)
 }
 
-function fieldKeyOf(api: TableApi, field: HasSql): string {
-  if (!hasField(field)) throw new Error('Expected a column field')
-  const data = getField(field)
-  if (data.targetName !== api.aliased)
-    throw new Error(
-      `Field "${data.fieldName}" belongs to table "${data.targetName}", not "${api.aliased}"`
-    )
-  return keyByFieldName(api, data.fieldName)
+function fieldFrom(data: FieldData, targetName = data.targetName) {
+  return new Field(targetName, data.fieldName, data.source)
 }
 
 function relationJoins(rel: RelationLike): Array<Join<HasTable | Sql>> {
@@ -467,18 +373,11 @@ function primaryKeyOf(api: TableApi): string {
   )
 }
 
-interface ResolvedOne {
-  parentKey: string | undefined
-  parentField: Field
-  targetKey: string
-  targetField: Field
-}
-
 function resolveOne(
   parentApi: TableApi | undefined,
   rel: RelationLike,
   targetAlias?: string
-): ResolvedOne {
+) {
   const data = getData(rel)
   const targetApi = getTable(data.target)
   const {fields, references} = data.config
@@ -517,32 +416,17 @@ function resolveOne(
     parentKey: parentApi
       ? keyByFieldName(parentApi, parentData.fieldName)
       : undefined,
-    parentField: new Field(
-      parentData.targetName,
-      parentData.fieldName,
-      parentData.source
-    ),
+    parentField: fieldFrom(parentData),
     targetKey: keyByFieldName(targetApi, refData.fieldName),
-    targetField: new Field(
-      targetAlias ?? refData.targetName,
-      refData.fieldName,
-      refData.source
-    )
+    targetField: fieldFrom(refData, targetAlias ?? refData.targetName)
   }
-}
-
-interface ResolvedMany {
-  childKey: string
-  childField: Field
-  parentKey: string | undefined
-  parentField: Field
 }
 
 function resolveMany(
   parentApi: TableApi | undefined,
   rel: RelationLike,
   targetAlias?: string
-): ResolvedMany {
+) {
   const data = getData(rel)
   const targetApi = getTable(data.target)
   const {fields, references} = data.config
@@ -584,37 +468,18 @@ function resolveMany(
   }
   return {
     childKey: keyByFieldName(targetApi, childData.fieldName),
-    childField: new Field(
-      targetAlias ?? childData.targetName,
-      childData.fieldName,
-      childData.source
-    ),
+    childField: fieldFrom(childData, targetAlias ?? childData.targetName),
     parentKey: parentApi
       ? keyByFieldName(parentApi, refData.fieldName)
       : undefined,
-    parentField: new Field(
-      refData.targetName,
-      refData.fieldName,
-      refData.source
-    )
+    parentField: fieldFrom(refData)
   }
-}
-
-interface ResolvedThrough {
-  jParentKey: string
-  jParentField: Field
-  parentKey: string | undefined
-  parentField: Field
-  jTargetKey: string
-  jTargetField: Field
-  targetKey: string
-  targetField: Field
 }
 
 function resolveThrough(
   parentApi: TableApi | undefined,
   rel: RelationLike
-): ResolvedThrough {
+) {
   const data = getData(rel)
   const junction = data.config.through!
   const jApi = getTable(junction)
@@ -646,35 +511,18 @@ function resolveThrough(
   const parentData = getData(parent.column)
   return {
     jParentKey: parent.key,
-    jParentField: new Field(
-      jApi.aliased,
-      parentData.name ?? parent.key,
-      parentData
-    ),
+    jParentField: new Field(jApi.aliased, parentData.name ?? parent.key, parentData),
     parentKey: parentApi
       ? keyByFieldName(parentApi, parent.ref.fieldName)
       : undefined,
-    parentField: new Field(
-      parent.ref.targetName,
-      parent.ref.fieldName,
-      parent.ref.source
-    ),
+    parentField: fieldFrom(parent.ref),
     jTargetKey: target.key,
-    jTargetField: new Field(
-      jApi.aliased,
-      targetData.name ?? target.key,
-      targetData
-    ),
+    jTargetField: new Field(jApi.aliased, targetData.name ?? target.key, targetData),
     targetKey: keyByFieldName(targetApi, target.ref.fieldName),
-    targetField: new Field(
-      target.ref.targetName,
-      target.ref.fieldName,
-      target.ref.source
-    )
+    targetField: fieldFrom(target.ref)
   }
 }
 
-// ── Internals: shape compilation ───────────────────────────────────────────
 
 function remapFields(shape: Shape, fromName: string, toName: string): Shape {
   if (shape instanceof Field) {
@@ -705,9 +553,6 @@ function relationInclude(
   let target = data.target
   let targetAlias: string | undefined
   if (!through && targetApi.aliased === parentApi.aliased) {
-    // Self relation: alias the inner table so the correlated condition can
-    // reference the outer one. Shape fields pointing at the target are
-    // remapped to the alias.
     targetAlias = `${targetApi.aliased}_${data.card}`
     target = alias(data.target, targetAlias)
   }
@@ -763,12 +608,7 @@ function compileShape(shape: Shape, parentApi: TableApi): SelectionInput {
   throw new Error('Invalid select shape')
 }
 
-// ── Reading ────────────────────────────────────────────────────────────────
 
-/**
- * Resolves a select shape to a row type. Relation pointers resolve to nested
- * rows of their (possibly refined) shape.
- */
 export type ShapeRow<In> =
   In extends Relation<any, 'many', infer S>
     ? Array<ShapeRow<S>>
@@ -783,7 +623,6 @@ export type ShapeRow<In> =
           : never
 
 export interface FindOptions<M extends Model, S extends Shape | undefined> {
-  /** The model (or plain table) to query. */
   from: M
   select?: S
   where?: HasSql<boolean> | Array<HasSql<boolean>>
@@ -794,146 +633,113 @@ export interface FindOptions<M extends Model, S extends Shape | undefined> {
 
 export type ResultOf<M, S> = [S] extends [undefined] ? ModelRow<M> : ShapeRow<S>
 
-function normalizeWhere(
-  where: HasSql<boolean> | Array<HasSql<boolean>> | undefined
-): HasSql<boolean> | undefined {
-  if (!where) return undefined
-  if (Array.isArray(where)) return where.length ? and(...where) : undefined
-  return where
-}
-
-function tableApiOf(model: Model): TableApi {
-  return getTable(model as HasTable)
-}
-
-function shapeOf(model: Model, select: Shape | undefined): SelectionInput {
-  const api = tableApiOf(model)
-  if (select) return compileShape(select, api)
-  return tableFields(api.aliased, api.columns)
-}
-
-function tableOf(model: HasTable): RuntimeTable {
-  return model as unknown as RuntimeTable
-}
-
 export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
-  /** Fetch many rows. */
   find<M extends Model, S extends Shape | undefined = undefined>(
     options: FindOptions<ModelInput<M>, S>
   ): SingleQuery<Array<ResultOf<M, S>>, Meta> {
-    return find(this, options as FindOptions<M, S>)
+    const api = getTable(options.from as HasTable)
+    const {orderBy, where} = options
+    return this.$query({
+      select: options.select
+        ? compileShape(options.select, api)
+        : tableFields(api.aliased, api.columns),
+      from: options.from as unknown as Table,
+      where: Array.isArray(where) ? and(...where) : where,
+      orderBy: orderBy && (Array.isArray(orderBy) ? orderBy : [orderBy]),
+      limit: options.limit,
+      offset: options.offset
+    } as SelectionQuery) as unknown as SingleQuery<Array<ResultOf<M, S>>, Meta>
   }
 
-  /** Fetch the first matching row. */
   first<M extends Model, S extends Shape | undefined = undefined>(
     options: FindOptions<ModelInput<M>, S>
   ): SingleQuery<ResultOf<M, S> | null, Meta> {
-    return first(this, options as FindOptions<M, S>)
+    const api = getTable(options.from as HasTable)
+    const {orderBy, where} = options
+    return this.$query({
+      select: options.select
+        ? compileShape(options.select, api)
+        : tableFields(api.aliased, api.columns),
+      from: options.from as unknown as Table,
+      where: Array.isArray(where) ? and(...where) : where,
+      orderBy: orderBy && (Array.isArray(orderBy) ? orderBy : [orderBy]),
+      limit: 1,
+      offset: options.offset,
+      first: true
+    } as FirstSelectionQuery) as unknown as SingleQuery<
+      ResultOf<M, S> | null,
+      Meta
+    >
   }
 
-  /** Count rows matching the filter. */
   count<M extends Model>(
     options: Pick<FindOptions<ModelInput<M>, undefined>, 'from' | 'where'>
   ): SingleQuery<number, Meta> {
-    return count(
-      this,
-      options as Pick<FindOptions<M, undefined>, 'from' | 'where'>
-    )
+    const {where} = options
+    return this.$query({
+      select: countRows(),
+      from: options.from as unknown as Table,
+      where: Array.isArray(where) ? and(...where) : where,
+      first: true
+    } as FirstSelectionQuery) as unknown as SingleQuery<number, Meta>
   }
 
-  /** Save a graph of rows in one transaction. */
   save<M extends Model, In extends Graph<M>>(
     model: ModelInput<M>,
     input: In
   ): Save<M, In, Meta> {
-    return save(this as unknown as OrmDatabase<Meta>, model as M, input)
+    return new Save(this as unknown as OrmDatabase<Meta>, model as M, input)
   }
 
-  /** Save several graphs in one transaction. */
   saveMany<M extends Model, In extends Graph<M>>(
     model: ModelInput<M>,
     inputs: Array<In>
   ): Operation<Array<Persisted<M, In>>, Meta> {
-    return saveMany(this as unknown as OrmDatabase<Meta>, model as M, inputs)
+    const db = this as unknown as OrmDatabase<Meta>
+    return new Operation(
+      () =>
+        db.transaction(
+          txGenerator(function* (tx) {
+            const out: Array<AnyRow> = []
+            for (const row of inputs)
+              out.push(
+                yield* saveGraph(
+                  tx,
+                  model as unknown as HasTable,
+                  row as AnyRow,
+                  []
+                )
+              )
+            return out
+          })
+        ) as Deliver<Meta, Array<Persisted<M, In>>>
+    )
   }
 
-  /** Delete by entity or primary key. */
   destroy<M extends Model>(
     model: ModelInput<M>,
     entity: Input<number | string> | Partial<ModelRow<M>>
   ): SingleQuery<unknown, Meta> {
-    return destroy(this, model as M, entity)
+    const api = getTable(model as HasTable)
+    const pkKey = primaryKeyOf(api)
+    const pk =
+      entity !== null && typeof entity === 'object' && !hasSql(entity)
+        ? (entity as AnyRow)[pkKey]
+        : entity
+    if (pk === undefined || pk === null)
+      throw new Error('destroy() requires a primary key value')
+    return this.$query({
+      delete: model as unknown as Table<TableDefinition>,
+      where: eq(fieldOf(api, pkKey), pk as Input<number | string>)
+    }) as SingleQuery<unknown, Meta>
   }
 }
 
-/** Fetch many rows. drizzle: db.query.x.findMany */
-function find<
-  M extends Model,
-  S extends Shape | undefined = undefined,
-  Meta extends QueryMeta = QueryMeta
->(
-  db: ORM<Meta>,
-  options: FindOptions<M, S>
-): SingleQuery<Array<ResultOf<M, S>>, Meta> {
-  const {orderBy} = options
-  const query: SelectionQuery = {
-    select: shapeOf(options.from, options.select),
-    from: tableOf(options.from as HasTable),
-    where: normalizeWhere(options.where),
-    orderBy: orderBy && (Array.isArray(orderBy) ? orderBy : [orderBy]),
-    limit: options.limit,
-    offset: options.offset
-  }
-  return db.$query(query) as unknown as SingleQuery<Array<ResultOf<M, S>>, Meta>
-}
 
-/** find with limit 1. drizzle: findFirst */
-function first<
-  M extends Model,
-  S extends Shape | undefined = undefined,
-  Meta extends QueryMeta = QueryMeta
->(
-  db: ORM<Meta>,
-  options: FindOptions<M, S>
-): SingleQuery<ResultOf<M, S> | null, Meta> {
-  const {orderBy} = options
-  const query: FirstSelectionQuery = {
-    select: shapeOf(options.from, options.select),
-    from: tableOf(options.from as HasTable),
-    where: normalizeWhere(options.where),
-    orderBy: orderBy && (Array.isArray(orderBy) ? orderBy : [orderBy]),
-    limit: 1,
-    offset: options.offset,
-    first: true
-  }
-  return db.$query(query) as unknown as SingleQuery<ResultOf<M, S> | null, Meta>
-}
-
-/** Count rows matching the filter. Pairs with find for pagination. */
-function count<M extends Model, Meta extends QueryMeta = QueryMeta>(
-  db: ORM<Meta>,
-  options: Pick<FindOptions<M, undefined>, 'from' | 'where'>
-): SingleQuery<number, Meta> {
-  const query: FirstSelectionQuery = {
-    select: countRows(),
-    from: tableOf(options.from as HasTable),
-    where: normalizeWhere(options.where),
-    first: true
-  }
-  return db.$query(query) as unknown as SingleQuery<number, Meta>
-}
-
-// ── Writing ────────────────────────────────────────────────────────────────
-
-/**
- * A row in a save graph: either a new row (no pk → INSERT) or an existing
- * row (pk present → UPDATE of the given fields).
- */
 export type GraphRow<Def extends TableDefinition> =
   | TableInsert<Def>
   | TableUpdate<Def>
 
-/** Insert/update graph for a model: columns + nested relation rows. */
 export type Graph<M> = GraphRow<ModelDefinition<M>> & {
   readonly [K in keyof RelationsOf<M>]?: RelationsOf<M>[K] extends Relation<
     infer Def,
@@ -946,7 +752,6 @@ export type Graph<M> = GraphRow<ModelDefinition<M>> & {
       : never
 }
 
-/** save() resolves with clean persisted rows for everything it touched. */
 export type Persisted<M, In> = Expand<
   ModelRow<M> & {
     [K in Extract<
@@ -961,16 +766,7 @@ export type Persisted<M, In> = Expand<
 >
 
 type Op =
-  | {kind: 'set'; values: AnyRow}
-  | {
-      kind: 'setRelation'
-      relation: Relation
-      value: Array<AnyRow> | AnyRow | null
-    }
-  | {kind: 'unset'; field: HasSql}
-  | {kind: 'increment'; field: HasSql; by: number}
   | {kind: 'add'; relation: Relation; row: AnyRow}
-  | {kind: 'remove'; relation: Relation; row: AnyRow}
 
 function modelRelations(model: object): Array<[string, Relation]> {
   return entries(model).filter(
@@ -984,7 +780,7 @@ function* saveGraph<Meta extends QueryMeta>(
   inputRow: AnyRow,
   ops: Array<Op>
 ): TxGenerator<Meta, AnyRow> {
-  const api = tableApiOf(model)
+  const api = getTable(model)
   const pkKey = primaryKeyOf(api)
   const rels = modelRelations(model)
   const isUpdate = inputRow[pkKey] !== undefined && inputRow[pkKey] !== null
@@ -994,18 +790,12 @@ function* saveGraph<Meta extends QueryMeta>(
   for (const key of keys(api.columns))
     if (inputRow[key] !== undefined) values[key] = inputRow[key]
 
-  // To-one relations are saved first: the FK lives on this row
   for (const [key, rel] of rels) {
     const relData = getData(rel)
     if (relData.card !== 'one') continue
-    const op = ops.find(
-      op => op.kind === 'setRelation' && op.relation === rel
-    ) as Extract<Op, {kind: 'setRelation'}> | undefined
     const fromInput = key in inputRow && inputRow[key] !== undefined
-    if (!fromInput && !op) continue
-    const child = op
-      ? (op.value as AnyRow | null)
-      : (inputRow[key] as AnyRow | null)
+    if (!fromInput) continue
+    const child = inputRow[key] as AnyRow | null
     const link = resolveOne(api, rel)
     if (child === null) {
       values[link.parentKey!] = null
@@ -1017,21 +807,9 @@ function* saveGraph<Meta extends QueryMeta>(
     }
   }
 
-  // Scalar ops
-  for (const op of ops) {
-    if (op.kind === 'set') assign(values, op.values)
-    else if (op.kind === 'unset') values[fieldKeyOf(api, op.field)] = null
-    else if (op.kind === 'increment') {
-      if (!isUpdate)
-        throw new Error('increment() requires a row with a primary key')
-      values[fieldKeyOf(api, op.field)] = sql`${op.field} + ${input(op.by)}`
-    }
-  }
-
-  // Write this row
   const returning = tableFields(api.aliased, api.columns)
   const pkField = fieldOf(api, pkKey)
-  const table = tableOf(model)
+  const table = model as unknown as Table<TableDefinition>
   let row: AnyRow
   if (isUpdate) {
     const pk = inputRow[pkKey]
@@ -1068,33 +846,20 @@ function* saveGraph<Meta extends QueryMeta>(
   }
   assign(result, row)
 
-  // To-many relations: FK lives on the target (or junction rows for m2m)
   for (const [key, rel] of rels) {
     const relData = getData(rel)
     if (relData.card !== 'many') continue
     const fromInput = key in inputRow && Array.isArray(inputRow[key])
-    const relOps = ops.filter(
-      op => 'relation' in op && op.relation === rel
-    ) as Array<Extract<Op, {relation: Relation}>>
+    const relOps = ops.filter(op => op.relation === rel)
     if (!fromInput && relOps.length === 0) continue
-    const reconcile = relOps.find(op => op.kind === 'setRelation') as
-      | Extract<Op, {kind: 'setRelation'}>
-      | undefined
     const inputRows = fromInput ? (inputRow[key] as Array<AnyRow>) : []
-    const reconciledRows = Array.isArray(reconcile?.value)
-      ? reconcile.value
-      : []
     const toSave: Array<AnyRow> = [
       ...inputRows,
-      ...relOps.flatMap(op => (op.kind === 'add' ? [op.row] : [])),
-      ...reconciledRows
+      ...relOps.map(op => op.row)
     ]
     const saved: Array<AnyRow> = []
     for (const childRow of toSave)
       saved.push(yield* saveRelated(tx, api, rel, row, childRow))
-    for (const op of relOps)
-      if (op.kind === 'remove') yield* removeRelated(tx, api, rel, row, op.row)
-    if (reconcile) yield* detachOthers(tx, api, rel, row, saved)
     if (fromInput || relOps.length > 0) result[key] = saved
   }
 
@@ -1129,12 +894,12 @@ function* saveRelated<Meta extends QueryMeta>(
     const existing = (yield* tx.$query(selectJunction)) as AnyRow | null
     if (!existing)
       yield* tx.$query({
-        insert: tableOf(junction),
+        insert: junction as unknown as Table<TableDefinition>,
         values: {
           [link.jParentKey]: parentValue,
           [link.jTargetKey]: targetValue
         } as TableInsert<TableDefinition>
-      } as InsertQuery)
+      })
     return target
   }
   const link = resolveMany(parentApi, rel)
@@ -1146,124 +911,6 @@ function* saveRelated<Meta extends QueryMeta>(
   )
 }
 
-function* removeRelated<Meta extends QueryMeta>(
-  tx: ORM<Meta>,
-  parentApi: TableApi,
-  rel: Relation,
-  parentRow: AnyRow,
-  childRow: AnyRow
-): TxGenerator<Meta, void> {
-  const relData = getData(rel)
-  const action = relData.config.onRemove ?? 'detach'
-  if (action === 'ignore') return
-  if (relData.config.through) {
-    const link = resolveThrough(parentApi, rel)
-    const targetValue = childRow[link.targetKey]
-    if (targetValue === undefined)
-      throw new Error('remove() requires the related row to carry its key')
-    const query: DeleteQuery = {
-      delete: tableOf(relData.config.through),
-      where: and(
-        eq(link.jParentField, parentRow[link.parentKey!]),
-        eq(link.jTargetField, targetValue)
-      )
-    }
-    yield* tx.$query(query)
-    return
-  }
-  const targetApi = getTable(relData.target)
-  const pkKey = primaryKeyOf(targetApi)
-  const pk = childRow[pkKey]
-  if (pk === undefined)
-    throw new Error(
-      'remove() requires the related row to carry its primary key'
-    )
-  const pkField = fieldOf(targetApi, pkKey)
-  if (action === 'delete') {
-    const query: DeleteQuery = {
-      delete: tableOf(relData.target),
-      where: eq(pkField, pk)
-    }
-    yield* tx.$query(query)
-  } else {
-    const link = resolveMany(parentApi, rel)
-    const query: UpdateQuery = {
-      update: tableOf(relData.target),
-      set: {[link.childKey]: null} as TableUpdate<TableDefinition>,
-      where: eq(pkField, pk)
-    }
-    yield* tx.$query(query)
-  }
-}
-
-function* detachOthers<Meta extends QueryMeta>(
-  tx: ORM<Meta>,
-  parentApi: TableApi,
-  rel: Relation,
-  parentRow: AnyRow,
-  kept: Array<AnyRow>
-): TxGenerator<Meta, void> {
-  const relData = getData(rel)
-  const action = relData.config.onRemove ?? 'ignore'
-  if (action === 'ignore') return
-  if (relData.config.through) {
-    const link = resolveThrough(parentApi, rel)
-    const keep = kept.map(row => row[link.targetKey])
-    const base = eq(link.jParentField, parentRow[link.parentKey!])
-    const query: DeleteQuery = {
-      delete: tableOf(relData.config.through),
-      where: keep.length ? and(base, notInArray(link.jTargetField, keep)) : base
-    }
-    yield* tx.$query(query)
-    return
-  }
-  const targetApi = getTable(relData.target)
-  const pkKey = primaryKeyOf(targetApi)
-  const link = resolveMany(parentApi, rel)
-  const keep = kept.map(row => row[pkKey])
-  const base = eq(link.childField, parentRow[link.parentKey!])
-  const where = keep.length
-    ? and(base, notInArray(fieldOf(targetApi, pkKey), keep))
-    : base
-  if (action === 'delete') {
-    const query: DeleteQuery = {delete: tableOf(relData.target), where}
-    yield* tx.$query(query)
-  } else {
-    const query: UpdateQuery = {
-      update: tableOf(relData.target),
-      set: {[link.childKey]: null} as TableUpdate<TableDefinition>,
-      where
-    }
-    yield* tx.$query(query)
-  }
-}
-
-function execSave<Meta extends QueryMeta>(
-  db: OrmDatabase<Meta>,
-  model: HasTable,
-  input: AnyRow,
-  ops: Array<Op>
-) {
-  return db.transaction(
-    txGenerator(function* (tx) {
-      return yield* saveGraph(tx, model, input, ops)
-    })
-  )
-}
-
-/**
- * Smart save, builder style:
- * - pk absent → INSERT, pk present → UPDATE (only fields that were set)
- * - pk present but no matching row → the transaction fails with an error;
- *   save never silently inserts a row with an explicit pk. Deliberate
- *   upserts go through the query builder (onConflictDoUpdate), as in drizzle
- * - relation rows are saved recursively; FKs are wired automatically
- * - ops (set/unset/increment/add/remove) chain on the builder and execute
- *   with the graph, ordered by FK dependency, in a single transaction
- * - m2m saves insert junction rows; onRemove governs reconciliation
- * - resolves with clean persisted rows: ids and defaults filled in; the
- *   input object is untouched
- */
 export class Save<
   M extends Model,
   In,
@@ -1277,11 +924,15 @@ export class Save<
   constructor(db: OrmDatabase<Meta>, model: M, input: In, ops: Array<Op> = []) {
     super(
       () =>
-        execSave(
-          db,
-          model as unknown as HasTable,
-          input as AnyRow,
-          ops
+        db.transaction(
+          txGenerator(function* (tx) {
+            return yield* saveGraph(
+              tx,
+              model as unknown as HasTable,
+              input as AnyRow,
+              ops
+            )
+          })
         ) as unknown as Deliver<Meta, Persisted<M, In>>
     )
     this.#db = db
@@ -1294,45 +945,6 @@ export class Save<
     return new Save(this.#db, this.#model, this.#input, [...this.#ops, op])
   }
 
-  /** Overwrite scalar fields. */
-  set(values: TableUpdate<ModelDefinition<M>>): Save<M, In, Meta>
-  /** Reconcile a to-many relation to exactly these rows (honors onRemove). */
-  set<Def extends TableDefinition>(
-    relation: ManyRelation<Def, any>,
-    rows: Array<GraphRow<Def>>
-  ): Save<M, In, Meta>
-  /** Set or detach (null) a to-one relation. */
-  set<Def extends TableDefinition>(
-    relation: OneRelation<Def, any>,
-    row: GraphRow<Def> | null
-  ): Save<M, In, Meta>
-  set(
-    target: TableUpdate<ModelDefinition<M>> | Relation,
-    value?: unknown
-  ): Save<M, In, Meta> {
-    if (isRelation(target))
-      return this.#with({
-        kind: 'setRelation',
-        relation: target as Relation,
-        value: value as Array<AnyRow> | AnyRow | null
-      })
-    return this.#with({kind: 'set', values: target as AnyRow})
-  }
-
-  /** Clear a field (set to null). Field pointer, not a string. */
-  unset(field: HasSql): Save<M, In, Meta> {
-    return this.#with({kind: 'unset', field})
-  }
-
-  /** Atomic increment: SET n = n + by, no read required. */
-  increment(
-    field: HasSql<number> | HasSql<number | null>,
-    by = 1
-  ): Save<M, In, Meta> {
-    return this.#with({kind: 'increment', field, by})
-  }
-
-  /** Add a row to a to-many relation (insert or reparent/update). */
   add<Def extends TableDefinition>(
     relation: ManyRelation<Def, any>,
     row: GraphRow<Def>
@@ -1343,93 +955,5 @@ export class Save<
       row: row as AnyRow
     })
   }
-
-  /** Remove a row from a to-many relation (honors onRemove). */
-  remove<Def extends TableDefinition>(
-    relation: ManyRelation<Def, any>,
-    row: GraphRow<Def>
-  ): Save<M, In, Meta> {
-    return this.#with({
-      kind: 'remove',
-      relation: relation as unknown as Relation,
-      row: row as AnyRow
-    })
-  }
 }
 
-/** Save a graph of rows in one transaction. */
-function save<
-  M extends Model,
-  In extends Graph<M>,
-  Meta extends QueryMeta = QueryMeta
->(db: OrmDatabase<Meta>, model: M, input: In): Save<M, In, Meta> {
-  return new Save(db, model, input)
-}
-
-/** Save several graphs in one transaction (seeding, imports). */
-function saveMany<
-  M extends Model,
-  In extends Graph<M>,
-  Meta extends QueryMeta = QueryMeta
->(
-  db: OrmDatabase<Meta>,
-  model: M,
-  inputs: Array<In>
-): Operation<Array<Persisted<M, In>>, Meta> {
-  return new Operation(
-    () =>
-      db.transaction(
-        txGenerator(function* (tx) {
-          const out: Array<AnyRow> = []
-          for (const row of inputs)
-            out.push(
-              yield* saveGraph(
-                tx,
-                model as unknown as HasTable,
-                row as AnyRow,
-                []
-              )
-            )
-          return out
-        })
-      ) as Deliver<Meta, Array<Persisted<M, In>>>
-  )
-}
-
-/**
- * Delete by entity or primary key.
- *
- * Deletion does not cascade at the ORM level: like drizzle, related rows are
- * governed by the referential actions declared on the schema via
- * references(…, {onDelete}). Relation onRemove only applies to reconciliation
- * during save(); it plays no role here.
- */
-function destroy<M extends Model, Meta extends QueryMeta = QueryMeta>(
-  db: ORM<Meta>,
-  model: M,
-  entity: Input<number | string> | Partial<ModelRow<M>>
-): SingleQuery<unknown, Meta> {
-  const api = tableApiOf(model)
-  const pkKey = primaryKeyOf(api)
-  const pk =
-    entity !== null && typeof entity === 'object' && !hasSql(entity)
-      ? (entity as AnyRow)[pkKey]
-      : entity
-  if (pk === undefined || pk === null)
-    throw new Error('destroy() requires a primary key value')
-  const query: DeleteQuery = {
-    delete: tableOf(model as unknown as HasTable),
-    where: eq(fieldOf(api, pkKey), pk as Input<number | string>)
-  }
-  return db.$query(query) as SingleQuery<unknown, Meta>
-}
-
-// ── Open questions ─────────────────────────────────────────────────────────
-// - pk visibility: GraphRow = TableInsert | TableUpdate lets a typo'd insert
-//   typecheck as an "update". get()'s id is also untyped against the actual
-//   pk column and composite pks are not representable. All fixable by
-//   branding primaryKey() in Column's type parameters (core change).
-// - unset/increment accept any HasSql; should be narrowed to fields of the
-//   model's own columns.
-// - relation refinements (.where/.orderBy) on self relations are not
-//   remapped to the inner alias; only shape fields are.
