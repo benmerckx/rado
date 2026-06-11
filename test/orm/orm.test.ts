@@ -71,6 +71,15 @@ async function createDb() {
   return db
 }
 
+function typeChecks(db: Awaited<ReturnType<typeof createDb>>) {
+  // @ts-expect-error ORM helpers require a table or spread-table model
+  db.find({from: {}})
+  // @ts-expect-error ORM writes require a table or spread-table model
+  db.save({}, {})
+}
+
+void typeChecks
+
 suite(import.meta, test => {
   test('save inserts a graph and wires foreign keys', async () => {
     const db = await createDb()
@@ -167,6 +176,32 @@ suite(import.meta, test => {
       author: {name: 'Ada'},
       comments: [{body: 'Nice'}]
     })
+  })
+
+  test('relation queries support joins and modifiers', async () => {
+    const db = await createDb()
+    const ada = await db.save(User, {name: 'Ada'})
+    await db.save(Post, {
+      title: 'No comment',
+      authorId: ada.id
+    })
+    await db.save(Post, {
+      title: 'With comment',
+      authorId: ada.id,
+      comments: [{body: 'Nice', authorId: ada.id}]
+    })
+    const found = await db.first({
+      from: User,
+      where: eq(User.id, ada.id),
+      select: {
+        posts: User.posts
+          .select({title: Post.title})
+          .innerJoin(comments, eq(comments.postId, Post.id))
+          .orderBy(sql`${Post.title} desc`)
+          .limit(1)
+      }
+    })
+    test.equal(found, {posts: [{title: 'With comment'}]})
   })
 
   test('self relation', async () => {

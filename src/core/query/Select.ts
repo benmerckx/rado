@@ -369,7 +369,10 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   having(
     having: HasSql<boolean> | ((self: Input) => HasSql<boolean>)
   ): Select<Input, Meta> {
-    return new Select({...getData(this), having: having as any})
+    return new Select({
+      ...getData(this),
+      having: having as unknown as SelectQuery['having']
+    })
   }
 
   orderBy(...orderBy: Array<HasSql>): Select<Input, Meta> {
