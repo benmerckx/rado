@@ -44,7 +44,7 @@ import {
   internalSql
 } from './core/Internal.ts'
 import type {Deliver, QueryMeta} from './core/MetaData.ts'
-import type {SingleQuery} from './core/Queries.ts'
+import {Operation, type SingleQuery} from './core/Queries.ts'
 import type {
   DeleteQuery,
   FromGuard,
@@ -70,8 +70,6 @@ import {txGenerator} from './universal/transactions.ts'
 
 const {assign, entries, fromEntries, keys} = Object
 
-declare const relation: unique symbol
-
 type AnyRow = Record<string, unknown>
 type TxPart<Meta extends QueryMeta> =
   | Promise<unknown>
@@ -81,9 +79,6 @@ type TxGenerator<Meta extends QueryMeta, Result> = Generator<
   Result,
   any
 >
-type AnyRelation =
-  | One<TableDefinition, unknown>
-  | Many<TableDefinition, unknown>
 type FirstSelectionQuery<Returning = SelectionInput> =
   SelectionQuery<Returning> & {first: true}
 type RuntimeTable = Table<TableDefinition>
@@ -121,91 +116,21 @@ export interface ManyConfig extends RelationConfig {
 export type Shape =
   | HasSql
   | Table
-  | One<any, any>
-  | Many<any, any>
-  | RelationQuery<any, any, any>
+  | Relation<any, any, any>
   | {[key: string]: Shape}
 
-export interface RelationQuery<
+interface RelationData<
   Def extends TableDefinition = TableDefinition,
   Card extends 'one' | 'many' = 'one' | 'many',
   Shaped = Table<Def>
-> extends RelationBase<Def, Card, Shaped> {}
-
-interface RelationBase<
-  Def extends TableDefinition,
-  Card extends 'one' | 'many',
-  Shaped
-> {
-  readonly [relation]: {def: Def; card: Card; shape: Shaped}
-  distinct(): RelationQuery<Def, Card, Shaped>
-  distinctOn(...columns: Array<HasSql>): RelationQuery<Def, Card, Shaped>
-  leftJoin(
-    target: HasTable | Sql,
-    on: HasSql<boolean>
-  ): RelationQuery<Def, Card, Shaped>
-  leftJoinLateral(
-    target: HasTable | Sql,
-    on: HasSql<boolean>
-  ): RelationQuery<Def, Card, Shaped>
-  rightJoin(
-    target: HasTable | Sql,
-    on: HasSql<boolean>
-  ): RelationQuery<Def, Card, Shaped>
-  innerJoin(
-    target: HasTable | Sql,
-    on: HasSql<boolean>
-  ): RelationQuery<Def, Card, Shaped>
-  innerJoinLateral(
-    target: HasTable | Sql,
-    on: HasSql<boolean>
-  ): RelationQuery<Def, Card, Shaped>
-  fullJoin(
-    target: HasTable | Sql,
-    on: HasSql<boolean>
-  ): RelationQuery<Def, Card, Shaped>
-  crossJoin(target: HasTable | Sql): RelationQuery<Def, Card, Shaped>
-  crossJoinLateral(target: HasTable | Sql): RelationQuery<Def, Card, Shaped>
-  where(...conditions: Array<HasSql<boolean>>): RelationQuery<Def, Card, Shaped>
-  groupBy(...exprs: Array<HasSql>): RelationQuery<Def, Card, Shaped>
-  having(condition: HasSql<boolean>): RelationQuery<Def, Card, Shaped>
-  orderBy(...order: Array<HasSql>): RelationQuery<Def, Card, Shaped>
-  limit(count: Input<number>): RelationQuery<Def, Card, Shaped>
-  offset(count: Input<number>): RelationQuery<Def, Card, Shaped>
-}
-
-export interface One<
-  Def extends TableDefinition = TableDefinition,
-  Shaped = Table<Def>
-> extends RelationBase<Def, 'one', Shaped> {
-  /** Shape the related row: author.select({name: User.name}) */
-  select<S extends Shape>(shape: S): One<Def, S>
-  /** Use as a where condition on the parent: exists(correlated subquery) */
-  exists(): HasSql<boolean>
-}
-
-export interface Many<
-  Def extends TableDefinition = TableDefinition,
-  Shaped = Table<Def>
-> extends RelationBase<Def, 'many', Shaped> {
-  /** Shape the related rows: posts.select({title: Post.title}) */
-  select<S extends Shape>(shape: S): Many<Def, S>
-  /** Correlated count, usable in select shapes */
-  count(): HasSql<number>
-  /** Parent filter: at least one related row matches */
-  some(...conditions: Array<HasSql<boolean>>): HasSql<boolean>
-  /** Parent filter: no related row matches */
-  none(...conditions: Array<HasSql<boolean>>): HasSql<boolean>
-}
-
-interface RelationData extends SelectionQuery {
-  card: 'one' | 'many'
+> extends SelectionQuery {
+  card: Card
   target: Table
   config: ManyConfig
-  shape: Shape | undefined
+  shape: Shaped | undefined
 }
 
-type RelationLike = {readonly [internalData]: RelationData}
+type RelationLike = {readonly [internalData]: RelationData<any, any, any>}
 
 function isRelation(value: unknown): value is RelationLike {
   if (!value || typeof value !== 'object') return false
@@ -219,26 +144,29 @@ function isRelation(value: unknown): value is RelationLike {
   )
 }
 
-class Relation extends Select<SelectionInput> {
-  readonly [internalData]: RelationData
+export abstract class Relation<
+  Def extends TableDefinition = TableDefinition,
+  Card extends 'one' | 'many' = 'one' | 'many',
+  Shaped = Table<Def>
+> extends Select<SelectionInput> {
+  readonly [internalData]: RelationData<Def, Card, Shaped>
 
-  constructor(data: RelationData) {
+  protected constructor(data: RelationData<Def, Card, Shaped>) {
     super(data)
     this[internalData] = data
   }
-
-  select(shape: Shape): Relation {
-    return new Relation({
-      ...getData(this),
-      shape
-    })
-  }
 }
 
-class OneRelation extends Relation {
-  constructor(target: Table, config?: RelationConfig)
-  constructor(data: RelationData)
-  constructor(targetOrData: Table | RelationData, config: RelationConfig = {}) {
+export abstract class OneRelation<
+  Def extends TableDefinition = TableDefinition,
+  Shaped = Table<Def>
+> extends Relation<Def, 'one', Shaped> {
+  protected constructor(target: Table, config?: RelationConfig)
+  protected constructor(data: RelationData<Def, 'one', Shaped>)
+  protected constructor(
+    targetOrData: Table | RelationData<Def, 'one', Shaped>,
+    config: RelationConfig = {}
+  ) {
     if ('card' in targetOrData) {
       super(targetOrData)
       return
@@ -265,12 +193,40 @@ class OneRelation extends Relation {
       return sql<boolean>`exists (select 1 from ${from} where ${cond})`
     })
   }
+
+  select<S extends Shape>(shape: S): OneRelation<Def, S> {
+    return new One({...getData(this), shape} as RelationData<Def, 'one', S>)
+  }
 }
 
-class ManyRelation extends Relation {
-  constructor(target: Table, config?: ManyConfig)
-  constructor(data: RelationData)
-  constructor(targetOrData: Table | RelationData, config: ManyConfig = {}) {
+class One<
+  Def extends TableDefinition = TableDefinition,
+  Shaped = Table<Def>
+> extends OneRelation<
+  Def,
+  Shaped
+> {
+  constructor(data: RelationData<Def, 'one', Shaped>)
+  constructor(target: Table, config?: RelationConfig)
+  constructor(
+    targetOrData: Table | RelationData<Def, 'one', Shaped>,
+    config?: RelationConfig
+  ) {
+    if ('card' in targetOrData) super(targetOrData)
+    else super(targetOrData, config)
+  }
+}
+
+export abstract class ManyRelation<
+  Def extends TableDefinition = TableDefinition,
+  Shaped = Table<Def>
+> extends Relation<Def, 'many', Shaped> {
+  protected constructor(target: Table, config?: ManyConfig)
+  protected constructor(data: RelationData<Def, 'many', Shaped>)
+  protected constructor(
+    targetOrData: Table | RelationData<Def, 'many', Shaped>,
+    config: ManyConfig = {}
+  ) {
     if ('card' in targetOrData) {
       super(targetOrData)
       return
@@ -329,22 +285,44 @@ class ManyRelation extends Relation {
       return sql<boolean>`not exists (select 1 from ${from} where ${cond})`
     })
   }
+
+  select<S extends Shape>(shape: S): ManyRelation<Def, S> {
+    return new Many({...getData(this), shape} as RelationData<Def, 'many', S>)
+  }
+}
+
+class Many<
+  Def extends TableDefinition = TableDefinition,
+  Shaped = Table<Def>
+> extends ManyRelation<
+  Def,
+  Shaped
+> {
+  constructor(data: RelationData<Def, 'many', Shaped>)
+  constructor(target: Table, config?: ManyConfig)
+  constructor(
+    targetOrData: Table | RelationData<Def, 'many', Shaped>,
+    config?: ManyConfig
+  ) {
+    if ('card' in targetOrData) super(targetOrData)
+    else super(targetOrData, config)
+  }
 }
 
 /** To-one relation. FK lives on the declaring table, inferred via references(). */
 export function one<Def extends TableDefinition>(
   target: Table<Def>,
   config?: RelationConfig
-): One<Def> {
-  return new OneRelation(target as Table, config) as unknown as One<Def>
+): OneRelation<Def> {
+  return new One(target as Table, config)
 }
 
 /** To-many relation. FK lives on the target (or on `through` for m2m). */
 export function many<Def extends TableDefinition>(
   target: Table<Def>,
   config?: ManyConfig
-): Many<Def> {
-  return new ManyRelation(target as Table, config) as unknown as Many<Def>
+): ManyRelation<Def> {
+  return new Many(target as Table, config)
 }
 
 // ── Models ─────────────────────────────────────────────────────────────────
@@ -377,14 +355,14 @@ type RowOf<Def extends TableDefinition> = {
 export type ModelRow<M> = Expand<RowOf<ModelDefinition<M>>>
 
 type RelationsOf<M> = {
-  [K in keyof M as M[K] extends One<any, any> | Many<any, any>
+  [K in keyof M as M[K] extends Relation<any, any, any>
     ? K
     : never]: M[K]
 }
 
 /** Columns-only shape of a model (relations and metadata excluded). */
 export type ModelColumns<M> = {
-  [K in keyof M as M[K] extends One<any, any> | Many<any, any>
+  [K in keyof M as M[K] extends Relation<any, any, any>
     ? never
     : K extends string
       ? K
@@ -792,21 +770,17 @@ function compileShape(shape: Shape, parentApi: TableApi): SelectionInput {
  * rows of their (possibly refined) shape.
  */
 export type ShapeRow<In> =
-  In extends Many<any, infer S>
+  In extends Relation<any, 'many', infer S>
     ? Array<ShapeRow<S>>
-    : In extends One<any, infer S>
+    : In extends Relation<any, 'one', infer S>
       ? ShapeRow<S> | null
-      : In extends RelationQuery<any, 'many', infer S>
-        ? Array<ShapeRow<S>>
-        : In extends RelationQuery<any, 'one', infer S>
-          ? ShapeRow<S> | null
-          : In extends HasSql<infer Value>
-            ? Value
-            : In extends object
-              ? Expand<{
-                  [K in keyof In as K extends string ? K : never]: ShapeRow<In[K]>
-                }>
-              : never
+      : In extends HasSql<infer Value>
+        ? Value
+        : In extends object
+          ? Expand<{
+              [K in keyof In as K extends string ? K : never]: ShapeRow<In[K]>
+            }>
+          : never
 
 export interface FindOptions<M extends Model, S extends Shape | undefined> {
   /** The model (or plain table) to query. */
@@ -961,12 +935,13 @@ export type GraphRow<Def extends TableDefinition> =
 
 /** Insert/update graph for a model: columns + nested relation rows. */
 export type Graph<M> = GraphRow<ModelDefinition<M>> & {
-  readonly [K in keyof RelationsOf<M>]?: RelationsOf<M>[K] extends Many<
+  readonly [K in keyof RelationsOf<M>]?: RelationsOf<M>[K] extends Relation<
     infer Def,
+    'many',
     any
   >
     ? Array<GraphRow<Def>>
-    : RelationsOf<M>[K] extends One<infer Def, any>
+    : RelationsOf<M>[K] extends Relation<infer Def, 'one', any>
       ? GraphRow<Def> | null
       : never
 }
@@ -977,9 +952,9 @@ export type Persisted<M, In> = Expand<
     [K in Extract<
       keyof In,
       keyof RelationsOf<M>
-    >]: RelationsOf<M>[K] extends Many<infer Def, any>
+    >]: RelationsOf<M>[K] extends Relation<infer Def, 'many', any>
       ? Array<Expand<RowOf<Def>>>
-      : RelationsOf<M>[K] extends One<infer Def, any>
+      : RelationsOf<M>[K] extends Relation<infer Def, 'one', any>
         ? Expand<RowOf<Def>> | null
         : never
   }
@@ -999,7 +974,7 @@ type Op =
 
 function modelRelations(model: object): Array<[string, Relation]> {
   return entries(model).filter(
-    (entry): entry is [string, Relation] => entry[1] instanceof Relation
+    (entry): entry is [string, Relation] => isRelation(entry[1])
   )
 }
 
@@ -1263,63 +1238,6 @@ function* detachOthers<Meta extends QueryMeta>(
   }
 }
 
-/** An executable write that preserves rado's sync/async dual nature. */
-export class Operation<
-  Result,
-  Meta extends QueryMeta
-> implements PromiseLike<Result> {
-  declare private brand: [Meta]
-  #exec: () => Deliver<Meta, Result>
-
-  constructor(exec: () => Deliver<Meta, Result>) {
-    this.#exec = exec
-  }
-
-  run(): Deliver<Meta, Result> {
-    return this.#exec()
-  }
-
-  *[Symbol.iterator](): Generator<Promise<unknown>, Result, unknown> {
-    const interim = this.#exec()
-    if (!(interim instanceof Promise)) return interim as Result
-    let result: unknown
-    yield interim.then(value => (result = value))
-    return result as Result
-  }
-
-  async then<TResult1 = Result, TResult2 = never>(
-    onfulfilled?:
-      | ((value: Result) => TResult1 | PromiseLike<TResult1>)
-      | undefined
-      | null,
-    onrejected?:
-      | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
-      | undefined
-      | null
-  ): Promise<TResult1 | TResult2> {
-    try {
-      const result = (await this.#exec()) as Result
-      return onfulfilled ? onfulfilled(result) : (result as unknown as TResult1)
-    } catch (error) {
-      if (onrejected) return onrejected(error)
-      throw error
-    }
-  }
-
-  catch<TResult = never>(
-    onrejected?:
-      | ((reason: unknown) => TResult | PromiseLike<TResult>)
-      | undefined
-      | null
-  ): Promise<Result | TResult> {
-    return this.then().catch(onrejected)
-  }
-
-  finally(onfinally?: (() => void) | undefined | null): Promise<Result> {
-    return this.then().finally(onfinally)
-  }
-}
-
 function execSave<Meta extends QueryMeta>(
   db: OrmDatabase<Meta>,
   model: HasTable,
@@ -1380,22 +1298,22 @@ export class Save<
   set(values: TableUpdate<ModelDefinition<M>>): Save<M, In, Meta>
   /** Reconcile a to-many relation to exactly these rows (honors onRemove). */
   set<Def extends TableDefinition>(
-    relation: Many<Def, any>,
+    relation: ManyRelation<Def, any>,
     rows: Array<GraphRow<Def>>
   ): Save<M, In, Meta>
   /** Set or detach (null) a to-one relation. */
   set<Def extends TableDefinition>(
-    relation: One<Def, any>,
+    relation: OneRelation<Def, any>,
     row: GraphRow<Def> | null
   ): Save<M, In, Meta>
   set(
-    target: TableUpdate<ModelDefinition<M>> | AnyRelation,
+    target: TableUpdate<ModelDefinition<M>> | Relation,
     value?: unknown
   ): Save<M, In, Meta> {
-    if (target instanceof Relation)
+    if (isRelation(target))
       return this.#with({
         kind: 'setRelation',
-        relation: target,
+        relation: target as Relation,
         value: value as Array<AnyRow> | AnyRow | null
       })
     return this.#with({kind: 'set', values: target as AnyRow})
@@ -1416,7 +1334,7 @@ export class Save<
 
   /** Add a row to a to-many relation (insert or reparent/update). */
   add<Def extends TableDefinition>(
-    relation: Many<Def, any>,
+    relation: ManyRelation<Def, any>,
     row: GraphRow<Def>
   ): Save<M, In, Meta> {
     return this.#with({
@@ -1428,7 +1346,7 @@ export class Save<
 
   /** Remove a row from a to-many relation (honors onRemove). */
   remove<Def extends TableDefinition>(
-    relation: Many<Def, any>,
+    relation: ManyRelation<Def, any>,
     row: GraphRow<Def>
   ): Save<M, In, Meta> {
     return this.#with({

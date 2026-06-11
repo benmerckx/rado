@@ -1,6 +1,6 @@
 import {suite} from '@alinea/suite'
 import {table} from '@/core/Table.ts'
-import {columns, eq, many, one, sql} from '@/index.ts'
+import {columns, desc, eq, many, one, sql} from '@/index.ts'
 import {boolean, id, integer, text} from '@/universal.ts'
 
 const users = table('user', {
@@ -76,6 +76,7 @@ function typeChecks(db: Awaited<ReturnType<typeof createDb>>) {
   db.find({from: {}})
   // @ts-expect-error ORM writes require a table or spread-table model
   db.save({}, {})
+  User.posts.select({title: Post.title}).count()
 }
 
 void typeChecks
@@ -197,7 +198,7 @@ suite(import.meta, test => {
         posts: User.posts
           .select({title: Post.title})
           .innerJoin(comments, eq(comments.postId, Post.id))
-          .orderBy(sql`${Post.title} desc`)
+          .orderBy(desc(Post.title))
           .limit(1)
       }
     })
