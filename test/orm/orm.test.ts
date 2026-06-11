@@ -1,7 +1,6 @@
 import {suite} from '@alinea/suite'
 import {table} from '@/core/Table.ts'
-import {eq, sql} from '@/index.ts'
-import * as orm from '@/orm.ts'
+import {columns, eq, many, one, sql} from '@/index.ts'
 import {boolean, id, integer, text} from '@/universal.ts'
 
 const users = table('user', {
@@ -48,15 +47,15 @@ const usersToGroups = table('users_to_groups', {
 
 const User = {
   ...users,
-  posts: orm.many(posts, {onRemove: 'delete'}),
-  invitee: orm.one(users, {fields: [users.invitedBy], references: [users.id]}),
-  groups: orm.many(groups, {through: usersToGroups, onRemove: 'detach'})
+  posts: many(posts, {onRemove: 'delete'}),
+  invitee: one(users, {fields: [users.invitedBy], references: [users.id]}),
+  groups: many(groups, {through: usersToGroups, onRemove: 'detach'})
 }
 
 const Post = {
   ...posts,
-  author: orm.one(users),
-  comments: orm.many(comments, {
+  author: one(users),
+  comments: many(comments, {
     fields: [comments.postId],
     references: [posts.id],
     onRemove: 'delete'
@@ -75,7 +74,7 @@ async function createDb() {
 suite(import.meta, test => {
   test('save inserts a graph and wires foreign keys', async () => {
     const db = await createDb()
-    const saved = await orm.save(db, User, {
+    const saved = await db.save(User, {
       name: 'Ada',
       posts: [{title: 'Hello'}, {title: 'World', published: true}]
     })
@@ -86,25 +85,53 @@ suite(import.meta, test => {
     test.equal(saved.posts[1].published, true)
   })
 
-  test('get by primary key', async () => {
+  test('first finds a row by primary key', async () => {
     const db = await createDb()
-    const saved = await orm.save(db, User, {name: 'Ada'})
-    const found = await orm.get(db, {from: User, id: saved.id})
+    const saved = await db.save(User, {name: 'Ada'})
+    const found = await db.first({
+      from: User,
+      where: eq(User.id, saved.id)
+    })
     test.equal(found?.name, 'Ada')
-    const missing = await orm.get(db, {from: User, id: 999})
+    const missing = await db.first({
+      from: User,
+      where: eq(User.id, 999)
+    })
     test.equal(missing, null)
+  })
+
+  test('database exposes orm helpers', async () => {
+    const db = await createDb()
+    const saved = await db.save(User, {
+      name: 'Ada',
+      posts: [{title: 'Hello'}]
+    })
+    const found = await db.first({
+      from: User,
+      where: eq(User.id, saved.id),
+      select: {name: User.name, posts: User.posts}
+    })
+    test.equal(found?.name, 'Ada')
+    test.equal(found?.posts.length, 1)
+    const many = await db.find({from: User, where: eq(User.name, 'Ada')})
+    test.equal(many.length, 1)
+    const first = await db.first({from: User, where: eq(User.name, 'Ada')})
+    test.equal(first?.id, saved.id)
+    test.equal(await db.count({from: User}), 1)
+    await db.destroy(User, saved.id)
+    test.equal(await db.count({from: User}), 0)
   })
 
   test('select shapes load relations', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {
+    const ada = await db.save(User, {
       name: 'Ada',
       posts: [{title: 'Hello'}, {title: 'World'}]
     })
-    await orm.save(db, User, {name: 'Grace'})
-    const found = await orm.get(db, {
+    await db.save(User, {name: 'Grace'})
+    const found = await db.first({
       from: User,
-      id: ada.id,
+      where: eq(User.id, ada.id),
       select: {
         name: User.name,
         posts: User.posts.select({title: Post.title}),
@@ -120,15 +147,15 @@ suite(import.meta, test => {
 
   test('nested relation shapes', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {name: 'Ada'})
-    const post = await orm.save(db, Post, {
+    const ada = await db.save(User, {name: 'Ada'})
+    const post = await db.save(Post, {
       title: 'Hello',
       authorId: ada.id,
       comments: [{body: 'Nice', authorId: ada.id}]
     })
-    const found = await orm.get(db, {
+    const found = await db.first({
       from: Post,
-      id: post.id,
+      where: eq(Post.id, post.id),
       select: {
         title: Post.title,
         author: Post.author.select({name: User.name}),
@@ -144,11 +171,11 @@ suite(import.meta, test => {
 
   test('self relation', async () => {
     const db = await createDb()
-    const grace = await orm.save(db, User, {name: 'Grace'})
-    const ada = await orm.save(db, User, {name: 'Ada', invitedBy: grace.id})
-    const found = await orm.get(db, {
+    const grace = await db.save(User, {name: 'Grace'})
+    const ada = await db.save(User, {name: 'Ada', invitedBy: grace.id})
+    const found = await db.first({
       from: User,
-      id: ada.id,
+      where: eq(User.id, ada.id),
       select: {
         name: User.name,
         invitee: User.invitee.select({name: User.name})
@@ -159,16 +186,19 @@ suite(import.meta, test => {
 
   test('find with relation filters', async () => {
     const db = await createDb()
-    await orm.save(db, User, {name: 'Ada', posts: [{title: 'Hi', published: true}]})
-    await orm.save(db, User, {name: 'Grace', posts: [{title: 'Draft'}]})
-    await orm.save(db, User, {name: 'Lin'})
-    const authors = await orm.find(db, {
+    await db.save(User, {
+      name: 'Ada',
+      posts: [{title: 'Hi', published: true}]
+    })
+    await db.save(User, {name: 'Grace', posts: [{title: 'Draft'}]})
+    await db.save(User, {name: 'Lin'})
+    const authors = await db.find({
       from: User,
       select: {name: User.name},
       where: User.posts.some(eq(Post.published, true))
     })
     test.equal(authors, [{name: 'Ada'}])
-    const lurkers = await orm.find(db, {
+    const lurkers = await db.find({
       from: User,
       select: {name: User.name},
       where: User.posts.none()
@@ -178,12 +208,8 @@ suite(import.meta, test => {
 
   test('find with pagination and count', async () => {
     const db = await createDb()
-    await orm.saveMany(db, User, [
-      {name: 'Ada'},
-      {name: 'Grace'},
-      {name: 'Lin'}
-    ])
-    const page = await orm.find(db, {
+    await db.saveMany(User, [{name: 'Ada'}, {name: 'Grace'}, {name: 'Lin'}])
+    const page = await db.find({
       from: User,
       select: {name: User.name},
       orderBy: sql`${User.name} asc`,
@@ -191,14 +217,17 @@ suite(import.meta, test => {
       offset: 1
     })
     test.equal(page, [{name: 'Grace'}, {name: 'Lin'}])
-    const total = await orm.count(db, {from: User})
+    const total = await db.count({from: User})
     test.equal(total, 3)
   })
 
   test('save updates rows with a primary key', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {name: 'Ada'})
-    const updated = await orm.save(db, User, {id: ada.id, email: 'ada@example.com'})
+    const ada = await db.save(User, {name: 'Ada'})
+    const updated = await db.save(User, {
+      id: ada.id,
+      email: 'ada@example.com'
+    })
     test.equal(updated.name, 'Ada')
     test.equal(updated.email, 'ada@example.com')
   })
@@ -207,23 +236,23 @@ suite(import.meta, test => {
     const db = await createDb()
     let error: Error | undefined
     try {
-      await orm.save(db, User, {id: 42, name: 'Nobody'})
+      await db.save(User, {id: 42, name: 'Nobody'})
     } catch (caught) {
       error = caught as Error
     }
     test.ok(error?.message.includes('primary key'))
-    test.equal(await orm.count(db, {from: User}), 0)
+    test.equal(await db.count({from: User}), 0)
   })
 
   test('builder ops execute with the save', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {
+    const ada = await db.save(User, {
       name: 'Ada',
       email: 'ada@example.com',
       posts: [{title: 'Old post'}]
     })
-    const updated = await orm
-      .save(db, User, {id: ada.id})
+    const updated = await db
+      .save(User, {id: ada.id})
       .set({name: 'Ada Lovelace'})
       .increment(User.loginCount, 2)
       .unset(User.email)
@@ -232,7 +261,7 @@ suite(import.meta, test => {
     test.equal(updated.name, 'Ada Lovelace')
     test.equal(updated.loginCount, 2)
     test.equal(updated.email, null)
-    const titles = await orm.find(db, {
+    const titles = await db.find({
       from: Post,
       select: {title: Post.title}
     })
@@ -241,14 +270,14 @@ suite(import.meta, test => {
 
   test('reconcile a to-many relation', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {
+    const ada = await db.save(User, {
       name: 'Ada',
       posts: [{title: 'Keep'}, {title: 'Drop'}]
     })
-    await orm
-      .save(db, User, {id: ada.id})
+    await db
+      .save(User, {id: ada.id})
       .set(User.posts, [{id: ada.posts[0].id}, {title: 'Fresh'}])
-    const titles = await orm.find(db, {
+    const titles = await db.find({
       from: Post,
       select: {title: Post.title},
       orderBy: sql`${Post.id} asc`
@@ -258,49 +287,63 @@ suite(import.meta, test => {
 
   test('many-to-many through a junction table', async () => {
     const db = await createDb()
-    const admins = await orm.save(db, groups, {name: 'admins'})
-    const ada = await orm.save(db, User, {
+    const admins = await db.save(groups, {name: 'admins'})
+    const ada = await db.save(User, {
       name: 'Ada',
       groups: [{id: admins.id}, {name: 'editors'}]
     })
     test.equal(ada.groups.length, 2)
-    const found = await orm.get(db, {
+    const found = await db.first({
       from: User,
-      id: ada.id,
+      where: eq(User.id, ada.id),
       select: {name: User.name, groups: User.groups.select({name: groups.name})}
     })
-    test.equal(found, {name: 'Ada', groups: [{name: 'admins'}, {name: 'editors'}]})
+    test.equal(found, {
+      name: 'Ada',
+      groups: [{name: 'admins'}, {name: 'editors'}]
+    })
     // attaching twice does not duplicate junction rows
-    await orm.save(db, User, {id: ada.id, groups: [{id: admins.id}]})
-    const junctions = await orm.count(db, {from: usersToGroups})
+    await db.save(User, {id: ada.id, groups: [{id: admins.id}]})
+    const junctions = await db.count({from: usersToGroups})
     test.equal(junctions, 2)
     // reconcile detaches junction rows, not group rows
-    await orm.save(db, User, {id: ada.id}).set(User.groups, [{id: admins.id}])
-    test.equal(await orm.count(db, {from: usersToGroups}), 1)
-    test.equal(await orm.count(db, {from: groups}), 2)
+    await db.save(User, {id: ada.id}).set(User.groups, [{id: admins.id}])
+    test.equal(await db.count({from: usersToGroups}), 1)
+    test.equal(await db.count({from: groups}), 2)
   })
 
   test('to-one relations set and reassign', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {name: 'Ada'})
-    const grace = await orm.save(db, User, {name: 'Grace'})
-    const post = await orm.save(db, Post, {title: 'Hello', author: {id: ada.id}})
+    const ada = await db.save(User, {name: 'Ada'})
+    const grace = await db.save(User, {name: 'Grace'})
+    const post = await db.save(Post, {
+      title: 'Hello',
+      author: {id: ada.id}
+    })
     test.equal(post.authorId, ada.id)
-    const moved = await orm.save(db, Post, {id: post.id}).set(Post.author, {id: grace.id})
+    const moved = await db
+      .save(Post, {id: post.id})
+      .set(Post.author, {id: grace.id})
     test.equal(moved.authorId, grace.id)
   })
 
   test('destroy by primary key or entity', async () => {
     const db = await createDb()
-    const ada = await orm.save(db, User, {name: 'Ada'})
-    const grace = await orm.save(db, User, {name: 'Grace'})
-    await orm.destroy(db, User, ada.id)
-    await orm.destroy(db, User, grace)
-    test.equal(await orm.count(db, {from: User}), 0)
+    const ada = await db.save(User, {name: 'Ada'})
+    const grace = await db.save(User, {name: 'Grace'})
+    await db.destroy(User, ada.id)
+    await db.destroy(User, grace)
+    test.equal(await db.count({from: User}), 0)
   })
 
   test('columns() excludes relations', () => {
-    const cols = orm.columns(User)
-    test.equal(Object.keys(cols), ['id', 'name', 'email', 'loginCount', 'invitedBy'])
+    const cols = columns(User)
+    test.equal(Object.keys(cols), [
+      'id',
+      'name',
+      'email',
+      'loginCount',
+      'invitedBy'
+    ])
   })
 })

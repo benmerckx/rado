@@ -1,5 +1,5 @@
+import {ORM} from '../orm.ts'
 import {txGenerator} from '../universal.ts'
-import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Diff} from './Diff.ts'
 import type {Driver} from './Driver.ts'
@@ -32,7 +32,7 @@ import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
 
 export class Database<Meta extends QueryMeta = Either>
-  extends Builder<Meta>
+  extends ORM<Meta>
   implements HasResolver<Meta>
 {
   driver: Driver

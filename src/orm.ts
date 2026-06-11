@@ -7,28 +7,26 @@
 //   fully working Table (select/join/where) and every column field passes
 //   through: User.name is the same Field as users.name. Application code only
 //   ever needs the model identifier; tables can stay module-private.
-// - No registry: every function takes the Database as first argument and is
-//   typed locally by the model argument. Works with transactions for free
-//   since Transaction extends Database.
+// - No registry: ORM helpers live on Database and are typed locally by the
+//   model argument. Works with transactions for free since Transaction extends
+//   Database.
 // - Loading relations is unified with shaping: relation pointers appear
 //   directly in select shapes and can be refined with
 //   .select/.where/.orderBy/.limit. `select: {...User}` means "all columns +
 //   all relations", `select: columns(User)` means columns only.
 // - Writes are builder style: ops chain on save() and execute together in
 //   one transaction when the Save is awaited (or .run() for sync drivers):
-//     save(db, User, user).increment(User.loginCount).add(User.posts, post)
+//     db.save(User, user).increment(User.loginCount).add(User.posts, post)
 // - Everything preserves rado's sync/async dual nature: reads return regular
 //   queries (await, or .all()/.get() for sync drivers) and writes expose
 //   .run() plus the generator protocol used by txGenerator.
 //
-// Possible later integration: get/find/first/count are small enough to live
-// as methods on Database itself (db.find({from: User, ...})), which would
-// drop the db argument. Kept as a standalone add-on for now so the core
-// stays ORM-free and the module remains tree-shakeable; revisit once the
-// API has settled.
+// The ORM class sits between Builder and Database so end users get db.find,
+// db.first and db.save without importing a separate ORM namespace.
 
+import {Builder} from './core/Builder.ts'
 import type {Column} from './core/Column.ts'
-import type {Database, Transaction} from './core/Database.ts'
+import type {Transaction} from './core/Database.ts'
 import {count as countRows} from './core/expr/Aggregate.ts'
 import {and, eq, notInArray} from './core/expr/Conditions.ts'
 import {Field, type FieldData} from './core/expr/Field.ts'
@@ -86,6 +84,13 @@ type AnyRelation =
 type FirstSelectionQuery<Returning = SelectionInput> =
   SelectionQuery<Returning> & {first: true}
 type RuntimeTable = Table<TableDefinition>
+
+interface OrmDatabase<Meta extends QueryMeta> extends ORM<Meta> {
+  transaction<T>(
+    run: (tx: Transaction<Meta>) => T | Promise<T>,
+    options?: unknown
+  ): Deliver<Meta, T>
+}
 
 // ── Relations ──────────────────────────────────────────────────────────────
 
@@ -742,14 +747,7 @@ export interface FindOptions<M extends Model, S extends Shape | undefined> {
   offset?: number
 }
 
-export interface GetOptions<M extends Model, S extends Shape | undefined> {
-  from: M
-  /** Primary key value to look up. */
-  id: Input<number | string>
-  select?: S
-}
-
-type ResultOf<M, S> = [S] extends [undefined] ? ModelRow<M> : ShapeRow<S>
+export type ResultOf<M, S> = [S] extends [undefined] ? ModelRow<M> : ShapeRow<S>
 
 function normalizeWhere(
   where: HasSql<boolean> | Array<HasSql<boolean>> | undefined
@@ -773,33 +771,60 @@ function tableOf(model: HasTable): RuntimeTable {
   return model as unknown as RuntimeTable
 }
 
-/** Fetch a single row by primary key. */
-export function get<
-  M extends Model,
-  S extends Shape | undefined = undefined,
-  Meta extends QueryMeta = QueryMeta
->(
-  db: Database<Meta>,
-  options: GetOptions<M, S>
-): SingleQuery<ResultOf<M, S> | null, Meta> {
-  const api = tableApiOf(options.from)
-  const pk = primaryKeyOf(api)
-  const query: FirstSelectionQuery = {
-    select: shapeOf(options.from, options.select),
-    from: tableOf(options.from as HasTable),
-    where: eq(fieldOf(api, pk), options.id),
-    first: true
+export class ORM<Meta extends QueryMeta> extends Builder<Meta> {
+  /** Fetch many rows. */
+  find<M extends Model, S extends Shape | undefined = undefined>(
+    options: FindOptions<M, S>
+  ): SingleQuery<Array<ResultOf<M, S>>, Meta> {
+    return find(this, options)
   }
-  return db.$query(query) as unknown as SingleQuery<ResultOf<M, S> | null, Meta>
+
+  /** Fetch the first matching row. */
+  first<M extends Model, S extends Shape | undefined = undefined>(
+    options: FindOptions<M, S>
+  ): SingleQuery<ResultOf<M, S> | null, Meta> {
+    return first(this, options)
+  }
+
+  /** Count rows matching the filter. */
+  count<M extends Model>(
+    options: Pick<FindOptions<M, undefined>, 'from' | 'where'>
+  ): SingleQuery<number, Meta> {
+    return count(this, options)
+  }
+
+  /** Save a graph of rows in one transaction. */
+  save<M extends Model, In extends Graph<M>>(
+    model: M,
+    input: In
+  ): Save<M, In, Meta> {
+    return save(this as unknown as OrmDatabase<Meta>, model, input)
+  }
+
+  /** Save several graphs in one transaction. */
+  saveMany<M extends Model, In extends Graph<M>>(
+    model: M,
+    inputs: Array<In>
+  ): Operation<Array<Persisted<M, In>>, Meta> {
+    return saveMany(this as unknown as OrmDatabase<Meta>, model, inputs)
+  }
+
+  /** Delete by entity or primary key. */
+  destroy<M extends Model>(
+    model: M,
+    entity: Input<number | string> | Partial<ModelRow<M>>
+  ): SingleQuery<unknown, Meta> {
+    return destroy(this, model, entity)
+  }
 }
 
 /** Fetch many rows. drizzle: db.query.x.findMany */
-export function find<
+function find<
   M extends Model,
   S extends Shape | undefined = undefined,
   Meta extends QueryMeta = QueryMeta
 >(
-  db: Database<Meta>,
+  db: ORM<Meta>,
   options: FindOptions<M, S>
 ): SingleQuery<Array<ResultOf<M, S>>, Meta> {
   const {orderBy} = options
@@ -815,12 +840,12 @@ export function find<
 }
 
 /** find with limit 1. drizzle: findFirst */
-export function first<
+function first<
   M extends Model,
   S extends Shape | undefined = undefined,
   Meta extends QueryMeta = QueryMeta
 >(
-  db: Database<Meta>,
+  db: ORM<Meta>,
   options: FindOptions<M, S>
 ): SingleQuery<ResultOf<M, S> | null, Meta> {
   const {orderBy} = options
@@ -837,8 +862,8 @@ export function first<
 }
 
 /** Count rows matching the filter. Pairs with find for pagination. */
-export function count<M extends Model, Meta extends QueryMeta = QueryMeta>(
-  db: Database<Meta>,
+function count<M extends Model, Meta extends QueryMeta = QueryMeta>(
+  db: ORM<Meta>,
   options: Pick<FindOptions<M, undefined>, 'from' | 'where'>
 ): SingleQuery<number, Meta> {
   const query: FirstSelectionQuery = {
@@ -905,7 +930,7 @@ function modelRelations(model: object): Array<[string, Relation]> {
 }
 
 function* saveGraph<Meta extends QueryMeta>(
-  tx: Database<Meta>,
+  tx: ORM<Meta>,
   model: HasTable,
   inputRow: AnyRow,
   ops: Array<Op>
@@ -1026,7 +1051,7 @@ function* saveGraph<Meta extends QueryMeta>(
 }
 
 function* saveRelated<Meta extends QueryMeta>(
-  tx: Database<Meta>,
+  tx: ORM<Meta>,
   parentApi: TableApi,
   rel: Relation,
   parentRow: AnyRow,
@@ -1070,7 +1095,7 @@ function* saveRelated<Meta extends QueryMeta>(
 }
 
 function* removeRelated<Meta extends QueryMeta>(
-  tx: Database<Meta>,
+  tx: ORM<Meta>,
   parentApi: TableApi,
   rel: Relation,
   parentRow: AnyRow,
@@ -1119,7 +1144,7 @@ function* removeRelated<Meta extends QueryMeta>(
 }
 
 function* detachOthers<Meta extends QueryMeta>(
-  tx: Database<Meta>,
+  tx: ORM<Meta>,
   parentApi: TableApi,
   rel: Relation,
   parentRow: AnyRow,
@@ -1217,7 +1242,7 @@ export class Operation<
 }
 
 function execSave<Meta extends QueryMeta>(
-  db: Database<Meta>,
+  db: OrmDatabase<Meta>,
   model: HasTable,
   input: AnyRow,
   ops: Array<Op>
@@ -1247,12 +1272,12 @@ export class Save<
   In,
   Meta extends QueryMeta
 > extends Operation<Persisted<M, In>, Meta> {
-  #db: Database<Meta>
+  #db: OrmDatabase<Meta>
   #model: M
   #input: In
   #ops: Array<Op>
 
-  constructor(db: Database<Meta>, model: M, input: In, ops: Array<Op> = []) {
+  constructor(db: OrmDatabase<Meta>, model: M, input: In, ops: Array<Op> = []) {
     super(
       () =>
         execSave(
@@ -1336,21 +1361,21 @@ export class Save<
 }
 
 /** Save a graph of rows in one transaction. */
-export function save<
+function save<
   M extends Model,
   In extends Graph<M>,
   Meta extends QueryMeta = QueryMeta
->(db: Database<Meta>, model: M, input: In): Save<M, In, Meta> {
+>(db: OrmDatabase<Meta>, model: M, input: In): Save<M, In, Meta> {
   return new Save(db, model, input)
 }
 
 /** Save several graphs in one transaction (seeding, imports). */
-export function saveMany<
+function saveMany<
   M extends Model,
   In extends Graph<M>,
   Meta extends QueryMeta = QueryMeta
 >(
-  db: Database<Meta>,
+  db: OrmDatabase<Meta>,
   model: M,
   inputs: Array<In>
 ): Operation<Array<Persisted<M, In>>, Meta> {
@@ -1382,8 +1407,8 @@ export function saveMany<
  * references(…, {onDelete}). Relation onRemove only applies to reconciliation
  * during save(); it plays no role here.
  */
-export function destroy<M extends Model, Meta extends QueryMeta = QueryMeta>(
-  db: Database<Meta>,
+function destroy<M extends Model, Meta extends QueryMeta = QueryMeta>(
+  db: ORM<Meta>,
   model: M,
   entity: Input<number | string> | Partial<ModelRow<M>>
 ): SingleQuery<unknown, Meta> {

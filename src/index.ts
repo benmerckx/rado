@@ -19,3 +19,27 @@ export * from './core/Selection.ts'
 export * from './core/Sql.ts'
 export * from './core/Table.ts'
 export * from './core/View.ts'
+export {
+  type FindOptions,
+  type Graph,
+  type GraphRow,
+  type Many,
+  type ManyConfig,
+  type Model,
+  type ModelColumns,
+  type ModelDefinition,
+  type ModelRow,
+  type One,
+  type OnRemove,
+  type Persisted,
+  type RelationConfig,
+  type ResultOf,
+  type Shape,
+  type ShapeRow,
+  ORM,
+  Operation,
+  Save,
+  columns,
+  many,
+  one
+} from './orm.ts'
