@@ -32,7 +32,7 @@ import {
 import {selection} from './Selection.ts'
 import {type Sql, sql} from './Sql.ts'
 
-const {assign, defineProperties, fromEntries, entries, keys} = Object
+const {assign, fromEntries, entries, keys} = Object
 
 export type TableDefinition = {
   [name: string]: Column
@@ -243,12 +243,14 @@ export function table<Definition extends TableDefinition, Name extends string>(
     [internalTable]: api,
     [internalTarget]: api.identifier(),
     [internalSelection]: selection(fields),
+    get [internalCreate]() {
+      return api.create()
+    },
+    get [internalDrop]() {
+      return api.drop()
+    },
     ...fields
   }
-  defineProperties(table, {
-    [internalCreate]: {get: () => api.create()},
-    [internalDrop]: {get: () => api.drop()}
-  })
   if (config) api.config = config(table)
   return table
 }
@@ -262,17 +264,18 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     alias
   })
   const fields = tableFields(api.aliased, api.columns)
-  const aliased = <Table<Definition, Alias>>{
+  return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.identifier(),
     [internalSelection]: selection(fields),
+    get [internalCreate]() {
+      return getCreate(table)
+    },
+    get [internalDrop]() {
+      return getDrop(table)
+    },
     ...fields
   }
-  defineProperties(aliased, {
-    [internalCreate]: {get: () => getCreate(table)},
-    [internalDrop]: {get: () => getDrop(table)}
-  })
-  return aliased
 }
 
 export function tableCreator(

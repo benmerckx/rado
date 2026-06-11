@@ -28,11 +28,11 @@
 // API has settled.
 
 import type {Column} from './core/Column.ts'
-import type {Database} from './core/Database.ts'
+import type {Database, Transaction} from './core/Database.ts'
 import {count as countRows} from './core/expr/Aggregate.ts'
 import {and, eq, notInArray} from './core/expr/Conditions.ts'
 import {Field, type FieldData} from './core/expr/Field.ts'
-import {Include} from './core/expr/Include.ts'
+import {Include, type IncludeQuery} from './core/expr/Include.ts'
 import {type Input, input} from './core/expr/Input.ts'
 import {
   type HasSql,
@@ -46,6 +46,13 @@ import {
 } from './core/Internal.ts'
 import type {Deliver, QueryMeta} from './core/MetaData.ts'
 import type {SingleQuery} from './core/Queries.ts'
+import type {
+  DeleteQuery,
+  FromGuard,
+  InsertQuery,
+  SelectionQuery,
+  UpdateQuery
+} from './core/query/Query.ts'
 import type {SelectionInput} from './core/Selection.ts'
 import {type Sql, sql} from './core/Sql.ts'
 import {
@@ -64,7 +71,21 @@ const {assign, entries, fromEntries, keys} = Object
 
 declare const relation: unique symbol
 
-type AnyRow = Record<string, any>
+type AnyRow = Record<string, unknown>
+type TxPart<Meta extends QueryMeta> =
+  | Promise<unknown>
+  | ((tx: Transaction<Meta>) => unknown)
+type TxGenerator<Meta extends QueryMeta, Result> = Generator<
+  TxPart<Meta>,
+  Result,
+  any
+>
+type AnyRelation =
+  | One<TableDefinition, unknown>
+  | Many<TableDefinition, unknown>
+type FirstSelectionQuery<Returning = SelectionInput> =
+  SelectionQuery<Returning> & {first: true}
+type RuntimeTable = Table<TableDefinition>
 
 // ── Relations ──────────────────────────────────────────────────────────────
 
@@ -290,11 +311,11 @@ export function many<Def extends TableDefinition>(
 
 // ── Models ─────────────────────────────────────────────────────────────────
 
-/** A model is a table carrying extra relation pointers. */
-export type Model = HasTable
+/** A model is a table spread carrying extra relation pointers. */
+export type Model = object
 
 export type ModelDefinition<M> =
-  M extends HasTable<infer Def, string> ? Def : never
+  M extends HasTable<infer Def, string> ? Def : DefinitionOfFields<M>
 
 /** Row type of a definition, accounting for column nullability. */
 type RowOf<Def extends TableDefinition> = {
@@ -324,6 +345,19 @@ export type ModelColumns<M> = {
     : K extends string
       ? K
       : never]: M[K]
+}
+
+type ColumnFromFieldValue<Value> = Column<
+  Exclude<Value, null>,
+  [null extends Value ? true : false, false]
+>
+
+type DefinitionOfFields<M> = {
+  [K in keyof ModelColumns<M> as ModelColumns<M>[K] extends HasSql
+    ? K
+    : never]: ModelColumns<M>[K] extends HasSql<infer Value>
+    ? ColumnFromFieldValue<Value>
+    : never
 }
 
 /**
@@ -374,6 +408,11 @@ function fieldKeyOf(api: TableApi, field: HasSql): string {
   return keyByFieldName(api, data.fieldName)
 }
 
+function fieldDataOf(field: HasSql): FieldData {
+  if (!hasField(field)) throw new Error('Expected a column field')
+  return getField(field)
+}
+
 function primaryKeyOf(api: TableApi): string {
   const found = entries(api.columns).filter(
     ([, column]) => getData(column).primary
@@ -403,8 +442,8 @@ function resolveOne(
   let parentData: FieldData
   let refData: FieldData
   if (fields?.length && references?.length) {
-    parentData = getField(fields[0] as any)
-    refData = getField(references[0] as any)
+    parentData = fieldDataOf(fields[0])
+    refData = fieldDataOf(references[0])
   } else {
     if (!parentApi)
       throw new Error(
@@ -466,15 +505,16 @@ function resolveMany(
   let childData: FieldData
   let refData: FieldData
   if (fields?.length && references?.length) {
-    childData = getField(fields[0] as any)
-    refData = getField(references[0] as any)
+    childData = fieldDataOf(fields[0])
+    refData = fieldDataOf(references[0])
   } else {
     const candidates = entries(targetApi.columns).filter(([, column]) => {
       const ref = getData(column).references?.()
       if (!ref) return false
       if (!parentApi) return true
       return (
-        ref.targetName === parentApi.aliased || ref.targetName === parentApi.name
+        ref.targetName === parentApi.aliased ||
+        ref.targetName === parentApi.name
       )
     })
     if (candidates.length === 0)
@@ -508,7 +548,11 @@ function resolveMany(
     parentKey: parentApi
       ? keyByFieldName(parentApi, refData.fieldName)
       : undefined,
-    parentField: new Field(refData.targetName, refData.fieldName, refData.source)
+    parentField: new Field(
+      refData.targetName,
+      refData.fieldName,
+      refData.source
+    )
   }
 }
 
@@ -534,14 +578,17 @@ function resolveThrough(
     const ref = getData(column).references?.()
     return ref ? [{key, column, ref}] : []
   })
-  const targetLinks = refs.filter(({ref}) => ref.targetName === targetApi.aliased)
+  const targetLinks = refs.filter(
+    ({ref}) => ref.targetName === targetApi.aliased
+  )
   if (targetLinks.length !== 1)
     throw new Error(
       `Expected exactly one column of "${jApi.aliased}" to reference "${targetApi.aliased}"`
     )
   const parentLinks = refs.filter(({ref}) =>
     parentApi
-      ? ref.targetName === parentApi.aliased || ref.targetName === parentApi.name
+      ? ref.targetName === parentApi.aliased ||
+        ref.targetName === parentApi.name
       : ref.targetName !== targetApi.aliased
   )
   if (parentLinks.length !== 1)
@@ -622,11 +669,14 @@ function relationInclude(rel: Relation, parentApi: TableApi): Include<unknown> {
       ? remapFields(rel.shape, targetApi.aliased, targetAlias)
       : rel.shape
   const select = given ? compileShape(given, innerApi) : fields
-  let from: unknown
+  let from: FromGuard
   let cond: HasSql<boolean>
   if (through) {
     const link = resolveThrough(parentApi, rel)
-    from = [through, {innerJoin: rel.target, on: eq(link.jTargetField, link.targetField)}]
+    from = [
+      through,
+      {innerJoin: rel.target, on: eq(link.jTargetField, link.targetField)}
+    ]
     cond = eq(link.jParentField, link.parentField)
   } else if (rel.card === 'one') {
     const link = resolveOne(parentApi, rel, targetAlias)
@@ -637,7 +687,7 @@ function relationInclude(rel: Relation, parentApi: TableApi): Include<unknown> {
     from = target
     cond = eq(link.childField, link.parentField)
   }
-  return new Include({
+  const query: IncludeQuery = {
     select,
     from,
     where: combine(cond, rel.conditions),
@@ -645,7 +695,8 @@ function relationInclude(rel: Relation, parentApi: TableApi): Include<unknown> {
     limit: rel.take,
     offset: rel.skip,
     first: rel.card === 'one'
-  } as any)
+  }
+  return new Include(query)
 }
 
 function compileShape(shape: Shape, parentApi: TableApi): SelectionInput {
@@ -704,15 +755,22 @@ function normalizeWhere(
   where: HasSql<boolean> | Array<HasSql<boolean>> | undefined
 ): HasSql<boolean> | undefined {
   if (!where) return undefined
-  if (Array.isArray(where))
-    return where.length ? and(...where) : undefined
+  if (Array.isArray(where)) return where.length ? and(...where) : undefined
   return where
 }
 
+function tableApiOf(model: Model): TableApi {
+  return getTable(model as HasTable)
+}
+
 function shapeOf(model: Model, select: Shape | undefined): SelectionInput {
-  const api = getTable(model)
+  const api = tableApiOf(model)
   if (select) return compileShape(select, api)
   return tableFields(api.aliased, api.columns)
+}
+
+function tableOf(model: HasTable): RuntimeTable {
+  return model as unknown as RuntimeTable
 }
 
 /** Fetch a single row by primary key. */
@@ -724,14 +782,15 @@ export function get<
   db: Database<Meta>,
   options: GetOptions<M, S>
 ): SingleQuery<ResultOf<M, S> | null, Meta> {
-  const api = getTable(options.from)
+  const api = tableApiOf(options.from)
   const pk = primaryKeyOf(api)
-  return db.$query({
+  const query: FirstSelectionQuery = {
     select: shapeOf(options.from, options.select),
-    from: options.from,
+    from: tableOf(options.from as HasTable),
     where: eq(fieldOf(api, pk), options.id),
     first: true
-  } as any) as any
+  }
+  return db.$query(query) as unknown as SingleQuery<ResultOf<M, S> | null, Meta>
 }
 
 /** Fetch many rows. drizzle: db.query.x.findMany */
@@ -744,14 +803,15 @@ export function find<
   options: FindOptions<M, S>
 ): SingleQuery<Array<ResultOf<M, S>>, Meta> {
   const {orderBy} = options
-  return db.$query({
+  const query: SelectionQuery = {
     select: shapeOf(options.from, options.select),
-    from: options.from,
+    from: tableOf(options.from as HasTable),
     where: normalizeWhere(options.where),
     orderBy: orderBy && (Array.isArray(orderBy) ? orderBy : [orderBy]),
     limit: options.limit,
     offset: options.offset
-  } as any) as any
+  }
+  return db.$query(query) as unknown as SingleQuery<Array<ResultOf<M, S>>, Meta>
 }
 
 /** find with limit 1. drizzle: findFirst */
@@ -764,15 +824,16 @@ export function first<
   options: FindOptions<M, S>
 ): SingleQuery<ResultOf<M, S> | null, Meta> {
   const {orderBy} = options
-  return db.$query({
+  const query: FirstSelectionQuery = {
     select: shapeOf(options.from, options.select),
-    from: options.from,
+    from: tableOf(options.from as HasTable),
     where: normalizeWhere(options.where),
     orderBy: orderBy && (Array.isArray(orderBy) ? orderBy : [orderBy]),
     limit: 1,
     offset: options.offset,
     first: true
-  } as any) as any
+  }
+  return db.$query(query) as unknown as SingleQuery<ResultOf<M, S> | null, Meta>
 }
 
 /** Count rows matching the filter. Pairs with find for pagination. */
@@ -780,12 +841,13 @@ export function count<M extends Model, Meta extends QueryMeta = QueryMeta>(
   db: Database<Meta>,
   options: Pick<FindOptions<M, undefined>, 'from' | 'where'>
 ): SingleQuery<number, Meta> {
-  return db.$query({
+  const query: FirstSelectionQuery = {
     select: countRows(),
-    from: options.from,
+    from: tableOf(options.from as HasTable),
     where: normalizeWhere(options.where),
     first: true
-  } as any) as any
+  }
+  return db.$query(query) as unknown as SingleQuery<number, Meta>
 }
 
 // ── Writing ────────────────────────────────────────────────────────────────
@@ -826,7 +888,11 @@ export type Persisted<M, In> = Expand<
 
 type Op =
   | {kind: 'set'; values: AnyRow}
-  | {kind: 'setRelation'; relation: Relation; value: Array<AnyRow> | AnyRow | null}
+  | {
+      kind: 'setRelation'
+      relation: Relation
+      value: Array<AnyRow> | AnyRow | null
+    }
   | {kind: 'unset'; field: HasSql}
   | {kind: 'increment'; field: HasSql; by: number}
   | {kind: 'add'; relation: Relation; row: AnyRow}
@@ -838,13 +904,13 @@ function modelRelations(model: object): Array<[string, Relation]> {
   )
 }
 
-function* saveGraph(
-  tx: Database<any>,
+function* saveGraph<Meta extends QueryMeta>(
+  tx: Database<Meta>,
   model: HasTable,
   inputRow: AnyRow,
   ops: Array<Op>
-): Generator<any, AnyRow, any> {
-  const api = getTable(model)
+): TxGenerator<Meta, AnyRow> {
+  const api = tableApiOf(model)
   const pkKey = primaryKeyOf(api)
   const rels = modelRelations(model)
   const isUpdate = inputRow[pkKey] !== undefined && inputRow[pkKey] !== null
@@ -862,7 +928,9 @@ function* saveGraph(
     ) as Extract<Op, {kind: 'setRelation'}> | undefined
     const fromInput = key in inputRow && inputRow[key] !== undefined
     if (!fromInput && !op) continue
-    const child: AnyRow | null = op ? (op.value as AnyRow | null) : inputRow[key]
+    const child = op
+      ? (op.value as AnyRow | null)
+      : (inputRow[key] as AnyRow | null)
     const link = resolveOne(api, rel)
     if (child === null) {
       values[link.parentKey!] = null
@@ -888,35 +956,39 @@ function* saveGraph(
   // Write this row
   const returning = tableFields(api.aliased, api.columns)
   const pkField = fieldOf(api, pkKey)
+  const table = tableOf(model)
   let row: AnyRow
   if (isUpdate) {
     const pk = inputRow[pkKey]
     const set = {...values}
     delete set[pkKey]
     if (keys(set).length > 0) {
-      const rows = (yield* tx.$query({
-        update: model,
-        set,
+      const query: UpdateQuery<typeof returning> = {
+        update: table,
+        set: set as TableUpdate<TableDefinition>,
         where: eq(pkField, pk),
         returning
-      } as any)) as Array<AnyRow>
+      }
+      const rows = (yield* tx.$query(query)) as unknown as Array<AnyRow>
       row = rows[0]
     } else {
-      row = (yield* tx.$query({
+      const query: FirstSelectionQuery<typeof returning> = {
         select: returning,
-        from: model,
+        from: table,
         where: eq(pkField, pk),
         first: true
-      } as any)) as AnyRow
+      }
+      row = (yield* tx.$query(query)) as unknown as AnyRow
     }
     if (!row)
       throw new Error(`No row in "${api.aliased}" with primary key ${pk}`)
   } else {
-    const rows = (yield* tx.$query({
-      insert: model,
-      values,
+    const query: InsertQuery<typeof returning> = {
+      insert: table,
+      values: values as TableInsert<TableDefinition>,
       returning
-    } as any)) as Array<AnyRow>
+    }
+    const rows = (yield* tx.$query(query)) as unknown as Array<AnyRow>
     row = rows[0]
   }
   assign(result, row)
@@ -932,10 +1004,14 @@ function* saveGraph(
     const reconcile = relOps.find(op => op.kind === 'setRelation') as
       | Extract<Op, {kind: 'setRelation'}>
       | undefined
+    const inputRows = fromInput ? (inputRow[key] as Array<AnyRow>) : []
+    const reconciledRows = Array.isArray(reconcile?.value)
+      ? reconcile.value
+      : []
     const toSave: Array<AnyRow> = [
-      ...(fromInput ? inputRow[key] : []),
+      ...inputRows,
       ...relOps.flatMap(op => (op.kind === 'add' ? [op.row] : [])),
-      ...((reconcile?.value as Array<AnyRow>) ?? [])
+      ...reconciledRows
     ]
     const saved: Array<AnyRow> = []
     for (const childRow of toSave)
@@ -949,13 +1025,13 @@ function* saveGraph(
   return result
 }
 
-function* saveRelated(
-  tx: Database<any>,
+function* saveRelated<Meta extends QueryMeta>(
+  tx: Database<Meta>,
   parentApi: TableApi,
   rel: Relation,
   parentRow: AnyRow,
   childRow: AnyRow
-): Generator<any, AnyRow, any> {
+): TxGenerator<Meta, AnyRow> {
   if (rel.config.through) {
     const link = resolveThrough(parentApi, rel)
     const junction = rel.config.through
@@ -963,23 +1039,25 @@ function* saveRelated(
     const target: AnyRow = yield* saveGraph(tx, rel.target, childRow, [])
     const parentValue = parentRow[link.parentKey!]
     const targetValue = target[link.targetKey]
-    const existing = (yield* tx.$query({
-      select: tableFields(jApi.aliased, jApi.columns),
+    const junctionFields = tableFields(jApi.aliased, jApi.columns)
+    const selectJunction: FirstSelectionQuery<typeof junctionFields> = {
+      select: junctionFields,
       from: junction,
       where: and(
         eq(link.jParentField, parentValue),
         eq(link.jTargetField, targetValue)
       ),
       first: true
-    } as any)) as AnyRow | null
+    }
+    const existing = (yield* tx.$query(selectJunction)) as AnyRow | null
     if (!existing)
       yield* tx.$query({
-        insert: junction,
+        insert: tableOf(junction),
         values: {
           [link.jParentKey]: parentValue,
           [link.jTargetKey]: targetValue
-        }
-      } as any)
+        } as TableInsert<TableDefinition>
+      } as InsertQuery)
     return target
   }
   const link = resolveMany(parentApi, rel)
@@ -991,13 +1069,13 @@ function* saveRelated(
   )
 }
 
-function* removeRelated(
-  tx: Database<any>,
+function* removeRelated<Meta extends QueryMeta>(
+  tx: Database<Meta>,
   parentApi: TableApi,
   rel: Relation,
   parentRow: AnyRow,
   childRow: AnyRow
-): Generator<any, void, any> {
+): TxGenerator<Meta, void> {
   const action = rel.config.onRemove ?? 'detach'
   if (action === 'ignore') return
   if (rel.config.through) {
@@ -1005,52 +1083,59 @@ function* removeRelated(
     const targetValue = childRow[link.targetKey]
     if (targetValue === undefined)
       throw new Error('remove() requires the related row to carry its key')
-    yield* tx.$query({
-      delete: rel.config.through,
+    const query: DeleteQuery = {
+      delete: tableOf(rel.config.through),
       where: and(
         eq(link.jParentField, parentRow[link.parentKey!]),
         eq(link.jTargetField, targetValue)
       )
-    } as any)
+    }
+    yield* tx.$query(query)
     return
   }
   const targetApi = getTable(rel.target)
   const pkKey = primaryKeyOf(targetApi)
   const pk = childRow[pkKey]
   if (pk === undefined)
-    throw new Error('remove() requires the related row to carry its primary key')
+    throw new Error(
+      'remove() requires the related row to carry its primary key'
+    )
   const pkField = fieldOf(targetApi, pkKey)
   if (action === 'delete') {
-    yield* tx.$query({delete: rel.target, where: eq(pkField, pk)} as any)
+    const query: DeleteQuery = {
+      delete: tableOf(rel.target),
+      where: eq(pkField, pk)
+    }
+    yield* tx.$query(query)
   } else {
     const link = resolveMany(parentApi, rel)
-    yield* tx.$query({
-      update: rel.target,
-      set: {[link.childKey]: null},
+    const query: UpdateQuery = {
+      update: tableOf(rel.target),
+      set: {[link.childKey]: null} as TableUpdate<TableDefinition>,
       where: eq(pkField, pk)
-    } as any)
+    }
+    yield* tx.$query(query)
   }
 }
 
-function* detachOthers(
-  tx: Database<any>,
+function* detachOthers<Meta extends QueryMeta>(
+  tx: Database<Meta>,
   parentApi: TableApi,
   rel: Relation,
   parentRow: AnyRow,
   kept: Array<AnyRow>
-): Generator<any, void, any> {
+): TxGenerator<Meta, void> {
   const action = rel.config.onRemove ?? 'ignore'
   if (action === 'ignore') return
   if (rel.config.through) {
     const link = resolveThrough(parentApi, rel)
     const keep = kept.map(row => row[link.targetKey])
     const base = eq(link.jParentField, parentRow[link.parentKey!])
-    yield* tx.$query({
-      delete: rel.config.through,
-      where: keep.length
-        ? and(base, notInArray(link.jTargetField, keep))
-        : base
-    } as any)
+    const query: DeleteQuery = {
+      delete: tableOf(rel.config.through),
+      where: keep.length ? and(base, notInArray(link.jTargetField, keep)) : base
+    }
+    yield* tx.$query(query)
     return
   }
   const targetApi = getTable(rel.target)
@@ -1062,20 +1147,23 @@ function* detachOthers(
     ? and(base, notInArray(fieldOf(targetApi, pkKey), keep))
     : base
   if (action === 'delete') {
-    yield* tx.$query({delete: rel.target, where} as any)
+    const query: DeleteQuery = {delete: tableOf(rel.target), where}
+    yield* tx.$query(query)
   } else {
-    yield* tx.$query({
-      update: rel.target,
-      set: {[link.childKey]: null},
+    const query: UpdateQuery = {
+      update: tableOf(rel.target),
+      set: {[link.childKey]: null} as TableUpdate<TableDefinition>,
       where
-    } as any)
+    }
+    yield* tx.$query(query)
   }
 }
 
 /** An executable write that preserves rado's sync/async dual nature. */
-export class Operation<Result, Meta extends QueryMeta>
-  implements PromiseLike<Result>
-{
+export class Operation<
+  Result,
+  Meta extends QueryMeta
+> implements PromiseLike<Result> {
   declare private brand: [Meta]
   #exec: () => Deliver<Meta, Result>
 
@@ -1107,7 +1195,7 @@ export class Operation<Result, Meta extends QueryMeta>
   ): Promise<TResult1 | TResult2> {
     try {
       const result = (await this.#exec()) as Result
-      return onfulfilled ? onfulfilled(result) : (result as any)
+      return onfulfilled ? onfulfilled(result) : (result as unknown as TResult1)
     } catch (error) {
       if (onrejected) return onrejected(error)
       throw error
@@ -1128,15 +1216,15 @@ export class Operation<Result, Meta extends QueryMeta>
   }
 }
 
-function execSave(
-  db: Database<any>,
+function execSave<Meta extends QueryMeta>(
+  db: Database<Meta>,
   model: HasTable,
   input: AnyRow,
   ops: Array<Op>
 ) {
   return db.transaction(
     txGenerator(function* (tx) {
-      return yield* saveGraph(tx, model, input, ops) as any
+      return yield* saveGraph(tx, model, input, ops)
     })
   )
 }
@@ -1154,17 +1242,26 @@ function execSave(
  * - resolves with clean persisted rows: ids and defaults filled in; the
  *   input object is untouched
  */
-export class Save<M extends Model, In, Meta extends QueryMeta> extends Operation<
-  Persisted<M, In>,
-  Meta
-> {
+export class Save<
+  M extends Model,
+  In,
+  Meta extends QueryMeta
+> extends Operation<Persisted<M, In>, Meta> {
   #db: Database<Meta>
   #model: M
   #input: In
   #ops: Array<Op>
 
   constructor(db: Database<Meta>, model: M, input: In, ops: Array<Op> = []) {
-    super(() => execSave(db, model, input as AnyRow, ops) as any)
+    super(
+      () =>
+        execSave(
+          db,
+          model as unknown as HasTable,
+          input as AnyRow,
+          ops
+        ) as unknown as Deliver<Meta, Persisted<M, In>>
+    )
     this.#db = db
     this.#model = model
     this.#input = input
@@ -1187,10 +1284,17 @@ export class Save<M extends Model, In, Meta extends QueryMeta> extends Operation
     relation: One<Def, any>,
     row: GraphRow<Def> | null
   ): Save<M, In, Meta>
-  set(target: any, value?: any): Save<M, In, Meta> {
+  set(
+    target: TableUpdate<ModelDefinition<M>> | AnyRelation,
+    value?: unknown
+  ): Save<M, In, Meta> {
     if (target instanceof Relation)
-      return this.#with({kind: 'setRelation', relation: target, value})
-    return this.#with({kind: 'set', values: target})
+      return this.#with({
+        kind: 'setRelation',
+        relation: target,
+        value: value as Array<AnyRow> | AnyRow | null
+      })
+    return this.#with({kind: 'set', values: target as AnyRow})
   }
 
   /** Clear a field (set to null). Field pointer, not a string. */
@@ -1211,7 +1315,11 @@ export class Save<M extends Model, In, Meta extends QueryMeta> extends Operation
     relation: Many<Def, any>,
     row: GraphRow<Def>
   ): Save<M, In, Meta> {
-    return this.#with({kind: 'add', relation: relation as any, row})
+    return this.#with({
+      kind: 'add',
+      relation: relation as unknown as Relation,
+      row: row as AnyRow
+    })
   }
 
   /** Remove a row from a to-many relation (honors onRemove). */
@@ -1219,7 +1327,11 @@ export class Save<M extends Model, In, Meta extends QueryMeta> extends Operation
     relation: Many<Def, any>,
     row: GraphRow<Def>
   ): Save<M, In, Meta> {
-    return this.#with({kind: 'remove', relation: relation as any, row})
+    return this.#with({
+      kind: 'remove',
+      relation: relation as unknown as Relation,
+      row: row as AnyRow
+    })
   }
 }
 
@@ -1248,10 +1360,17 @@ export function saveMany<
         txGenerator(function* (tx) {
           const out: Array<AnyRow> = []
           for (const row of inputs)
-            out.push(yield* saveGraph(tx, model, row as AnyRow, []) as any)
+            out.push(
+              yield* saveGraph(
+                tx,
+                model as unknown as HasTable,
+                row as AnyRow,
+                []
+              )
+            )
           return out
         })
-      ) as any
+      ) as Deliver<Meta, Array<Persisted<M, In>>>
   )
 }
 
@@ -1268,7 +1387,7 @@ export function destroy<M extends Model, Meta extends QueryMeta = QueryMeta>(
   model: M,
   entity: Input<number | string> | Partial<ModelRow<M>>
 ): SingleQuery<unknown, Meta> {
-  const api = getTable(model)
+  const api = tableApiOf(model)
   const pkKey = primaryKeyOf(api)
   const pk =
     entity !== null && typeof entity === 'object' && !hasSql(entity)
@@ -1276,10 +1395,11 @@ export function destroy<M extends Model, Meta extends QueryMeta = QueryMeta>(
       : entity
   if (pk === undefined || pk === null)
     throw new Error('destroy() requires a primary key value')
-  return db.$query({
-    delete: model,
+  const query: DeleteQuery = {
+    delete: tableOf(model as unknown as HasTable),
     where: eq(fieldOf(api, pkKey), pk as Input<number | string>)
-  } as any) as any
+  }
+  return db.$query(query) as SingleQuery<unknown, Meta>
 }
 
 // ── Open questions ─────────────────────────────────────────────────────────
