@@ -7,6 +7,7 @@
  */
 
 import {watch} from 'node:fs'
+import {mkdir} from 'node:fs/promises'
 import {dirname, join, relative} from 'node:path'
 
 const docsDir = import.meta.dir
@@ -128,10 +129,7 @@ function rewriteLinks(markdown: string): string {
   return markdown.replace(
     /(\]\()(?!https?:\/\/|#)([^)#\s]+)\.md(#[^)]*)?\)/g,
     (_, open, path: string, anchor = '') => {
-      const htmlPath = path.endsWith('README')
-        ? `${path.slice(0, -'README'.length)}index`
-        : path
-      return `${open}${htmlPath}.html${anchor})`
+      return `${open}${path}.html${anchor})`
     }
   )
 }
@@ -736,6 +734,7 @@ th { color: var(--tx-1); font-weight: 600; }
 // #region Build
 
 async function build(): Promise<void> {
+  await mkdir(join(outDir, 'fonts'), {recursive: true})
   const glob = new Bun.Glob('**/*.md')
   const files = (await Array.fromAsync(glob.scan({cwd: docsDir}))).filter(
     file => !file.startsWith('dist')
@@ -748,7 +747,6 @@ async function build(): Promise<void> {
     const content = highlightCodeBlocks(html)
     const outFile = file
       .replace(/\\/g, '/')
-      .replace(/README\.md$/, 'index.md')
       .replace(/\.md$/, '.html')
     const depth = outFile.split('/').length - 1
     const prefix = '../'.repeat(depth)

@@ -10,7 +10,7 @@
       {
         "group": "Start here",
         "pages": [
-          "README",
+          "index",
           "getting-started",
           "drivers"
         ]
