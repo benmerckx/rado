@@ -49,8 +49,13 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return new Sql(emitter => emitter.inlineValues(this))
   }
 
-  nameSelf(name: string): Sql<Value> {
-    return new Sql(emitter => emitter.emitSelf(this, name))
+  nameSelf(name: string, sourceName?: string, selfName?: string): Sql<Value> {
+    const res = new Sql<Value>(emitter =>
+      emitter.emitSelf(this, name, sourceName, selfName)
+    )
+    res.alias = this.alias
+    res.mapFromDriverValue = this.mapFromDriverValue
+    return res
   }
 
   forSelection(): Sql<Value> {

@@ -14,6 +14,7 @@ import {
   type HasCreate,
   type HasData,
   type HasDrop,
+  type HasRelation,
   type HasSelection,
   type HasSql,
   type HasTable,
@@ -23,6 +24,8 @@ import {
   getDrop,
   getTable,
   hasConstraint,
+  hasRelation,
+  internalBindRelation,
   internalCreate,
   internalDrop,
   internalSelection,
@@ -36,6 +39,20 @@ const {assign, fromEntries, entries, keys} = Object
 
 export type TableDefinition = {
   [name: string]: Column
+}
+export type TableDefinitionInput = {
+  [name: string]: Column | HasRelation
+}
+export type ColumnsOf<Definition extends TableDefinitionInput> = {
+  [K in keyof Definition as Definition[K] extends Column ? K : never]: Extract<
+    Definition[K],
+    Column
+  >
+}
+export type RelationsOf<Definition extends TableDefinitionInput> = {
+  [K in keyof Definition as Definition[K] extends HasRelation
+    ? K
+    : never]: Definition[K]
 }
 
 class TableData {
@@ -227,30 +244,72 @@ export interface TableConfig<Name extends string = string> extends Record<
   TableConfigSetting<Name>
 > {}
 
+function bindRelations(
+  relations: Record<string, HasRelation>,
+  self: object
+): Record<string, HasRelation> {
+  return fromEntries(
+    entries(relations).map(([key, relation]) => [
+      key,
+      relation[internalBindRelation]?.(self) ?? relation
+    ])
+  )
+}
+
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition,
   config?: (self: Table<Definition, Name>) => TableConfig<Name>,
   schemaName?: string
-): Table<Definition, Name> {
-  const api = assign(new TableApi<Definition, Name>(), {
+): Table<Definition, Name>
+export function table<
+  Definition extends TableDefinitionInput,
+  Name extends string
+>(
+  name: Name,
+  columns: Definition,
+  config?: (self: Table<ColumnsOf<Definition>, Name>) => TableConfig<Name>,
+  schemaName?: string
+): Table<ColumnsOf<Definition>, Name> & RelationsOf<Definition>
+export function table<
+  Definition extends TableDefinitionInput,
+  Name extends string
+>(
+  name: Name,
+  columns: Definition,
+  config?: (self: Table<ColumnsOf<Definition>, Name>) => TableConfig<Name>,
+  schemaName?: string
+): Table<ColumnsOf<Definition>, Name> & RelationsOf<Definition> {
+  const definition = columns as TableDefinitionInput
+  const actualColumns = fromEntries(
+    entries(definition).filter(
+      (entry): entry is [string, Column] => !hasRelation(entry[1])
+    )
+  ) as ColumnsOf<Definition>
+  const relations = fromEntries(
+    entries(definition).filter(([, value]) => hasRelation(value))
+  ) as RelationsOf<Definition>
+  const api = assign(new TableApi<ColumnsOf<Definition>, Name>(), {
     name,
     schemaName,
-    columns
+    columns: actualColumns
   })
   const fields = tableFields(api.aliased, api.columns)
-  const table = <Table<Definition, Name>>{
-    [internalTable]: api,
-    [internalTarget]: api.identifier(),
-    [internalSelection]: selection(fields),
-    get [internalCreate]() {
-      return api.create()
-    },
-    get [internalDrop]() {
-      return api.drop()
-    },
-    ...fields
-  }
+  const table = <Table<ColumnsOf<Definition>, Name> & RelationsOf<Definition>>(
+    (<unknown>{
+      [internalTable]: api,
+      [internalTarget]: api.identifier(),
+      [internalSelection]: selection(fields),
+      get [internalCreate]() {
+        return api.create()
+      },
+      get [internalDrop]() {
+        return api.drop()
+      },
+      ...fields
+    })
+  )
+  assign(table, bindRelations(relations as Record<string, HasRelation>, table))
   if (config) api.config = config(table)
   return table
 }
@@ -281,9 +340,18 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
 export function tableCreator(
   nameTable: (name: string) => string
 ): typeof table {
-  return (name, columns, config, schemaName) => {
+  return (name: any, columns: any, config: any, schemaName: any) => {
     const created = table(<any>nameTable(name), columns, config, schemaName)
-    return alias(created, name)
+    const aliased = alias(created, name)
+    const relations = fromEntries(
+      entries(columns).filter(
+        (entry): entry is [string, HasRelation] =>
+          !!entry[1] &&
+          (typeof entry[1] === 'object' || typeof entry[1] === 'function') &&
+          hasRelation(entry[1])
+      )
+    ) as Record<string, HasRelation>
+    return assign(aliased, bindRelations(relations, aliased))
   }
 }
 

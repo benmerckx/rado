@@ -47,17 +47,25 @@ const usersToGroups = table('users_to_groups', {
 
 const User = {
   ...users,
-  posts: many(posts),
-  invitee: one(users, {fields: [users.invitedBy], references: [users.id]}),
-  groups: many(groups, {through: usersToGroups})
+  posts: many(posts, {from: users.id, to: posts.authorId}),
+  groups: many(groups, {
+    from: users.id,
+    through: {
+      table: usersToGroups,
+      from: usersToGroups.userId,
+      to: usersToGroups.groupId
+    },
+    to: groups.id
+  }),
+  invitee: one(users, {from: users.invitedBy, to: users.id})
 }
 
 const Post = {
   ...posts,
-  author: one(users),
+  author: one(users, {from: posts.authorId, to: users.id}),
   comments: many(comments, {
-    fields: [comments.postId],
-    references: [posts.id]
+    from: posts.id,
+    to: comments.postId
   })
 }
 
@@ -74,7 +82,9 @@ function typeChecks(db: Awaited<ReturnType<typeof createDb>>) {
   db.find({from: {}})
   // @ts-expect-error ORM writes require a table or spread-table model
   db.save({}, {})
-  User.posts.select({title: Post.title}).count()
+  // @ts-expect-error load only accepts a direct relation function
+  db.load(User.posts.select({title: Post.title}), 1)
+  User.posts.count()
 }
 
 void typeChecks
@@ -117,7 +127,7 @@ suite(import.meta, test => {
     const found = await db.first({
       from: User,
       where: eq(User.id, saved.id),
-      select: {name: User.name, posts: User.posts}
+      select: {name: User.name, posts: User.posts()}
     })
     test.equal(found?.name, 'Ada')
     test.equal(found?.posts.length, 1)
@@ -218,6 +228,111 @@ suite(import.meta, test => {
     test.equal(found, {name: 'Ada', invitee: {name: 'Grace'}})
   })
 
+  test('self relation scopes can select from both sides', async () => {
+    const nodes = table('node', {
+      id: id(),
+      parentId: integer().references((): any => nodes.id),
+      name: text().notNull()
+    })
+    const Node = {
+      ...nodes,
+      parent: one(nodes, {from: nodes.parentId, to: nodes.id})
+    }
+    const db = await createDb()
+    await db.create(nodes)
+    const root = await db.save(Node, {name: 'Root'})
+    const child = await db.save(Node, {name: 'Child', parentId: root.id})
+    const found = await db.first({
+      from: Node,
+      where: eq(Node.id, child.id),
+      select: {
+        relation: Node.parent((from, to) =>
+          to.select({
+            parentId: to.id,
+            selfId: from.id,
+            parentName: to.name,
+            selfName: from.name
+          })
+        )
+      }
+    })
+    test.equal(found, {
+      relation: {
+        parentId: root.id,
+        selfId: child.id,
+        parentName: 'Root',
+        selfName: 'Child'
+      }
+    })
+  })
+
+  test('relation scopes use configured aliases', async () => {
+    const AliasedUser = {
+      ...users,
+      posts1: many(posts, {
+        from: users.id,
+        to: posts.authorId,
+        alias: 'posts1'
+      }),
+      posts2: many(posts, {from: users.id, to: posts.authorId, alias: 'posts2'})
+    }
+    const db = await createDb()
+    const ada = await db.save(User, {
+      name: 'Ada',
+      posts: [{title: 'B'}, {title: 'A'}]
+    })
+    const found = await db.first({
+      from: AliasedUser,
+      where: eq(AliasedUser.id, ada.id),
+      select: {
+        posts1: AliasedUser.posts1((_, to) =>
+          to.select({title: to.title}).orderBy(to.title)
+        ),
+        posts2: AliasedUser.posts2((_, to) =>
+          to.select({title: to.title}).orderBy(desc(to.title))
+        )
+      }
+    })
+    test.equal(found, {
+      posts1: [{title: 'A'}, {title: 'B'}],
+      posts2: [{title: 'B'}, {title: 'A'}]
+    })
+  })
+
+  test('relation aliases rebase select, orderBy, and raw sql', async () => {
+    const AliasedUser = {
+      ...users,
+      posts1: many(posts, {
+        from: users.id,
+        to: posts.authorId,
+        alias: 'posts1'
+      }),
+      posts2: many(posts, {from: users.id, to: posts.authorId, alias: 'posts2'})
+    }
+    const db = await createDb()
+    const ada = await db.save(User, {
+      name: 'Ada',
+      posts: [{title: 'B'}, {title: 'A'}]
+    })
+    const found = await db.first({
+      from: AliasedUser,
+      where: eq(AliasedUser.id, ada.id),
+      select: {
+        posts1: AliasedUser.posts1
+          .select({title: sql<string>`${posts.title}`})
+          .where(sql<boolean>`${posts.title} is not null`)
+          .orderBy(posts.title),
+        posts2: AliasedUser.posts2
+          .select({title: posts.title})
+          .orderBy(desc(sql`${posts.title}`))
+      }
+    })
+    test.equal(found, {
+      posts1: [{title: 'A'}, {title: 'B'}],
+      posts2: [{title: 'B'}, {title: 'A'}]
+    })
+  })
+
   test('find with relation filters', async () => {
     const db = await createDb()
     await db.save(User, {
@@ -255,6 +370,55 @@ suite(import.meta, test => {
     test.equal(total, 3)
   })
 
+  test('loads a relation by key', async () => {
+    const db = await createDb()
+    const ada = await db.save(User, {
+      name: 'Ada',
+      posts: [{title: 'Hello'}, {title: 'World'}]
+    })
+    const posts = await db.load(User.posts, ada.id)
+    test.equal(
+      posts.map(post => post.title),
+      ['Hello', 'World']
+    )
+  })
+
+  test('load rejects refined relations', async () => {
+    const db = await createDb()
+    let error: Error | undefined
+    try {
+      await db.load(User.posts.select({title: Post.title}) as any, 1)
+    } catch (caught) {
+      error = caught as Error
+    }
+    test.equal(error?.message, 'db.load() only accepts a direct relation')
+  })
+
+  test('many-to-many relations use explicit through config', async () => {
+    const db = await createDb()
+    const ada = await db.save(User, {
+      name: 'Ada',
+      groups: [{name: 'Admins'}, {name: 'Editors'}]
+    })
+    const found = await db.first({
+      from: User,
+      where: eq(User.id, ada.id),
+      select: {
+        name: User.name,
+        groups: User.groups.select({name: groups.name})
+      }
+    })
+    const loaded = await db.load(User.groups, ada.id)
+    test.equal(found, {
+      name: 'Ada',
+      groups: [{name: 'Admins'}, {name: 'Editors'}]
+    })
+    test.equal(
+      loaded.map(group => group.name),
+      ['Admins', 'Editors']
+    )
+  })
+
   test('save updates rows with a primary key', async () => {
     const db = await createDb()
     const ada = await db.save(User, {name: 'Ada'})
@@ -276,28 +440,6 @@ suite(import.meta, test => {
     }
     test.ok(error?.message.includes('primary key'))
     test.equal(await db.count({from: User}), 0)
-  })
-
-  test('many-to-many through a junction table', async () => {
-    const db = await createDb()
-    const admins = await db.save(groups, {name: 'admins'})
-    const ada = await db.save(User, {
-      name: 'Ada',
-      groups: [{id: admins.id}, {name: 'editors'}]
-    })
-    test.equal(ada.groups.length, 2)
-    const found = await db.first({
-      from: User,
-      where: eq(User.id, ada.id),
-      select: {name: User.name, groups: User.groups.select({name: groups.name})}
-    })
-    test.equal(found, {
-      name: 'Ada',
-      groups: [{name: 'admins'}, {name: 'editors'}]
-    })
-    await db.save(User, {id: ada.id, groups: [{id: admins.id}]})
-    const junctions = await db.count({from: usersToGroups})
-    test.equal(junctions, 2)
   })
 
   test('to-one relations set and reassign', async () => {
@@ -331,5 +473,66 @@ suite(import.meta, test => {
       'loginCount',
       'invitedBy'
     ])
+  })
+
+  test('relations can be declared inside a table definition', async () => {
+    const Profile = table('profile', {
+      id: id(),
+      userId: integer()
+        .notNull()
+        .references(() => users.id),
+      label: text().notNull(),
+      user: one(users, self => ({
+        from: self.userId,
+        to: users.id,
+        alias: 'profile_user'
+      }))
+    })
+    const db = await createDb()
+    await db.create(Profile)
+    const ada = await db.save(User, {name: 'Ada'})
+    await db.save(Profile, {userId: ada.id, label: 'main'})
+    const [profile] = await db.select().from(Profile)
+    const found = await db.first({
+      from: Profile,
+      select: {
+        label: Profile.label,
+        user: Profile.user.select({name: users.name})
+      }
+    })
+    test.equal(found, {label: 'main', user: {name: 'Ada'}})
+    const user = await db.load(Profile.user, profile.userId)
+    test.equal(user?.name, 'Ada')
+  })
+
+  test('inline relation callbacks are bound to table fields', async () => {
+    const InlineUser = table('user', {
+      id: id(),
+      name: text().notNull(),
+      posts: many(posts, self => ({
+        from: self.id,
+        to: posts.authorId,
+        alias: 'inline_post'
+      }))
+    })
+    const db = await createDb()
+    const ada = await db.save(User, {
+      name: 'Ada',
+      posts: [{title: 'Hello'}, {title: 'World'}]
+    })
+    const found = await db.first({
+      from: InlineUser,
+      where: eq(InlineUser.id, ada.id),
+      select: {
+        name: InlineUser.name,
+        postCount: InlineUser.posts.count(),
+        posts: InlineUser.posts.select({title: posts.title})
+      }
+    })
+    test.equal(found, {
+      name: 'Ada',
+      postCount: 2,
+      posts: [{title: 'Hello'}, {title: 'World'}]
+    })
   })
 })

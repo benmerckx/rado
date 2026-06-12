@@ -15,6 +15,7 @@ import {jsonAggregateArray, jsonArray} from './Json.ts'
 
 export type IncludeQuery = SelectQuery & {
   first: boolean
+  self?: {name: string; sourceName?: string; selfName?: string}
 }
 
 export class Include<
@@ -86,7 +87,14 @@ export function includeQuery(query: IncludeQuery): Sql {
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)
   )
-  return sql`(select ${
+  const result = sql`(select ${
     first ? subject : jsonAggregateArray(subject)
   } from (${inner}) as _)`
+  return query.self
+    ? result.nameSelf(
+        query.self.name,
+        query.self.sourceName,
+        query.self.selfName
+      )
+    : result
 }

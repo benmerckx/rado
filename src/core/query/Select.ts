@@ -660,6 +660,17 @@ function collectFromTargets(from: SelectQuery['from'], names: Set<string>) {
   if (hasTarget(from)) collect(from)
 }
 
+type SelfMapping = {name: string; sourceName?: string; selfName?: string}
+
+function mapSelfTarget(
+  targetName: string,
+  self: SelfMapping | undefined
+): string | undefined {
+  if (targetName === Sql.SELF_TARGET) return undefined
+  if (self?.sourceName && targetName === self.sourceName) return self.name
+  return targetName
+}
+
 function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   if (hasField(input)) {
     const source = getField(input).source
@@ -676,17 +687,21 @@ function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   )
 }
 
-export function querySelection({select, from}: SelectQuery): Selection {
+export function querySelection(query: SelectQuery): Selection {
+  const {select, from} = query
   if (select) {
     if (from) {
+      const self = (query as SelectQuery & {self?: SelfMapping}).self
       const selectedTargets = new Set<string>()
       const fromTargets = new Set<string>()
       collectReferencedTargets(select as SelectionInput, selectedTargets)
       collectFromTargets(from, fromTargets)
       if (fromTargets.size > 0) {
-        for (const targetName of selectedTargets)
-          if (!fromTargets.has(targetName))
+        for (const targetName of selectedTargets) {
+          const mapped = mapSelfTarget(targetName, self)
+          if (mapped && !fromTargets.has(mapped))
             throw new Error(`Unknown target in select: ${targetName}`)
+        }
       }
     }
     if (hasSql(select) && hasSelection(select)) {
