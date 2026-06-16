@@ -208,7 +208,7 @@ export class Selection implements HasSql {
       return [expr]
     }
     return Object.entries(input).flatMap(([name, value]) =>
-      this.#selectionToSql(value, names, name)
+      isRelationValue(value) ? [] : this.#selectionToSql(value, names, name)
     )
   }
 
@@ -222,8 +222,10 @@ export class Selection implements HasSql {
       if (hasField(input)) names.add(getField(input).targetName)
       return
     }
-    for (const value of Object.values(input))
+    for (const value of Object.values(input)) {
+      if (isRelationValue(value)) continue
       this.#collectTargetNames(value, names)
+    }
   }
 
   #targetNames(): Set<string> {
