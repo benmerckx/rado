@@ -56,6 +56,7 @@ type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
   | ((self: Input & HasTarget) => UnionBase<Input, Meta>)
 type UnionSegmentQuery = SelectQuery | UnionQuery
+type SelectResult<Input> = SelectionRow<StripFieldMeta<Input>>
 
 function isUnionQuery(query: UnionSegmentQuery): query is UnionQuery {
   return Array.isArray((query as UnionQuery).select)
@@ -75,8 +76,8 @@ function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
 }
 
 export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<SelectionRow<Input>, Meta>
-  implements HasQuery<SelectionRow<Input>>
+  extends SingleQuery<SelectResult<Input>, Meta>
+  implements HasQuery<SelectResult<Input>>
 {
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
@@ -90,15 +91,15 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(getData(this))
   }
 
-  get [internalQuery](): Sql<SelectionRow<Input>> {
-    return selectQuery(getData(this)) as Sql<SelectionRow<Input>>
+  get [internalQuery](): Sql<SelectResult<Input>> {
+    return selectQuery(getData(this)) as Sql<SelectResult<Input>>
   }
 
-  get [internalSql](): Sql<SelectionRow<Input>> {
+  get [internalSql](): Sql<SelectResult<Input>> {
     return mapScalarSelection(
       sql`(${getQuery(this)})`,
       getSelection(this).input
-    ) as Sql<SelectionRow<Input>>
+    ) as Sql<SelectResult<Input>>
   }
 }
 
@@ -134,7 +135,7 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     return selected.makeVirtual<Input>(Sql.SELF_TARGET)
   }
 
-  #getSelect(base: UnionBase<any>): CompoundSelect {
+  #getSelect<OtherInput>(base: UnionBase<OtherInput, Meta>): CompoundSelect {
     const data = getData(base)
     if (!('compound' in data)) throw new Error('No compound defined')
     return data.compound as CompoundSelect
@@ -257,12 +258,9 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
 
 const forKeywords = ['update', 'no key update', 'share', 'key share'] as const
 
-export class Select<Input, Meta extends QueryMeta = QueryMeta>
+export class SelectBase<Input, Meta extends QueryMeta = QueryMeta>
   extends UnionBase<StripFieldMeta<Input>, Meta>
-  implements
-    HasSelection,
-    SelectBase<Input, Meta>,
-    HasQuery<Array<SelectionRow<Input>>>
+  implements HasSelection, HasQuery<Array<SelectResult<Input>>>
 {
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
@@ -273,10 +271,6 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     this[internalData] = withCompound
   }
 
-  from(from: HasTarget | Sql): Select<Input, Meta> {
-    return new Select({...getData(this), from})
-  }
-
   for(
     keyword: (typeof forKeywords)[number],
     config: {
@@ -284,10 +278,10 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
       noWait?: boolean
       skipLocked?: boolean
     } = {}
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     if (!forKeywords.includes(keyword))
       throw new Error(`Invalid FOR keyword: ${keyword}`)
-    return new Select({
+    return new SelectBase({
       ...getData(this),
       for: sql.query(sql.unsafe(keyword), {
         of: config.of && sql.join([config.of].flat().map(getTarget), sql`, `),
@@ -304,87 +298,128 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return [from]
   }
 
-  #join(join: Join<HasTarget | Sql>): Select<Input, Meta> {
-    return new Select({...getData(this), from: [...this.#fromTarget(), join]})
+  #join(join: Join<HasTarget | Sql>): SelectBase<Input, Meta> {
+    return new SelectBase({
+      ...getData(this),
+      from: [...this.#fromTarget(), join]
+    })
   }
 
+  leftJoin(leftJoin: Sql, on: HasSql<boolean>): SelectBase<Input, Meta>
+  leftJoin(leftJoin: HasTarget, on: HasSql<boolean>): SelectBase<Input, Meta>
   leftJoin(
     leftJoin: HasTarget | Sql,
     on: HasSql<boolean>
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     return this.#join({leftJoin, on})
   }
 
   leftJoinLateral(
+    leftJoinLateral: Sql,
+    on: HasSql<boolean>
+  ): SelectBase<Input, Meta>
+  leftJoinLateral(
+    leftJoinLateral: HasTarget,
+    on: HasSql<boolean>
+  ): SelectBase<Input, Meta>
+  leftJoinLateral(
     leftJoinLateral: HasTarget | Sql,
     on: HasSql<boolean>
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     return this.#join({leftJoinLateral, on})
   }
 
+  rightJoin(rightJoin: Sql, on: HasSql<boolean>): SelectBase<Input, Meta>
+  rightJoin(
+    rightJoin: HasTarget,
+    on: HasSql<boolean>
+  ): SelectBase<Input, Meta>
   rightJoin(
     rightJoin: HasTarget | Sql,
     on: HasSql<boolean>
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     return this.#join({rightJoin, on})
   }
 
+  innerJoin(innerJoin: Sql, on: HasSql<boolean>): SelectBase<Input, Meta>
+  innerJoin(
+    innerJoin: HasTarget,
+    on: HasSql<boolean>
+  ): SelectBase<Input, Meta>
   innerJoin(
     innerJoin: HasTarget | Sql,
     on: HasSql<boolean>
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     return this.#join({innerJoin, on})
   }
 
   innerJoinLateral(
+    innerJoinLateral: Sql,
+    on: HasSql<boolean>
+  ): SelectBase<Input, Meta>
+  innerJoinLateral(
+    innerJoinLateral: HasTarget,
+    on: HasSql<boolean>
+  ): SelectBase<Input, Meta>
+  innerJoinLateral(
     innerJoinLateral: HasTarget | Sql,
     on: HasSql<boolean>
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     return this.#join({innerJoinLateral, on})
   }
 
+  fullJoin(fullJoin: Sql, on: HasSql<boolean>): SelectBase<Input, Meta>
+  fullJoin(fullJoin: HasTarget, on: HasSql<boolean>): SelectBase<Input, Meta>
   fullJoin(
     fullJoin: HasTarget | Sql,
     on: HasSql<boolean>
-  ): Select<Input, Meta> {
+  ): SelectBase<Input, Meta> {
     return this.#join({fullJoin, on})
   }
 
-  crossJoin(crossJoin: HasTarget | Sql): Select<Input, Meta> {
+  crossJoin(crossJoin: Sql): SelectBase<Input, Meta>
+  crossJoin(crossJoin: HasTarget): SelectBase<Input, Meta>
+  crossJoin(
+    crossJoin: HasTarget | Sql
+  ): SelectBase<Input, Meta> {
     return this.#join({crossJoin})
   }
 
-  crossJoinLateral(crossJoinLateral: HasTarget | Sql): Select<Input, Meta> {
+  crossJoinLateral(crossJoinLateral: Sql): SelectBase<Input, Meta>
+  crossJoinLateral(crossJoinLateral: HasTarget): SelectBase<Input, Meta>
+  crossJoinLateral(
+    crossJoinLateral: HasTarget | Sql
+  ): SelectBase<Input, Meta> {
     return this.#join({crossJoinLateral})
   }
 
-  where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta> {
-    return new Select({...getData(this), where: and(...where)})
+  where(...where: Array<HasSql<boolean> | undefined>): SelectBase<Input, Meta> {
+    return new SelectBase({...getData(this), where: and(...where)})
   }
 
-  groupBy(...groupBy: Array<HasSql>): Select<Input, Meta> {
-    return new Select({...getData(this), groupBy})
+  groupBy(...groupBy: Array<HasSql>): SelectBase<Input, Meta> {
+    return new SelectBase({...getData(this), groupBy})
   }
 
   having(
     having: HasSql<boolean> | ((self: Input) => HasSql<boolean>)
-  ): Select<Input, Meta> {
-    return new Select({
+  ): SelectBase<Input, Meta> {
+    return new SelectBase({
       ...getData(this),
       having: having as unknown as SelectQuery['having']
     })
   }
 
-  orderBy(...orderBy: Array<HasSql>): Select<Input, Meta> {
-    return new Select({...getData(this), orderBy})
+  orderBy(...orderBy: Array<HasSql>): SelectBase<Input, Meta> {
+    return new SelectBase({...getData(this), orderBy})
   }
 
-  limit(limit: UserInput<number>): Select<Input, Meta> {
-    return new Select({...getData(this), limit})
+  limit(limit: UserInput<number>): SelectBase<Input, Meta> {
+    return new SelectBase({...getData(this), limit})
   }
 
-  offset(offset: UserInput<number>): Select<Input, Meta> {
-    return new Select({...getData(this), offset})
+  offset(offset: UserInput<number>): SelectBase<Input, Meta> {
+    return new SelectBase({...getData(this), offset})
   }
 
   $dynamic(): this {
@@ -399,12 +434,30 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(getData(this))
   }
 
-  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return selectQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+  get [internalQuery](): Sql<Array<SelectResult<Input>>> {
+    return selectQuery(getData(this)) as Sql<Array<SelectResult<Input>>>
   }
 
-  get [internalSql](): Sql<SelectionRow<Input>> {
+  get [internalSql](): Sql<SelectResult<Input>> {
     return sql`(${getQuery(this)})`
+  }
+}
+
+export class Select<Input, Meta extends QueryMeta = QueryMeta>
+  extends SelectBase<Input, Meta>
+  implements HasSelection, HasQuery<Array<SelectResult<Input>>>
+{
+  readonly [internalData]: QueryData<Meta> & SelectQuery
+
+  constructor(data: QueryData<Meta> & SelectQuery) {
+    const compound: CompoundSelect = [data]
+    const withCompound = {...data, compound}
+    super(withCompound)
+    this[internalData] = withCompound
+  }
+
+  from(from: HasTarget | Sql): Select<Input, Meta> {
+    return new Select({...getData(this), from})
   }
 }
 
@@ -424,25 +477,6 @@ type RetypeSubQueryInput<Input, TableName extends string> =
         }>
       : Input
 
-export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends UnionBase<StripFieldMeta<Input>, Meta>, HasSql<SelectionRow<Input>> {
-  for(
-    keyword: (typeof forKeywords)[number],
-    config?: {
-      of?: HasTarget | Array<HasTarget>
-      noWait?: boolean
-      skipLocked?: boolean
-    }
-  ): Select<Input, Meta>
-  where(...where: Array<HasSql<boolean> | undefined>): Select<Input, Meta>
-  groupBy(...exprs: Array<HasSql>): Select<Input, Meta>
-  having(having: HasSql<boolean>): Select<Input, Meta>
-  orderBy(...exprs: Array<HasSql>): Select<Input, Meta>
-  limit(limit: UserInput<number>): Select<Input, Meta>
-  offset(offset: UserInput<number>): Select<Input, Meta>
-  $dynamic(): this
-}
-
 export interface WithoutSelection<Meta extends QueryMeta> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
@@ -456,7 +490,7 @@ export interface WithoutSelection<Meta extends QueryMeta> {
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
-  extends SelectBase<Input, Meta>, HasSql<SelectionRow<Input>> {
+  extends SelectBase<Input, Meta>, HasSql<SelectResult<Input>> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
@@ -470,6 +504,7 @@ export interface AllFrom<
   Meta extends QueryMeta,
   Tables = Input
 > extends SelectBase<Input, Meta> {
+  leftJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -481,6 +516,11 @@ export interface AllFrom<
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & MakeNullable<Record<Name, Input>>>, Meta>
+  leftJoin(right: HasTarget, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
+  leftJoinLateral(
+    right: Sql,
+    on: HasSql<boolean>
+  ): AllFrom<Input, Meta, Tables>
   leftJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -492,6 +532,11 @@ export interface AllFrom<
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & MakeNullable<Record<Name, Input>>>, Meta>
+  leftJoinLateral(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): AllFrom<Input, Meta, Tables>
+  rightJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -503,6 +548,8 @@ export interface AllFrom<
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<MakeNullable<Tables> & Record<Name, Input>>, Meta>
+  rightJoin(right: HasTarget, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
+  innerJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -511,6 +558,11 @@ export interface AllFrom<
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  innerJoin(right: HasTarget, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
+  innerJoinLateral(
+    right: Sql,
+    on: HasSql<boolean>
+  ): AllFrom<Input, Meta, Tables>
   innerJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -519,18 +571,27 @@ export interface AllFrom<
     right: SubQuery<Input, Name>,
     on: HasSql<boolean>
   ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  innerJoinLateral(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): AllFrom<Input, Meta, Tables>
+  crossJoin(right: Sql): AllFrom<Input, Meta, Tables>
   crossJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   crossJoin<Input, Name extends string>(
     right: SubQuery<Input, Name>
   ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  crossJoin(right: HasTarget): AllFrom<Input, Meta, Tables>
+  crossJoinLateral(right: Sql): AllFrom<Input, Meta, Tables>
   crossJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   crossJoinLateral<Input, Name extends string>(
     right: SubQuery<Input, Name>
   ): AllFrom<Expand<Tables & Record<Name, Input>>, Meta>
+  crossJoinLateral(right: HasTarget): AllFrom<Input, Meta, Tables>
+  fullJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -547,6 +608,7 @@ export interface AllFrom<
     Expand<MakeNullable<Tables> & MakeNullable<Record<Name, Input>>>,
     Meta
   >
+  fullJoin(right: HasTarget, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
 }
 
 type MarkFieldsAsNullable<Input, TableName extends string> = Expand<{
@@ -568,6 +630,7 @@ export interface SelectionFrom<
   Input,
   Meta extends QueryMeta
 > extends SelectBase<Input, Meta> {
+  leftJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -577,6 +640,10 @@ export interface SelectionFrom<
     on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
   leftJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  leftJoinLateral(
+    right: Sql,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
   leftJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -585,16 +652,26 @@ export interface SelectionFrom<
     right: HasTarget<Name>,
     on: HasSql<boolean>
   ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  leftJoinLateral(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
+  rightJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   rightJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  innerJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  innerJoinLateral(
+    right: Sql,
+    on: HasSql<boolean>
+  ): SelectionFrom<Input, Meta>
   innerJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
@@ -603,14 +680,17 @@ export interface SelectionFrom<
     right: HasTarget,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
+  crossJoin(right: Sql): SelectionFrom<Input, Meta>
   crossJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
   crossJoin(right: HasTarget): SelectionFrom<Input, Meta>
+  crossJoinLateral(right: Sql): SelectionFrom<Input, Meta>
   crossJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
   ): SelectionFrom<Input, Meta>
   crossJoinLateral(right: HasTarget): SelectionFrom<Input, Meta>
+  fullJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>

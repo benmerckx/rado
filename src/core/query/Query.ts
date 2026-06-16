@@ -151,7 +151,7 @@ export type FromRow<Target> = Target extends [
   ? Joins['length'] extends 0
     ? TableFields<Definition>
     : Expand<FoldJoins<Joins, Record<Name, TableFields<Definition>>>>
-  : SelectionRow<Target>
+  : Target
 
 export type Union<Returning = SelectionInput> =
   | {union: SelectQuery<Returning> | UnionQuery<Returning>}

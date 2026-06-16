@@ -1,10 +1,7 @@
 import {
-  type ColumnsOf,
-  type RelationsOf,
   type Table,
   type TableConfig,
   type TableDefinition,
-  type TableDefinitionInput,
   table
 } from './Table.ts'
 
@@ -18,18 +15,13 @@ export interface Schema<SchemaName extends string> {
     columns: Definition,
     config?: (self: Table<Definition>) => TableConfig<TableName>
   ): Table<Definition, TableName>
-  table<Definition extends TableDefinitionInput, TableName extends string>(
-    tableName: TableName,
-    columns: Definition,
-    config?: (self: Table<ColumnsOf<Definition>>) => TableConfig<TableName>
-  ): Table<ColumnsOf<Definition>, TableName> & RelationsOf<Definition>
 }
 
 export function schema<SchemaName extends string>(
   schemaName: SchemaName
 ): Schema<SchemaName> {
   return <Schema<SchemaName>>{
-    table(tableName: any, columns: any, config: any) {
+    table(tableName, columns, config) {
       return table(tableName, columns, config, schemaName)
     }
   }

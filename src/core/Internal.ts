@@ -15,8 +15,6 @@ export const internalTable: unique symbol = Symbol()
 export const internalField: unique symbol = Symbol()
 export const internalResolver: unique symbol = Symbol()
 export const internalConstraint: unique symbol = Symbol()
-export const internalRelation: unique symbol = Symbol()
-export const internalBindRelation: unique symbol = Symbol()
 export const internalInclude: unique symbol = Symbol()
 export const internalEnum: unique symbol = Symbol()
 export const internalCreate: unique symbol = Symbol()
@@ -32,7 +30,7 @@ export declare class HasSelection {
   get [internalSelection](): Selection
 }
 export declare class HasTarget<Name extends string = string> {
-  get [internalTarget](): Sql
+  readonly [internalTarget]: Sql
 }
 export declare class HasQuery<Result = unknown> {
   get [internalQuery](): Sql<Result>
@@ -54,10 +52,6 @@ export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
 }
 export declare class HasConstraint {
   get [internalConstraint](): Sql
-}
-export declare class HasRelation {
-  get [internalRelation](): true
-  [internalBindRelation]?(self: object): HasRelation
 }
 export declare class HasEnum<EnumData> {
   get [internalEnum](): EnumData
@@ -96,8 +90,6 @@ export const getResolver = <Meta extends QueryMeta>(obj: HasResolver<Meta>) =>
 export const hasConstraint = (obj: object): obj is HasConstraint =>
   internalConstraint in obj
 export const getConstraint = (obj: HasConstraint) => obj[internalConstraint]
-export const hasRelation = (obj: object): obj is HasRelation =>
-  internalRelation in obj
 export const hasEnum = <EnumData>(obj: object): obj is HasEnum<EnumData> =>
   internalEnum in obj
 export const getEnum = <EnumData>(obj: HasEnum<EnumData>) => obj[internalEnum]

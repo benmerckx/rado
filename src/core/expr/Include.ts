@@ -3,12 +3,7 @@ import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
 import type {SelectQuery} from '../query/Query.ts'
-import {
-  type Select,
-  type SelectBase,
-  querySelection,
-  selectQuery
-} from '../query/Select.ts'
+import {type SelectBase, querySelection, selectQuery} from '../query/Select.ts'
 import type {MapRowContext, RowOfRecord} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {jsonAggregateArray, jsonArray} from './Json.ts'
@@ -62,7 +57,7 @@ export class Include<
 }
 
 export function include<Input, Meta extends QueryMeta>(
-  select: Select<Input, Meta>
+  select: SelectBase<Input, Meta>
 ): Include<Array<RowOfRecord<Input>>, Meta> {
   return new Include({...getData(select), first: false})
 }

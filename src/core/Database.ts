@@ -1,4 +1,3 @@
-import {ORM} from '../orm.ts'
 import {txGenerator} from '../universal.ts'
 import type {Dialect} from './Dialect.ts'
 import type {Diff} from './Diff.ts'
@@ -25,6 +24,7 @@ import type {
   QueryMeta,
   Sync
 } from './MetaData.ts'
+import {ORM} from './ORM.ts'
 import {BatchQuery} from './Queries.ts'
 import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'

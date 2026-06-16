@@ -4,13 +4,11 @@ import {
   type HasSql,
   type HasTable,
   type HasTarget,
-  type HasRelation,
   getField,
   getSelection,
   getSql,
   getTable,
   hasField,
-  hasRelation,
   hasSelection,
   hasTable,
   internalSql
@@ -29,16 +27,12 @@ export type SelectionInput =
   | HasSql
   | HasTable
   | HasTarget
-  | HasRelation
   | SelectionRecord
   | Include<unknown>
 export type RowOfRecord<Input> = Expand<{
-  [Key in keyof Input as Input[Key] extends HasRelation &
-    ((...args: Array<any>) => any)
-    ? never
-    : Key extends string
-      ? Key
-      : never]: SelectionRow<Input[Key]>
+  [Key in keyof Input as Key extends string ? Key : never]: SelectionRow<
+    Input[Key]
+  >
 }>
 export type SelectionRow<Input> =
   Input extends HasSql<infer Value>
@@ -59,9 +53,6 @@ export interface MapRowContext {
 interface Column {
   targetName?: string
   result(ctx: MapRowContext): unknown
-}
-function isRelationValue(value: unknown): value is HasRelation {
-  return !!value && typeof value === 'function' && hasRelation(value)
 }
 class SqlColumn implements Column {
   constructor(
@@ -134,9 +125,10 @@ export class Selection implements HasSql {
     if (expr) return new SqlColumn(expr, getField(<any>input)?.targetName)
     return new ObjectColumn(
       nullable,
-      Object.entries(input)
-        .filter(([, value]) => !isRelationValue(value))
-        .map(([name, value]) => [name, this.#defineColumn(nullable, value)])
+      Object.entries(input).map(([name, value]) => [
+        name,
+        this.#defineColumn(nullable, value)
+      ])
     )
   }
 
@@ -164,7 +156,6 @@ export class Selection implements HasSql {
       return
     }
     for (const [name, value] of Object.entries(input)) {
-      if (isRelationValue(value)) continue
       const alias = this.#aliasOf(value, names, target, name)
       if (alias) return alias
     }
@@ -183,7 +174,7 @@ export class Selection implements HasSql {
       return [exprName]
     }
     return Object.entries(input).flatMap(([name, value]) =>
-      isRelationValue(value) ? [] : this.#fieldNames(value, names, name)
+      this.#fieldNames(value, names, name)
     )
   }
 
@@ -208,7 +199,7 @@ export class Selection implements HasSql {
       return [expr]
     }
     return Object.entries(input).flatMap(([name, value]) =>
-      isRelationValue(value) ? [] : this.#selectionToSql(value, names, name)
+      this.#selectionToSql(value, names, name)
     )
   }
 
@@ -222,10 +213,8 @@ export class Selection implements HasSql {
       if (hasField(input)) names.add(getField(input).targetName)
       return
     }
-    for (const value of Object.values(input)) {
-      if (isRelationValue(value)) continue
+    for (const value of Object.values(input))
       this.#collectTargetNames(value, names)
-    }
   }
 
   #targetNames(): Set<string> {
