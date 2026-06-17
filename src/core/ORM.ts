@@ -9,32 +9,43 @@ import {
   FromQuery,
   FromRow,
   Query,
+  SelectionBase,
   SelectionQuery
 } from './query/Query.ts'
 import {Select, SelectBase, SelectFirst, WithSelection} from './query/Select.ts'
 import {SelectionInput, SelectionRow} from './Selection.ts'
-import {Table, TableDefinition, TableRow} from './Table.ts'
+import {Table, TableDefinition, TableFields, TableRow} from './Table.ts'
 
 export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
   abstract transaction<T>(run: (tx: ORM<Meta>) => T): T
 
-  find<const Returning extends SelectionInput>(
+  find<Returning extends SelectionInput>(
+    table: HasTable,
     query: SelectionQuery<Returning>
   ): SingleQuery<Returning, Meta>
-  find<const From extends FromGuard>(
-    from: FromQuery<From>
-  ): SingleQuery<FromRow<From>, Meta>
-  find(query: Query): SingleQuery<unknown, Meta> {
+  find<Definition extends TableDefinition>(
+    table: Table<Definition>,
+    query: SelectionBase<TableFields<Definition>>
+  ): SingleQuery<TableFields<Definition>, Meta>
+  find<Input>(
+    table: Table,
+    query: SelectionBase<Input>
+  ): SingleQuery<Input, Meta> {
     throw 'todo'
   }
 
   first<Returning extends SelectionInput>(
+    table: HasTable,
     query: SelectionQuery<Returning>
   ): SelectFirst<Returning, Meta>
-  first<const From extends FromGuard>(
-    from: FromQuery<From>
-  ): SelectFirst<FromRow<From>, Meta>
-  first(query: Query): SelectFirst<unknown, Meta> {
+  first<Definition extends TableDefinition>(
+    table: Table<Definition>,
+    query: SelectionBase<TableFields<Definition>>
+  ): SelectFirst<TableFields<Definition>, Meta>
+  first<Input>(
+    table: Table,
+    query: SelectionBase<Input>
+  ): SelectFirst<Input, Meta> {
     throw 'todo'
   }
 
@@ -59,21 +70,48 @@ export function one<Definition extends TableDefinition>(
   target: Table<Definition>,
   options: RelationOptions
 ) {
-  return new Relation<Definition, QueryMeta>(target, options)
+  return new OneRelation(target, options)
 }
 
 export function many<Definition extends TableDefinition>(
   target: Table<Definition>,
   options: RelationOptions
 ) {
-  return new Relation<Definition, QueryMeta>(target, options)
+  return new ManyRelation(target, options)
 }
 
-class Relation<Input, Meta extends QueryMeta> extends SelectBase<Input, Meta> {
+// oxlint-disable-next-line typescript/no-unsafe-declaration-merging
+interface ManyRelation<To, Meta extends QueryMeta> {
+  (): SelectBase<To, Meta>
+}
+
+class ManyRelation<To, Meta extends QueryMeta> extends SelectBase<To, Meta> {
   constructor(target: HasTable, options: RelationOptions) {
-    super({
-      select: target
+    super({select: target})
+    return Object.assign((): SelectBase<To, Meta> => {
+      return new SelectBase(getData(this))
+    }, this)
+  }
+
+  select<Input extends SelectionInput>(select: Input): Select<Input, Meta> {
+    return new Select<Input, Meta>({
+      ...getData(this),
+      select
     })
+  }
+}
+
+// oxlint-disable-next-line typescript/no-unsafe-declaration-merging
+interface OneRelation<To, Meta extends QueryMeta> {
+  (): SelectFirst<To, Meta>
+}
+
+class OneRelation<To, Meta extends QueryMeta> extends SelectBase<To, Meta> {
+  constructor(target: HasTable, options: RelationOptions) {
+    super({select: target})
+    return Object.assign((): SelectFirst<To, Meta> => {
+      return new SelectFirst(getData(this))
+    }, this)
   }
 
   select<Input extends SelectionInput>(select: Input): Select<Input, Meta> {

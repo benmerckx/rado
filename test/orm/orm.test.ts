@@ -106,13 +106,11 @@ suite(import.meta, test => {
   test('first finds a row by primary key', async () => {
     const db = await createDb()
     const saved = await db.save(User, {name: 'Ada'})
-    const found = await db.first({
-      from: User,
+    const found = await db.first(User, {
       where: eq(User.id, saved.id)
     })
     test.equal(found?.name, 'Ada')
-    const missing = await db.first({
-      from: User,
+    const missing = await db.first(User, {
       where: eq(User.id, 999)
     })
     test.equal(missing, null)
@@ -124,16 +122,15 @@ suite(import.meta, test => {
       name: 'Ada',
       posts: [{title: 'Hello'}]
     })
-    const found = await db.first({
-      from: User,
+    const found = await db.first(User, {
       where: eq(User.id, saved.id),
       select: {name: User.name, posts: User.posts()}
     })
     test.equal(found?.name, 'Ada')
     test.equal(found?.posts.length, 1)
-    const many = await db.find({from: User, where: eq(User.name, 'Ada')})
+    const many = await db.find(User, {where: eq(User.name, 'Ada')})
     test.equal(many.length, 1)
-    const first = await db.first({from: User, where: eq(User.name, 'Ada')})
+    const first = await db.first(User, {where: eq(User.name, 'Ada')})
     test.equal(first?.id, saved.id)
     test.equal(await db.count({from: User}), 1)
     await db.destroy(User, saved.id)
@@ -171,8 +168,7 @@ suite(import.meta, test => {
       authorId: ada.id,
       comments: [{body: 'Nice', authorId: ada.id}]
     })
-    const found = await db.first({
-      from: Post,
+    const found = await db.first(Post, {
       where: eq(Post.id, post.id),
       select: {
         title: Post.title,
@@ -199,8 +195,7 @@ suite(import.meta, test => {
       authorId: ada.id,
       comments: [{body: 'Nice', authorId: ada.id}]
     })
-    const found = await db.first({
-      from: User,
+    const found = await db.first(User, {
       where: eq(User.id, ada.id),
       select: {
         posts: User.posts

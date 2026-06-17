@@ -95,7 +95,7 @@ export type FromGuard<Target = HasTarget | Sql> =
   | Target
   | [Target, ...Array<Join<Target>>]
 
-interface SelectionBase<
+export interface SelectionBase<
   Returning = SelectionInput
 > extends SelectBase<Returning> {
   select: Returning
