@@ -21,32 +21,40 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
 
   find<Returning extends SelectionInput>(
     table: HasTable,
-    query: SelectionQuery<Returning>
+    query?: SelectionQuery<Returning>
   ): SingleQuery<Returning, Meta>
   find<Definition extends TableDefinition>(
     table: Table<Definition>,
-    query: SelectionBase<TableFields<Definition>>
+    query?: SelectionBase<TableFields<Definition>>
   ): SingleQuery<TableFields<Definition>, Meta>
   find<Input>(
     table: Table,
-    query: SelectionBase<Input>
+    query?: SelectionBase<Input>
   ): SingleQuery<Input, Meta> {
-    throw 'todo'
+    return new SelectBase({
+      ...getData(this),
+      select: table,
+      ...query
+    })
   }
 
   first<Returning extends SelectionInput>(
     table: HasTable,
-    query: SelectionQuery<Returning>
+    query?: SelectionQuery<Returning>
   ): SelectFirst<Returning, Meta>
   first<Definition extends TableDefinition>(
     table: Table<Definition>,
-    query: SelectionBase<TableFields<Definition>>
+    query?: SelectionBase<TableFields<Definition>>
   ): SelectFirst<TableFields<Definition>, Meta>
-  first<Input>(
-    table: Table,
-    query: SelectionBase<Input>
+  first<Input extends SelectionInput>(
+    table: Input,
+    query?: SelectionBase<Input>
   ): SelectFirst<Input, Meta> {
-    throw 'todo'
+    return new SelectFirst({
+      ...getData(this),
+      select: table,
+      ...query
+    })
   }
 
   count(query: Omit<SelectionQuery, 'select'>): Deliver<Meta, number> {
