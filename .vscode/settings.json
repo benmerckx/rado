@@ -9,9 +9,6 @@
   "oxc.enable.oxlint": true,
   "oxc.fmt.configPath": ".oxfmtrc.json",
   "oxc.configPath": ".oxlintrc.json",
-  "typescript.tsdk": "./node_modules/typescript/lib",
-  "typescript.preferences.importModuleSpecifier": "relative",
-  "typescript.suggest.completeJSDocs": false,
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
@@ -20,5 +17,6 @@
   },
   "[json]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
-  }
+  },
+  "js/ts.experimental.useTsgo": true
 }

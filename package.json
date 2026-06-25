@@ -69,6 +69,6 @@
     "speedscope": "^1.25.0",
     "sql.js": "^1.14.1",
     "sqlite3": "^6.0.1",
-    "typescript": "typescript@rc"
+    "typescript": "^7.0.1-rc"
   }
 }
