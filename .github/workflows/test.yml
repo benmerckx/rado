@@ -80,7 +80,7 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: bun install --frozen-lockfile
-      - run: npm publish
+      - run: npm publish --tag preview
   publishJSR:
     runs-on: ubuntu-latest
     needs: ci
