@@ -80,7 +80,14 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: bun install --frozen-lockfile
-      - run: npm publish --tag preview
+      - run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ "$version" == *-* ]]; then
+            tag="${version#*-}"
+            npm publish --tag "${tag%%.*}"
+          else
+            npm publish
+          fi
   publishJSR:
     runs-on: ubuntu-latest
     needs: ci
