@@ -1,5 +1,5 @@
 import {suite} from '@alinea/suite'
-import * as mysql from '@/mysql/columns.ts'
+import * as mysql from '#/mysql/columns.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
 
 const test = suite(import.meta)

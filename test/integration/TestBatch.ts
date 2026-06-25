@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, eq} from '@/index.ts'
+import {type Database, eq} from '#/index.ts'
 import {Node} from './schema.ts'
 
 export function testBatch(db: Database, test: DefineTest) {

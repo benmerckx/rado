@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {eq, sql, type Database} from '@/index.ts'
+import {eq, sql, type Database} from '#/index.ts'
 import {Node} from './schema.ts'
 
 export function testPreparedQuery(db: Database, test: DefineTest) {

@@ -3,7 +3,7 @@
 import {Database as BunDb} from 'bun:sqlite'
 import {expect} from 'bun:test'
 import {suite} from '@alinea/suite'
-import {'bun:sqlite' as connect} from '@/driver.ts'
+import {'bun:sqlite' as connect} from '#/driver.ts'
 import {
   type Column,
   type Database,
@@ -27,7 +27,7 @@ import {
   sql,
   sum,
   sumDistinct
-} from '@/index.ts'
+} from '#/index.ts'
 import {
   alias,
   blob,
@@ -42,7 +42,7 @@ import {
   text,
   union,
   unionAll
-} from '@/sqlite.ts'
+} from '#/sqlite.ts'
 
 export const usersTable = sqliteTable('users', {
   id: integer('id').primaryKey(),

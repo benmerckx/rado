@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {sql, table} from '@/index.ts'
-import {QueryBuilder} from '@/postgres/builder.ts'
-import {integer, json} from '@/sqlite/columns.ts'
+import {sql, table} from '#/index.ts'
+import {QueryBuilder} from '#/postgres/builder.ts'
+import {integer, json} from '#/sqlite/columns.ts'
 import {Functions} from '../../src/core/expr/Functions.ts'
 import {builder, emit} from '../TestUtils.ts'
 

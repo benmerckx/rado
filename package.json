@@ -18,6 +18,9 @@
       ]
     }
   },
+  "imports": {
+    "#/*": "./src/*"
+  },
   "exports": {
     "./package.json": "./package.json",
     ".": "./dist/index.js",
@@ -34,7 +37,7 @@
     "lint": "oxlint .",
     "check": "bun run format:check && bun run lint",
     "test:bun": "bun test",
-    "test:node": "node --test-force-exit --test-concurrency=1 --import tsx --test \"**/*.test.ts\"",
+    "test:node": "node --disable-warning=ExperimentalWarning --test-force-exit --test-concurrency=1 --test-reporter=spec --experimental-transform-types --test \"**/*.test.ts\"",
     "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi",
     "docs:build": "bun docs/build.ts",
     "docs:dev": "bun docs/build.ts --serve"
@@ -66,7 +69,6 @@
     "speedscope": "^1.25.0",
     "sql.js": "^1.14.1",
     "sqlite3": "^6.0.1",
-    "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "7.0.1-rc"
   }
 }

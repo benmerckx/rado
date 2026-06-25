@@ -1,6 +1,6 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, index, table, unique} from '@/index.ts'
-import {id, integer, varchar} from '@/universal.ts'
+import {type Database, index, table, unique} from '#/index.ts'
+import {id, integer, varchar} from '#/universal.ts'
 
 // Initial table structure
 const TableA = table(

@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {getCreate, getDrop} from '@/core/Internal.ts'
-import {sql} from '@/core/Sql.ts'
-import {integer, pgMaterializedView, text} from '@/postgres.ts'
+import {getCreate, getDrop} from '#/core/Internal.ts'
+import {sql} from '#/core/Sql.ts'
+import {integer, pgMaterializedView, text} from '#/postgres.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

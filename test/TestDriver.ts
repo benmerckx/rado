@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import type {Database} from '@/index.ts'
+import type {Database} from '#/index.ts'
 import {testBasic} from './integration/TestBasic.ts'
 import {testBatch} from './integration/TestBatch.ts'
 import {testColumns} from './integration/TestColumns.ts'

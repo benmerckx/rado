@@ -5,7 +5,7 @@ import {isCi} from '../TestRuntime.ts'
 const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
 await testDriver(suite(import.meta), async () => {
   if (!isCi) return
-  const {pg: connect} = await import('@/driver.ts')
+  const {pg: connect} = await import('#/driver.ts')
   const {neonConfig} = await import('@neondatabase/serverless')
   Object.assign(neonConfig, {
     wsProxy: () => 'localhost:5488/v1',

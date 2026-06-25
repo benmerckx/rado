@@ -1,6 +1,6 @@
 import {suite} from '@alinea/suite'
-import {alias, eq, table} from '@/index.ts'
-import {integer, text} from '@/universal.ts'
+import {alias, eq, table} from '#/index.ts'
+import {integer, text} from '#/universal.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
