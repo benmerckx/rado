@@ -81,7 +81,9 @@ export function includeQuery(query: IncludeQuery): Sql {
   const {first, limit, offset, orderBy} = query
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query)
-  const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
+  const inner = wrapQuery
+    ? sql`select * from (${innerQuery}) as __`
+    : innerQuery
   const fields = querySelection(query).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)
