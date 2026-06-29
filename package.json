@@ -40,7 +40,8 @@
     "test:node": "node --disable-warning=ExperimentalWarning --test-force-exit --test-concurrency=1 --test-reporter=spec --experimental-transform-types --test \"**/*.test.ts\"",
     "test:deno": "deno test --node-modules-dir=false --no-check -A --unstable-ffi",
     "docs:build": "bun docs/build.ts",
-    "docs:dev": "bun docs/build.ts --serve"
+    "docs:dev": "bun docs/build.ts --serve",
+    "tag": "bun tag.ts"
   },
   "devDependencies": {
     "@alinea/suite": "^0.6.3",
