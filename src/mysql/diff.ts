@@ -57,6 +57,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
         eq(Information.table_name, tableApi.name),
         eq(Information.table_schema, sql`database()`)
       )
+    if (columnInfo.length === 0) return tableApi.create().map(inline)
 
     // Fetch current index information
     const indexInfo = yield* tx

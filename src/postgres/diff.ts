@@ -126,6 +126,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
         defaultValue
       })
       .from(def)
+    if (columnInfo.length === 0) return tableApi.create().map(inline)
 
     const localColumns = new Map<string, BaseColumnData>(
       columnInfo.map(column => {

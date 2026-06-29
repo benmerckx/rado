@@ -60,6 +60,41 @@ const TableC = table(
 )
 
 export function testMigration(db: Database, test: DefineTest) {
+  test('migration creates missing table', async () => {
+    await db.drop(TableB)
+    try {
+      await db.migrate(TableB)
+      await db.insert(TableB).values({
+        fieldB: 'created',
+        unchangedField: 'test',
+        newRequiredField: 'custom'
+      })
+
+      const node = await db.select().from(TableB).get()
+      test.equal(node, {
+        id: 1,
+        fieldB: 'created',
+        extraColumn: null,
+        unchangedField: 'test',
+        newRequiredField: 'custom'
+      })
+
+      await db
+        .insert(TableB)
+        .values({
+          fieldB: 'created',
+          unchangedField: 'duplicate',
+          newRequiredField: 'custom'
+        })
+        .then(
+          () => test.ok(false),
+          () => test.ok(true)
+        )
+    } finally {
+      await db.drop(TableB)
+    }
+  })
+
   test('basic migration', async () => {
     await db.create(TableA)
     try {

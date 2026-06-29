@@ -34,6 +34,8 @@ export const sqliteDiff: Diff = (targetTable: Table) => {
     const columnInfo = yield* tx
       .select(TableInfo)
       .from(sql`pragma_table_info(${sql.inline(tableApi.name)}) as "TableInfo"`)
+    if (columnInfo.length === 0) return tableApi.create().map(inline)
+
     const indexInfo = yield* tx
       .select(SqliteMaster)
       .from(sql`sqlite_master as "SqliteMaster"`)
