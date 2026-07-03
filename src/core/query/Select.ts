@@ -448,17 +448,25 @@ export interface WithoutSelection<Meta extends QueryMeta> {
     Meta,
     Record<Name, TableFields<Definition>>
   >
-  from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
-  from<Input>(from: VirtualTarget<Input>): SelectionFrom<Input, Meta>
+  from<Input, Name extends string>(
+    from: SubQuery<Input, Name>
+  ): SelectionFromTargets<Input, Meta, Name>
+  from<Input>(
+    from: VirtualTarget<Input>
+  ): SelectionFromTargets<Input, Meta, string>
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
   extends SelectBase<Input, Meta>, HasSql<SelectionRow<Input>> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>
-  ): SelectionFrom<Input, Meta>
-  from(from: HasTarget): SelectionFrom<Input, Meta>
-  from(from: SubQuery<unknown>): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<Input, Meta, Name>
+  from<SubInput, Name extends string>(
+    from: SubQuery<SubInput, Name>
+  ): SelectionFromTargets<Input, Meta, Name>
+  from<Name extends string>(
+    from: HasTarget<Name>
+  ): SelectionFromTargets<Input, Meta, Name>
   from(from: HasSql): Select<Input, Meta>
 }
 
@@ -569,59 +577,115 @@ type MarkFieldsAsNullable<Input, TableName extends string> =
 export interface SelectionFrom<
   Input,
   Meta extends QueryMeta
+> extends SelectionFromTargets<Input, Meta, never> {}
+
+interface SelectionFromTargets<
+  Input,
+  Meta extends QueryMeta,
+  FromNames extends string = never
 > extends SelectBase<Input, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, Name>,
+    Meta,
+    FromNames | Name
+  >
   leftJoin<Name extends string>(
     right: HasTarget<Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
-  leftJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, Name>,
+    Meta,
+    FromNames | Name
+  >
+  leftJoin(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFromTargets<Input, Meta, FromNames>
   leftJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, Name>,
+    Meta,
+    FromNames | Name
+  >
   leftJoinLateral<Name extends string>(
     right: HasTarget<Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, Name>,
+    Meta,
+    FromNames | Name
+  >
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
-  rightJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, FromNames>,
+    Meta,
+    FromNames | Name
+  >
+  rightJoin(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, FromNames>,
+    Meta,
+    FromNames
+  >
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
-  innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames | Name>
+  innerJoin(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFromTargets<Input, Meta, FromNames>
   innerJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames | Name>
   innerJoinLateral(
     right: HasTarget,
     on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames>
   crossJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
-  ): SelectionFrom<Input, Meta>
-  crossJoin(right: HasTarget): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames | Name>
+  crossJoin(right: HasTarget): SelectionFromTargets<Input, Meta, FromNames>
   crossJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>
-  ): SelectionFrom<Input, Meta>
-  crossJoinLateral(right: HasTarget): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames | Name>
+  crossJoinLateral(
+    right: HasTarget
+  ): SelectionFromTargets<Input, Meta, FromNames>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<MarkFieldsAsNullable<Input, FromNames>, Name>,
+    Meta,
+    FromNames | Name
+  >
   fullJoin<Name extends string>(
     right: HasTarget<Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
-  fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<MarkFieldsAsNullable<Input, FromNames>, Name>,
+    Meta,
+    FromNames | Name
+  >
+  fullJoin(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, FromNames>,
+    Meta,
+    FromNames
+  >
 }
 
 function collectReferencedTargets(input: SelectionInput, names: Set<string>) {
