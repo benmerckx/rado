@@ -121,6 +121,7 @@ const db = connect(new Database('app.db'))
 | PostgreSQL | [@neondatabase/serverless](https://www.npmjs.com/package/@neondatabase/serverless) | `rado/driver/pg`             | async      |
 | PostgreSQL | [@vercel/postgres](https://www.npmjs.com/package/@vercel/postgres)                 | `rado/driver/pg`             | async      |
 | SQLite     | [better-sqlite3](https://www.npmjs.com/package/better-sqlite3)                     | `rado/driver/better-sqlite3` | sync       |
+| SQLite     | `node:sqlite`                                                                      | `rado/driver/node-sqlite`    | sync       |
 | SQLite     | `bun:sqlite`                                                                       | `rado/driver/bun-sqlite`     | sync       |
 | SQLite     | [sql.js](https://www.npmjs.com/package/sql.js)                                     | `rado/driver/sql.js`         | sync       |
 | SQLite     | [@libsql/client](https://www.npmjs.com/package/@libsql/client)                     | `rado/driver/libsql`         | async      |
