@@ -19,6 +19,7 @@ if (!match) {
 
 const version = match[1]
 const tag = `v${version}`
+const description = `Release ${tag}`
 
 function readJson(file: string): PackageJson {
   return JSON.parse(readFileSync(file, 'utf8'))
@@ -55,17 +56,10 @@ for (const file of ['package.json', 'jsr.json']) {
 }
 
 if (gitQuiet(['diff', '--quiet', '--', 'package.json', 'jsr.json']) === 1) {
-  run('git', [
-    'commit',
-    '-m',
-    `Release ${tag}`,
-    '--',
-    'package.json',
-    'jsr.json'
-  ])
+  run('git', ['commit', '-m', description, '--', 'package.json', 'jsr.json'])
 } else {
   console.log('Version files already match; skipping commit.')
 }
 
-run('git', ['tag', tag])
+run('git', ['tag', '-a', tag, '-m', description])
 console.log(`Tagged ${tag}`)
