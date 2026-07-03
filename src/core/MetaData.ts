@@ -2,11 +2,11 @@ export type QueryMode = 'sync' | 'async' | undefined
 export type Runtime = 'sqlite' | 'mysql' | 'postgres'
 export type QueryDialect = 'universal' | Runtime
 
-export type Deliver<Meta extends QueryMeta, Result> = Meta extends Either
-  ? Result | Promise<Result>
-  : Meta extends Sync
-    ? Result
-    : Promise<Result>
+export type Deliver<Meta extends QueryMeta, Result> = Meta extends Sync
+  ? Result
+  : Meta extends Async
+    ? Promise<Result>
+    : Result | Promise<Result>
 
 export interface QueryMeta {
   mode: QueryMode
