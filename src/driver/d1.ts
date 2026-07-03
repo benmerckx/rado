@@ -51,8 +51,11 @@ export class D1Driver implements AsyncDriver {
     await this.client.exec(query)
   }
 
-  prepare(sql: string, options: PrepareOptions): PreparedStatement {
-    return new PreparedStatement(this.client.prepare(sql), options.isSelection)
+  prepare(sql: string, options?: PrepareOptions): PreparedStatement {
+    return new PreparedStatement(
+      this.client.prepare(sql),
+      options?.isSelection ?? false
+    )
   }
 
   async close(): Promise<void> {}

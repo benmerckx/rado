@@ -52,7 +52,7 @@ export class LibSQLClient implements AsyncDriver {
     await this.client.execute(query)
   }
 
-  prepare(sql: string, options: PrepareOptions): PreparedStatement {
+  prepare(sql: string, options?: PrepareOptions): PreparedStatement {
     return new PreparedStatement(this.client, sql)
   }
 

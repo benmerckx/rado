@@ -8,6 +8,7 @@ import {testColumns} from './integration/TestColumns.ts'
 import {testConflicts} from './integration/TestConflicts.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
 import {testCTE} from './integration/TestCTE.ts'
+import {testDirectQuery} from './integration/TestDirectQuery.ts'
 import {testEnums} from './integration/TestEnums.ts'
 import {testInclude} from './integration/TestInclude.ts'
 import {testJoins} from './integration/TestJoins.ts'
@@ -41,6 +42,7 @@ export async function testDriver(
   testBasic(db, driverTest)
   testBatch(db, driverTest)
   testColumns(db, driverTest)
+  testDirectQuery(db, driverTest)
   testSubquery(db, driverTest)
   testPreparedQuery(db, driverTest)
   testJoins(db, driverTest)

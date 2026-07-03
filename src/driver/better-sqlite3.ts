@@ -55,8 +55,11 @@ class BetterSqlite3Driver implements SyncDriver {
     this.client.close()
   }
 
-  prepare(sql: string, options: PrepareOptions) {
-    return new PreparedStatement(this.client.prepare(sql), options.isSelection)
+  prepare(sql: string, options?: PrepareOptions) {
+    return new PreparedStatement(
+      this.client.prepare(sql),
+      options?.isSelection ?? false
+    )
   }
 
   batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
