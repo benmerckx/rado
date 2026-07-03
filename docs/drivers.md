@@ -12,6 +12,7 @@ database.
 | PostgreSQL | [@neondatabase/serverless](https://www.npmjs.com/package/@neondatabase/serverless) | `rado/driver/pg`             | async      |
 | PostgreSQL | [@vercel/postgres](https://www.npmjs.com/package/@vercel/postgres)                 | `rado/driver/pg`             | async      |
 | SQLite     | [better-sqlite3](https://www.npmjs.com/package/better-sqlite3)                     | `rado/driver/better-sqlite3` | sync       |
+| SQLite     | `node:sqlite` (built into Node.js)                                                 | `rado/driver/node-sqlite`    | sync       |
 | SQLite     | `bun:sqlite` (built into Bun)                                                      | `rado/driver/bun-sqlite`     | sync       |
 | SQLite     | [sql.js](https://www.npmjs.com/package/sql.js)                                     | `rado/driver/sql.js`         | sync       |
 | SQLite     | [@libsql/client](https://www.npmjs.com/package/@libsql/client)                     | `rado/driver/libsql`         | async      |
@@ -89,6 +90,15 @@ import Database from 'better-sqlite3'
 import {connect} from 'rado/driver/better-sqlite3'
 
 const db = connect(new Database('app.db'))
+```
+
+### node:sqlite (Node.js, sync)
+
+```ts
+import {DatabaseSync} from 'node:sqlite'
+import {connect} from 'rado/driver/node-sqlite'
+
+const db = connect(new DatabaseSync('app.db'))
 ```
 
 ### bun:sqlite (Bun, sync)
