@@ -1,8 +1,7 @@
-import {suite} from '@alinea/suite'
 import {testDriver} from '../TestDriver.ts'
 import {isDeno} from '../TestRuntime.ts'
 
-await testDriver(suite(import.meta), async () => {
+await testDriver(import.meta, async () => {
   if (isDeno) return
   const {'@libsql/client': connect} = await import('#/driver.ts')
   const {createClient} = await import('@libsql/client')
