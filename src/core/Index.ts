@@ -15,15 +15,26 @@ class IndexData {
 
 export class IndexApi extends IndexData {
   toSql(tableName: string, indexName: string, ifNotExists: boolean): Sql {
+    const fields = this.fields.map(field =>
+      sql.join([
+        field,
+        this.order && sql.unsafe(this.order),
+        this.nulls && sql`nulls ${sql.unsafe(this.nulls)}`
+      ])
+    )
     return sql
       .join([
         sql`create`,
         this.unique && sql`unique`,
         sql`index`,
+        this.concurrently && sql`concurrently`,
         ifNotExists && sql`if not exists`,
         sql.identifier(indexName),
         sql`on`,
-        sql`${sql.identifier(tableName)}(${sql.join(this.fields, sql`, `)})`,
+        this.only && sql`only`,
+        sql.identifier(tableName),
+        this.using && sql`using ${this.using}`,
+        sql`(${sql.join(fields, sql`, `)})`,
         this.where && sql`where ${this.where}`
       ])
       .inlineFields(false)
