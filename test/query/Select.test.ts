@@ -1,7 +1,11 @@
 import {suite} from '@alinea/suite'
+import type {HasSql} from '#/core/Internal.ts'
 import {alias, eq, include, table} from '#/index.ts'
 import {integer, text} from '#/universal.ts'
 import {builder, emit} from '../TestUtils.ts'
+
+type Equal<A, B extends A & (A extends B ? unknown : never)> = true
+const Expect = <T extends true>() => {}
 
 suite(import.meta, test => {
   const Node = table('Node', {
@@ -43,6 +47,16 @@ suite(import.meta, test => {
       from: [Node, {leftJoin: right, on: eq(right.id, 1)}]
     })
     test.equal(emit(direct), expected)
+  })
+
+  test('explicit table selection with join keeps explicit row type', () => {
+    const right = alias(Node, 'right')
+    const query = builder
+      .select(Node)
+      .from(Node)
+      .leftJoin(right, eq(right.id, 1))
+    type Row = typeof query extends HasSql<infer Result> ? Result : never
+    Expect<Equal<Row, {id: number; field1: string}>>()
   })
 
   test('full join', () => {

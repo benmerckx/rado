@@ -546,20 +546,25 @@ export interface AllFrom<
   >
 }
 
-type MarkFieldsAsNullable<Input, TableName extends string> = Expand<{
-  [K in keyof Input]: Input[K] extends Field<infer T, TableName>
-    ? HasSql<T | null>
-    : Input[K] extends Table<infer Definition, TableName>
-      ? TableFields<Definition> & IsNullable
-      : Input[K] extends Record<
-            string,
-            Field<unknown, TableName> | HasSql<unknown>
-          >
-        ? Input[K] & IsNullable
-        : Input[K] extends SelectionRecord
-          ? MarkFieldsAsNullable<Input[K], TableName>
-          : Input[K]
-}>
+type MarkFieldsAsNullable<Input, TableName extends string> =
+  Input extends Table<infer Definition, TableName>
+    ? TableFields<Definition> & IsNullable
+    : Input extends Table
+      ? Input
+      : Expand<{
+          [K in keyof Input]: Input[K] extends Field<infer T, TableName>
+            ? HasSql<T | null>
+            : Input[K] extends Table<infer Definition, TableName>
+              ? TableFields<Definition> & IsNullable
+              : Input[K] extends Record<
+                    string,
+                    Field<unknown, TableName> | HasSql<unknown>
+                  >
+                ? Input[K] & IsNullable
+                : Input[K] extends SelectionRecord
+                  ? MarkFieldsAsNullable<Input[K], TableName>
+                  : Input[K]
+        }>
 
 export interface SelectionFrom<
   Input,
