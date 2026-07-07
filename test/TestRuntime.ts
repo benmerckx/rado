@@ -4,7 +4,8 @@ export const isNode = !isBun && 'process' in globalThis
 // @ts-ignore
 export const isCi = !isDeno && 'CI' in process.env
 
-const scriptName = process.env.npm_lifecycle_event || ''
+const scriptName =
+  (typeof process === 'object' && process.env.npm_lifecycle_event) || ''
 const testAll = Boolean(process.env.TEST_ENGINES)
 export const testMysql = testAll || scriptName.endsWith('mysql')
 export const testPostgres = testAll || scriptName.endsWith('postgres')
