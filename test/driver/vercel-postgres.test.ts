@@ -1,10 +1,10 @@
 import {suite} from '@alinea/suite'
 import {testDriver} from '../TestDriver.ts'
-import {testPostgres} from '../TestRuntime.ts'
+import {isDeno, testPostgres} from '../TestRuntime.ts'
 
 const test = suite(import.meta)
 
-if (testPostgres) {
+if (!isDeno && testPostgres) {
   const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
   const {pg: connect} = await import('#/driver.ts')
   const {neonConfig} = await import('@neondatabase/serverless')
