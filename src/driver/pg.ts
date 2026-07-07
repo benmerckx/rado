@@ -108,8 +108,9 @@ export class PgDriver implements AsyncDriver {
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionOptions['postgres']
   ): Promise<T> {
-    const client =
-      'totalCount' in this.client ? await this.client.connect() : this.client
+    const acquiredClient =
+      'totalCount' in this.client ? await this.client.connect() : undefined
+    const client = acquiredClient ?? this.client
     try {
       await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
       if (this.depth === 0) await client.query(setTransaction(options))
@@ -124,7 +125,7 @@ export class PgDriver implements AsyncDriver {
       )
       throw error
     } finally {
-      if ('release' in client) client.release()
+      acquiredClient?.release()
     }
   }
 }

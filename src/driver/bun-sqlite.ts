@@ -1,12 +1,20 @@
 import type {Database as Client, Statement} from 'bun:sqlite'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {
+  BatchedQuery,
+  PrepareOptions,
+  SyncDriver,
+  SyncStatement
+} from '../core/Driver.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
 
 class PreparedStatement implements SyncStatement {
-  constructor(private stmt: Statement<unknown>) {}
+  constructor(
+    private stmt: Statement<unknown>,
+    private isSelection: boolean
+  ) {}
 
   all(params: Array<unknown>) {
     return <Array<object>>this.stmt.all(...params)
@@ -21,6 +29,10 @@ class PreparedStatement implements SyncStatement {
   }
 
   values(params: Array<unknown>) {
+    if (!this.isSelection) {
+      this.stmt.run(...params)
+      return []
+    }
     return this.stmt.values(...params)
   }
 
@@ -46,13 +58,18 @@ class BunSqliteDriver implements SyncDriver {
     this.client.close()
   }
 
-  prepare(sql: string) {
-    return new PreparedStatement(this.client.prepare(sql))
+  prepare(sql: string, options?: PrepareOptions) {
+    return new PreparedStatement(
+      this.client.prepare(sql),
+      options?.isSelection ?? false
+    )
   }
 
   batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
     return this.transaction(tx => {
-      return queries.map(({sql, params}) => tx.prepare(sql).values(params))
+      return queries.map(({sql, params, isSelection}) =>
+        tx.prepare(sql, {isSelection}).values(params)
+      )
     }, {})
   }
 

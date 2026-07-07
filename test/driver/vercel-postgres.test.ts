@@ -1,9 +1,11 @@
+import {suite} from '@alinea/suite'
 import {testDriver} from '../TestDriver.ts'
-import {isCi} from '../TestRuntime.ts'
+import {testPostgres} from '../TestRuntime.ts'
 
-const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
-await testDriver(import.meta, async () => {
-  if (!isCi) return
+const test = suite(import.meta)
+
+if (testPostgres) {
+  const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
   const {pg: connect} = await import('#/driver.ts')
   const {neonConfig} = await import('@neondatabase/serverless')
   Object.assign(neonConfig, {
@@ -18,5 +20,6 @@ await testDriver(import.meta, async () => {
   })
   await client.connect()
 
-  return connect(client)
-})
+  const db = connect(client)
+  testDriver(db, test)
+}

@@ -1,0 +1,38 @@
+services:
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_DATABASE: mysql
+      MYSQL_ROOT_PASSWORD: mysql
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-pmysql']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  wsproxy:
+    image: ghcr.io/neondatabase/wsproxy:latest
+    environment:
+      APPEND_PORT: postgres:5432
+      ALLOW_ADDR_REGEX: .*
+      LOG_TRAFFIC: 'true'
+    ports:
+      - '5488:80'
+    depends_on:
+      postgres:
+        condition: service_healthy
