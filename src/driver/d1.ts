@@ -65,7 +65,11 @@ export class D1Driver implements AsyncDriver {
       this.client.prepare(sql).bind(...params)
     )
     const rows = await this.client.batch(stmts)
-    return rows.map(row => row.results)
+    return rows.map((row, index) => {
+      const isSelection = queries[index]?.isSelection
+      if (!isSelection) return []
+      return (row.results as Array<Record<string, unknown>>).map(Object.values)
+    })
   }
 
   async transaction<T>(): Promise<T> {
