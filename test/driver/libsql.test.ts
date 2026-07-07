@@ -12,5 +12,5 @@ if (!isDeno) {
       url: 'file::memory:?cache=shared'
     })
   )
-  testDriver(db, test)
+  testDriver(db, test, 'libsql')
 }

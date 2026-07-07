@@ -11,5 +11,5 @@ if (isNode) {
   const db = connect(
     <any>new D1Database(new D1DatabaseAPI(await createSQLiteDB(':memory:')))
   )
-  testDriver(db, test)
+  testDriver(db, test, 'd1')
 }

@@ -50,5 +50,5 @@ if (testPostgres) {
   })
   await client.connect()
   const db = connect(client)
-  testDriver(db, test)
+  testDriver(db, test, 'pg')
 }

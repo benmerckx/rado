@@ -10,5 +10,5 @@ if (testMysql) {
   const {default: mysql2} = await import('mysql2')
   const client = mysql2.createConnection(mysqlConnection)
   const db = connect(client)
-  testDriver(db, test)
+  testDriver(db, test, 'mysql2')
 }

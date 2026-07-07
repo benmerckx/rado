@@ -9,5 +9,5 @@ if (isNode) {
   const sqlite = 'node:sqlite'
   const {DatabaseSync} = await import(sqlite)
   const db = connect(new DatabaseSync(':memory:'))
-  testDriver(db, test)
+  testDriver(db, test, 'node-sqlite')
 }

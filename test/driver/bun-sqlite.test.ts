@@ -8,5 +8,5 @@ if (isBun) {
   const {'bun:sqlite': connect} = await import('#/driver.ts')
   const {Database} = await import('bun:sqlite')
   const db = connect(new Database(':memory:'))
-  testDriver(db, test)
+  testDriver(db, test, 'bun:sqlite')
 }

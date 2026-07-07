@@ -18,30 +18,35 @@ import {testTransactions} from './integration/TestTransactions.ts'
 import {testUpdate} from './integration/TestUpdate.ts'
 import {testViews} from './integration/TestViews.ts'
 
-export function testDriver(db: Database, test: DefineTest<any>) {
+export function testDriver(db: Database, test: DefineTest<any>, label: string) {
+  const prefixed = Object.assign(
+    (name: string, ...args: Array<any>) =>
+      (test as any)(`${label}: ${name}`, ...args),
+    test
+  ) as DefineTest<any>
   const closeDb = () => {
-    test('close database', async () => {
+    prefixed('close database', async () => {
       await Promise.resolve(db.driver.close())
     })
   }
-  if (db.dialect.runtime === 'postgres') testEnums(db, test)
-  testBasic(db, test)
-  testBatch(db, test)
-  testColumns(db, test)
-  testDirectQuery(db, test)
-  testSubquery(db, test)
-  testPreparedQuery(db, test)
-  testJoins(db, test)
-  testJson(db, test)
-  testConstraints(db, test)
-  testCTE(db, test)
-  testInclude(db, test)
-  testConflicts(db, test)
-  testUpdate(db, test)
-  testViews(db, test)
+  if (db.dialect.runtime === 'postgres') testEnums(db, prefixed)
+  testBasic(db, prefixed)
+  testBatch(db, prefixed)
+  testColumns(db, prefixed)
+  testDirectQuery(db, prefixed)
+  testSubquery(db, prefixed)
+  testPreparedQuery(db, prefixed)
+  testJoins(db, prefixed)
+  testJson(db, prefixed)
+  testConstraints(db, prefixed)
+  testCTE(db, prefixed)
+  testInclude(db, prefixed)
+  testConflicts(db, prefixed)
+  testUpdate(db, prefixed)
+  testViews(db, prefixed)
   if (db.driver.supportsTransactions) {
-    testTransactions(db, test)
-    testMigration(db, test)
+    testTransactions(db, prefixed)
+    testMigration(db, prefixed)
   }
   closeDb()
 }

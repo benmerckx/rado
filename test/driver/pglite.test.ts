@@ -8,5 +8,5 @@ if (!isDeno) {
   const {'@electric-sql/pglite': connect} = await import('#/driver.ts')
   const {PGlite} = await import('@electric-sql/pglite')
   const db = connect(new PGlite())
-  testDriver(db, test)
+  testDriver(db, test, 'pglite')
 }

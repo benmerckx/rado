@@ -8,5 +8,5 @@ if (isNode) {
   const {'better-sqlite3': connect} = await import('#/driver.ts')
   const {default: Database} = await import('better-sqlite3')
   const db = connect(new Database(':memory:'))
-  testDriver(db, test)
+  testDriver(db, test, 'better-sqlite3')
 }
