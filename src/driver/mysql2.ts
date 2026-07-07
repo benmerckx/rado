@@ -21,6 +21,7 @@ class PreparedStatement implements AsyncStatement {
   constructor(
     private client: Queryable,
     private sql: string,
+    private isSelection: boolean,
     private name?: string
   ) {}
 
@@ -44,6 +45,7 @@ class PreparedStatement implements AsyncStatement {
   }
 
   values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
+    if (!this.isSelection) return this.run(params).then(() => [])
     return this.client
       .query({
         sql: this.sql,
@@ -70,7 +72,12 @@ export class Mysql2Driver implements AsyncDriver {
   }
 
   prepare(sql: string, options?: PrepareOptions): PreparedStatement {
-    return new PreparedStatement(this.client, sql, options?.name)
+    return new PreparedStatement(
+      this.client,
+      sql,
+      options?.isSelection ?? false,
+      options?.name
+    )
   }
 
   async close(): Promise<void> {
@@ -80,8 +87,8 @@ export class Mysql2Driver implements AsyncDriver {
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
     const transact = async (tx: AsyncDriver) => {
       const results = []
-      for (const {sql, params} of queries)
-        results.push(await tx.prepare(sql).values(params))
+      for (const {sql, params, isSelection} of queries)
+        results.push(await tx.prepare(sql, {isSelection}).values(params))
       return results
     }
     if (this.depth > 0) return transact(this)
