@@ -11,6 +11,10 @@ import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = Client | Pool | PoolClient
+type AcquiredClient = {
+  client: Queryable
+  release?: () => void
+}
 
 /**
  * The query interface used by the driver. Packages providing a pg-compatible
@@ -25,6 +29,27 @@ export interface PgCompatible {
     values?: Array<unknown>
     rowMode?: string
   }): Promise<{rows: Array<any>}>
+}
+
+function isPool(client: Queryable): client is Pool {
+  return (
+    'connect' in client &&
+    'totalCount' in client &&
+    'idleCount' in client &&
+    'waitingCount' in client
+  )
+}
+
+async function acquireClient(
+  client: Queryable,
+  depth: number
+): Promise<AcquiredClient> {
+  if (depth > 0 || !isPool(client)) return {client}
+  const acquired = await client.connect()
+  return {
+    client: acquired as Queryable,
+    release: () => acquired.release()
+  }
 }
 
 class PreparedStatement implements AsyncStatement {
@@ -91,8 +116,9 @@ export class PgDriver implements AsyncDriver {
   }
 
   async close(): Promise<void> {
-    if ('end' in this.client) return this.client.end()
+    if (this.depth > 0) throw new Error('Cannot close a transaction')
     if ('release' in this.client) return this.client.release()
+    if ('end' in this.client) return this.client.end()
   }
 
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
@@ -108,11 +134,7 @@ export class PgDriver implements AsyncDriver {
     run: (inner: AsyncDriver) => Promise<T>,
     options: TransactionOptions['postgres']
   ): Promise<T> {
-    const acquiredClient =
-      this.depth === 0 && 'totalCount' in this.client
-        ? await this.client.connect()
-        : undefined
-    const client = acquiredClient ?? this.client
+    const {client, release} = await acquireClient(this.client, this.depth)
     try {
       await client.query(this.depth > 0 ? `savepoint d${this.depth}` : 'begin')
       if (this.depth === 0) await client.query(setTransaction(options))
@@ -127,7 +149,7 @@ export class PgDriver implements AsyncDriver {
       )
       throw error
     } finally {
-      acquiredClient?.release()
+      release?.()
     }
   }
 }
