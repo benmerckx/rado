@@ -61,8 +61,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun tsc
       # - run: bun cycles
-      - run: TEST_ENGINES=all bun test:bun
-      - run: TEST_ENGINES=all bun test:node
+      - run: bun test:bun
+      - run: bun test:node
       - run: bun test:deno
       - run: bunx jsr publish --config jsr.json --dry-run
   publishNPM:
