@@ -34,14 +34,14 @@ if (testPostgres) {
     const db = connect(client)
 
     try {
-      try {
-        await db.transaction(async () => {})
-        await client.query('select 1')
-      } finally {
-        await db.close()
-      }
+      await db.transaction(async () => {})
+      await client.query('select 1')
     } finally {
-      await pool.end()
+      try {
+        client.release()
+      } finally {
+        await pool.end()
+      }
     }
   })
 
