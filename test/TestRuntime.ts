@@ -6,7 +6,7 @@ export const isCi = !isDeno && 'CI' in process.env
 
 const scriptName =
   (typeof process === 'object' && process.env.npm_lifecycle_event) || ''
-const testAll = Boolean(process.env.TEST_ENGINES)
+const testAll = Boolean(typeof process === 'object' && process.env.TEST_ENGINES)
 export const testMysql = testAll || scriptName.endsWith('mysql')
 export const testPostgres = testAll || scriptName.endsWith('postgres')
 export const testSqlite = testAll || scriptName.endsWith('sqlite')
