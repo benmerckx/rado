@@ -14,7 +14,7 @@ import {
 } from '../core/expr/Conditions.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
-import {type Table, table} from '../core/Table.ts'
+import {type Table, primaryKeyColumns, table} from '../core/Table.ts'
 import {concat, txGenerator} from '../universal.ts'
 import * as column from './columns.ts'
 import {postgresDialect} from './dialect.ts'
@@ -135,6 +135,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
           {
             type: sql.unsafe(column.type.toLowerCase()),
             notNull: column.notNull,
+            nullable: !column.notNull,
             defaultValue: column.defaultValue
               ? sql.unsafe(column.defaultValue)
               : undefined
@@ -143,10 +144,18 @@ export const postgresDiff: Diff = (hasTable: Table) => {
       })
     )
 
+    const primaryKeys = primaryKeyColumns(tableApi)
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
-        return [columnApi.name ?? name, columnApi]
+        const columnName = columnApi.name ?? name
+        return [
+          columnName,
+          {
+            ...columnApi,
+            nullable: !columnApi.notNull && !primaryKeys.has(columnName)
+          }
+        ]
       })
     )
 
@@ -188,17 +197,17 @@ export const postgresDiff: Diff = (hasTable: Table) => {
           )
         }
         if (
-          Boolean(localInstruction.notNull) !==
-          Boolean(schemaInstruction.notNull)
+          Boolean(localInstruction.nullable) !==
+          Boolean(schemaInstruction.nullable)
         ) {
           stmts.push(
             sql.query({
               alterTable,
               alterColumn: [
                 column,
-                schemaInstruction.notNull
-                  ? sql`set not null`
-                  : sql`drop not null`
+                schemaInstruction.nullable
+                  ? sql`drop not null`
+                  : sql`set not null`
               ]
             })
           )

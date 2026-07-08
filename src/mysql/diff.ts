@@ -4,7 +4,7 @@ import {eq} from '../core/expr/Conditions.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
 import {schema} from '../core/Schema.ts'
 import {type Sql, sql} from '../core/Sql.ts'
-import type {Table} from '../core/Table.ts'
+import {type Table, primaryKeyColumns} from '../core/Table.ts'
 import {txGenerator} from '../universal.ts'
 import * as column from './columns.ts'
 import {mysqlDialect} from './dialect.ts'
@@ -103,6 +103,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
           {
             type: sql.unsafe(type),
             notNull: column.notNull && !isAutoIncrement,
+            nullable: !column.notNull,
             defaultValue:
               column.defaultValue && !isAutoIncrement
                 ? sql.unsafe(column.defaultValue)
@@ -113,10 +114,18 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
     )
 
     // Map schema columns from code
+    const primaryKeys = primaryKeyColumns(tableApi)
     const schemaColumns = new Map(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
-        return [columnApi.name ?? name, columnApi]
+        const columnName = columnApi.name ?? name
+        return [
+          columnName,
+          {
+            ...columnApi,
+            nullable: !columnApi.notNull && !primaryKeys.has(columnName)
+          }
+        ]
       })
     )
 
@@ -161,17 +170,17 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
 
         // Handle NOT NULL constraint changes
         if (
-          Boolean(localInstruction.notNull) !==
-          Boolean(schemaInstruction.notNull)
+          Boolean(localInstruction.nullable) !==
+          Boolean(schemaInstruction.nullable)
         ) {
           stmts.push(
             sql.query({
               alterTable,
               modifyColumn: [
                 column,
-                schemaInstruction.notNull
-                  ? sql`${schemaInstruction.type} not null`
-                  : sql`${schemaInstruction.type} null`
+                schemaInstruction.nullable
+                  ? sql`${schemaInstruction.type} null`
+                  : sql`${schemaInstruction.type} not null`
               ]
             })
           )
