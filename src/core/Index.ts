@@ -3,6 +3,7 @@ import {type HasData, type HasSql, getData, internalData} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 
 class IndexData {
+  name?: string
   fields!: Array<HasSql>
   concurrently?: boolean
   unique?: boolean
@@ -90,10 +91,10 @@ export class Index<
   }
 }
 
-export function index(): Index<string> {
-  return new Index({fields: []})
+export function index(name?: string): Index<string> {
+  return new Index({name, fields: []})
 }
 
-export function uniqueIndex(): Index<string> {
-  return new Index({fields: [], unique: true})
+export function uniqueIndex(name?: string): Index<string> {
+  return new Index({name, fields: [], unique: true})
 }

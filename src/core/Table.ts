@@ -84,13 +84,13 @@ export class TableApi<
     const createColumns = keys(this.columns).map(name =>
       this.columnDefinition(name)
     )
-    const createConstraints = entries(this.config ?? {})
-      .filter(([, constraint]) => hasConstraint(constraint))
-      .map(([key, constraint]) => {
-        const {name} = getData(constraint as HasData<{name?: string}>)
-        return sql`constraint ${sql.identifier(name ?? key)} ${getConstraint(
-          constraint as HasConstraint
-        )}`
+    const createConstraints = configEntries(this.config)
+      .filter(([, value]) => hasConstraint(value))
+      .map(([key, value]) => {
+        const {name} = getData(value as HasData<{name?: string}>)
+        const constraint = getConstraint(value as HasConstraint)
+        if (!name && !key) return constraint
+        return sql`constraint ${sql.identifier(name ?? key!)} ${constraint}`
       })
     return sql.join(createColumns.concat(createConstraints), sql`, `)
   }
@@ -136,7 +136,17 @@ export class TableApi<
 
   indexes(): Record<string, Index> {
     return fromEntries(
-      entries(this.config ?? {}).filter(([, config]) => config instanceof Index)
+      configEntries(this.config)
+        .filter(([, value]) => value instanceof Index)
+        .map(([key, value]) => {
+          const {name} = getData(value as HasData<{name?: string}>)
+          const indexName = name ?? key
+          if (!indexName)
+            throw new Error(
+              `Index in table "${this.name}" requires a name when table config is an array`
+            )
+          return [indexName, value]
+        })
     ) as Record<string, Index>
   }
 }
@@ -222,10 +232,17 @@ export type TableConfigSetting<Name extends string> =
   | ForeignKeyConstraint<Name>
   | Index<Name>
 
-export interface TableConfig<Name extends string = string> extends Record<
-  string,
-  TableConfigSetting<Name>
-> {}
+export type TableConfig<Name extends string = string> =
+  | Record<string, TableConfigSetting<Name>>
+  | ReadonlyArray<TableConfigSetting<Name>>
+
+function configEntries<Name extends string>(
+  config?: TableConfig<Name>
+): Array<readonly [string | undefined, TableConfigSetting<Name>]> {
+  if (!config) return []
+  if (Array.isArray(config)) return config.map(value => [undefined, value])
+  return entries(config)
+}
 
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
