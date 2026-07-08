@@ -1,6 +1,6 @@
 import {
   type Table,
-  type TableConfig,
+  type TableConfigResult,
   type TableDefinition,
   table
 } from './Table.ts'
@@ -9,12 +9,13 @@ type Prefix<
   SchemaName extends string,
   TableName extends string
 > = `${SchemaName}.${TableName}`
+
 export interface Schema<SchemaName extends string> {
   table<Definition extends TableDefinition, TableName extends string>(
     tableName: TableName,
     columns: Definition,
-    config?: (self: Table<Definition>) => TableConfig<TableName>
-  ): Table<Definition, TableName>
+    config?: (self: Table<Definition, TableName>) => TableConfigResult
+  ): Table<Definition, Prefix<SchemaName, TableName>>
 }
 
 export function schema<SchemaName extends string>(
