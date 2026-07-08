@@ -37,7 +37,11 @@ class PreparedStatement implements AsyncStatement {
   }
 
   async run(params: Array<unknown>) {
-    await this.client.query(this.sql, params.map(this.#transformParam))
+    const [result] = await this.client.query(
+      this.sql,
+      params.map(this.#transformParam)
+    )
+    return [result]
   }
 
   get(params: Array<unknown>): Promise<object> {
@@ -104,13 +108,13 @@ export class Mysql2Driver implements AsyncDriver {
       : this.client
     const driver = new Mysql2Driver(client, this.depth + 1)
     try {
-      await client.query(
-        this.depth > 0 ? `savepoint d${this.depth}` : startTransaction(options)
-      )
       if (this.depth === 0) {
         const setOptions = setTransaction(options)
         if (setOptions) await client.query(setOptions)
       }
+      await client.query(
+        this.depth > 0 ? `savepoint d${this.depth}` : startTransaction(options)
+      )
       const result = await run(driver)
       await client.query(
         this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'

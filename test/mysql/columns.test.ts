@@ -83,7 +83,7 @@ test('mysql date mapping', () => {
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
   test.ok(mapFrom(dateDate, '2020-01-01') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(dateDate, date), date.toISOString())
+  test.equal(mapTo(dateDate, date), '2020-01-01')
 })
 
 test('mysql datetime mapping', () => {
@@ -95,7 +95,7 @@ test('mysql datetime mapping', () => {
   test.ok(mapFrom(dtExplicitDate, '2020-01-01 00:00:00') instanceof Date)
   test.ok(mapFrom(dtDate, '2020-01-01 00:00:00') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(dtDate, date), date.toISOString())
+  test.equal(mapTo(dtDate, date), '2020-01-01 00:00:00')
   test.equal(columnSql(mysql.datetime({fsp: 2})), 'datetime(2)')
 })
 

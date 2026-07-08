@@ -120,6 +120,12 @@ export namespace sql {
     return new Sql(emitter => emitter.emitIdentifierOrSelf(identifier))
   }
 
+  export function functionName<T>(name: string): Sql<T> {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+      throw new Error(`Invalid SQL function name: ${name}`)
+    return new Sql(emitter => emitter.emitUnsafe(name))
+  }
+
   export function field<T>(field: FieldData): Sql<T> {
     return new Sql(emitter => emitter.emitField(field))
   }

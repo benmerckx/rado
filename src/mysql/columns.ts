@@ -10,6 +10,20 @@ type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntegerMode = 'number' | 'bigint'
 type DecimalMode = 'string' | 'number' | 'bigint'
 
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function formatDate(value: Date): string {
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`
+}
+
+function formatDateTime(value: Date): string {
+  const base = `${formatDate(value)} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`
+  const milliseconds = value.getMilliseconds()
+  return milliseconds > 0 ? `${base}.${String(milliseconds).padStart(3, '0')}` : base
+}
+
 export function bigint(
   ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
 ): Column<number>
@@ -35,7 +49,11 @@ export function binary(
 }
 
 export function boolean(name?: string): Column<boolean> {
-  return new Column({name, type: column.boolean()})
+  return new Column({
+    name,
+    type: column.boolean(),
+    mapFromDriverValue: Boolean
+  })
 }
 
 export function blob(name?: string): Column<Uint8Array> {
@@ -56,11 +74,13 @@ export function date(...args: ColumnArguments<{mode?: 'date' | 'string'}>) {
   return new Column({
     name,
     type: column.date(),
-    mapFromDriverValue(value: string) {
-      return options?.mode === 'string' ? value : new Date(value)
+    mapFromDriverValue(value: string | Date) {
+      if (options?.mode === 'string')
+        return value instanceof Date ? formatDate(value) : value
+      return value instanceof Date ? value : new Date(value)
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date ? value.toISOString() : value
+      return value instanceof Date ? value.toISOString().slice(0, 10) : value
     }
   })
 }
@@ -78,11 +98,15 @@ export function datetime(
   return new Column({
     name,
     type: column.datetime(options?.fsp),
-    mapFromDriverValue(value: string) {
-      return options?.mode === 'string' ? value : new Date(value)
+    mapFromDriverValue(value: string | Date) {
+      if (options?.mode === 'string')
+        return value instanceof Date ? formatDateTime(value) : value
+      return value instanceof Date ? value : new Date(value)
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date ? value.toISOString() : value
+      return value instanceof Date
+        ? value.toISOString().slice(0, 19).replace('T', ' ')
+        : value
     }
   })
 }
@@ -230,8 +254,10 @@ export function timestamp(
   return new Column({
     name,
     type: column.timestamp(options?.fsp),
-    mapFromDriverValue(value: string) {
-      return options?.mode === 'string' ? value : new Date(`${value}+0000`)
+    mapFromDriverValue(value: string | Date) {
+      if (options?.mode === 'string')
+        return value instanceof Date ? formatDateTime(value) : value
+      return value instanceof Date ? value : new Date(`${value}+0000`)
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date

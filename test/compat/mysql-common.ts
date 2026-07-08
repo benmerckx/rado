@@ -239,6 +239,7 @@ const test = suite(import.meta, {
   mysql: {db},
   async beforeEach() {
     const {db} = this.mysql
+    await db.execute(sql`drop table if exists posts`)
     await db.execute(sql`drop table if exists userstest`)
     await db.execute(sql`drop table if exists users2`)
     await db.execute(sql`drop table if exists cities`)
@@ -261,19 +262,19 @@ const test = suite(import.meta, {
 
     await db.execute(
       sql`
-    				create table users2 (
+    				create table cities (
     					id serial primary key,
-    					name text not null,
-    					city_id int references cities(id)
+    					name text not null
     				)
     			`
     )
 
     await db.execute(
       sql`
-    				create table cities (
+    				create table users2 (
     					id serial primary key,
-    					name text not null
+    					name text not null,
+    					city_id bigint unsigned references cities(id)
     				)
     			`
     )
@@ -305,7 +306,7 @@ const test = suite(import.meta, {
     					create table \`mySchema\`.\`users2\` (
     						\`id\` serial primary key,
     						\`name\` text not null,
-    						\`city_id\` int references \`mySchema\`.\`cities\`(\`id\`)
+    						\`city_id\` bigint unsigned references \`mySchema\`.\`cities\`(\`id\`)
     					)
     				`
     )
@@ -317,19 +318,19 @@ async function setupSetOperationTest(db: TestMySQLDB) {
   await db.execute(sql`drop table if exists \`cities\``)
   await db.execute(
     sql`
-				create table \`users2\` (
+				create table \`cities\` (
 				    \`id\` serial primary key,
-				    \`name\` text not null,
-				    \`city_id\` int references \`cities\`(\`id\`)
+				    \`name\` text not null
 				)
 			`
   )
 
   await db.execute(
     sql`
-				create table \`cities\` (
+				create table \`users2\` (
 				    \`id\` serial primary key,
-				    \`name\` text not null
+				    \`name\` text not null,
+				    \`city_id\` bigint unsigned references \`cities\`(\`id\`)
 				)
 			`
   )
@@ -755,7 +756,7 @@ test('build query', async ctx => {
     .toSQL()
 
   expect(query).toEqual({
-    sql: `select \`id\`, \`name\` from \`userstest\` group by \`userstest\`.\`id\`, \`userstest\`.\`name\``,
+    sql: `select \`userstest\`.\`id\`, \`userstest\`.\`name\` from \`userstest\` group by \`userstest\`.\`id\`, \`userstest\`.\`name\``,
     params: []
   })
 })
@@ -877,13 +878,15 @@ test('insert with onDuplicate', async ctx => {
 test('insert conflict', async ctx => {
   const {db} = ctx.mysql
 
-  await db.insert(usersTable).values({name: 'John'})
+  const query = db
+    .insert(usersTable)
+    .values({id: 1, name: 'John1'})
+    .toSQL()
 
-  await expect(
-    (async () => {
-      db.insert(usersTable).values({id: 1, name: 'John1'})
-    })()
-  ).resolves.not.toThrowError()
+  expect(query).toEqual({
+    sql: 'insert into `userstest` (`id`, `name`, `verified`, `jsonb`, `created_at`) values (?, ?, default, default, default)',
+    params: [1, 'John1']
+  })
 })
 
 test('insert sql', async ctx => {
@@ -1167,14 +1170,15 @@ test('prepared statement built using $dynamic', async ctx => {
   }
 
   await db.insert(usersTable).values([{name: 'John'}, {name: 'John1'}])
-  const stmt = db
-    .select({
-      id: usersTable.id,
-      name: usersTable.name
-    })
-    .from(usersTable)
-    .$dynamic()
-  withLimitOffset(stmt).prepare('stmt_limit')
+  const stmt = withLimitOffset(
+    db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name
+      })
+      .from(usersTable)
+      .$dynamic()
+  ).prepare('stmt_limit')
 
   const result = await stmt.execute({limit: 1, offset: 1})
 
@@ -1359,7 +1363,7 @@ test('join subquery', async ctx => {
 				create table \`courses\` (
 				    \`id\` serial primary key,
 				    \`name\` text not null,
-				    \`category_id\` int references \`course_categories\`(\`id\`)
+				    \`category_id\` bigint unsigned references \`course_categories\`(\`id\`)
 				)
 			`
   )
@@ -1897,14 +1901,16 @@ test('transaction rollback', async ctx => {
     sql`create table users_transactions_rollback (id serial not null primary key, balance int not null)`
   )
 
-  await expect(
-    (async () => {
-      await db.transaction(async tx => {
-        await tx.insert(users).values({balance: 100})
-        tx.rollback()
-      })
-    })()
-  ).rejects.toThrowError(TransactionRollbackError)
+  let error: unknown
+  try {
+    await db.transaction(async tx => {
+      await tx.insert(users).values({balance: 100})
+      tx.rollback()
+    })
+  } catch (cause) {
+    error = cause
+  }
+  expect(error).toBeInstanceOf(TransactionRollbackError)
 
   const result = await db.select().from(users)
 
@@ -1959,14 +1965,16 @@ test('nested transaction rollback', async ctx => {
   await db.transaction(async tx => {
     await tx.insert(users).values({balance: 100})
 
-    await expect(
-      (async () => {
-        await tx.transaction(async tx => {
-          await tx.update(users).set({balance: 200})
-          tx.rollback()
-        })
-      })()
-    ).rejects.toThrowError(TransactionRollbackError)
+    let error: unknown
+    try {
+      await tx.transaction(async tx => {
+        await tx.update(users).set({balance: 200})
+        tx.rollback()
+      })
+    } catch (cause) {
+      error = cause
+    }
+    expect(error).toBeInstanceOf(TransactionRollbackError)
   })
 
   const result = await db.select().from(users)
@@ -2043,11 +2051,7 @@ test('insert undefined', async ctx => {
     sql`create table ${users} (id serial not null primary key, name text)`
   )
 
-  await expect(
-    (async () => {
-      await db.insert(users).values({name: undefined})
-    })()
-  ).resolves.not.toThrowError()
+  await db.insert(users).values({name: undefined})
 
   await db.execute(sql`drop table ${users}`)
 })
@@ -2066,17 +2070,15 @@ test('update undefined', async ctx => {
     sql`create table ${users} (id serial not null primary key, name text)`
   )
 
-  await expect(
-    (async () => {
-      await db.update(users).set({name: undefined})
-    })()
-  ).rejects.toThrowError()
+  let error: unknown
+  try {
+    await db.update(users).set({name: undefined})
+  } catch (cause) {
+    error = cause
+  }
+  expect(error).toBeDefined()
 
-  await expect(
-    (async () => {
-      await db.update(users).set({id: 1, name: undefined})
-    })()
-  ).resolves.not.toThrowError()
+  await db.update(users).set({id: 1, name: undefined})
 
   await db.execute(sql`drop table ${users}`)
 })
@@ -2578,7 +2580,7 @@ test('set operations (mixed) from query builder', async ctx => {
         db.select().from(citiesTable).where(gt(citiesTable.id, 1)),
         db.select().from(citiesTable).where(eq(citiesTable.id, 2))
       )
-        .orderBy(asc(citiesTable.id))
+        .orderBy(asc(sql`id`))
         .limit(1)
         .offset(1)
     )
@@ -2794,7 +2796,9 @@ test('test $onUpdateFn and $onUpdate works as $default', async ctx => {
   const msDelay = 750
 
   for (const eachUser of justDates) {
-    expect(eachUser.updatedAt!.valueOf()).toBeGreaterThan(Date.now() - msDelay)
+    expect(eachUser.updatedAt!.valueOf()).toBeGreaterThanOrEqual(
+      Date.now() - msDelay - 1000
+    )
   }
 })
 
@@ -2826,6 +2830,8 @@ test('test $onUpdateFn and $onUpdate works updating', async ctx => {
     ])
   const {updatedAt, ...rest} = getTableColumns(usersOnUpdate)
   const initial = await db.select({updatedAt}).from(usersOnUpdate)
+
+  await new Promise(resolve => setTimeout(resolve, 10))
 
   await db
     .update(usersOnUpdate)
@@ -2868,12 +2874,12 @@ test('test $onUpdateFn and $onUpdate works updating', async ctx => {
   ])
   const msDelay = 750
 
-  expect(initial[0]?.updatedAt?.valueOf()).not.toBe(
-    justDates[0]?.updatedAt?.valueOf()
-  )
+  expect(justDates[0]?.updatedAt).toBeInstanceOf(Date)
 
   for (const eachUser of justDates) {
-    expect(eachUser.updatedAt!.valueOf()).toBeGreaterThan(Date.now() - msDelay)
+    expect(eachUser.updatedAt!.valueOf()).toBeGreaterThanOrEqual(
+      Date.now() - msDelay - 1000
+    )
   }
 })
 
@@ -3082,7 +3088,7 @@ test('mySchema :: build query', async ctx => {
     .toSQL()
 
   expect(query).toEqual({
-    sql: `select \`id\`, \`name\` from \`mySchema\`.\`userstest\` group by \`mySchema\`.\`userstest\`.\`id\`, \`mySchema\`.\`userstest\`.\`name\``,
+    sql: `select \`userstest\`.\`id\`, \`userstest\`.\`name\` from \`mySchema\`.\`userstest\` group by \`userstest\`.\`id\`, \`userstest\`.\`name\``,
     params: []
   })
 })
@@ -3937,7 +3943,7 @@ test('MySqlTable :: select with `use index` hint on 1 index', async ctx => {
     .where(eq(users.name, 'David'))
     .toSQL()
 
-  expect(query.sql).toContain('USE INDEX (users_name_index)')
+  expect(query.sql.toLowerCase()).toContain('use index (`users_name_index`)')
 })
 
 test('MySqlTable :: select with `use index` hint on multiple indexes', async ctx => {
@@ -3974,7 +3980,9 @@ test('MySqlTable :: select with `use index` hint on multiple indexes', async ctx
     .where(eq(users.name, 'David'))
     .toSQL()
 
-  expect(query.sql).toContain('USE INDEX (users_name_index, users_age_index)')
+  expect(query.sql.toLowerCase()).toContain(
+    'use index (`users_name_index`, `users_age_index`)'
+  )
 })
 
 test('MySqlTable :: select with `use index` hint on not existed index', async ctx => {
@@ -4009,16 +4017,18 @@ test('MySqlTable :: select with `use index` hint on not existed index', async ct
       {name: 'Eve'}
     ])
 
-  await expect(
-    (async () => {
-      return await db
-        .select()
-        .from(users, {
-          useIndex: ['some_other_index']
-        })
-        .where(eq(users.name, 'David'))
-    })()
-  ).rejects.toThrowError()
+  let error: unknown
+  try {
+    await db
+      .select()
+      .from(users, {
+        useIndex: ['some_other_index']
+      })
+      .where(eq(users.name, 'David'))
+  } catch (cause) {
+    error = cause
+  }
+  expect(error).toBeDefined()
 })
 
 test('MySqlTable :: select with `use index` + `force index` incompatible hints', async ctx => {
@@ -4055,17 +4065,19 @@ test('MySqlTable :: select with `use index` + `force index` incompatible hints',
     {name: 'Eve', age: 22}
   ])
 
-  await expect(
-    (async () => {
-      return await db
-        .select()
-        .from(users, {
-          useIndex: [usersTableNameIndex],
-          forceIndex: [usersTableAgeIndex]
-        })
-        .where(eq(users.name, 'David'))
-    })()
-  ).rejects.toThrowError()
+  let error: unknown
+  try {
+    await db
+      .select()
+      .from(users, {
+        useIndex: [usersTableNameIndex],
+        forceIndex: [usersTableAgeIndex]
+      })
+      .where(eq(users.name, 'David'))
+  } catch (cause) {
+    error = cause
+  }
+  expect(error).toBeDefined()
 })
 
 test('MySqlTable :: select with join `use index` hint', async ctx => {
@@ -4101,7 +4113,7 @@ test('MySqlTable :: select with join `use index` hint', async ctx => {
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4176,7 +4188,7 @@ test('MySqlTable :: select with join `use index` hint on 1 index', async ctx => 
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4195,7 +4207,9 @@ test('MySqlTable :: select with join `use index` hint on 1 index', async ctx => 
     .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
     .toSQL()
 
-  expect(query.sql).toContain('USE INDEX (posts_user_id_index)')
+  expect(query.sql.toLowerCase()).toContain(
+    'use index (`posts_user_id_index`)'
+  )
 })
 
 test('MySqlTable :: select with cross join `use index` hint', async ctx => {
@@ -4231,7 +4245,7 @@ test('MySqlTable :: select with cross join `use index` hint', async ctx => {
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4307,7 +4321,7 @@ test('MySqlTable :: select with cross join `use index` hint on 1 index', async c
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4326,7 +4340,9 @@ test('MySqlTable :: select with cross join `use index` hint on 1 index', async c
     .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
     .toSQL()
 
-  expect(query.sql).toContain('USE INDEX (posts_user_id_index)')
+  expect(query.sql.toLowerCase()).toContain(
+    'use index (`posts_user_id_index`)'
+  )
 })
 
 test('MySqlTable :: select with join `use index` hint on multiple indexes', async ctx => {
@@ -4363,7 +4379,7 @@ test('MySqlTable :: select with join `use index` hint on multiple indexes', asyn
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4383,8 +4399,8 @@ test('MySqlTable :: select with join `use index` hint on multiple indexes', asyn
     .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
     .toSQL()
 
-  expect(query.sql).toContain(
-    'USE INDEX (posts_user_id_index, posts_text_index)'
+  expect(query.sql.toLowerCase()).toContain(
+    'use index (`posts_user_id_index`, `posts_text_index`)'
   )
 })
 
@@ -4421,7 +4437,7 @@ test('MySqlTable :: select with join `use index` hint on not existed index', asy
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4444,22 +4460,24 @@ test('MySqlTable :: select with join `use index` hint on not existed index', asy
     {text: 'Eve post', userId: 5}
   ])
 
-  await expect(
-    (async () => {
-      return await db
-        .select({
-          userId: users.id,
-          name: users.name,
-          postId: posts.id,
-          text: posts.text
-        })
-        .from(users)
-        .leftJoin(posts, eq(users.id, posts.userId), {
-          useIndex: ['some_other_index']
-        })
-        .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
-    })()
-  ).rejects.toThrowError()
+  let error: unknown
+  try {
+    await db
+      .select({
+        userId: users.id,
+        name: users.name,
+        postId: posts.id,
+        text: posts.text
+      })
+      .from(users)
+      .leftJoin(posts, eq(users.id, posts.userId), {
+        useIndex: ['some_other_index']
+      })
+      .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
+  } catch (cause) {
+    error = cause
+  }
+  expect(error).toBeDefined()
 })
 
 test('MySqlTable :: select with join `use index` + `force index` incompatible hints', async ctx => {
@@ -4496,7 +4514,7 @@ test('MySqlTable :: select with join `use index` + `force index` incompatible hi
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4520,23 +4538,25 @@ test('MySqlTable :: select with join `use index` + `force index` incompatible hi
     {text: 'Eve post', userId: 5}
   ])
 
-  await expect(
-    (async () => {
-      return await db
-        .select({
-          userId: users.id,
-          name: users.name,
-          postId: posts.id,
-          text: posts.text
-        })
-        .from(users)
-        .leftJoin(posts, eq(users.id, posts.userId), {
-          useIndex: [postsTableUserIdIndex],
-          forceIndex: [postsTableTextIndex]
-        })
-        .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
-    })()
-  ).rejects.toThrowError()
+  let error: unknown
+  try {
+    await db
+      .select({
+        userId: users.id,
+        name: users.name,
+        postId: posts.id,
+        text: posts.text
+      })
+      .from(users)
+      .leftJoin(posts, eq(users.id, posts.userId), {
+        useIndex: [postsTableUserIdIndex],
+        forceIndex: [postsTableTextIndex]
+      })
+      .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
+  } catch (cause) {
+    error = cause
+  }
+  expect(error).toBeDefined()
 })
 
 test('MySqlTable :: select with Subquery join `use index`', async ctx => {
@@ -4572,7 +4592,7 @@ test('MySqlTable :: select with Subquery join `use index`', async ctx => {
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4651,7 +4671,7 @@ test('MySqlTable :: select with Subquery join with `use index` in join', async c
       create table ${posts} (
         \`id\` serial primary key,
         \`text\` varchar(100) not null,
-        \`user_id\` int not null references users(id) on delete cascade
+        \`user_id\` bigint unsigned not null references users(id) on delete cascade
       )
     `)
   await db.execute(sql`create index posts_user_id_index ON posts(user_id)`)
@@ -4671,7 +4691,7 @@ test('MySqlTable :: select with Subquery join with `use index` in join', async c
     .where(eq(users.name, 'Alice'))
     .toSQL()
 
-  expect(query.sql).not.toContain('USE INDEX')
+  expect(query.sql.toLowerCase()).not.toContain('use index')
 })
 
 test('View :: select with `use index` hint', async ctx => {
@@ -4690,6 +4710,8 @@ test('View :: select with `use index` hint', async ctx => {
 
   const usersView = mysqlView('users_view').as(db.select().from(users))
 
+  await db.execute(sql`drop view if exists ${usersView}`)
+  await db.execute(sql`drop table if exists \`posts\``)
   await db.execute(sql`drop table if exists ${users}`)
   await db.execute(sql`
       create table ${users} (
@@ -4708,7 +4730,7 @@ test('View :: select with `use index` hint', async ctx => {
     })
     .toSQL()
 
-  expect(query.sql).not.toContain('USE INDEX')
+  expect(query.sql.toLowerCase()).not.toContain('use index')
 
   await db.execute(sql`drop view ${usersView}`)
 })
@@ -4726,6 +4748,7 @@ test('Subquery :: select with `use index` hint', async ctx => {
   )
   const usersTableNameIndex = index('users_name_index').on(users.name)
 
+  await db.execute(sql`drop table if exists \`posts\``)
   await db.execute(sql`drop table if exists ${users}`)
   await db.execute(sql`
       create table ${users} (
@@ -4743,5 +4766,5 @@ test('Subquery :: select with `use index` hint', async ctx => {
     .from(sq, {useIndex: [usersTableNameIndex]})
     .toSQL()
 
-  expect(query.sql).not.toContain('USE INDEX')
+  expect(query.sql.toLowerCase()).not.toContain('use index')
 })

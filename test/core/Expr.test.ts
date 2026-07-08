@@ -123,6 +123,6 @@ suite(import.meta, test => {
 
   test('function', () => {
     const patch = Functions.json_patch({a: 1}, {b: 1})
-    test.equal(emit(patch), '"json_patch"({"a":1}, {"b":1})')
+    test.equal(emit(patch), 'json_patch({"a":1}, {"b":1})')
   })
 })

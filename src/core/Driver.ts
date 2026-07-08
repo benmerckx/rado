@@ -28,7 +28,7 @@ export interface SyncDriver extends DriverSpecs {
 }
 export interface SyncStatement {
   all(params: Array<unknown>): Array<object>
-  run(params: Array<unknown>): void
+  run(params: Array<unknown>): unknown
   get(params: Array<unknown>): object | null
   values(params: Array<unknown>): Array<Array<unknown>>
   free(): void
@@ -45,7 +45,7 @@ export interface AsyncDriver extends DriverSpecs {
 }
 export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<object>>
-  run(params: Array<unknown>): Promise<void>
+  run(params: Array<unknown>): Promise<unknown>
   get(params: Array<unknown>): Promise<object | null>
   values(params: Array<unknown>): Promise<Array<Array<unknown>>>
   free(): void
