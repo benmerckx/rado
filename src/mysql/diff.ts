@@ -1,4 +1,4 @@
-import {formatColumn} from '../core/Column.ts'
+import {type BaseColumnData, formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
 import {eq} from '../core/expr/Conditions.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
@@ -37,6 +37,10 @@ const TableConstraints = ns.table('table_constraints', {
 })
 
 const inline = (sql: HasSql) => mysqlDialect.inline(sql)
+
+interface DiffColumnData extends BaseColumnData {
+  nullable: boolean
+}
 
 export const mysqlDiff: Diff = (hasTable: Table) => {
   return txGenerator(function* (tx) {
@@ -84,7 +88,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
     }
 
     // Map existing columns from database
-    const localColumns = new Map(
+    const localColumns = new Map<string, DiffColumnData>(
       columnInfo.map(column => {
         let type = column.type.toLowerCase()
         const isAutoIncrement = column.extra
@@ -115,7 +119,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
 
     // Map schema columns from code
     const primaryKeys = primaryKeyColumns(tableApi)
-    const schemaColumns = new Map(
+    const schemaColumns = new Map<string, DiffColumnData>(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
         const columnName = columnApi.name ?? name

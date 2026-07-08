@@ -66,6 +66,10 @@ const identity = when<string | null>(
   null
 )
 
+interface DiffColumnData extends BaseColumnData {
+  nullable: boolean
+}
+
 export const postgresDiff: Diff = (hasTable: Table) => {
   return txGenerator(function* (tx) {
     const tableApi = getTable(hasTable)
@@ -128,7 +132,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
       .from(def)
     if (columnInfo.length === 0) return tableApi.create().map(inline)
 
-    const localColumns = new Map<string, BaseColumnData>(
+    const localColumns = new Map<string, DiffColumnData>(
       columnInfo.map(column => {
         return [
           column.name,
@@ -145,7 +149,7 @@ export const postgresDiff: Diff = (hasTable: Table) => {
     )
 
     const primaryKeys = primaryKeyColumns(tableApi)
-    const schemaColumns = new Map(
+    const schemaColumns = new Map<string, DiffColumnData>(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
         const columnName = columnApi.name ?? name
