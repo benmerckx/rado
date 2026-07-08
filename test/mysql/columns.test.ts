@@ -7,6 +7,7 @@ const test = suite(import.meta)
 test('mysql basic scalar columns sql', () => {
   test.equal(columnSql(mysql.boolean()), 'boolean')
   test.equal(columnSql(mysql.blob()), 'blob')
+  test.equal(columnSql(mysql.double()), 'double')
   test.equal(columnSql(mysql.float()), 'float')
   test.equal(columnSql(mysql.integer()), 'integer')
   test.equal(columnSql(mysql.int()), 'integer')
@@ -21,11 +22,14 @@ test('mysql basic scalar columns sql', () => {
 
 test('mysql bigint mapping', () => {
   const big = mysql.bigint()
+  const bigExplicit = mysql.bigint({mode: 'bigint'})
   const bigNum = mysql.bigint({mode: 'number'})
   const bigUnsigned = mysql.bigint({unsigned: true})
   test.equal(columnSql(big), 'bigint')
+  test.equal(columnSql(bigExplicit), 'bigint')
   test.equal(columnSql(bigUnsigned), 'bigint unsigned')
   test.equal(mapFrom(big, '42'), BigInt('42'))
+  test.equal(mapFrom(bigExplicit, '42'), BigInt('42'))
   test.equal(mapFrom(bigNum, '43'), 43)
 })
 
@@ -53,11 +57,17 @@ test('mysql binary and varbinary sql', () => {
 })
 
 test('mysql decimal and numeric sql', () => {
-  test.equal(columnSql(mysql.decimal()), 'decimal')
+  const decimal = mysql.decimal()
+  const decimalNum = mysql.decimal({mode: 'number'})
+  const decimalBig = mysql.decimal({mode: 'bigint'})
+  test.equal(columnSql(decimal), 'decimal')
   test.equal(
     columnSql(mysql.decimal({precision: 10, scale: 2})),
     'decimal(10, 2)'
   )
+  test.equal(mapFrom(decimal, '10.25'), '10.25')
+  test.equal(mapFrom(decimalNum, '10.25'), 10.25)
+  test.equal(mapFrom(decimalBig, '10'), BigInt('10'))
 })
 
 test('mysql json mapping', () => {
@@ -71,16 +81,18 @@ test('mysql date mapping', () => {
   const dateDate = mysql.date({mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
-  test.equal(mapFrom(dateDate, '2020-01-01'), Date.parse('2020-01-01'))
+  test.ok(mapFrom(dateDate, '2020-01-01') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(dateDate, date), date.toISOString())
 })
 
 test('mysql datetime mapping', () => {
   const dtStr = mysql.datetime({mode: 'string'})
+  const dtExplicitDate = mysql.datetime({mode: 'date'})
   const dtDate = mysql.datetime()
   test.equal(columnSql(dtStr), 'datetime')
   test.equal(mapFrom(dtStr, '2020-01-01 00:00:00'), '2020-01-01 00:00:00')
+  test.ok(mapFrom(dtExplicitDate, '2020-01-01 00:00:00') instanceof Date)
   test.ok(mapFrom(dtDate, '2020-01-01 00:00:00') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(dtDate, date), date.toISOString())
@@ -89,9 +101,11 @@ test('mysql datetime mapping', () => {
 
 test('mysql timestamp mapping', () => {
   const tsStr = mysql.timestamp({mode: 'string'})
+  const tsExplicitDate = mysql.timestamp({mode: 'date'})
   const tsDate = mysql.timestamp()
   test.equal(columnSql(tsStr), 'timestamp')
   test.equal(mapFrom(tsStr, '2020-01-01 00:00:00'), '2020-01-01 00:00:00')
+  test.ok(mapFrom(tsExplicitDate, '2020-01-01 00:00:00') instanceof Date)
   test.ok(mapFrom(tsDate, '2020-01-01 00:00:00') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(tsDate, date), '2020-01-01 00:00:00.000')

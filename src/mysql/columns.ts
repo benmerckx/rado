@@ -7,15 +7,17 @@ import {
 } from '../core/Column.ts'
 
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
+type IntegerMode = 'number' | 'bigint'
+type DecimalMode = 'string' | 'number' | 'bigint'
 
 export function bigint(
   ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
 ): Column<number>
 export function bigint(
-  ...args: ColumnArguments<{unsigned?: boolean}>
+  ...args: ColumnArguments<{mode?: 'bigint'; unsigned?: boolean}>
 ): Column<bigint>
 export function bigint(
-  ...args: ColumnArguments<{mode?: 'number'; unsigned?: boolean}>
+  ...args: ColumnArguments<{mode?: IntegerMode; unsigned?: boolean}>
 ) {
   const {name, options} = columnConfig(args)
   return new Column({
@@ -47,15 +49,15 @@ export function char(
   return new Column({name, type: column.char(options?.length)})
 }
 
+export function date(...args: ColumnArguments<{mode?: 'date'}>): Column<Date>
 export function date(...args: ColumnArguments<{mode: 'string'}>): Column<string>
-export function date(...args: ColumnArguments<{mode: 'date'}>): Column<Date>
-export function date(...args: ColumnArguments<{mode: 'date' | 'string'}>) {
+export function date(...args: ColumnArguments<{mode?: 'date' | 'string'}>) {
   const {name, options} = columnConfig(args)
   return new Column({
     name,
     type: column.date(),
     mapFromDriverValue(value: string) {
-      return options?.mode === 'date' ? Date.parse(value) : value
+      return options?.mode === 'string' ? value : new Date(value)
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date ? value.toISOString() : value
@@ -64,13 +66,13 @@ export function date(...args: ColumnArguments<{mode: 'date' | 'string'}>) {
 }
 
 export function datetime(
-  ...args: ColumnArguments<{fsp?: Precision}>
+  ...args: ColumnArguments<{mode?: 'date'; fsp?: Precision}>
 ): Column<Date>
 export function datetime(
   ...args: ColumnArguments<{mode: 'string'; fsp?: Precision}>
 ): Column<string>
 export function datetime(
-  ...args: ColumnArguments<{mode?: 'string'; fsp?: Precision}>
+  ...args: ColumnArguments<{mode?: 'date' | 'string'; fsp?: Precision}>
 ) {
   const {name, options} = columnConfig(args)
   return new Column({
@@ -86,13 +88,62 @@ export function datetime(
 }
 
 export function decimal(
-  ...args: ColumnArguments<{precision?: number; scale?: number}>
-): Column<number> {
+  ...args: ColumnArguments<{
+    mode: 'number'
+    precision?: number
+    scale?: number
+  }>
+): Column<number>
+export function decimal(
+  ...args: ColumnArguments<{
+    mode: 'bigint'
+    precision?: number
+    scale?: number
+  }>
+): Column<bigint>
+export function decimal(
+  ...args: ColumnArguments<{
+    mode?: 'string'
+    precision?: number
+    scale?: number
+  }>
+): Column<string>
+export function decimal(
+  ...args: ColumnArguments<{
+    mode?: DecimalMode
+    precision?: number
+    scale?: number
+  }>
+) {
+  const {options} = columnConfig(args)
+  return decimalColumn(
+    args,
+    options?.mode === 'number'
+      ? Number
+      : options?.mode === 'bigint'
+        ? BigInt
+        : String
+  )
+}
+
+function decimalColumn(
+  args: ColumnArguments<{
+    mode?: DecimalMode
+    precision?: number
+    scale?: number
+  }>,
+  mapFromDriverValue: (value: string) => string | number | bigint
+) {
   const {name, options} = columnConfig(args)
   return new Column({
     name,
-    type: column.decimal(options?.precision, options?.scale)
+    type: column.decimal(options?.precision, options?.scale),
+    mapFromDriverValue
   })
+}
+
+export function double(name?: string): Column<number> {
+  return new Column({name, type: column.double()})
 }
 
 export function float(name?: string): Column<number> {
@@ -167,13 +218,13 @@ export function time(
 }
 
 export function timestamp(
-  ...args: ColumnArguments<{fsp?: Precision}>
+  ...args: ColumnArguments<{mode?: 'date'; fsp?: Precision}>
 ): Column<Date>
 export function timestamp(
   ...args: ColumnArguments<{mode: 'string'; fsp?: Precision}>
 ): Column<string>
 export function timestamp(
-  ...args: ColumnArguments<{mode?: 'string'; fsp?: Precision}>
+  ...args: ColumnArguments<{mode?: 'date' | 'string'; fsp?: Precision}>
 ) {
   const {name, options} = columnConfig(args)
   return new Column({
