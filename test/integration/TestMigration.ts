@@ -62,14 +62,14 @@ const TableC = table(
 export function testMigration(db: Database, test: DefineTest) {
   test('migration does not make primary keys nullable', async () => {
     const ColumnPrimaryKeyUpload = table('alinea_upload_column_pk', {
-      entryId: text().primaryKey(),
+      entryId: varchar(undefined, {length: 255}).primaryKey(),
       content: text().notNull()
     })
     const CompositePrimaryKeyUpload = table(
       'alinea_upload_composite_pk',
       {
-        entryId: text(),
-        locale: text(),
+        entryId: varchar(undefined, {length: 255}),
+        locale: varchar(undefined, {length: 16}),
         content: text().notNull()
       },
       t => ({

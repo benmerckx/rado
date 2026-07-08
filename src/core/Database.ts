@@ -94,6 +94,12 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
+    if (this.dialect.runtime === 'mysql' && tables.length > 1) {
+      const run = async () => {
+        for (const table of tables) await this.migrate(table)
+      }
+      return run() as Deliver<Meta, void>
+    }
     const computeDiff = this.diff
     return this.transaction<void>(
       txGenerator(function* (tx) {
