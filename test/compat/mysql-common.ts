@@ -1473,10 +1473,7 @@ test('with ... select', async ctx => {
     })
     .from(orders)
     .where(
-      inArray(
-        orders.region,
-        db.select({region: topRegions.region}).from(topRegions)
-      )
+      inArray(orders.region, db.select(topRegions.region).from(topRegions))
     )
     .groupBy(orders.region, orders.product)
     .orderBy(orders.region, orders.product)
@@ -4740,9 +4737,9 @@ test('Subquery :: select with `use index` hint', async ctx => {
 
   const sq = db.select().from(users).as('sq')
 
-  // @ts-expect-error
   const query = db
     .select()
+    // @ts-expect-error
     .from(sq, {useIndex: [usersTableNameIndex]})
     .toSQL()
 
