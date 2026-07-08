@@ -18,24 +18,21 @@ export interface UniqueConstraintData extends ConstraintData {
   nullsNotDistinct?: boolean
 }
 
-export class UniqueConstraint<TableName extends string = string>
+export class UniqueConstraint
   implements HasData<UniqueConstraintData>, HasConstraint
 {
-  declare private brand: [TableName];
   [internalData]: UniqueConstraintData
 
   constructor(data: UniqueConstraintData) {
     this[internalData] = data
   }
 
-  on<TableName extends string>(
-    ...columns: Array<Field<unknown, TableName>>
-  ): UniqueConstraint<TableName> {
+  on(...columns: Array<Field>): UniqueConstraint {
     const fields = columns.map(getField)
     return new UniqueConstraint({...getData(this), fields})
   }
 
-  nullsNotDistinct(): UniqueConstraint<TableName> {
+  nullsNotDistinct(): UniqueConstraint {
     return new UniqueConstraint({...getData(this), nullsNotDistinct: true})
   }
 
@@ -60,10 +57,9 @@ export interface PrimaryKeyConstraintData extends ConstraintData {
   fields: Array<FieldData>
 }
 
-export class PrimaryKeyConstraint<TableName extends string = string>
+export class PrimaryKeyConstraint
   implements HasData<PrimaryKeyConstraintData>, HasConstraint
 {
-  declare private brand: [TableName];
   [internalData]: PrimaryKeyConstraintData
 
   constructor(public data: PrimaryKeyConstraintData) {
@@ -79,16 +75,14 @@ export class PrimaryKeyConstraint<TableName extends string = string>
   }
 }
 
-export function primaryKey<TableName extends string = string>(options: {
+export function primaryKey(options: {
   name?: string
-  columns: Array<Field<unknown, TableName>>
-}): PrimaryKeyConstraint<TableName>
-export function primaryKey<TableName extends string = string>(
-  ...fields: Array<Field<unknown, TableName>>
-): PrimaryKeyConstraint<TableName>
-export function primaryKey<TableName extends string = string>(
+  columns: Array<Field>
+}): PrimaryKeyConstraint
+export function primaryKey(...fields: Array<Field>): PrimaryKeyConstraint
+export function primaryKey(
   ...args: Array<any>
-): PrimaryKeyConstraint<TableName> {
+): PrimaryKeyConstraint {
   if (args.length === 1 && 'columns' in args[0])
     return new PrimaryKeyConstraint({
       name: args[0].name,
@@ -102,19 +96,16 @@ export interface ForeignKeyConstraintData extends ConstraintData {
   references: Array<FieldData>
 }
 
-export class ForeignKeyConstraint<TableName extends string = string>
+export class ForeignKeyConstraint
   implements HasData<ForeignKeyConstraintData>, HasConstraint
 {
-  declare private brand: [TableName];
   [internalData]: ForeignKeyConstraintData
 
   constructor(data: ForeignKeyConstraintData) {
     this[internalData] = data
   }
 
-  references<ForeignTable extends string>(
-    ...fields: Array<Field<unknown, ForeignTable>>
-  ): ForeignKeyConstraint<TableName> {
+  references(...fields: Array<Field>): ForeignKeyConstraint {
     return new ForeignKeyConstraint({
       ...getData(this),
       references: fields.map(getField)
@@ -133,17 +124,15 @@ export class ForeignKeyConstraint<TableName extends string = string>
   }
 }
 
-export function foreignKey<TableName extends string = string>(options: {
+export function foreignKey(options: {
   name?: string
-  columns: Array<Field<unknown, TableName>>
-  foreignColumns?: Array<Field<unknown, string>>
-}): ForeignKeyConstraint<TableName>
-export function foreignKey<TableName extends string = string>(
-  ...fields: Array<Field<unknown, TableName>>
-): ForeignKeyConstraint<TableName>
-export function foreignKey<TableName extends string = string>(
+  columns: Array<Field>
+  foreignColumns?: Array<Field>
+}): ForeignKeyConstraint
+export function foreignKey(...fields: Array<Field>): ForeignKeyConstraint
+export function foreignKey(
   ...args: Array<any>
-): ForeignKeyConstraint<TableName> {
+): ForeignKeyConstraint {
   if (args.length === 1 && 'columns' in args[0])
     return new ForeignKeyConstraint({
       name: args[0].name,

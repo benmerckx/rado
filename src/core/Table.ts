@@ -43,7 +43,7 @@ class TableData {
   alias?: string
   schemaName?: string
   columns!: TableDefinition
-  config?: TableConfig
+  config?: () => TableConfigResult
 }
 
 export class TableApi<
@@ -84,7 +84,7 @@ export class TableApi<
     const createColumns = keys(this.columns).map(name =>
       this.columnDefinition(name)
     )
-    const createConstraints = configEntries(this.config)
+    const createConstraints = configEntries(this.config?.())
       .filter(([, value]) => hasConstraint(value))
       .map(([key, value]) => {
         const {name} = getData(value as HasData<{name?: string}>)
@@ -136,7 +136,7 @@ export class TableApi<
 
   indexes(): Record<string, Index> {
     return fromEntries(
-      configEntries(this.config)
+      configEntries(this.config?.())
         .filter(([, value]) => value instanceof Index)
         .map(([key, value]) => {
           const {name} = getData(value as HasData<{name?: string}>)
@@ -226,19 +226,21 @@ export type TableUpdate<Definition extends TableDefinition> = {
     : never
 }
 
-export type TableConfigSetting<Name extends string> =
-  | UniqueConstraint<Name>
-  | PrimaryKeyConstraint<Name>
-  | ForeignKeyConstraint<Name>
-  | Index<Name>
+export type TableConfigSetting =
+  | UniqueConstraint
+  | PrimaryKeyConstraint
+  | ForeignKeyConstraint
+  | Index
 
-export type TableConfig<Name extends string = string> =
-  | Record<string, TableConfigSetting<Name>>
-  | ReadonlyArray<TableConfigSetting<Name>>
+export type TableConfig = Record<string, TableConfigSetting>
 
-function configEntries<Name extends string>(
-  config?: TableConfig<Name>
-): Array<readonly [string | undefined, TableConfigSetting<Name>]> {
+export type TableConfigArray = ReadonlyArray<TableConfigSetting>
+
+export type TableConfigResult = TableConfig | TableConfigArray
+
+function configEntries(
+  config?: TableConfigResult
+): Array<readonly [string | undefined, TableConfigSetting]> {
   if (!config) return []
   if (Array.isArray(config)) return config.map(value => [undefined, value])
   return entries(config)
@@ -247,7 +249,7 @@ function configEntries<Name extends string>(
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition,
-  config?: (self: Table<Definition, Name>) => TableConfig<Name>,
+  config?: (self: Table<Definition, Name>) => TableConfigResult,
   schemaName?: string
 ): Table<Definition, Name> {
   const api = assign(new TableApi<Definition, Name>(), {
@@ -268,7 +270,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
     },
     ...fields
   }
-  if (config) api.config = config(table)
+  if (config) api.config = () => config(table)
   return table
 }
 

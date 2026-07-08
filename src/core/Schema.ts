@@ -15,7 +15,7 @@ export interface Schema<SchemaName extends string> {
     tableName: TableName,
     columns: Definition,
     config?: (self: Table<Definition, TableName>) => TableConfigResult
-  ): Table<Definition, Prefix<SchemaName, TableName>>
+  ): Table<Definition, TableName>
 }
 
 export function schema<SchemaName extends string>(

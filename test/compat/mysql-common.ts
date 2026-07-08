@@ -1680,18 +1680,19 @@ test('having', async ctx => {
     }
   ])
 
+  const select = {
+    id: citiesTable.id,
+    name: sql<string>`upper(${citiesTable.name})`.as('upper_name'),
+    usersCount: sql<number>`count(${users2Table.id})`.as('users_count')
+  }
   const result = await db
-    .select({
-      id: citiesTable.id,
-      name: sql<string>`upper(${citiesTable.name})`.as('upper_name'),
-      usersCount: sql<number>`count(${users2Table.id})`.as('users_count')
-    })
+    .select(select)
     .from(citiesTable)
     .leftJoin(users2Table, eq(users2Table.cityId, citiesTable.id))
-    .where(({name}) => sql`length(${name}) >= 3`)
+    .where(sql`length(${select.name}) >= 3`)
     .groupBy(citiesTable.id)
     .having(({usersCount}) => sql`${usersCount} > 0`)
-    .orderBy(({name}) => name)
+    .orderBy(select.name)
 
   expect(result).toEqual([
     {
@@ -1735,13 +1736,10 @@ test('prefixed table', async ctx => {
 test('orderBy with aliased column', ctx => {
   const {db} = ctx.mysql
 
-  const query = db
-    .select({
-      test: sql`something`.as('test')
-    })
-    .from(users2Table)
-    .orderBy(fields => fields.test)
-    .toSQL()
+  const select = {
+    test: sql`something`.as('test')
+  }
+  const query = db.select(select).from(users2Table).orderBy(select.test).toSQL()
 
   expect(query.sql).toBe(
     'select something as `test` from `users2` order by `test`'
@@ -2578,7 +2576,7 @@ test('set operations (mixed) from query builder', async ctx => {
   const result = await db
     .select()
     .from(citiesTable)
-    .except(({unionAll}) =>
+    .except(
       unionAll(
         db.select().from(citiesTable).where(gt(citiesTable.id, 1)),
         db.select().from(citiesTable).where(eq(citiesTable.id, 2))
@@ -2599,7 +2597,7 @@ test('set operations (mixed) from query builder', async ctx => {
     (async () => {
       db.select()
         .from(citiesTable)
-        .except(({unionAll}) =>
+        .except(
           unionAll(
             db
               .select({name: citiesTable.name, id: citiesTable.id})
@@ -4693,7 +4691,7 @@ test('View :: select with `use index` hint', async ctx => {
 
   const usersTableNameIndex = index('users_name_index').on(users.name)
 
-  const usersView = mysqlView('users_view').as(qb => qb.select().from(users))
+  const usersView = mysqlView('users_view').as(db.select().from(users))
 
   await db.execute(sql`drop table if exists ${users}`)
   await db.execute(sql`
