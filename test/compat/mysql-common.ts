@@ -50,6 +50,7 @@ import {
   json,
   mediumint,
   mysqlSchema,
+  mysqlEnum,
   mysqlTable,
   mysqlTableCreator,
   mysqlView,
@@ -233,6 +234,13 @@ const users2MySchemaTable = mySchema.table('users2', {
 const citiesMySchemaTable = mySchema.table('cities', {
   id: serial('id').primaryKey(),
   name: text('name').notNull()
+})
+
+const tableWithEnums = mysqlTable('enums_test_case', {
+  id: serial('id').primaryKey(),
+  enum1: mysqlEnum('enum1', ['a', 'b', 'c']).notNull(),
+  enum2: mysqlEnum('enum2', ['a', 'b', 'c']).default('a'),
+  enum3: mysqlEnum('enum3', ['a', 'b', 'c']).notNull().default('b')
 })
 
 const test = suite(import.meta, {
@@ -3660,8 +3668,6 @@ test('cross join (lateral)', async ctx => {
   ])
 })
 
-/*
-Retained for the next MySQL API implementation phase.
 test('Mysql enum as ts enum', async ctx => {
   enum Test {
     a = 'a',
@@ -3737,6 +3743,8 @@ test('Mysql enum test case #1', async ctx => {
   ])
 })
 
+/*
+Retained for the next MySQL API implementation phase.
 test('insert $returningId: serial as id', async ctx => {
   const {db} = ctx.mysql
 

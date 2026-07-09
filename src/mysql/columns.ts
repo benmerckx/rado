@@ -9,6 +9,12 @@ import {
 type Precision = 0 | 1 | 2 | 3 | 4 | 5 | 6
 type IntegerMode = 'number' | 'bigint'
 type DecimalMode = 'string' | 'number' | 'bigint'
+type EnumInput = readonly [string, ...string[]] | Record<string, string>
+type EnumValue<Values extends EnumInput> = Values extends readonly string[]
+  ? Values[number]
+  : Values extends Record<string, infer Value extends string>
+    ? `${Value}`
+    : never
 
 function pad(value: number): string {
   return String(value).padStart(2, '0')
@@ -187,6 +193,17 @@ export function json<T>(name?: string): JsonColumn<T> {
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     }
+  })
+}
+
+export function mysqlEnum<const Values extends EnumInput>(
+  name: string,
+  values: Values
+): Column<EnumValue<Values>> {
+  const enumValues = Array.isArray(values) ? values : Object.values(values)
+  return new Column({
+    name,
+    type: column.enum(...enumValues)
   })
 }
 
