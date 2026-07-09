@@ -386,6 +386,180 @@ async function setupAggregateFunctionsTest(db: TestMySQLDB) {
   ])
 }
 
+/*
+Retained from upstream, but not supported by this compatibility layer.
+getTableConfig introspects Drizzle's internal table metadata API.
+		test('table config: unsigned ints', async () => {
+			const unsignedInts = mysqlTable('cities1', {
+				bigint: bigint('bigint', { mode: 'number', unsigned: true }),
+				int: int('int', { unsigned: true }),
+				smallint: smallint('smallint', { unsigned: true }),
+				mediumint: mediumint('mediumint', { unsigned: true }),
+				tinyint: tinyint('tinyint', { unsigned: true }),
+			});
+
+			const tableConfig = getTableConfig(unsignedInts);
+
+			const bigintColumn = tableConfig.columns.find(
+				(c) => c.name === 'bigint',
+			)!;
+			const intColumn = tableConfig.columns.find((c) => c.name === 'int')!;
+			const smallintColumn = tableConfig.columns.find(
+				(c) => c.name === 'smallint',
+			)!;
+			const mediumintColumn = tableConfig.columns.find(
+				(c) => c.name === 'mediumint',
+			)!;
+			const tinyintColumn = tableConfig.columns.find(
+				(c) => c.name === 'tinyint',
+			)!;
+
+			expect(bigintColumn.getSQLType()).toBe('bigint unsigned');
+			expect(intColumn.getSQLType()).toBe('int unsigned');
+			expect(smallintColumn.getSQLType()).toBe('smallint unsigned');
+			expect(mediumintColumn.getSQLType()).toBe('mediumint unsigned');
+			expect(tinyintColumn.getSQLType()).toBe('tinyint unsigned');
+		});
+
+
+
+		test('table config: signed ints', async () => {
+			const unsignedInts = mysqlTable('cities1', {
+				bigint: bigint('bigint', { mode: 'number' }),
+				int: int('int'),
+				smallint: smallint('smallint'),
+				mediumint: mediumint('mediumint'),
+				tinyint: tinyint('tinyint'),
+			});
+
+			const tableConfig = getTableConfig(unsignedInts);
+
+			const bigintColumn = tableConfig.columns.find(
+				(c) => c.name === 'bigint',
+			)!;
+			const intColumn = tableConfig.columns.find((c) => c.name === 'int')!;
+			const smallintColumn = tableConfig.columns.find(
+				(c) => c.name === 'smallint',
+			)!;
+			const mediumintColumn = tableConfig.columns.find(
+				(c) => c.name === 'mediumint',
+			)!;
+			const tinyintColumn = tableConfig.columns.find(
+				(c) => c.name === 'tinyint',
+			)!;
+
+			expect(bigintColumn.getSQLType()).toBe('bigint');
+			expect(intColumn.getSQLType()).toBe('int');
+			expect(smallintColumn.getSQLType()).toBe('smallint');
+			expect(mediumintColumn.getSQLType()).toBe('mediumint');
+			expect(tinyintColumn.getSQLType()).toBe('tinyint');
+		});
+
+
+
+		test('table config: foreign keys name', async () => {
+			const table = mysqlTable(
+				'cities',
+				{
+					id: serial('id').primaryKey(),
+					name: text('name').notNull(),
+					state: text('state'),
+				},
+				(t) => ({
+					f: foreignKey({
+						foreignColumns: [t.id],
+						columns: [t.id],
+						name: 'custom_fk',
+					}),
+				}),
+			);
+
+			const tableConfig = getTableConfig(table);
+
+			expect(tableConfig.foreignKeys).toHaveLength(1);
+			expect(tableConfig.foreignKeys[0]!.getName()).toBe('custom_fk');
+		});
+
+
+
+		test('table config: primary keys name', async () => {
+			const table = mysqlTable(
+				'cities',
+				{
+					id: serial('id').primaryKey(),
+					name: text('name').notNull(),
+					state: text('state'),
+				},
+				(t) => ({
+					f: primaryKey({ columns: [t.id, t.name], name: 'custom_pk' }),
+				}),
+			);
+
+			const tableConfig = getTableConfig(table);
+
+			expect(tableConfig.primaryKeys).toHaveLength(1);
+			expect(tableConfig.primaryKeys[0]!.getName()).toBe('custom_pk');
+		});
+
+
+
+		test('table configs: unique third param', async () => {
+			const cities1Table = mysqlTable(
+				'cities1',
+				{
+					id: serial('id').primaryKey(),
+					name: text('name').notNull(),
+					state: text('state'),
+				},
+				(t) => ({
+					f: unique('custom_name').on(t.name, t.state),
+					f1: unique('custom_name1').on(t.name, t.state),
+				}),
+			);
+
+			const tableConfig = getTableConfig(cities1Table);
+
+			expect(tableConfig.uniqueConstraints).toHaveLength(2);
+
+			expect(tableConfig.uniqueConstraints[0]?.name).toBe('custom_name');
+			expect(
+				tableConfig.uniqueConstraints[0]?.columns.map((t) => t.name),
+			).toEqual(['name', 'state']);
+
+			expect(tableConfig.uniqueConstraints[1]?.name).toBe('custom_name1');
+			expect(
+				tableConfig.uniqueConstraints[1]?.columns.map((t) => t.name),
+			).toEqual(['name', 'state']);
+		});
+
+
+
+		test('table configs: unique in column', async () => {
+			const cities1Table = mysqlTable('cities1', {
+				id: serial('id').primaryKey(),
+				name: text('name').notNull().unique(),
+				state: text('state').unique('custom'),
+				field: text('field').unique('custom_field'),
+			});
+
+			const tableConfig = getTableConfig(cities1Table);
+
+			const columnName = tableConfig.columns.find((it) => it.name === 'name');
+			expect(columnName?.uniqueName).toBe(
+				uniqueKeyName(cities1Table, [columnName!.name]),
+			);
+			expect(columnName?.isUnique).toBeTruthy();
+
+			const columnState = tableConfig.columns.find((it) => it.name === 'state');
+			expect(columnState?.uniqueName).toBe('custom');
+			expect(columnState?.isUnique).toBeTruthy();
+
+			const columnField = tableConfig.columns.find((it) => it.name === 'field');
+			expect(columnField?.uniqueName).toBe('custom_field');
+			expect(columnField?.isUnique).toBeTruthy();
+		});
+*/
+
 test('select all fields', async ctx => {
   const {db} = ctx.mysql
 
@@ -495,6 +669,103 @@ test('select distinct', async ctx => {
   ])
 })
 
+test('insert returning sql', async ctx => {
+  const {db} = ctx.mysql
+
+  const [result, _] = await db.insert(usersTable).values({name: 'John'})
+
+  expect(result.insertId).toBe(1)
+})
+
+test('delete returning sql', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+  const users = await db.delete(usersTable).where(eq(usersTable.name, 'John'))
+
+  expect(users[0].affectedRows).toBe(1)
+})
+
+test('update returning sql', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+  const users = await db
+    .update(usersTable)
+    .set({name: 'Jane'})
+    .where(eq(usersTable.name, 'John'))
+
+  expect(users[0].changedRows).toBe(1)
+})
+
+test('update with returning all fields', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+  const updatedUsers = await db
+    .update(usersTable)
+    .set({name: 'Jane'})
+    .where(eq(usersTable.name, 'John'))
+
+  const users = await db.select().from(usersTable).where(eq(usersTable.id, 1))
+
+  expect(updatedUsers[0].changedRows).toBe(1)
+
+  expect(users[0]!.createdAt).toBeInstanceOf(Date)
+  // not timezone based timestamp, thats why it should not work here
+  // t.assert(Math.abs(users[0]!.createdAt.getTime() - now) < 2000);
+  expect(users).toEqual([
+    {
+      id: 1,
+      name: 'Jane',
+      verified: false,
+      jsonb: null,
+      createdAt: users[0]!.createdAt
+    }
+  ])
+})
+
+test('update with returning partial', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+  const updatedUsers = await db
+    .update(usersTable)
+    .set({name: 'Jane'})
+    .where(eq(usersTable.name, 'John'))
+
+  const users = await db
+    .select({id: usersTable.id, name: usersTable.name})
+    .from(usersTable)
+    .where(eq(usersTable.id, 1))
+
+  expect(updatedUsers[0].changedRows).toBe(1)
+
+  expect(users).toEqual([{id: 1, name: 'Jane'}])
+})
+
+test('delete with returning all fields', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+  const deletedUser = await db
+    .delete(usersTable)
+    .where(eq(usersTable.name, 'John'))
+
+  expect(deletedUser[0].affectedRows).toBe(1)
+})
+
+test('delete with returning partial', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+  const deletedUser = await db
+    .delete(usersTable)
+    .where(eq(usersTable.name, 'John'))
+
+  expect(deletedUser[0].affectedRows).toBe(1)
+})
+
 test('insert + select', async ctx => {
   const {db} = ctx.mysql
 
@@ -588,6 +859,21 @@ test('insert many', async ctx => {
     {id: 3, name: 'Jane', jsonb: null, verified: false},
     {id: 4, name: 'Austin', jsonb: null, verified: true}
   ])
+})
+
+test('insert many with returning', async ctx => {
+  const {db} = ctx.mysql
+
+  const result = await db
+    .insert(usersTable)
+    .values([
+      {name: 'John'},
+      {name: 'Bruce', jsonb: ['foo', 'bar']},
+      {name: 'Jane'},
+      {name: 'Austin', verified: true}
+    ])
+
+  expect(result[0].affectedRows).toBe(4)
 })
 
 test('select with group by as field', async ctx => {
@@ -886,15 +1172,27 @@ test('insert with onDuplicate', async ctx => {
 test('insert conflict', async ctx => {
   const {db} = ctx.mysql
 
-  const query = db
-    .insert(usersTable)
-    .values({id: 1, name: 'John1'})
-    .toSQL()
+  const query = db.insert(usersTable).values({id: 1, name: 'John1'}).toSQL()
 
   expect(query).toEqual({
     sql: 'insert into `userstest` (`id`, `name`, `verified`, `jsonb`, `created_at`) values (?, ?, default, default, default)',
     params: [1, 'John1']
   })
+})
+
+test('insert conflict with ignore', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersTable).values({name: 'John'})
+
+  await db.insert(usersTable).ignore().values({id: 1, name: 'John1'})
+
+  const res = await db
+    .select({id: usersTable.id, name: usersTable.name})
+    .from(usersTable)
+    .where(eq(usersTable.id, 1))
+
+  expect(res).toEqual([{id: 1, name: 'John'}])
 })
 
 test('insert sql', async ctx => {
@@ -1194,6 +1492,53 @@ test('prepared statement built using $dynamic', async ctx => {
   expect(result).toHaveLength(1)
 })
 
+/*
+Retained from upstream, but not supported by this compatibility layer.
+		test('migrator', async (ctx) => {
+			const { db } = ctx.mysql;
+
+			await db.execute(sql`drop table if exists cities_migration`);
+			await db.execute(sql`drop table if exists users_migration`);
+			await db.execute(sql`drop table if exists users12`);
+			await db.execute(sql`drop table if exists __drizzle_migrations`);
+
+			await migrate(db, { migrationsFolder: './drizzle2/mysql' });
+
+			await db
+				.insert(usersMigratorTable)
+				.values({ name: 'John', email: 'email' });
+
+			const result = await db.select().from(usersMigratorTable);
+
+			expect(result).toEqual([{ id: 1, name: 'John', email: 'email' }]);
+
+			await db.execute(sql`drop table cities_migration`);
+			await db.execute(sql`drop table users_migration`);
+			await db.execute(sql`drop table users12`);
+			await db.execute(sql`drop table __drizzle_migrations`);
+		});
+*/
+
+test('insert via db.execute + select via db.execute', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.execute(sql`insert into ${usersTable} (name) values (${'John'})`)
+
+  const result = await db.execute<{id: number; name: string}>(
+    sql`select id, name from ${usersTable}`
+  )
+  expect(result[0]).toEqual([{id: 1, name: 'John'}])
+})
+
+test('insert via db.execute w/ query builder', async ctx => {
+  const {db} = ctx.mysql
+
+  const inserted = await db.execute(
+    db.insert(usersTable).values({name: 'John'})
+  )
+  expect(inserted[0].affectedRows).toBe(1)
+})
+
 test('insert + select all possible dates', async ctx => {
   const {db} = ctx.mysql
 
@@ -1248,6 +1593,81 @@ test('insert + select all possible dates', async ctx => {
   ])
 
   await db.execute(sql`drop table if exists \`datestable\``)
+})
+
+test('Mysql enum as ts enum', async ctx => {
+  enum Test {
+    a = 'a',
+    b = 'b',
+    c = 'c'
+  }
+
+  const tableWithTsEnums = mysqlTable('enums_test_case', {
+    id: serial('id').primaryKey(),
+    enum1: mysqlEnum('enum1', Test).notNull(),
+    enum2: mysqlEnum('enum2', Test).default(Test.a),
+    enum3: mysqlEnum('enum3', Test).notNull().default(Test.b)
+  })
+
+  const {db} = ctx.mysql
+
+  await db.execute(sql`drop table if exists \`enums_test_case\``)
+
+  await db.execute(sql`
+        create table \`enums_test_case\` (
+            \`id\` serial primary key,
+            \`enum1\` ENUM('a', 'b', 'c') not null,
+            \`enum2\` ENUM('a', 'b', 'c') default 'a',
+            \`enum3\` ENUM('a', 'b', 'c') not null default 'b'
+        )
+      `)
+
+  await db.insert(tableWithTsEnums).values([
+    {id: 1, enum1: Test.a, enum2: Test.b, enum3: Test.c},
+    {id: 2, enum1: Test.a, enum3: Test.c},
+    {id: 3, enum1: Test.a}
+  ])
+
+  const res = await db.select().from(tableWithTsEnums)
+
+  await db.execute(sql`drop table \`enums_test_case\``)
+
+  expect(res).toEqual([
+    {id: 1, enum1: 'a', enum2: 'b', enum3: 'c'},
+    {id: 2, enum1: 'a', enum2: 'a', enum3: 'c'},
+    {id: 3, enum1: 'a', enum2: 'a', enum3: 'b'}
+  ])
+})
+
+test('Mysql enum test case #1', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.execute(sql`drop table if exists \`enums_test_case\``)
+
+  await db.execute(sql`
+        create table \`enums_test_case\` (
+            \`id\` serial primary key,
+            \`enum1\` ENUM('a', 'b', 'c') not null,
+            \`enum2\` ENUM('a', 'b', 'c') default 'a',
+            \`enum3\` ENUM('a', 'b', 'c') not null default 'b'
+        )
+      `)
+
+  await db.insert(tableWithEnums).values([
+    {id: 1, enum1: 'a', enum2: 'b', enum3: 'c'},
+    {id: 2, enum1: 'a', enum3: 'c'},
+    {id: 3, enum1: 'a'}
+  ])
+
+  const res = await db.select().from(tableWithEnums)
+
+  await db.execute(sql`drop table \`enums_test_case\``)
+
+  expect(res).toEqual([
+    {id: 1, enum1: 'a', enum2: 'b', enum3: 'c'},
+    {id: 2, enum1: 'a', enum2: 'a', enum3: 'c'},
+    {id: 3, enum1: 'a', enum2: 'a', enum3: 'b'}
+  ])
 })
 
 test('left join (flat object fields)', async ctx => {
@@ -1347,6 +1767,92 @@ test('left join (all fields)', async ctx => {
         cityId: null
       },
       cities: null
+    }
+  ])
+})
+
+test('select from a many subquery', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(citiesTable).values([{name: 'Paris'}, {name: 'London'}])
+
+  await db.insert(users2Table).values([
+    {name: 'John', cityId: 1},
+    {name: 'Jane', cityId: 2},
+    {name: 'Jack', cityId: 2}
+  ])
+
+  const res = await db
+    .select({
+      population: db
+        .select({count: count().as('count')})
+        .from(users2Table)
+        .where(eq(users2Table.cityId, citiesTable.id))
+        .as('population'),
+      name: citiesTable.name
+    })
+    .from(citiesTable)
+
+  expectTypeOf(res).toEqualTypeOf<
+    {
+      population: number
+      name: string
+    }[]
+  >()
+
+  expect(res).toStrictEqual([
+    {
+      population: 1,
+      name: 'Paris'
+    },
+    {
+      population: 2,
+      name: 'London'
+    }
+  ])
+})
+
+test('select from a one subquery', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(citiesTable).values([{name: 'Paris'}, {name: 'London'}])
+
+  await db.insert(users2Table).values([
+    {name: 'John', cityId: 1},
+    {name: 'Jane', cityId: 2},
+    {name: 'Jack', cityId: 2}
+  ])
+
+  const res = await db
+    .select({
+      cityName: db
+        .select({name: citiesTable.name})
+        .from(citiesTable)
+        .where(eq(users2Table.cityId, citiesTable.id))
+        .as('cityName'),
+      name: users2Table.name
+    })
+    .from(users2Table)
+
+  expectTypeOf(res).toEqualTypeOf<
+    {
+      cityName: string
+      name: string
+    }[]
+  >()
+
+  expect(res).toStrictEqual([
+    {
+      cityName: 'Paris',
+      name: 'John'
+    },
+    {
+      cityName: 'London',
+      name: 'Jane'
+    },
+    {
+      cityName: 'London',
+      name: 'Jack'
     }
   ])
 })
@@ -1673,6 +2179,31 @@ test('select count()', async ctx => {
   expect(res).toEqual([{count: 2}])
 })
 
+test('select for ...', ctx => {
+  const {db} = ctx.mysql
+
+  {
+    const query = db.select().from(users2Table).for('update').toSQL()
+    expect(query.sql).toMatch(/ for update$/)
+  }
+  {
+    const query = db
+      .select()
+      .from(users2Table)
+      .for('share', {skipLocked: true})
+      .toSQL()
+    expect(query.sql).toMatch(/ for share skip locked$/)
+  }
+  {
+    const query = db
+      .select()
+      .from(users2Table)
+      .for('update', {noWait: true})
+      .toSQL()
+    expect(query.sql).toMatch(/ for update nowait$/)
+  }
+})
+
 test('having', async ctx => {
   const {db} = ctx.mysql
 
@@ -1713,6 +2244,208 @@ test('having', async ctx => {
       id: 2,
       name: 'PARIS',
       usersCount: 1
+    }
+  ])
+})
+
+test('view', async ctx => {
+  const {db} = ctx.mysql
+
+  const newYorkers1 = mysqlView('new_yorkers').as(
+    db.select().from(users2Table).where(eq(users2Table.cityId, 1))
+  )
+
+  const newYorkers2 = mysqlView('new_yorkers', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    cityId: int('city_id').notNull()
+  }).as(sql`select * from ${users2Table} where ${eq(users2Table.cityId, 1)}`)
+
+  const newYorkers3 = mysqlView('new_yorkers', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    cityId: int('city_id').notNull()
+  }).existing()
+
+  await db.create(newYorkers1)
+
+  await db.insert(citiesTable).values([{name: 'New York'}, {name: 'Paris'}])
+
+  await db.insert(users2Table).values([
+    {name: 'John', cityId: 1},
+    {name: 'Jane', cityId: 1},
+    {name: 'Jack', cityId: 2}
+  ])
+
+  {
+    const result = await db.select().from(newYorkers1)
+    expect(result).toEqual([
+      {id: 1, name: 'John', cityId: 1},
+      {id: 2, name: 'Jane', cityId: 1}
+    ])
+  }
+
+  {
+    const result = await db.select().from(newYorkers2)
+    expect(result).toEqual([
+      {id: 1, name: 'John', cityId: 1},
+      {id: 2, name: 'Jane', cityId: 1}
+    ])
+  }
+
+  {
+    const result = await db.select().from(newYorkers3)
+    expect(result).toEqual([
+      {id: 1, name: 'John', cityId: 1},
+      {id: 2, name: 'Jane', cityId: 1}
+    ])
+  }
+
+  {
+    const result = await db.select({name: newYorkers1.name}).from(newYorkers1)
+    expect(result).toEqual([{name: 'John'}, {name: 'Jane'}])
+  }
+
+  await db.execute(sql`drop view ${newYorkers1}`)
+})
+
+test('select from raw sql', async ctx => {
+  const {db} = ctx.mysql
+
+  const result = await db
+    .select({
+      id: sql<number>`id`,
+      name: sql<string>`name`
+    })
+    .from(sql`(select 1 as id, 'John' as name) as users`)
+
+  Expect<Equal<{id: number; name: string}[], typeof result>>
+
+  expect(result).toEqual([{id: 1, name: 'John'}])
+})
+
+test('select from raw sql with joins', async ctx => {
+  const {db} = ctx.mysql
+
+  const result = await db
+    .select({
+      id: sql<number>`users.id`,
+      name: sql<string>`users.name`,
+      userCity: sql<string>`users.city`,
+      cityName: sql<string>`cities.name`
+    })
+    .from(sql`(select 1 as id, 'John' as name, 'New York' as city) as users`)
+    .leftJoin(
+      sql`(select 1 as id, 'Paris' as name) as cities`,
+      sql`cities.id = users.id`
+    )
+
+  Expect<
+    Equal<
+      {id: number; name: string; userCity: string; cityName: string}[],
+      typeof result
+    >
+  >
+
+  expect(result).toEqual([
+    {id: 1, name: 'John', userCity: 'New York', cityName: 'Paris'}
+  ])
+})
+
+test('join on aliased sql from select', async ctx => {
+  const {db} = ctx.mysql
+
+  const result = await db
+    .select({
+      userId: sql<number>`users.id`.as('userId'),
+      name: sql<string>`users.name`,
+      userCity: sql<string>`users.city`,
+      cityId: sql<number>`cities.id`.as('cityId'),
+      cityName: sql<string>`cities.name`
+    })
+    .from(sql`(select 1 as id, 'John' as name, 'New York' as city) as users`)
+    .leftJoin(sql`(select 1 as id, 'Paris' as name) as cities`, cols =>
+      eq(cols.cityId, cols.userId)
+    )
+
+  Expect<
+    Equal<
+      {
+        userId: number
+        name: string
+        userCity: string
+        cityId: number
+        cityName: string
+      }[],
+      typeof result
+    >
+  >
+
+  expect(result).toEqual([
+    {
+      userId: 1,
+      name: 'John',
+      userCity: 'New York',
+      cityId: 1,
+      cityName: 'Paris'
+    }
+  ])
+})
+
+test('join on aliased sql from with clause', async ctx => {
+  const {db} = ctx.mysql
+
+  const users = db.$with('users').as(
+    db
+      .select({
+        id: sql<number>`id`.as('userId'),
+        name: sql<string>`name`.as('userName'),
+        city: sql<string>`city`.as('city')
+      })
+      .from(sql`(select 1 as id, 'John' as name, 'New York' as city) as users`)
+  )
+
+  const cities = db.$with('cities').as(
+    db
+      .select({
+        id: sql<number>`id`.as('cityId'),
+        name: sql<string>`name`.as('cityName')
+      })
+      .from(sql`(select 1 as id, 'Paris' as name) as cities`)
+  )
+
+  const result = await db
+    .with(users, cities)
+    .select({
+      userId: users.id,
+      name: users.name,
+      userCity: users.city,
+      cityId: cities.id,
+      cityName: cities.name
+    })
+    .from(users)
+    .leftJoin(cities, cols => eq(cols.cityId, cols.userId))
+
+  Expect<
+    Equal<
+      {
+        userId: number
+        name: string
+        userCity: string
+        cityId: number
+        cityName: string
+      }[],
+      typeof result
+    >
+  >
+
+  expect(result).toEqual([
+    {
+      userId: 1,
+      name: 'John',
+      userCity: 'New York',
+      cityId: 1,
+      cityName: 'Paris'
     }
   ])
 })
@@ -2045,6 +2778,161 @@ test('join subquery with join', async ctx => {
   await db.execute(sql`drop table ${ticket}`)
 })
 
+test('subquery with view', async ctx => {
+  const {db} = ctx.mysql
+
+  const users = mysqlTable('users_subquery_view', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    cityId: int('city_id').notNull()
+  })
+
+  const newYorkers = mysqlView('new_yorkers').as(
+    db.select().from(users).where(eq(users.cityId, 1))
+  )
+
+  await db.execute(sql`drop table if exists ${users}`)
+  await db.execute(sql`drop view if exists ${newYorkers}`)
+
+  await db.execute(
+    sql`create table ${users} (id serial not null primary key, name text not null, city_id integer not null)`
+  )
+  await db.execute(
+    sql`create view ${newYorkers} as select * from ${users} where city_id = 1`
+  )
+
+  await db.insert(users).values([
+    {name: 'John', cityId: 1},
+    {name: 'Jane', cityId: 2},
+    {name: 'Jack', cityId: 1},
+    {name: 'Jill', cityId: 2}
+  ])
+
+  const sq = db.$with('sq').as(db.select().from(newYorkers))
+  const result = await db.with(sq).select().from(sq)
+
+  expect(result).toEqual([
+    {id: 1, name: 'John', cityId: 1},
+    {id: 3, name: 'Jack', cityId: 1}
+  ])
+
+  await db.execute(sql`drop view ${newYorkers}`)
+  await db.execute(sql`drop table ${users}`)
+})
+
+test('join view as subquery', async ctx => {
+  const {db} = ctx.mysql
+
+  const users = mysqlTable('users_join_view', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    cityId: int('city_id').notNull()
+  })
+
+  const newYorkers = mysqlView('new_yorkers').as(
+    db.select().from(users).where(eq(users.cityId, 1))
+  )
+
+  await db.execute(sql`drop table if exists ${users}`)
+  await db.execute(sql`drop view if exists ${newYorkers}`)
+
+  await db.execute(
+    sql`create table ${users} (id serial not null primary key, name text not null, city_id integer not null)`
+  )
+  await db.execute(
+    sql`create view ${newYorkers} as select * from ${users} where city_id = 1`
+  )
+
+  await db.insert(users).values([
+    {name: 'John', cityId: 1},
+    {name: 'Jane', cityId: 2},
+    {name: 'Jack', cityId: 1},
+    {name: 'Jill', cityId: 2}
+  ])
+
+  const sq = db.select().from(newYorkers).as('new_yorkers_sq')
+
+  const result = await db.select().from(users).leftJoin(sq, eq(users.id, sq.id))
+
+  expect(result).toEqual([
+    {
+      users_join_view: {id: 1, name: 'John', cityId: 1},
+      new_yorkers_sq: {id: 1, name: 'John', cityId: 1}
+    },
+    {
+      users_join_view: {id: 2, name: 'Jane', cityId: 2},
+      new_yorkers_sq: null
+    },
+    {
+      users_join_view: {id: 3, name: 'Jack', cityId: 1},
+      new_yorkers_sq: {id: 3, name: 'Jack', cityId: 1}
+    },
+    {
+      users_join_view: {id: 4, name: 'Jill', cityId: 2},
+      new_yorkers_sq: null
+    }
+  ])
+
+  await db.execute(sql`drop view ${newYorkers}`)
+  await db.execute(sql`drop table ${users}`)
+})
+
+/*
+Retained from upstream, but not supported by this compatibility layer.
+Drizzle's .iterator() API is distinct from native async iteration support.
+		test('select iterator', async (ctx) => {
+			const { db } = ctx.mysql;
+
+			const users = mysqlTable('users_iterator', {
+				id: serial('id').primaryKey(),
+			});
+
+			await db.execute(sql`drop table if exists ${users}`);
+			await db.execute(
+				sql`create table ${users} (id serial not null primary key)`,
+			);
+
+			await db.insert(users).values([{}, {}, {}]);
+
+			const iter = db.select().from(users).iterator();
+
+			const result: (typeof users.$inferSelect)[] = [];
+
+			for await (const row of iter) {
+				result.push(row);
+			}
+
+			expect(result).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+		});
+
+
+
+		test('select iterator w/ prepared statement', async (ctx) => {
+			const { db } = ctx.mysql;
+
+			const users = mysqlTable('users_iterator', {
+				id: serial('id').primaryKey(),
+			});
+
+			await db.execute(sql`drop table if exists ${users}`);
+			await db.execute(
+				sql`create table ${users} (id serial not null primary key)`,
+			);
+
+			await db.insert(users).values([{}, {}, {}]);
+
+			const prepared = db.select().from(users).prepare();
+			const iter = prepared.iterator();
+			const result: (typeof users.$inferSelect)[] = [];
+
+			for await (const row of iter) {
+				result.push(row);
+			}
+
+			expect(result).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+		});
+*/
+
 test('insert undefined', async ctx => {
   const {db} = ctx.mysql
 
@@ -2089,6 +2977,61 @@ test('update undefined', async ctx => {
   await db.update(users).set({id: 1, name: undefined})
 
   await db.execute(sql`drop table ${users}`)
+})
+
+test('utc config for datetime', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.execute(sql`drop table if exists \`datestable\``)
+  await db.execute(
+    sql`
+					create table \`datestable\` (
+					    \`datetime_utc\` datetime(3),
+					    \`datetime\` datetime(3),
+					    \`datetime_as_string\` datetime
+					)
+				`
+  )
+  const datesTable = mysqlTable('datestable', {
+    datetimeUTC: datetime('datetime_utc', {fsp: 3, mode: 'date'}),
+    datetime: datetime('datetime', {fsp: 3}),
+    datetimeAsString: datetime('datetime_as_string', {mode: 'string'})
+  })
+
+  const dateObj = new Date('2022-11-11')
+  const dateUtc = new Date('2022-11-11T12:12:12.122Z')
+
+  await db.insert(datesTable).values({
+    datetimeUTC: dateUtc,
+    datetime: dateObj,
+    datetimeAsString: '2022-11-11 12:12:12'
+  })
+
+  const res = await db.select().from(datesTable)
+
+  const [rawSelect] = await db.execute(
+    sql`select \`datetime_utc\` from \`datestable\``
+  )
+  const selectedRow = (rawSelect as unknown as [{datetime_utc: string}])[0]
+
+  expect(selectedRow.datetime_utc).toBe('2022-11-11 12:12:12.122')
+  expect(new Date(selectedRow.datetime_utc.replace(' ', 'T') + 'Z')).toEqual(
+    dateUtc
+  )
+
+  expect(res[0]?.datetime).toBeInstanceOf(Date)
+  expect(res[0]?.datetimeUTC).toBeInstanceOf(Date)
+  expect(typeof res[0]?.datetimeAsString).toBe('string')
+
+  expect(res).toEqual([
+    {
+      datetimeUTC: dateUtc,
+      datetime: new Date('2022-11-11'),
+      datetimeAsString: '2022-11-11 12:12:12'
+    }
+  ])
+
+  await db.execute(sql`drop table if exists \`datestable\``)
 })
 
 test('set operations (union) from query builder with subquery', async ctx => {
@@ -2892,6 +3835,7 @@ test('test $onUpdateFn and $onUpdate works updating', async ctx => {
 })
 
 // mySchema tests
+
 test('mySchema :: select all fields', async ctx => {
   const {db} = ctx.mysql
 
@@ -2969,6 +3913,58 @@ test('mySchema :: select distinct', async ctx => {
     {id: 1, name: 'John'},
     {id: 2, name: 'John'}
   ])
+})
+
+test('mySchema :: insert returning sql', async ctx => {
+  const {db} = ctx.mysql
+  await db.execute(sql`truncate table \`mySchema\`.\`userstest\``)
+
+  const [result, _] = await db.insert(usersMySchemaTable).values({name: 'John'})
+
+  expect(result.insertId).toBe(1)
+})
+
+test('mySchema :: delete returning sql', async ctx => {
+  const {db} = ctx.mysql
+  await db.execute(sql`truncate table \`mySchema\`.\`userstest\``)
+
+  await db.insert(usersMySchemaTable).values({name: 'John'})
+  const users = await db
+    .delete(usersMySchemaTable)
+    .where(eq(usersMySchemaTable.name, 'John'))
+
+  expect(users[0].affectedRows).toBe(1)
+})
+
+test('mySchema :: update with returning partial', async ctx => {
+  const {db} = ctx.mysql
+  await db.execute(sql`truncate table \`mySchema\`.\`userstest\``)
+
+  await db.insert(usersMySchemaTable).values({name: 'John'})
+  const updatedUsers = await db
+    .update(usersMySchemaTable)
+    .set({name: 'Jane'})
+    .where(eq(usersMySchemaTable.name, 'John'))
+
+  const users = await db
+    .select({id: usersMySchemaTable.id, name: usersMySchemaTable.name})
+    .from(usersMySchemaTable)
+    .where(eq(usersMySchemaTable.id, 1))
+
+  expect(updatedUsers[0].changedRows).toBe(1)
+
+  expect(users).toEqual([{id: 1, name: 'Jane'}])
+})
+
+test('mySchema :: delete with returning all fields', async ctx => {
+  const {db} = ctx.mysql
+
+  await db.insert(usersMySchemaTable).values({name: 'John'})
+  const deletedUser = await db
+    .delete(usersMySchemaTable)
+    .where(eq(usersMySchemaTable.name, 'John'))
+
+  expect(deletedUser[0].affectedRows).toBe(1)
 })
 
 test('mySchema :: insert + select', async ctx => {
@@ -3177,6 +4173,215 @@ test('mySchema :: select from tables with same name from different schema using 
       }
     }
   ])
+})
+
+/*
+Retained for the next MySQL API implementation phase.
+test('insert $returningId: serial as id', async ctx => {
+  const {db} = ctx.mysql
+
+  const result = await db
+    .insert(usersTable)
+    .values({name: 'John'})
+    .$returningId()
+
+  expectTypeOf(result).toEqualTypeOf<
+    {
+      id: number
+    }[]
+  >()
+
+  expect(result).toStrictEqual([{id: 1}])
+})
+
+test('insert $returningId: serial as id, not first column', async ctx => {
+  const {db} = ctx.mysql
+
+  const usersTableDefNotFirstColumn = mysqlTable('users2', {
+    name: text('name').notNull(),
+    id: serial('id').primaryKey()
+  })
+
+  const result = await db
+    .insert(usersTableDefNotFirstColumn)
+    .values({name: 'John'})
+    .$returningId()
+
+  expectTypeOf(result).toEqualTypeOf<
+    {
+      id: number
+    }[]
+  >()
+
+  expect(result).toStrictEqual([{id: 1}])
+})
+
+test('insert $returningId: serial as id, batch insert', async ctx => {
+  const {db} = ctx.mysql
+
+  const result = await db
+    .insert(usersTable)
+    .values([{name: 'John'}, {name: 'John1'}])
+    .$returningId()
+
+  expectTypeOf(result).toEqualTypeOf<
+    {
+      id: number
+    }[]
+  >()
+
+  expect(result).toStrictEqual([{id: 1}, {id: 2}])
+})
+
+test('insert $returningId: $default as primary key', async ctx => {
+  const {db} = ctx.mysql
+
+  const uniqueKeys = ['ao865jf3mcmkfkk8o5ri495z', 'dyqs529eom0iczo2efxzbcut']
+  let iterator = 0
+
+  const usersTableDefFn = mysqlTable('users_default_fn', {
+    customId: varchar('id', {length: 256})
+      .primaryKey()
+      .$defaultFn(() => {
+        const value = uniqueKeys[iterator]!
+        iterator++
+        return value
+      }),
+    name: text('name').notNull()
+  })
+
+  await setupReturningFunctionsTest(db)
+
+  const result = await db
+    .insert(usersTableDefFn)
+    .values([{name: 'John'}, {name: 'John1'}])
+    //    ^?
+    .$returningId()
+
+  expectTypeOf(result).toEqualTypeOf<
+    {
+      customId: string
+    }[]
+  >()
+
+  expect(result).toStrictEqual([
+    {customId: 'ao865jf3mcmkfkk8o5ri495z'},
+    {
+      customId: 'dyqs529eom0iczo2efxzbcut'
+    }
+  ])
+})
+
+test('insert $returningId: $default as primary key with value', async ctx => {
+  const {db} = ctx.mysql
+
+  const uniqueKeys = ['ao865jf3mcmkfkk8o5ri495z', 'dyqs529eom0iczo2efxzbcut']
+  let iterator = 0
+
+  const usersTableDefFn = mysqlTable('users_default_fn', {
+    customId: varchar('id', {length: 256})
+      .primaryKey()
+      .$defaultFn(() => {
+        const value = uniqueKeys[iterator]!
+        iterator++
+        return value
+      }),
+    name: text('name').notNull()
+  })
+
+  await setupReturningFunctionsTest(db)
+
+  const result = await db
+    .insert(usersTableDefFn)
+    .values([{name: 'John', customId: 'test'}, {name: 'John1'}])
+    //    ^?
+    .$returningId()
+
+  expectTypeOf(result).toEqualTypeOf<
+    {
+      customId: string
+    }[]
+  >()
+
+  expect(result).toStrictEqual([
+    {customId: 'test'},
+    {customId: 'ao865jf3mcmkfkk8o5ri495z'}
+  ])
+})
+*/
+
+test('mySchema :: view', async ctx => {
+  const {db} = ctx.mysql
+
+  const newYorkers1 = mySchema
+    .view('new_yorkers')
+    .as(qb =>
+      qb
+        .select()
+        .from(users2MySchemaTable)
+        .where(eq(users2MySchemaTable.cityId, 1))
+    )
+
+  const newYorkers2 = mySchema
+    .view('new_yorkers', {
+      id: serial('id').primaryKey(),
+      name: text('name').notNull(),
+      cityId: int('city_id').notNull()
+    })
+    .as(
+      sql`select * from ${users2MySchemaTable} where ${eq(users2MySchemaTable.cityId, 1)}`
+    )
+
+  const newYorkers3 = mySchema
+    .view('new_yorkers', {
+      id: serial('id').primaryKey(),
+      name: text('name').notNull(),
+      cityId: int('city_id').notNull()
+    })
+    .existing()
+
+  await db.create(newYorkers3)
+
+  await db
+    .insert(citiesMySchemaTable)
+    .values([{name: 'New York'}, {name: 'Paris'}])
+
+  await db.insert(users2MySchemaTable).values([
+    {name: 'John', cityId: 1},
+    {name: 'Jane', cityId: 1},
+    {name: 'Jack', cityId: 2}
+  ])
+
+  {
+    const result = await db.select().from(newYorkers1)
+    expect(result).toEqual([
+      {id: 1, name: 'John', cityId: 1},
+      {id: 2, name: 'Jane', cityId: 1}
+    ])
+  }
+
+  {
+    const result = await db.select().from(newYorkers2)
+    expect(result).toEqual([
+      {id: 1, name: 'John', cityId: 1},
+      {id: 2, name: 'Jane', cityId: 1}
+    ])
+  }
+
+  {
+    const result = await db.select().from(newYorkers3)
+    expect(result).toEqual([
+      {id: 1, name: 'John', cityId: 1},
+      {id: 2, name: 'Jane', cityId: 1}
+    ])
+  }
+
+  {
+    const result = await db.select({name: newYorkers1.name}).from(newYorkers1)
+    expect(result).toEqual([{name: 'John'}, {name: 'Jane'}])
+  }
+
+  await db.execute(sql`drop view ${newYorkers1}`)
 })
 
 test('test $onUpdateFn and $onUpdate works with sql value', async ctx => {
@@ -3437,6 +4642,54 @@ test('limit -1', async ctx => {
   expect(users.length).toBeGreaterThan(0)
 })
 
+/*
+Retained from upstream, but not supported by this compatibility layer.
+These assertions depend on getTableConfig metadata introspection.
+		test('define constraints as array', async (ctx) => {
+			const { db } = ctx.mysql;
+
+			const table = mysqlTable(
+				'name',
+				{
+					id: int(),
+				},
+				(t) => [
+					index('name').on(t.id),
+					primaryKey({ columns: [t.id], name: 'custom' }),
+				],
+			);
+
+			const { indexes, primaryKeys } = getTableConfig(table);
+
+			expect(indexes.length).toBe(1);
+			expect(primaryKeys.length).toBe(1);
+		});
+
+
+
+		test('define constraints as array inside third param', async (ctx) => {
+			const { db } = ctx.mysql;
+
+			const table = mysqlTable(
+				'name',
+				{
+					id: int(),
+				},
+				(t) => [
+					[
+						index('name').on(t.id),
+						primaryKey({ columns: [t.id], name: 'custom' }),
+					],
+				],
+			);
+
+			const { indexes, primaryKeys } = getTableConfig(table);
+
+			expect(indexes.length).toBe(1);
+			expect(primaryKeys.length).toBe(1);
+		});
+*/
+
 test('update with limit and order by', async ctx => {
   const {db} = ctx.mysql
 
@@ -3486,6 +4739,65 @@ test('delete with limit and order by', async ctx => {
     {name: 'Barry', verified: false},
     {name: 'Carl', verified: false}
   ])
+})
+
+test('Object keys as column names', async ctx => {
+  const {db} = ctx.mysql
+
+  // Tests the following:
+  // Column with required config
+  // Column with optional config without providing a value
+  // Column with optional config providing a value
+  // Column without config
+  const users = mysqlTable('users', {
+    id: bigint({mode: 'number'}).autoincrement().primaryKey(),
+    createdAt: timestamp(),
+    updatedAt: timestamp({fsp: 3}),
+    admin: boolean()
+  })
+
+  await db.execute(sql`drop table if exists users`)
+  await db.execute(
+    sql`
+					create table users (
+						\`id\` bigint auto_increment primary key,
+						\`createdAt\` timestamp,
+						\`updatedAt\` timestamp(3),
+						\`admin\` boolean
+					)
+				`
+  )
+
+  await db.insert(users).values([
+    {
+      createdAt: sql`now() - interval 30 day`,
+      updatedAt: sql`now() - interval 1 day`,
+      admin: true
+    },
+    {
+      createdAt: sql`now() - interval 1 day`,
+      updatedAt: sql`now() - interval 30 day`,
+      admin: true
+    },
+    {
+      createdAt: sql`now() - interval 1 day`,
+      updatedAt: sql`now() - interval 1 day`,
+      admin: false
+    }
+  ])
+  const result = await db
+    .select({id: users.id, admin: users.admin})
+    .from(users)
+    .where(
+      and(
+        gt(users.createdAt, sql`now() - interval 7 day`),
+        gt(users.updatedAt, sql`now() - interval 7 day`)
+      )
+    )
+
+  expect(result).toEqual([{id: 3, admin: false}])
+
+  await db.execute(sql`drop table users`)
 })
 
 test('cross join', async ctx => {
@@ -3668,215 +4980,287 @@ test('cross join (lateral)', async ctx => {
   ])
 })
 
-test('Mysql enum as ts enum', async ctx => {
-  enum Test {
-    a = 'a',
-    b = 'b',
-    c = 'c'
-  }
-
-  const tableWithTsEnums = mysqlTable('enums_test_case', {
-    id: serial('id').primaryKey(),
-    enum1: mysqlEnum('enum1', Test).notNull(),
-    enum2: mysqlEnum('enum2', Test).default(Test.a),
-    enum3: mysqlEnum('enum3', Test).notNull().default(Test.b)
-  })
-
+test('all types', async ctx => {
   const {db} = ctx.mysql
-
-  await db.execute(sql`drop table if exists \`enums_test_case\``)
 
   await db.execute(sql`
-        create table \`enums_test_case\` (
-            \`id\` serial primary key,
-            \`enum1\` ENUM('a', 'b', 'c') not null,
-            \`enum2\` ENUM('a', 'b', 'c') default 'a',
-            \`enum3\` ENUM('a', 'b', 'c') not null default 'b'
-        )
-      `)
+				CREATE TABLE \`all_types\` (
+						\`serial\` serial AUTO_INCREMENT,
+						\`bigint53\` bigint,
+						\`bigint64\` bigint,
+						\`binary\` binary,
+						\`boolean\` boolean,
+						\`char\` char,
+						\`date\` date,
+						\`date_str\` date,
+						\`datetime\` datetime,
+						\`datetime_str\` datetime,
+						\`decimal\` decimal,
+						\`decimal_num\` decimal(30),
+						\`decimal_big\` decimal(30),
+						\`double\` double,
+						\`float\` float,
+						\`int\` int,
+						\`json\` json,
+						\`med_int\` mediumint,
+						\`small_int\` smallint,
+						\`real\` real,
+						\`text\` text,
+						\`time\` time,
+						\`timestamp\` timestamp,
+						\`timestamp_str\` timestamp,
+						\`tiny_int\` tinyint,
+						\`varbin\` varbinary(16),
+						\`varchar\` varchar(255),
+						\`year\` year,
+						\`enum\` enum('enV1','enV2')
+					);
+			`)
 
-  await db.insert(tableWithTsEnums).values([
-    {id: 1, enum1: Test.a, enum2: Test.b, enum3: Test.c},
-    {id: 2, enum1: Test.a, enum3: Test.c},
-    {id: 3, enum1: Test.a}
-  ])
-
-  const res = await db.select().from(tableWithTsEnums)
-
-  await db.execute(sql`drop table \`enums_test_case\``)
-
-  expect(res).toEqual([
-    {id: 1, enum1: 'a', enum2: 'b', enum3: 'c'},
-    {id: 2, enum1: 'a', enum2: 'a', enum3: 'c'},
-    {id: 3, enum1: 'a', enum2: 'a', enum3: 'b'}
-  ])
-})
-
-test('Mysql enum test case #1', async ctx => {
-  const {db} = ctx.mysql
-
-  await db.execute(sql`drop table if exists \`enums_test_case\``)
-
-  await db.execute(sql`
-        create table \`enums_test_case\` (
-            \`id\` serial primary key,
-            \`enum1\` ENUM('a', 'b', 'c') not null,
-            \`enum2\` ENUM('a', 'b', 'c') default 'a',
-            \`enum3\` ENUM('a', 'b', 'c') not null default 'b'
-        )
-      `)
-
-  await db.insert(tableWithEnums).values([
-    {id: 1, enum1: 'a', enum2: 'b', enum3: 'c'},
-    {id: 2, enum1: 'a', enum3: 'c'},
-    {id: 3, enum1: 'a'}
-  ])
-
-  const res = await db.select().from(tableWithEnums)
-
-  await db.execute(sql`drop table \`enums_test_case\``)
-
-  expect(res).toEqual([
-    {id: 1, enum1: 'a', enum2: 'b', enum3: 'c'},
-    {id: 2, enum1: 'a', enum2: 'a', enum3: 'c'},
-    {id: 3, enum1: 'a', enum2: 'a', enum3: 'b'}
-  ])
-})
-
-/*
-Retained for the next MySQL API implementation phase.
-test('insert $returningId: serial as id', async ctx => {
-  const {db} = ctx.mysql
-
-  const result = await db
-    .insert(usersTable)
-    .values({name: 'John'})
-    .$returningId()
-
-  expectTypeOf(result).toEqualTypeOf<
-    {
-      id: number
-    }[]
-  >()
-
-  expect(result).toStrictEqual([{id: 1}])
-})
-
-test('insert $returningId: serial as id, not first column', async ctx => {
-  const {db} = ctx.mysql
-
-  const usersTableDefNotFirstColumn = mysqlTable('users2', {
-    name: text('name').notNull(),
-    id: serial('id').primaryKey()
+  await db.insert(allTypesTable).values({
+    serial: 1,
+    bigint53: 9007199254740991,
+    bigint64: 5044565289845416380n,
+    binary: '1',
+    boolean: true,
+    char: 'c',
+    date: new Date(1741743161623),
+    dateStr: new Date(1741743161623)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' '),
+    datetime: new Date(1741743161623),
+    datetimeStr: new Date(1741743161623)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' '),
+    decimal: '47521',
+    decimalNum: 9007199254740991,
+    decimalBig: 5044565289845416380n,
+    double: 15.35325689124218,
+    enum: 'enV1',
+    float: 1.048596,
+    real: 1.048596,
+    text: 'C4-',
+    int: 621,
+    json: {
+      str: 'strval',
+      arr: ['str', 10]
+    },
+    medInt: 560,
+    smallInt: 14,
+    time: '04:13:22',
+    timestamp: new Date(1741743161623),
+    timestampStr: new Date(1741743161623)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' '),
+    tinyInt: 7,
+    varbin: '1010110101001101',
+    varchar: 'VCHAR',
+    year: 2025
   })
 
-  const result = await db
-    .insert(usersTableDefNotFirstColumn)
-    .values({name: 'John'})
-    .$returningId()
+  const rawRes = await db.select().from(allTypesTable)
 
-  expectTypeOf(result).toEqualTypeOf<
+  type ExpectedType = {
+    serial: number
+    bigint53: number | null
+    bigint64: bigint | null
+    binary: string | null
+    boolean: boolean | null
+    char: string | null
+    date: Date | null
+    dateStr: string | null
+    datetime: Date | null
+    datetimeStr: string | null
+    decimal: string | null
+    decimalNum: number | null
+    decimalBig: bigint | null
+    double: number | null
+    float: number | null
+    int: number | null
+    json: unknown
+    medInt: number | null
+    smallInt: number | null
+    real: number | null
+    text: string | null
+    time: string | null
+    timestamp: Date | null
+    timestampStr: string | null
+    tinyInt: number | null
+    varbin: string | null
+    varchar: string | null
+    year: number | null
+    enum: 'enV1' | 'enV2' | null
+  }[]
+
+  const expectedRes: ExpectedType = [
     {
-      id: number
-    }[]
-  >()
-
-  expect(result).toStrictEqual([{id: 1}])
-})
-
-test('insert $returningId: serial as id, batch insert', async ctx => {
-  const {db} = ctx.mysql
-
-  const result = await db
-    .insert(usersTable)
-    .values([{name: 'John'}, {name: 'John1'}])
-    .$returningId()
-
-  expectTypeOf(result).toEqualTypeOf<
-    {
-      id: number
-    }[]
-  >()
-
-  expect(result).toStrictEqual([{id: 1}, {id: 2}])
-})
-
-test('insert $returningId: $default as primary key', async ctx => {
-  const {db} = ctx.mysql
-
-  const uniqueKeys = ['ao865jf3mcmkfkk8o5ri495z', 'dyqs529eom0iczo2efxzbcut']
-  let iterator = 0
-
-  const usersTableDefFn = mysqlTable('users_default_fn', {
-    customId: varchar('id', {length: 256})
-      .primaryKey()
-      .$defaultFn(() => {
-        const value = uniqueKeys[iterator]!
-        iterator++
-        return value
-      }),
-    name: text('name').notNull()
-  })
-
-  await setupReturningFunctionsTest(db)
-
-  const result = await db
-    .insert(usersTableDefFn)
-    .values([{name: 'John'}, {name: 'John1'}])
-    //    ^?
-    .$returningId()
-
-  expectTypeOf(result).toEqualTypeOf<
-    {
-      customId: string
-    }[]
-  >()
-
-  expect(result).toStrictEqual([
-    {customId: 'ao865jf3mcmkfkk8o5ri495z'},
-    {
-      customId: 'dyqs529eom0iczo2efxzbcut'
+      serial: 1,
+      bigint53: 9007199254740991,
+      bigint64: 5044565289845416380n,
+      binary: '1',
+      boolean: true,
+      char: 'c',
+      date: new Date('2025-03-12T00:00:00.000Z'),
+      dateStr: '2025-03-12',
+      datetime: new Date('2025-03-12T01:32:42.000Z'),
+      datetimeStr: '2025-03-12 01:32:41',
+      decimal: '47521',
+      decimalNum: 9007199254740991,
+      decimalBig: 5044565289845416380n,
+      double: 15.35325689124218,
+      float: 1.0486,
+      int: 621,
+      json: {arr: ['str', 10], str: 'strval'},
+      medInt: 560,
+      smallInt: 14,
+      real: 1.048596,
+      text: 'C4-',
+      time: '04:13:22',
+      timestamp: new Date('2025-03-12T01:32:42.000Z'),
+      timestampStr: '2025-03-12 01:32:41',
+      tinyInt: 7,
+      varbin: '1010110101001101',
+      varchar: 'VCHAR',
+      year: 2025,
+      enum: 'enV1'
     }
+  ]
+
+  expectTypeOf(rawRes).toEqualTypeOf<ExpectedType>()
+  expect(rawRes).toStrictEqual(expectedRes)
+})
+
+test('insert into ... select', async ctx => {
+  const {db} = ctx.mysql
+
+  const notifications = mysqlTable('notifications', {
+    id: serial('id').primaryKey(),
+    sentAt: timestamp('sent_at').notNull().defaultNow(),
+    message: text('message').notNull()
+  })
+  const users = mysqlTable('users', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull()
+  })
+  const userNotications = mysqlTable(
+    'user_notifications',
+    {
+      userId: int('user_id')
+        .notNull()
+        .references(() => users.id, {onDelete: 'cascade'}),
+      notificationId: int('notification_id')
+        .notNull()
+        .references(() => notifications.id, {onDelete: 'cascade'})
+    },
+    t => ({
+      pk: primaryKey({columns: [t.userId, t.notificationId]})
+    })
+  )
+
+  await db.execute(sql`drop table if exists ${notifications}`)
+  await db.execute(sql`drop table if exists ${users}`)
+  await db.execute(sql`drop table if exists ${userNotications}`)
+  await db.execute(sql`
+			create table ${notifications} (
+				\`id\` serial primary key,
+				\`sent_at\` timestamp not null default now(),
+				\`message\` text not null
+			)
+		`)
+  await db.execute(sql`
+			create table ${users} (
+				\`id\` serial primary key,
+				\`name\` text not null
+			)
+		`)
+  await db.execute(sql`
+			create table ${userNotications} (
+				\`user_id\` int references users(id) on delete cascade,
+				\`notification_id\` int references notifications(id) on delete cascade,
+				primary key (user_id, notification_id)
+			)
+		`)
+
+  await db
+    .insert(notifications)
+    .values({message: 'You are one of the 3 lucky winners!'})
+  const newNotification = await db
+    .select({id: notifications.id})
+    .from(notifications)
+    .then(result => result[0])
+
+  await db
+    .insert(users)
+    .values([
+      {name: 'Alice'},
+      {name: 'Bob'},
+      {name: 'Charlie'},
+      {name: 'David'},
+      {name: 'Eve'}
+    ])
+
+  await db.insert(userNotications).select(
+    db
+      .select({
+        userId: users.id,
+        notificationId: sql<number>`(${newNotification!.id})`.as(
+          'notification_id'
+        )
+      })
+      .from(users)
+      .where(inArray(users.name, ['Alice', 'Charlie', 'Eve']))
+      .orderBy(asc(users.id))
+  )
+  const sentNotifications = await db.select().from(userNotications)
+
+  expect(sentNotifications).toStrictEqual([
+    {userId: 1, notificationId: newNotification!.id},
+    {userId: 3, notificationId: newNotification!.id},
+    {userId: 5, notificationId: newNotification!.id}
   ])
 })
 
-test('insert $returningId: $default as primary key with value', async ctx => {
+test('insert into ... select with keys in different order', async ctx => {
   const {db} = ctx.mysql
 
-  const uniqueKeys = ['ao865jf3mcmkfkk8o5ri495z', 'dyqs529eom0iczo2efxzbcut']
-  let iterator = 0
-
-  const usersTableDefFn = mysqlTable('users_default_fn', {
-    customId: varchar('id', {length: 256})
-      .primaryKey()
-      .$defaultFn(() => {
-        const value = uniqueKeys[iterator]!
-        iterator++
-        return value
-      }),
+  const users1 = mysqlTable('users1', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull()
+  })
+  const users2 = mysqlTable('users2', {
+    id: serial('id').primaryKey(),
     name: text('name').notNull()
   })
 
-  await setupReturningFunctionsTest(db)
+  await db.execute(sql`drop table if exists ${users1}`)
+  await db.execute(sql`drop table if exists ${users2}`)
+  await db.execute(sql`
+			create table ${users1} (
+				\`id\` serial primary key,
+				\`name\` text not null
+			)
+		`)
+  await db.execute(sql`
+			create table ${users2} (
+				\`id\` serial primary key,
+				\`name\` text not null
+			)
+		`)
 
-  const result = await db
-    .insert(usersTableDefFn)
-    .values([{name: 'John', customId: 'test'}, {name: 'John1'}])
-    //    ^?
-    .$returningId()
-
-  expectTypeOf(result).toEqualTypeOf<
-    {
-      customId: string
-    }[]
-  >()
-
-  expect(result).toStrictEqual([
-    {customId: 'test'},
-    {customId: 'ao865jf3mcmkfkk8o5ri495z'}
-  ])
+  expect(() =>
+    db.insert(users1).select(
+      db
+        .select({
+          name: users2.name,
+          id: users2.id
+        })
+        .from(users2)
+    )
+  ).toThrowError()
 })
-*/
 
 test('MySqlTable :: select with `use index` hint', async ctx => {
   const {db} = ctx.mysql
@@ -4215,9 +5599,7 @@ test('MySqlTable :: select with join `use index` hint on 1 index', async ctx => 
     .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
     .toSQL()
 
-  expect(query.sql.toLowerCase()).toContain(
-    'use index (`posts_user_id_index`)'
-  )
+  expect(query.sql.toLowerCase()).toContain('use index (`posts_user_id_index`)')
 })
 
 test('MySqlTable :: select with cross join `use index` hint', async ctx => {
@@ -4348,9 +5730,7 @@ test('MySqlTable :: select with cross join `use index` hint on 1 index', async c
     .where(and(eq(users.name, 'David'), eq(posts.text, 'David post')))
     .toSQL()
 
-  expect(query.sql.toLowerCase()).toContain(
-    'use index (`posts_user_id_index`)'
-  )
+  expect(query.sql.toLowerCase()).toContain('use index (`posts_user_id_index`)')
 })
 
 test('MySqlTable :: select with join `use index` hint on multiple indexes', async ctx => {
@@ -4775,4 +6155,67 @@ test('Subquery :: select with `use index` hint', async ctx => {
     .toSQL()
 
   expect(query.sql.toLowerCase()).not.toContain('use index')
+})
+
+test('sql operator as cte', async ctx => {
+  const {db} = ctx.mysql
+
+  const users = mysqlTable('users', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull()
+  })
+
+  await db.execute(sql`drop table if exists ${users}`)
+  await db.execute(
+    sql`create table ${users} (id serial not null primary key, name text not null)`
+  )
+  await db.insert(users).values([{name: 'John'}, {name: 'Jane'}])
+
+  const sq1 = db
+    .$with('sq', {
+      userId: users.id,
+      data: {
+        name: users.name
+      }
+    })
+    .as(sql`select * from ${users} where ${users.name} = 'John'`)
+  const result1 = await db.with(sq1).select().from(sq1)
+
+  const sq2 = db
+    .$with('sq', {
+      userId: users.id,
+      data: {
+        name: users.name
+      }
+    })
+    .as(sql`select * from ${users} where ${users.name} = 'Jane'`)
+  const result2 = await db.with(sq2).select().from(sq1)
+
+  expect(result1).toEqual([{userId: 1, data: {name: 'John'}}])
+  expect(result2).toEqual([{userId: 2, data: {name: 'Jane'}}])
+})
+
+test('sql.identifier escape', async ctx => {
+  const {db} = ctx.mysql
+
+  const users = mysqlTable('users', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull()
+  })
+
+  await db.execute(sql`drop table if exists ${users}`)
+  await db.execute(
+    sql`create table ${users} (id serial not null primary key, name text not null)`
+  )
+  await db.insert(users).values([{name: 'John'}, {name: 'Jane'}])
+
+  const mysqlDialect = new MySqlDialect()
+  const userInput = 'id` ASC, CAST((SELECT name FROM users LIMIT 1) AS int)--'
+
+  const query = sql`SELECT * FROM ${sql.identifier('users')} ORDER BY ${sql.identifier(userInput)} ASC`
+
+  const str = mysqlDialect.sqlToQuery(query)
+  expect(str.sql).toBe(
+    'SELECT * FROM `users` ORDER BY `id`` ASC, CAST((SELECT name FROM users LIMIT 1) AS int)--` ASC'
+  )
 })
