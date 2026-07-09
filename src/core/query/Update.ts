@@ -10,22 +10,25 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
-  type Selection,
-  type SelectionInput,
-  type SelectionRow,
-  selection
-} from '../Selection.ts'
+  type MutationOutput,
+  MutationQuery,
+  type MutationReturning,
+  type QueryData
+} from '../Queries.ts'
+import {type Selection, type SelectionInput, selection} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields, TableUpdate} from '../Table.ts'
 import {formatCTE} from './CTE.ts'
 import type {UpdateQuery} from './Query.ts'
 import {formatModifiers} from './Shared.ts'
 
-export class Update<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<Array<SelectionRow<Input>>, Meta>
-  implements HasQuery<Array<SelectionRow<Input>>>
+export class Update<
+  Returning extends MutationReturning,
+  Meta extends QueryMeta = QueryMeta
+>
+  extends MutationQuery<Returning, Meta>
+  implements HasQuery<MutationOutput<Returning, Meta>>
 {
   readonly [internalData]: QueryData<Meta> & UpdateQuery
   declare readonly [internalSelection]?: Selection
@@ -36,19 +39,19 @@ export class Update<Input, Meta extends QueryMeta = QueryMeta>
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return updateQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+  get [internalQuery](): Sql<MutationOutput<Returning, Meta>> {
+    return updateQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
   }
 
-  limit(limit: UserInput<number>): Update<Input, Meta> {
+  limit(limit: UserInput<number>): Update<Returning, Meta> {
     return new Update({...getData(this), limit})
   }
 
-  offset(offset: UserInput<number>): Update<Input, Meta> {
+  offset(offset: UserInput<number>): Update<Returning, Meta> {
     return new Update({...getData(this), offset})
   }
 
-  orderBy(...orderBy: Array<HasSql>): Update<Input, Meta> {
+  orderBy(...orderBy: Array<HasSql>): Update<Returning, Meta> {
     return new Update({...getData(this), orderBy})
   }
 }
@@ -87,9 +90,12 @@ export class UpdateTable<
     this: UpdateTable<Definition, IsPostgres | IsSqlite>,
     returning?: Input
   ): Update<Input, Meta>
-  returning(returning?: SelectionInput) {
+  returning(returning?: SelectionInput): Update<SelectionInput, Meta> {
     const data = getData(this)
-    return new Update({...data, returning: returning ?? data.update})
+    return new Update({
+      ...data,
+      returning: returning ?? data.update
+    })
   }
 }
 

@@ -8,13 +8,14 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
-  type Selection,
-  type SelectionInput,
-  type SelectionRow,
-  selection
-} from '../Selection.ts'
+  type MutationOutput,
+  MutationQuery,
+  type MutationReturning,
+  type QueryData,
+  type SingleQuery
+} from '../Queries.ts'
+import {type Selection, type SelectionInput, selection} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {
   TableApi,
@@ -35,9 +36,12 @@ import type {
 } from './Query.ts'
 import {querySelection, selectQuery} from './Select.ts'
 
-export class Insert<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<Array<SelectionRow<Input>>, Meta>
-  implements HasQuery<Array<SelectionRow<Input>>>
+export class Insert<
+  Returning extends MutationReturning,
+  Meta extends QueryMeta = QueryMeta
+>
+  extends MutationQuery<Returning, Meta>
+  implements HasQuery<MutationOutput<Returning, Meta>>
 {
   readonly [internalData]: QueryData<Meta> & InsertQuery
   declare readonly [internalSelection]?: Selection
@@ -48,8 +52,8 @@ export class Insert<Input, Meta extends QueryMeta = QueryMeta>
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return insertQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+  get [internalQuery](): Sql<MutationOutput<Returning, Meta>> {
+    return insertQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
   }
 }
 
@@ -64,7 +68,7 @@ class InsertCanReturn<
     this: InsertCanReturn<Definition, Meta>,
     returning: Input
   ): Insert<Input, Meta>
-  returning(returning?: SelectionInput) {
+  returning(returning?: SelectionInput): Insert<SelectionInput, Meta> {
     const data = getData(this)
     return new Insert({
       ...data,

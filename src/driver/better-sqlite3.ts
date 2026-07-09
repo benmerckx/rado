@@ -6,6 +6,7 @@ import type {
   SyncDriver,
   SyncStatement
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
@@ -20,8 +21,12 @@ class PreparedStatement implements SyncStatement {
     return <Array<object>>this.stmt.all(...params)
   }
 
-  run(params: Array<unknown>) {
-    return this.stmt.run(...params)
+  run(params: Array<unknown>): MutationResultBase {
+    const result = this.stmt.run(...params)
+    return {
+      affectedRows: result.changes,
+      insertId: result.lastInsertRowid
+    }
   }
 
   get(params: Array<unknown>) {

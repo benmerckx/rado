@@ -105,19 +105,21 @@ function firstTargetName(input: SelectionInput): string | undefined {
   }
 }
 
-export class Selection implements HasSql {
+export class Selection<Input extends SelectionInput = SelectionInput>
+  implements HasSql
+{
   mapRow: (ctx: MapRowContext) => unknown
 
   constructor(
-    public input: SelectionInput,
+    public input: Input,
     public nullable: Set<string> = new Set()
   ) {
     const root = this.#defineColumn(nullable, input)
     this.mapRow = root.result.bind(root)
   }
 
-  makeVirtual<Input>(name: string): VirtualTarget<Input> {
-    return virtualTarget(name, <Input>this.input)
+  makeVirtual<VirtualInput = Input>(name: string): VirtualTarget<VirtualInput> {
+    return virtualTarget(name, this.input as unknown as VirtualInput)
   }
 
   #defineColumn(nullable: Set<string>, input: SelectionInput): Column {

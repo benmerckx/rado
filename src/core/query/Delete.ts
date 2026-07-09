@@ -1,6 +1,7 @@
 import {and} from '../expr/Conditions.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
 import {
+  type HasQuery,
   type HasSql,
   getData,
   getTable,
@@ -9,13 +10,13 @@ import {
   internalSelection
 } from '../Internal.ts'
 import type {IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
-import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
-  type Selection,
-  type SelectionInput,
-  type SelectionRow,
-  selection
-} from '../Selection.ts'
+  type MutationOutput,
+  MutationQuery,
+  type MutationReturning,
+  type QueryData
+} from '../Queries.ts'
+import {type Selection, type SelectionInput, selection} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields} from '../Table.ts'
 import {formatCTE} from './CTE.ts'
@@ -23,9 +24,12 @@ import type {DeleteQuery} from './Query.ts'
 import {formatModifiers} from './Shared.ts'
 
 export class Delete<
-  Input,
+  Returning extends MutationReturning,
   Meta extends QueryMeta = QueryMeta
-> extends SingleQuery<Array<SelectionRow<Input>>, Meta> {
+>
+  extends MutationQuery<Returning, Meta>
+  implements HasQuery<MutationOutput<Returning, Meta>>
+{
   readonly [internalData]: QueryData<Meta> & DeleteQuery
   declare readonly [internalSelection]?: Selection
 
@@ -35,19 +39,19 @@ export class Delete<
     if (data.returning) this[internalSelection] = selection(data.returning)
   }
 
-  get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return deleteQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+  get [internalQuery](): Sql<MutationOutput<Returning, Meta>> {
+    return deleteQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
   }
 
-  limit(limit: UserInput<number>): Delete<Input, Meta> {
+  limit(limit: UserInput<number>): Delete<Returning, Meta> {
     return new Delete({...getData(this), limit})
   }
 
-  offset(offset: UserInput<number>): Delete<Input, Meta> {
+  offset(offset: UserInput<number>): Delete<Returning, Meta> {
     return new Delete({...getData(this), offset})
   }
 
-  orderBy(...orderBy: Array<HasSql>): Delete<Input, Meta> {
+  orderBy(...orderBy: Array<HasSql>): Delete<Returning, Meta> {
     return new Delete({...getData(this), orderBy})
   }
 }
@@ -61,6 +65,7 @@ export class DeleteFrom<
   ): DeleteFrom<Definition, Meta> {
     return new DeleteFrom({...getData(this), where: and(...where)})
   }
+
   returning(
     this: DeleteFrom<Definition, IsPostgres | IsSqlite>
   ): Delete<TableFields<Definition>, Meta>
@@ -68,7 +73,7 @@ export class DeleteFrom<
     this: DeleteFrom<Definition, IsPostgres | IsSqlite>,
     returning: Input
   ): Delete<Input, Meta>
-  returning(returning?: SelectionInput) {
+  returning(returning?: SelectionInput): Delete<SelectionInput, Meta> {
     const data = getData(this)
     return new Delete({
       ...data,
