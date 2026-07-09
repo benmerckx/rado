@@ -11,6 +11,7 @@ import type {
   BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
 import {mysqlDiff} from '../mysql/diff.ts'
 import {setTransaction, startTransaction} from '../mysql/transactions.ts'
@@ -36,12 +37,21 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res[0] as Array<object>)
   }
 
-  async run(params: Array<unknown>) {
+  async run(params: Array<unknown>): Promise<MutationResultBase> {
     const [result] = await this.client.query(
       this.sql,
       params.map(this.#transformParam)
     )
-    return [result]
+    const header = result as {
+      affectedRows?: number
+      changedRows?: number
+      insertId?: number
+    }
+    return {
+      affectedRows: header.affectedRows ?? 0,
+      changedRows: header.changedRows ?? 0,
+      insertId: header.insertId ?? 0
+    }
   }
 
   get(params: Array<unknown>): Promise<object> {

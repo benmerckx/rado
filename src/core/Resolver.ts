@@ -7,7 +7,7 @@ import {
   getSelection,
   hasSelection
 } from './Internal.ts'
-import type {QueryMeta} from './MetaData.ts'
+import type {MutationResult, QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
 
 export class Resolver<Meta extends QueryMeta = QueryMeta> {
@@ -143,7 +143,13 @@ export class PreparedStatement<Meta extends QueryMeta> {
     return this.#stmt.run(this.#emitter.bind(inputs))
   }
 
-  async execute(inputs?: Record<string, unknown>): Promise<unknown> {
+  async execute(
+    inputs?: Record<string, unknown>
+  ): Promise<unknown | MutationResult<Meta>> {
+    if (!this.#mapRow)
+      return this.#stmt.run(this.#emitter.bind(inputs)) as
+        | MutationResult<Meta>
+        | Promise<MutationResult<Meta>>
     return this.all(inputs)
   }
 

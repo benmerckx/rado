@@ -672,7 +672,7 @@ test('select distinct', async ctx => {
 test('insert returning sql', async ctx => {
   const {db} = ctx.mysql
 
-  const [result, _] = await db.insert(usersTable).values({name: 'John'})
+  const result = await db.insert(usersTable).values({name: 'John'})
 
   expect(result.insertId).toBe(1)
 })
@@ -683,7 +683,7 @@ test('delete returning sql', async ctx => {
   await db.insert(usersTable).values({name: 'John'})
   const users = await db.delete(usersTable).where(eq(usersTable.name, 'John'))
 
-  expect(users[0].affectedRows).toBe(1)
+  expect(users.affectedRows).toBe(1)
 })
 
 test('update returning sql', async ctx => {
@@ -695,7 +695,7 @@ test('update returning sql', async ctx => {
     .set({name: 'Jane'})
     .where(eq(usersTable.name, 'John'))
 
-  expect(users[0].changedRows).toBe(1)
+  expect(users.changedRows).toBe(1)
 })
 
 test('update with returning all fields', async ctx => {
@@ -709,7 +709,7 @@ test('update with returning all fields', async ctx => {
 
   const users = await db.select().from(usersTable).where(eq(usersTable.id, 1))
 
-  expect(updatedUsers[0].changedRows).toBe(1)
+  expect(updatedUsers.changedRows).toBe(1)
 
   expect(users[0]!.createdAt).toBeInstanceOf(Date)
   // not timezone based timestamp, thats why it should not work here
@@ -739,7 +739,7 @@ test('update with returning partial', async ctx => {
     .from(usersTable)
     .where(eq(usersTable.id, 1))
 
-  expect(updatedUsers[0].changedRows).toBe(1)
+  expect(updatedUsers.changedRows).toBe(1)
 
   expect(users).toEqual([{id: 1, name: 'Jane'}])
 })
@@ -752,7 +752,7 @@ test('delete with returning all fields', async ctx => {
     .delete(usersTable)
     .where(eq(usersTable.name, 'John'))
 
-  expect(deletedUser[0].affectedRows).toBe(1)
+  expect(deletedUser.affectedRows).toBe(1)
 })
 
 test('delete with returning partial', async ctx => {
@@ -763,7 +763,7 @@ test('delete with returning partial', async ctx => {
     .delete(usersTable)
     .where(eq(usersTable.name, 'John'))
 
-  expect(deletedUser[0].affectedRows).toBe(1)
+  expect(deletedUser.affectedRows).toBe(1)
 })
 
 test('insert + select', async ctx => {
@@ -873,7 +873,7 @@ test('insert many with returning', async ctx => {
       {name: 'Austin', verified: true}
     ])
 
-  expect(result[0].affectedRows).toBe(4)
+  expect(result.affectedRows).toBe(4)
 })
 
 test('select with group by as field', async ctx => {
@@ -1536,7 +1536,7 @@ test('insert via db.execute w/ query builder', async ctx => {
   const inserted = await db.execute(
     db.insert(usersTable).values({name: 'John'})
   )
-  expect(inserted[0].affectedRows).toBe(1)
+  expect(inserted.affectedRows).toBe(1)
 })
 
 test('insert + select all possible dates', async ctx => {
@@ -2534,13 +2534,13 @@ test('transaction', async ctx => {
     sql`create table products_transactions (id serial not null primary key, price int not null, stock int not null)`
   )
 
-  const [{insertId: userId}] = await db.insert(users).values({balance: 100})
+  const {insertId: userId} = await db.insert(users).values({balance: 100})
   const user = await db
     .select()
     .from(users)
     .where(eq(users.id, userId))
     .then(rows => rows[0]!)
-  const [{insertId: productId}] = await db
+  const {insertId: productId} = await db
     .insert(products)
     .values({price: 10, stock: 10})
   const product = await db
@@ -2591,13 +2591,13 @@ test('transaction with options (set isolationLevel)', async ctx => {
     sql`create table products_transactions (id serial not null primary key, price int not null, stock int not null)`
   )
 
-  const [{insertId: userId}] = await db.insert(users).values({balance: 100})
+  const {insertId: userId} = await db.insert(users).values({balance: 100})
   const user = await db
     .select()
     .from(users)
     .where(eq(users.id, userId))
     .then(rows => rows[0]!)
-  const [{insertId: productId}] = await db
+  const {insertId: productId} = await db
     .insert(products)
     .values({price: 10, stock: 10})
   const product = await db
@@ -3919,7 +3919,7 @@ test('mySchema :: insert returning sql', async ctx => {
   const {db} = ctx.mysql
   await db.execute(sql`truncate table \`mySchema\`.\`userstest\``)
 
-  const [result, _] = await db.insert(usersMySchemaTable).values({name: 'John'})
+  const result = await db.insert(usersMySchemaTable).values({name: 'John'})
 
   expect(result.insertId).toBe(1)
 })
@@ -3933,7 +3933,7 @@ test('mySchema :: delete returning sql', async ctx => {
     .delete(usersMySchemaTable)
     .where(eq(usersMySchemaTable.name, 'John'))
 
-  expect(users[0].affectedRows).toBe(1)
+  expect(users.affectedRows).toBe(1)
 })
 
 test('mySchema :: update with returning partial', async ctx => {
@@ -3951,7 +3951,7 @@ test('mySchema :: update with returning partial', async ctx => {
     .from(usersMySchemaTable)
     .where(eq(usersMySchemaTable.id, 1))
 
-  expect(updatedUsers[0].changedRows).toBe(1)
+  expect(updatedUsers.changedRows).toBe(1)
 
   expect(users).toEqual([{id: 1, name: 'Jane'}])
 })
@@ -3964,7 +3964,7 @@ test('mySchema :: delete with returning all fields', async ctx => {
     .delete(usersMySchemaTable)
     .where(eq(usersMySchemaTable.name, 'John'))
 
-  expect(deletedUser[0].affectedRows).toBe(1)
+  expect(deletedUser.affectedRows).toBe(1)
 })
 
 test('mySchema :: insert + select', async ctx => {

@@ -8,8 +8,9 @@ import {
   internalData,
   internalQuery
 } from './Internal.ts'
-import type {Deliver, QueryMeta} from './MetaData.ts'
+import type {Deliver, MutationResult, QueryMeta} from './MetaData.ts'
 import type {PreparedStatement, Resolver} from './Resolver.ts'
+import type {SelectionInput, SelectionRow} from './Selection.ts'
 import type {Sql} from './Sql.ts'
 
 export class QueryData<Meta extends QueryMeta> {
@@ -39,7 +40,7 @@ class Executable<
     return result as Result
   }
 
-  run(): Deliver<Meta, void> {
+  run(): Deliver<Meta, Result | MutationResult<Meta>> {
     return this.#execute()
   }
 
@@ -137,8 +138,8 @@ export abstract class SingleQuery<
     return this.#exec('get', db) as Deliver<Meta, Result | null>
   }
 
-  run(db?: HasResolver): Deliver<Meta, void> {
-    return this.#exec('run', db) as Deliver<Meta, void>
+  run(db?: HasResolver): Deliver<Meta, MutationResult<Meta>> {
+    return this.#exec('run', db) as Deliver<Meta, MutationResult<Meta>>
   }
 
   async execute(
@@ -171,6 +172,22 @@ export abstract class SingleQuery<
   }
 }
 
+export type MutationReturning = SelectionInput | void
+
+export type MutationOutput<
+  Returning extends MutationReturning,
+  Meta extends QueryMeta
+> = [Returning] extends [void]
+  ? MutationResult<Meta>
+  : Array<SelectionRow<Returning>>
+
+export abstract class MutationQuery<
+  Returning extends MutationReturning,
+  Meta extends QueryMeta
+> extends SingleQuery<MutationOutput<Returning, Meta>, Meta> {
+  declare private brandReturning: [Returning]
+}
+
 export interface PreparedQuery<
   Result,
   Inputs extends Record<string, unknown>,
@@ -185,7 +202,7 @@ export interface PreparedQuery<
     this: PreparedQuery<Result, Inputs, Meta>,
     inputs?: Inputs
   ): Deliver<Meta, Result[number] | null>
-  run(inputs?: Inputs): Deliver<Meta, void>
+  run(inputs?: Inputs): Deliver<Meta, MutationResult<Meta>>
   execute(inputs?: Inputs): Promise<Result>
   free(): void
 }

@@ -5,6 +5,7 @@ import type {
   SyncDriver,
   SyncStatement
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
@@ -17,7 +18,10 @@ interface Client {
 
 interface Statement {
   all(...params: Array<unknown>): Array<object>
-  run(...params: Array<unknown>): unknown
+  run(...params: Array<unknown>): {
+    changes?: number
+    lastInsertRowid?: number | bigint
+  }
   get(...params: Array<unknown>): object | null
   setReturnArrays(value: boolean): void
 }
@@ -32,8 +36,12 @@ class PreparedStatement implements SyncStatement {
     return this.stmt.all(...params)
   }
 
-  run(params: Array<unknown>) {
-    this.stmt.run(...params)
+  run(params: Array<unknown>): MutationResultBase {
+    const result = this.stmt.run(...params)
+    return {
+      affectedRows: result.changes ?? 0,
+      insertId: result.lastInsertRowid
+    }
   }
 
   get(params: Array<unknown>) {
