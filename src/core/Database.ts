@@ -14,15 +14,14 @@ import {
   getCreate,
   getDrop,
   getResolver,
-  getSql,
   hasQuery,
+  hasSelection,
   internalResolver
 } from './Internal.ts'
 import type {
   Async,
   Deliver,
   Either,
-  MutationResult,
   QueryDialect,
   QueryMeta,
   Sync
@@ -119,10 +118,15 @@ export class Database<Meta extends QueryMeta = Either>
     return new BatchQuery(getResolver(this), queries)
   }
 
+  execute<Result>(input: HasQuery<Result>): Deliver<Meta, Result>
   execute<Result>(input: HasSql<Result>): Deliver<Meta, [Array<Result>]>
-  execute<Result>(input: HasQuery<Result>): Deliver<Meta, MutationResult<Meta>>
   execute(input: HasSql | HasQuery) {
-    if (hasQuery(input)) return (input as SingleQuery<unknown, Meta>).run(this)
+    if (hasQuery(input)) {
+      const query = input as SingleQuery<unknown, Meta>
+      return hasSelection(input)
+        ? (query as SingleQuery<Array<unknown>, Meta>).all(this)
+        : query.run(this)
+    }
 
     const emitter = this.dialect.emit(input)
     const statement = this.driver.prepare(emitter.sql, {isSelection: true})

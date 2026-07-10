@@ -110,6 +110,10 @@ test('mysql datetime mapping', () => {
   test.ok(mapFrom(dtDate, '2020-01-01 00:00:00') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
   test.equal(mapTo(dtDate, date), '2020-01-01 00:00:00')
+  test.equal(
+    mapFrom(dtDate, mapTo(dtDate, date) as string).toISOString(),
+    date.toISOString()
+  )
   test.equal(columnSql(mysql.datetime({fsp: 2})), 'datetime(2)')
 })
 

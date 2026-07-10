@@ -526,10 +526,7 @@ suite(import.meta, test => {
         .selectDistinctOn([User.id], {id: User.id, name: User.name})
         .from(User)
       Expect<
-        Equal<
-          Awaited<typeof distinctOnRows>,
-          Array<{id: number; name: string}>
-        >
+        Equal<Awaited<typeof distinctOnRows>, Array<{id: number; name: string}>>
       >()
       // @ts-expect-error distinct on is postgres-only
       db.selectDistinctOn([User.id], {id: User.id})
@@ -591,6 +588,9 @@ suite(import.meta, test => {
 
       const syncExecute = syncDb.execute(sql`select 1`)
       Expect<Equal<typeof syncExecute, [Array<unknown>]>>()
+
+      const queryExecute = syncDb.execute(syncDb.select(User.id).from(User))
+      Expect<Equal<typeof queryExecute, Array<number>>>()
     })
   })
 
@@ -719,16 +719,16 @@ suite(import.meta, test => {
         >
       >()
       Expect<
-        Equal<
-          Awaited<typeof fromUpdated>,
-          Array<{id: number; active: boolean}>
-        >
+        Equal<Awaited<typeof fromUpdated>, Array<{id: number; active: boolean}>>
       >()
 
       const deleted = db
         .$with('deleted_user')
         .as(db.delete(User).returning({id: User.id}).orderBy(User.id).limit(1))
-      const fromDeleted = db.with(deleted).select({id: deleted.id}).from(deleted)
+      const fromDeleted = db
+        .with(deleted)
+        .select({id: deleted.id})
+        .from(deleted)
       Expect<
         Equal<
           typeof deleted.id extends HasSql<infer Value> ? Value : never,

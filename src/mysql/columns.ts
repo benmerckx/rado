@@ -117,7 +117,9 @@ export function datetime(
     mapFromDriverValue(value: string | Date) {
       if (options?.mode === 'string')
         return value instanceof Date ? formatDateTime(value) : value
-      return value instanceof Date ? value : new Date(value)
+      return value instanceof Date
+        ? value
+        : new Date(`${value.replace(' ', 'T')}Z`)
     },
     mapToDriverValue(value: Date) {
       if (!(value instanceof Date)) return value
