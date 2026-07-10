@@ -53,7 +53,11 @@ export function binary(
   ...args: ColumnArguments<{length?: number}>
 ): Column<Uint8Array> {
   const {name, options} = columnConfig(args)
-  return new Column({name, type: column.binary(options?.length)})
+  return new Column({
+    name,
+    type: column.binary(options?.length),
+    mapFromDriverValue: value => Uint8Array.from(value as Uint8Array)
+  })
 }
 
 export function boolean(name?: string): Column<boolean> {
@@ -65,7 +69,11 @@ export function boolean(name?: string): Column<boolean> {
 }
 
 export function blob(name?: string): Column<Uint8Array> {
-  return new Column({name, type: column.blob()})
+  return new Column({
+    name,
+    type: column.blob(),
+    mapFromDriverValue: value => Uint8Array.from(value as Uint8Array)
+  })
 }
 
 export function char(
@@ -112,9 +120,11 @@ export function datetime(
       return value instanceof Date ? value : new Date(value)
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date
-        ? value.toISOString().slice(0, 19).replace('T', ' ')
-        : value
+      if (!(value instanceof Date)) return value
+      const formatted = value.toISOString().replace('T', ' ')
+      return options?.fsp
+        ? formatted.slice(0, 20 + options.fsp)
+        : formatted.slice(0, 19)
     }
   })
 }
@@ -300,7 +310,11 @@ export function varbinary(
   ...args: ColumnArguments<{length?: number}>
 ): Column<Uint8Array> {
   const {name, options} = columnConfig(args)
-  return new Column({name, type: column.varbinary(options?.length)})
+  return new Column({
+    name,
+    type: column.varbinary(options?.length),
+    mapFromDriverValue: value => Uint8Array.from(value as Uint8Array)
+  })
 }
 
 export function varchar(

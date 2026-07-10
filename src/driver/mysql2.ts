@@ -33,15 +33,21 @@ class PreparedStatement implements AsyncStatement {
 
   all(params: Array<unknown>): Promise<Array<object>> {
     return this.client
-      .query(this.sql, params.map(this.#transformParam))
+      .query({
+        sql: this.sql,
+        values: params.map(this.#transformParam),
+        dateStrings: true,
+        supportBigNumbers: true
+      })
       .then(res => res[0] as Array<object>)
   }
 
   async run(params: Array<unknown>): Promise<MutationResultBase> {
-    const [result] = await this.client.query(
-      this.sql,
-      params.map(this.#transformParam)
-    )
+    const [result] = await this.client.query({
+      sql: this.sql,
+      values: params.map(this.#transformParam),
+      supportBigNumbers: true
+    })
     const header = result as {
       affectedRows?: number
       changedRows?: number
@@ -64,7 +70,9 @@ class PreparedStatement implements AsyncStatement {
       .query({
         sql: this.sql,
         values: params.map(this.#transformParam),
-        rowsAsArray: true
+        rowsAsArray: true,
+        dateStrings: true,
+        supportBigNumbers: true
       })
       .then(res => res[0] as Array<Array<unknown>>)
   }

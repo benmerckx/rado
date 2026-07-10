@@ -2271,6 +2271,7 @@ test('view', async ctx => {
     cityId: int('city_id').notNull()
   }).existing()
 
+  await db.execute(sql`drop view if exists ${newYorkers1}`)
   await db.create(newYorkers1)
 
   await db.insert(citiesTable).values([{name: 'New York'}, {name: 'Paris'}])
@@ -5110,7 +5111,7 @@ test('all types', async ctx => {
       char: 'c',
       date: new Date('2025-03-12T00:00:00.000Z'),
       dateStr: '2025-03-12',
-      datetime: new Date('2025-03-12T01:32:42.000Z'),
+      datetime: new Date('2025-03-12T01:32:41.000Z'),
       datetimeStr: '2025-03-12 01:32:41',
       decimal: '47521',
       decimalNum: 9007199254740991,
@@ -5183,8 +5184,8 @@ test('insert into ... select', async ctx => {
 		`)
   await db.execute(sql`
 			create table ${userNotications} (
-				\`user_id\` int references users(id) on delete cascade,
-				\`notification_id\` int references notifications(id) on delete cascade,
+				\`user_id\` bigint unsigned references users(id) on delete cascade,
+				\`notification_id\` bigint unsigned references notifications(id) on delete cascade,
 				primary key (user_id, notification_id)
 			)
 		`)
@@ -5226,6 +5227,8 @@ test('insert into ... select', async ctx => {
     {userId: 3, notificationId: newNotification!.id},
     {userId: 5, notificationId: newNotification!.id}
   ])
+
+  await db.execute(sql`drop table ${userNotications}`)
 })
 
 test('insert into ... select with keys in different order', async ctx => {
