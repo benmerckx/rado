@@ -1,10 +1,10 @@
-import {formatColumn} from '../core/Column.ts'
+import {type BaseColumnData, formatColumn} from '../core/Column.ts'
 import type {Diff} from '../core/Diff.ts'
 import {eq} from '../core/expr/Conditions.ts'
 import {type HasSql, getData, getTable} from '../core/Internal.ts'
 import {schema} from '../core/Schema.ts'
 import {type Sql, sql} from '../core/Sql.ts'
-import type {Table} from '../core/Table.ts'
+import {type Table, primaryKeyColumns} from '../core/Table.ts'
 import {txGenerator} from '../universal.ts'
 import * as column from './columns.ts'
 import {mysqlDialect} from './dialect.ts'
@@ -37,6 +37,10 @@ const TableConstraints = ns.table('table_constraints', {
 })
 
 const inline = (sql: HasSql) => mysqlDialect.inline(sql)
+
+interface DiffColumnData extends BaseColumnData {
+  nullable: boolean
+}
 
 export const mysqlDiff: Diff = (hasTable: Table) => {
   return txGenerator(function* (tx) {
@@ -84,7 +88,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
     }
 
     // Map existing columns from database
-    const localColumns = new Map(
+    const localColumns = new Map<string, DiffColumnData>(
       columnInfo.map(column => {
         let type = column.type.toLowerCase()
         const isAutoIncrement = column.extra
@@ -103,6 +107,7 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
           {
             type: sql.unsafe(type),
             notNull: column.notNull && !isAutoIncrement,
+            nullable: !column.notNull,
             defaultValue:
               column.defaultValue && !isAutoIncrement
                 ? sql.unsafe(column.defaultValue)
@@ -113,10 +118,18 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
     )
 
     // Map schema columns from code
-    const schemaColumns = new Map(
+    const primaryKeys = primaryKeyColumns(tableApi)
+    const schemaColumns = new Map<string, DiffColumnData>(
       Object.entries(tableApi.columns).map(([name, column]) => {
         const columnApi = getData(column)
-        return [columnApi.name ?? name, columnApi]
+        const columnName = columnApi.name ?? name
+        return [
+          columnName,
+          {
+            ...columnApi,
+            nullable: !columnApi.notNull && !primaryKeys.has(columnName)
+          }
+        ]
       })
     )
 
@@ -161,17 +174,17 @@ export const mysqlDiff: Diff = (hasTable: Table) => {
 
         // Handle NOT NULL constraint changes
         if (
-          Boolean(localInstruction.notNull) !==
-          Boolean(schemaInstruction.notNull)
+          Boolean(localInstruction.nullable) !==
+          Boolean(schemaInstruction.nullable)
         ) {
           stmts.push(
             sql.query({
               alterTable,
               modifyColumn: [
                 column,
-                schemaInstruction.notNull
-                  ? sql`${schemaInstruction.type} not null`
-                  : sql`${schemaInstruction.type} null`
+                schemaInstruction.nullable
+                  ? sql`${schemaInstruction.type} null`
+                  : sql`${schemaInstruction.type} not null`
               ]
             })
           )

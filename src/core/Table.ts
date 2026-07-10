@@ -1,10 +1,7 @@
 import {collectEnumQuery} from '../postgres/enum.ts'
 import {type Column, type JsonColumn, formatColumn} from './Column.ts'
-import type {
-  ForeignKeyConstraint,
-  PrimaryKeyConstraint,
-  UniqueConstraint
-} from './Constraint.ts'
+import type {ForeignKeyConstraint, UniqueConstraint} from './Constraint.ts'
+import {PrimaryKeyConstraint} from './Constraint.ts'
 import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
 import {type JsonExpr, jsonExpr} from './expr/Json.ts'
@@ -164,6 +161,19 @@ export function tableFields(
       return [name, field]
     })
   )
+}
+
+export function primaryKeyColumns(tableApi: TableApi): Set<string> {
+  const columns = new Set<string>()
+  for (const [name, column] of entries(tableApi.columns)) {
+    const columnApi = getData(column)
+    if (columnApi.primary) columns.add(columnApi.name ?? name)
+  }
+  for (const constraint of Object.values(tableApi.config ?? {})) {
+    if (!(constraint instanceof PrimaryKeyConstraint)) continue
+    for (const field of getData(constraint).fields) columns.add(field.fieldName)
+  }
+  return columns
 }
 
 export type Table<
