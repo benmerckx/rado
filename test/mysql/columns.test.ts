@@ -1,5 +1,8 @@
 import {suite} from '@alinea/suite'
+import {formatColumn} from '#/core/Column.ts'
+import {getData} from '#/core/Internal.ts'
 import * as mysql from '#/mysql/columns.ts'
+import {mysqlDialect} from '#/mysql/dialect.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
 
 const test = suite(import.meta)
@@ -31,6 +34,17 @@ test('mysql bigint mapping', () => {
   test.equal(mapFrom(big, '42'), BigInt('42'))
   test.equal(mapFrom(bigExplicit, '42'), BigInt('42'))
   test.equal(mapFrom(bigNum, '43'), 43)
+})
+
+test('mysql autoincrement column sql', () => {
+  test.equal(
+    mysqlDialect.inline(
+      formatColumn(
+        getData(mysql.bigint({mode: 'number'}).autoincrement().primaryKey())
+      )
+    ),
+    'bigint primary key auto_increment'
+  )
 })
 
 test('mysql integer variants sql', () => {

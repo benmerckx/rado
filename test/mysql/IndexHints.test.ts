@@ -37,6 +37,15 @@ suite(import.meta, test => {
     )
   })
 
+  test('formats insert ignore', () => {
+    const query = db.insert(Users).ignore().values({id: 1, name: 'David'})
+
+    test.equal(
+      mysqlDialect.inline(query),
+      "insert ignore into `users` (`id`, `name`, `age`) values (1, 'David', default)"
+    )
+  })
+
   test('formats force index on join table', () => {
     const query = db
       .select()

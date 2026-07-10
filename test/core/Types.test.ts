@@ -590,7 +590,7 @@ suite(import.meta, test => {
       Expect<Equal<typeof eitherRun, void | Promise<void>>>()
 
       const syncExecute = syncDb.execute(sql`select 1`)
-      Expect<Equal<typeof syncExecute, void>>()
+      Expect<Equal<typeof syncExecute, [Array<unknown>]>>()
     })
   })
 

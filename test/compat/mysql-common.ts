@@ -1,6 +1,6 @@
 // Source: https://github.com/drizzle-team/drizzle-orm/blob/main/integration-tests/tests/mysql/mysql-common.ts
 
-import {expect} from 'bun:test'
+import {expect, expectTypeOf} from 'bun:test'
 import {suite} from '@alinea/suite'
 import mysql2 from 'mysql2'
 import {'mysql2' as connect} from '#/driver.ts'
@@ -50,6 +50,7 @@ import {
   json,
   mediumint,
   mysqlSchema,
+  mysqlDialect,
   mysqlEnum,
   mysqlTable,
   mysqlTableCreator,
@@ -70,6 +71,9 @@ import {
   varchar,
   year
 } from '#/mysql.ts'
+
+type Equal<A, B extends A & (A extends B ? unknown : never)> = true
+const Expect = <T extends true>() => {}
 
 const mysqlConnection = 'mysql://root:mysql@localhost:3306/mysql'
 const db = connect(mysql2.createConnection(mysqlConnection))
@@ -132,7 +136,7 @@ const allTypesTable = mysqlTable('all_types', {
     length: 255
   }),
   year: year('year'),
-  enum: varchar('enum', {length: 16})
+  enum: mysqlEnum('enum', ['enV1', 'enV2'])
 })
 
 const usersTable = mysqlTable('userstest', {
@@ -1785,7 +1789,7 @@ test('select from a many subquery', async ctx => {
   const res = await db
     .select({
       population: db
-        .select({count: count().as('count')})
+        .select(count().as('count'))
         .from(users2Table)
         .where(eq(users2Table.cityId, citiesTable.id))
         .as('population'),
@@ -1826,7 +1830,7 @@ test('select from a one subquery', async ctx => {
   const res = await db
     .select({
       cityName: db
-        .select({name: citiesTable.name})
+        .select(citiesTable.name)
         .from(citiesTable)
         .where(eq(users2Table.cityId, citiesTable.id))
         .as('cityName'),
@@ -2354,17 +2358,18 @@ test('select from raw sql with joins', async ctx => {
 
 test('join on aliased sql from select', async ctx => {
   const {db} = ctx.mysql
-
+  const cols = {
+    userId: sql<number>`users.id`.as('userId'),
+    name: sql<string>`users.name`,
+    userCity: sql<string>`users.city`,
+    cityId: sql<number>`cities.id`.as('cityId'),
+    cityName: sql<string>`cities.name`
+  }
   const result = await db
-    .select({
-      userId: sql<number>`users.id`.as('userId'),
-      name: sql<string>`users.name`,
-      userCity: sql<string>`users.city`,
-      cityId: sql<number>`cities.id`.as('cityId'),
-      cityName: sql<string>`cities.name`
-    })
+    .select(cols)
     .from(sql`(select 1 as id, 'John' as name, 'New York' as city) as users`)
-    .leftJoin(sql`(select 1 as id, 'Paris' as name) as cities`, cols =>
+    .leftJoin(
+      sql`(select 1 as id, 'Paris' as name) as cities`,
       eq(cols.cityId, cols.userId)
     )
 
@@ -2424,7 +2429,7 @@ test('join on aliased sql from with clause', async ctx => {
       cityName: cities.name
     })
     .from(users)
-    .leftJoin(cities, cols => eq(cols.cityId, cols.userId))
+    .leftJoin(cities, eq(cities.id, users.id))
 
   Expect<
     Equal<
@@ -4315,8 +4320,8 @@ test('mySchema :: view', async ctx => {
 
   const newYorkers1 = mySchema
     .view('new_yorkers')
-    .as(qb =>
-      qb
+    .as(
+      db
         .select()
         .from(users2MySchemaTable)
         .where(eq(users2MySchemaTable.cityId, 1))
@@ -4340,7 +4345,7 @@ test('mySchema :: view', async ctx => {
     })
     .existing()
 
-  await db.create(newYorkers3)
+  await db.create(newYorkers1)
 
   await db
     .insert(citiesMySchemaTable)
@@ -5021,7 +5026,7 @@ test('all types', async ctx => {
     serial: 1,
     bigint53: 9007199254740991,
     bigint64: 5044565289845416380n,
-    binary: '1',
+    binary: new TextEncoder().encode('1'),
     boolean: true,
     char: 'c',
     date: new Date(1741743161623),
@@ -5056,7 +5061,7 @@ test('all types', async ctx => {
       .slice(0, 19)
       .replace('T', ' '),
     tinyInt: 7,
-    varbin: '1010110101001101',
+    varbin: new TextEncoder().encode('1010110101001101'),
     varchar: 'VCHAR',
     year: 2025
   })
@@ -5067,7 +5072,7 @@ test('all types', async ctx => {
     serial: number
     bigint53: number | null
     bigint64: bigint | null
-    binary: string | null
+    binary: Uint8Array | null
     boolean: boolean | null
     char: string | null
     date: Date | null
@@ -5089,7 +5094,7 @@ test('all types', async ctx => {
     timestamp: Date | null
     timestampStr: string | null
     tinyInt: number | null
-    varbin: string | null
+    varbin: Uint8Array | null
     varchar: string | null
     year: number | null
     enum: 'enV1' | 'enV2' | null
@@ -5100,7 +5105,7 @@ test('all types', async ctx => {
       serial: 1,
       bigint53: 9007199254740991,
       bigint64: 5044565289845416380n,
-      binary: '1',
+      binary: new TextEncoder().encode('1'),
       boolean: true,
       char: 'c',
       date: new Date('2025-03-12T00:00:00.000Z'),
@@ -5122,7 +5127,7 @@ test('all types', async ctx => {
       timestamp: new Date('2025-03-12T01:32:42.000Z'),
       timestampStr: '2025-03-12 01:32:41',
       tinyInt: 7,
-      varbin: '1010110101001101',
+      varbin: new TextEncoder().encode('1010110101001101'),
       varchar: 'VCHAR',
       year: 2025,
       enum: 'enV1'
@@ -6209,12 +6214,11 @@ test('sql.identifier escape', async ctx => {
   )
   await db.insert(users).values([{name: 'John'}, {name: 'Jane'}])
 
-  const mysqlDialect = new MySqlDialect()
   const userInput = 'id` ASC, CAST((SELECT name FROM users LIMIT 1) AS int)--'
 
   const query = sql`SELECT * FROM ${sql.identifier('users')} ORDER BY ${sql.identifier(userInput)} ASC`
 
-  const str = mysqlDialect.sqlToQuery(query)
+  const str = mysqlDialect.emit(query)
   expect(str.sql).toBe(
     'SELECT * FROM `users` ORDER BY `id`` ASC, CAST((SELECT name FROM users LIMIT 1) AS int)--` ASC'
   )

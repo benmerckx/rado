@@ -224,6 +224,7 @@ export interface InsertQuery<
   returning?: Returning
   on?: Array<Conflict<Definition>>
   overridingSystemValue?: boolean
+  ignore?: boolean
 }
 
 export interface DeleteQuery<

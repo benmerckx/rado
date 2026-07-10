@@ -120,6 +120,9 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
   }): Column<Value, [false, false]> {
     return new Column({...getData(this), ...options, primary: true})
   }
+  autoincrement(): Column<Value, Nulls> {
+    return new Column({...getData(this), autoIncrement: true})
+  }
   unique(name?: string): Column<Value, Nulls> {
     return new Column({...getData(this), isUnique: true})
   }
@@ -208,9 +211,11 @@ export function formatColumn(column: BaseColumnData): Sql {
       primaryKey: column.primary,
       notNull: column.notNull,
       unique: column.isUnique,
-      nullsNotDistinct: column.nullsNotDistinct,
-      autoincrement: column.autoIncrement
+      nullsNotDistinct: column.nullsNotDistinct
     },
+    column.autoIncrement
+      ? sql.universal({mysql: sql`auto_increment`, default: sql`autoincrement`})
+      : undefined,
     column.defaultValue !== undefined
       ? sql`default (${column.defaultValue})`.inlineValues()
       : undefined,

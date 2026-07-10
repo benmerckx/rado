@@ -27,7 +27,9 @@ function formatDate(value: Date): string {
 function formatDateTime(value: Date): string {
   const base = `${formatDate(value)} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`
   const milliseconds = value.getMilliseconds()
-  return milliseconds > 0 ? `${base}.${String(milliseconds).padStart(3, '0')}` : base
+  return milliseconds > 0
+    ? `${base}.${String(milliseconds).padStart(3, '0')}`
+    : base
 }
 
 export function bigint(
@@ -119,6 +121,13 @@ export function datetime(
 
 export function decimal(
   ...args: ColumnArguments<{
+    mode?: 'string'
+    precision?: number
+    scale?: number
+  }>
+): Column<string>
+export function decimal(
+  ...args: ColumnArguments<{
     mode: 'number'
     precision?: number
     scale?: number
@@ -131,13 +140,6 @@ export function decimal(
     scale?: number
   }>
 ): Column<bigint>
-export function decimal(
-  ...args: ColumnArguments<{
-    mode?: 'string'
-    precision?: number
-    scale?: number
-  }>
-): Column<string>
 export function decimal(
   ...args: ColumnArguments<{
     mode?: DecimalMode
@@ -221,7 +223,7 @@ export function real(name?: string): Column<number> {
   return new Column({name, type: column.real()})
 }
 
-export function serial(name?: string): Column<number> {
+export function serial(name?: string): Column<number, [false, false]> {
   return new Column({name, type: column.serial()})
 }
 

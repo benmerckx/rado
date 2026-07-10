@@ -124,6 +124,12 @@ export class InsertInto<
     this[internalData] = data
   }
 
+  ignore<CurrentMeta extends IsMysql>(
+    this: InsertInto<Definition, CurrentMeta>
+  ): InsertInto<Definition, CurrentMeta> {
+    return new InsertInto({...getData(this), ignore: true})
+  }
+
   overridingSystemValue(): InsertInto<Definition, Meta> {
     return new InsertInto({
       ...getData(this),
@@ -244,7 +250,8 @@ function formatConflicts(on: Array<Conflict>): Sql | undefined {
 }
 
 export function insertQuery(query: InsertQuery): Sql {
-  const {insert, values, select, returning, overridingSystemValue} = query
+  const {insert, values, select, returning, overridingSystemValue, ignore} =
+    query
   if (!values && !select) throw new Error('No values defined')
   const table = getTable(insert)
   const toInsert = values
@@ -256,7 +263,13 @@ export function insertQuery(query: InsertQuery): Sql {
   return sql
     .query(
       formatCTE(query),
-      {insertInto: sql`${table.identifier()} (${table.listColumns()})`},
+      {
+        '': sql.universal({
+          mysql: ignore ? sql`insert ignore into` : sql`insert into`,
+          default: sql`insert into`
+        })
+      },
+      sql`${table.identifier()} (${table.listColumns()})`,
       {overridingSystemValue},
       toInsert,
       conflicts,
