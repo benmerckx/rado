@@ -169,7 +169,7 @@ export function primaryKeyColumns(tableApi: TableApi): Set<string> {
     const columnApi = getData(column)
     if (columnApi.primary) columns.add(columnApi.name ?? name)
   }
-  for (const constraint of Object.values(tableApi.config ?? {})) {
+  for (const [, constraint] of configEntries(tableApi.config?.())) {
     if (!(constraint instanceof PrimaryKeyConstraint)) continue
     for (const field of getData(constraint).fields) columns.add(field.fieldName)
   }
