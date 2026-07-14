@@ -61,7 +61,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return condition ? this : undefined
   }
 
-  get isEmpty() {
+  get isEmpty(): boolean {
     return this.emit === noop
   }
 }
