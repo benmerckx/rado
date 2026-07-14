@@ -43,13 +43,15 @@ export function columnSql(column: Column): string {
   return emit(formatColumn(getData(column)))
 }
 
-export function mapFrom(
-  column: Column,
+export function mapFrom<T>(
+  column: Column<T>,
   value: unknown,
   specs: DriverSpecs = defaultSpecs
-): unknown {
+): T {
   const data = getData(column)
-  return data.mapFromDriverValue ? data.mapFromDriverValue(value, specs) : value
+  return (
+    data.mapFromDriverValue ? data.mapFromDriverValue(value, specs) : value
+  ) as T
 }
 
 export function mapTo(column: Column, value: unknown): unknown {

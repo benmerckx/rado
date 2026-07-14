@@ -588,9 +588,6 @@ suite(import.meta, test => {
 
       const syncExecute = syncDb.execute(sql`select 1`)
       Expect<Equal<typeof syncExecute, [Array<unknown>]>>()
-
-      const queryExecute = syncDb.execute(syncDb.select(User.id).from(User))
-      Expect<Equal<typeof queryExecute, Array<number>>>()
     })
   })
 

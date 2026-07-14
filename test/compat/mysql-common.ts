@@ -1528,8 +1528,8 @@ test('insert via db.execute + select via db.execute', async ctx => {
 
   await db.execute(sql`insert into ${usersTable} (name) values (${'John'})`)
 
-  const result = await db.execute<{id: number; name: string}>(
-    sql`select id, name from ${usersTable}`
+  const result = await db.execute(
+    sql<{id: number; name: string}>`select id, name from ${usersTable}`
   )
   expect(result[0]).toEqual([{id: 1, name: 'John'}])
 })
