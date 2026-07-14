@@ -15,6 +15,11 @@ suite(import.meta, test => {
     test.equal(emit(sql.identifier('name')), '"name"')
   })
 
+  test('function name', () => {
+    test.equal(emit(sql.functionName('count')), 'count')
+    test.throws(() => emit(sql.functionName('count); drop table users; --')))
+  })
+
   test('inline value', () => {
     test.equal(emit(sql.inline(1)), '1')
   })

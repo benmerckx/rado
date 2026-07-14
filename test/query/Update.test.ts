@@ -34,7 +34,7 @@ suite(import.meta, test => {
     })
     test.equal(
       emit(query),
-      'update "Node" set "data" = "json_patch"("data", {"a":1})'
+      'update "Node" set "data" = json_patch("data", {"a":1})'
     )
   })
 

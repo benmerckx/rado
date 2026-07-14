@@ -6,6 +6,7 @@ import type {
   BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
@@ -28,7 +29,7 @@ export interface PgCompatible {
     text: string
     values?: Array<unknown>
     rowMode?: string
-  }): Promise<{rows: Array<any>}>
+  }): Promise<{rows: Array<any>; rowCount?: number | null}>
 }
 
 function isPool(client: Queryable): client is Pool {
@@ -69,15 +70,13 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res.rows)
   }
 
-  async run(params: Array<unknown>) {
-    await this.client.query(
-      {
-        name: this.name,
-        text: this.sql,
-        values: params
-      },
-      params
-    )
+  async run(params: Array<unknown>): Promise<MutationResultBase> {
+    const result = await this.client.query({
+      name: this.name,
+      text: this.sql,
+      values: params
+    })
+    return {affectedRows: result.rowCount ?? 0}
   }
 
   get(params: Array<unknown>): Promise<object> {

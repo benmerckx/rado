@@ -36,7 +36,7 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
     "check": "bun run format:check && bun run lint",
-    "test:mysql": "bun test --test-filter mysql",
+    "test:mysql": "bun test --test-filter mysql compat",
     "test:postgres": "bun test --test-filter postgres pg",
     "test:sqlite": "bun test --test-filter sqlite",
     "test:bun": "bun test",

@@ -11,6 +11,7 @@ import type {
   BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
 import {mysqlDiff} from '../mysql/diff.ts'
 import {setTransaction, startTransaction} from '../mysql/transactions.ts'
@@ -32,12 +33,31 @@ class PreparedStatement implements AsyncStatement {
 
   all(params: Array<unknown>): Promise<Array<object>> {
     return this.client
-      .query(this.sql, params.map(this.#transformParam))
+      .query({
+        sql: this.sql,
+        values: params.map(this.#transformParam),
+        dateStrings: true,
+        supportBigNumbers: true
+      })
       .then(res => res[0] as Array<object>)
   }
 
-  async run(params: Array<unknown>) {
-    await this.client.query(this.sql, params.map(this.#transformParam))
+  async run(params: Array<unknown>): Promise<MutationResultBase> {
+    const [result] = await this.client.query({
+      sql: this.sql,
+      values: params.map(this.#transformParam),
+      supportBigNumbers: true
+    })
+    const header = result as {
+      affectedRows?: number
+      changedRows?: number
+      insertId?: number
+    }
+    return {
+      affectedRows: header.affectedRows ?? 0,
+      changedRows: header.changedRows ?? 0,
+      insertId: header.insertId ?? 0
+    }
   }
 
   get(params: Array<unknown>): Promise<object> {
@@ -50,7 +70,9 @@ class PreparedStatement implements AsyncStatement {
       .query({
         sql: this.sql,
         values: params.map(this.#transformParam),
-        rowsAsArray: true
+        rowsAsArray: true,
+        dateStrings: true,
+        supportBigNumbers: true
       })
       .then(res => res[0] as Array<Array<unknown>>)
   }
@@ -104,13 +126,13 @@ export class Mysql2Driver implements AsyncDriver {
       : this.client
     const driver = new Mysql2Driver(client, this.depth + 1)
     try {
-      await client.query(
-        this.depth > 0 ? `savepoint d${this.depth}` : startTransaction(options)
-      )
       if (this.depth === 0) {
         const setOptions = setTransaction(options)
         if (setOptions) await client.query(setOptions)
       }
+      await client.query(
+        this.depth > 0 ? `savepoint d${this.depth}` : startTransaction(options)
+      )
       const result = await run(driver)
       await client.query(
         this.depth > 0 ? `release savepoint d${this.depth}` : 'commit'

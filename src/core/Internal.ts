@@ -1,7 +1,7 @@
 import type {FieldData} from './expr/Field.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {Resolver} from './Resolver.ts'
-import type {Selection} from './Selection.ts'
+import type {Selection, SelectionInput} from './Selection.ts'
 import type {Sql} from './Sql.ts'
 import type {TableApi, TableDefinition} from './Table.ts'
 
@@ -26,8 +26,10 @@ export declare class HasData<Data> {
 export declare class HasSql<Value = unknown> {
   get [internalSql](): Sql<Value>
 }
-export declare class HasSelection {
-  get [internalSelection](): Selection
+export declare class HasSelection<
+  Input extends SelectionInput = SelectionInput
+> {
+  get [internalSelection](): Selection<Input>
 }
 export declare class HasTarget<Name extends string = string> {
   get [internalTarget](): Sql
@@ -70,7 +72,9 @@ export const hasSql = <Value>(obj: object): obj is HasSql<Value> =>
 export const getSql = <Value>(obj: HasSql<Value>) => obj[internalSql]
 export const hasSelection = (obj: object): obj is HasSelection =>
   internalSelection in obj
-export const getSelection = (obj: HasSelection) => obj[internalSelection]
+export const getSelection = <Input extends SelectionInput>(
+  obj: HasSelection<Input>
+) => obj[internalSelection]
 export const hasTarget = (obj: object): obj is HasTarget =>
   internalTarget in obj
 export const getTarget = (obj: HasTarget) => obj[internalTarget]

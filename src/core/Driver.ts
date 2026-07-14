@@ -1,4 +1,5 @@
 import type {TransactionUniversalOptions} from './Database.ts'
+import type {MutationResultBase} from './MetaData.ts'
 
 export type Driver = SyncDriver | AsyncDriver
 export type Statement = SyncStatement | AsyncStatement
@@ -28,7 +29,7 @@ export interface SyncDriver extends DriverSpecs {
 }
 export interface SyncStatement {
   all(params: Array<unknown>): Array<object>
-  run(params: Array<unknown>): void
+  run(params: Array<unknown>): MutationResultBase
   get(params: Array<unknown>): object | null
   values(params: Array<unknown>): Array<Array<unknown>>
   free(): void
@@ -45,7 +46,7 @@ export interface AsyncDriver extends DriverSpecs {
 }
 export interface AsyncStatement {
   all(params: Array<unknown>): Promise<Array<object>>
-  run(params: Array<unknown>): Promise<void>
+  run(params: Array<unknown>): Promise<MutationResultBase>
   get(params: Array<unknown>): Promise<object | null>
   values(params: Array<unknown>): Promise<Array<Array<unknown>>>
   free(): void

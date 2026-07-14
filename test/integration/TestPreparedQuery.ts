@@ -33,7 +33,7 @@ export function testPreparedQuery(db: Database, test: DefineTest) {
         })
         .prepare<{text: string}>('prepared-insert')
       const insertResult = await insert.execute({text: 'hello'})
-      test.equal(insertResult, [])
+      test.equal(insertResult.affectedRows, 1)
 
       const select = db
         .select(Node.textField)

@@ -10,7 +10,7 @@ suite(import.meta, test => {
   })
 
   test('eq', () => {
-    test.equal(emit(bm25(Node, 1, 2)), '"bm25"("Node", 1, 2)')
+    test.equal(emit(bm25(Node, 1, 2)), 'bm25("Node", 1, 2)')
   })
 
   test('cast', () => {

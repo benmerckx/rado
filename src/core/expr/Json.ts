@@ -13,11 +13,13 @@ export type JsonRecordHasSql<Row> = HasSql<Row> & {
 
 type NullableEach<T> = {[P in keyof T]: T[P] | null}
 
-export type JsonExpr<Value> = [NonNullable<Value>] extends [Array<infer V>]
-  ? JsonArrayHasSql<null extends Value ? V | null : V>
-  : [NonNullable<Value>] extends [object]
-    ? JsonRecordHasSql<null extends Value ? NullableEach<Value> : Value>
-    : HasSql<Value>
+export type JsonExpr<Value> = unknown extends Value
+  ? HasSql<Value>
+  : [NonNullable<Value>] extends [Array<infer V>]
+    ? JsonArrayHasSql<null extends Value ? V | null : V>
+    : [NonNullable<Value>] extends [object]
+      ? JsonRecordHasSql<null extends Value ? NullableEach<Value> : Value>
+      : HasSql<Value>
 
 const INDEX_PROPERTY = /^\d+$/
 

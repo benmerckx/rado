@@ -27,3 +27,10 @@ test('sqlite json path quotes string segments', () => {
   })
   test.equal(sqliteDialect.inline(path), '"doc"->>\'$."a[0]"."x.y"\'')
 })
+
+test('sql query with no active chunks emits empty string', () => {
+  const empty = sql.query({a: false, b: false})
+
+  test.equal(sqliteDialect.inline(empty), '')
+  test.equal(sqliteDialect.inline(sql.join([sql`x`, empty])), 'x')
+})

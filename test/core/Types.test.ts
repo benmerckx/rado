@@ -1,6 +1,14 @@
 import {suite} from '@alinea/suite'
 import type {HasSql} from '#/core/Internal.ts'
-import type {Async, Deliver, Either, Sync} from '#/core/MetaData.ts'
+import type {
+  Async,
+  Deliver,
+  Either,
+  MysqlMutationResult,
+  PostgresMutationResult,
+  SqliteMutationResult,
+  Sync
+} from '#/core/MetaData.ts'
 import type {Database} from '#/index.ts'
 import {
   alias,
@@ -289,6 +297,24 @@ suite(import.meta, test => {
   test('insert, update, and delete returning result types', () => {
     typecheck(() => {
       const db: Database<Sync<'sqlite'>> = undefined!
+      const mysqlDb: Database<Sync<'mysql'>> = undefined!
+      const pgDb: Database<Sync<'postgres'>> = undefined!
+
+      const insertResult = db.insert(User).values({name: 'Ada', active: true})
+      Expect<Equal<Awaited<typeof insertResult>, SqliteMutationResult>>()
+
+      const mysqlInsertResult = mysqlDb
+        .insert(User)
+        .values({name: 'Ada', active: true})
+      Expect<Equal<Awaited<typeof mysqlInsertResult>, MysqlMutationResult>>()
+
+      const pgInsertResult = pgDb
+        .insert(User)
+        .values({name: 'Ada', active: true})
+      Expect<Equal<Awaited<typeof pgInsertResult>, PostgresMutationResult>>()
+
+      // @ts-expect-error returning is not available for mysql
+      mysqlDb.insert(User).values({name: 'Ada', active: true}).returning()
 
       const inserted = db
         .insert(User)
@@ -308,6 +334,12 @@ suite(import.meta, test => {
           Array<{id: number; name: string; active: boolean}>
         >
       >()
+
+      const updateResult = db
+        .update(User)
+        .set({name: 'Grace'})
+        .where(eq(User.id, 1))
+      Expect<Equal<Awaited<typeof updateResult>, SqliteMutationResult>>()
 
       const updated = db
         .update(User)
@@ -330,6 +362,16 @@ suite(import.meta, test => {
         >
       >()
 
+      const updatedLimited = db
+        .update(User)
+        .set({active: false})
+        .returning({id: User.id})
+        .limit(1)
+      Expect<Equal<Awaited<typeof updatedLimited>, Array<{id: number}>>>()
+
+      const deleteResult = db.delete(User).where(eq(User.id, 1))
+      Expect<Equal<Awaited<typeof deleteResult>, SqliteMutationResult>>()
+
       const deleted = db.delete(User).where(eq(User.id, 1)).returning(User.id)
       Expect<Equal<Awaited<typeof deleted>, Array<number>>>()
 
@@ -340,6 +382,13 @@ suite(import.meta, test => {
           Array<{id: number; name: string; active: boolean}>
         >
       >()
+
+      const deletedLimited = db
+        .delete(User)
+        .returning({id: User.id})
+        .orderBy(User.id)
+        .limit(1)
+      Expect<Equal<Awaited<typeof deletedLimited>, Array<{id: number}>>>()
     })
   })
 
@@ -431,7 +480,7 @@ suite(import.meta, test => {
       const preparedRow = prepared.get({name: 'Ada'})
       Expect<Equal<typeof preparedRow, Array<{id: number; name: string}>>>()
       const preparedRun = prepared.run({name: 'Ada'})
-      Expect<Equal<typeof preparedRun, void>>()
+      Expect<Equal<typeof preparedRun, SqliteMutationResult>>()
       Expect<
         Equal<
           ReturnType<typeof prepared.execute>,
@@ -477,10 +526,7 @@ suite(import.meta, test => {
         .selectDistinctOn([User.id], {id: User.id, name: User.name})
         .from(User)
       Expect<
-        Equal<
-          Awaited<typeof distinctOnRows>,
-          Array<{id: number; name: string}>
-        >
+        Equal<Awaited<typeof distinctOnRows>, Array<{id: number; name: string}>>
       >()
       // @ts-expect-error distinct on is postgres-only
       db.selectDistinctOn([User.id], {id: User.id})
@@ -541,7 +587,7 @@ suite(import.meta, test => {
       Expect<Equal<typeof eitherRun, void | Promise<void>>>()
 
       const syncExecute = syncDb.execute(sql`select 1`)
-      Expect<Equal<typeof syncExecute, void>>()
+      Expect<Equal<typeof syncExecute, [Array<unknown>]>>()
     })
   })
 
@@ -651,6 +697,7 @@ suite(import.meta, test => {
             .update(User)
             .set({active: false})
             .returning({id: User.id, active: User.active})
+            .limit(1)
         )
       const fromUpdated = db
         .with(updated)
@@ -658,15 +705,33 @@ suite(import.meta, test => {
         .from(updated)
       Expect<
         Equal<
-          Awaited<typeof fromUpdated>,
-          Array<{id: number; active: boolean}>
+          typeof updated.id extends HasSql<infer Value> ? Value : never,
+          number
         >
+      >()
+      Expect<
+        Equal<
+          typeof updated.active extends HasSql<infer Value> ? Value : never,
+          boolean
+        >
+      >()
+      Expect<
+        Equal<Awaited<typeof fromUpdated>, Array<{id: number; active: boolean}>>
       >()
 
       const deleted = db
         .$with('deleted_user')
-        .as(db.delete(User).returning({id: User.id}))
-      const fromDeleted = db.with(deleted).select({id: deleted.id}).from(deleted)
+        .as(db.delete(User).returning({id: User.id}).orderBy(User.id).limit(1))
+      const fromDeleted = db
+        .with(deleted)
+        .select({id: deleted.id})
+        .from(deleted)
+      Expect<
+        Equal<
+          typeof deleted.id extends HasSql<infer Value> ? Value : never,
+          number
+        >
+      >()
       Expect<Equal<Awaited<typeof fromDeleted>, Array<{id: number}>>>()
     })
   })

@@ -40,7 +40,7 @@ class TableData {
   alias?: string
   schemaName?: string
   columns!: TableDefinition
-  config?: TableConfig
+  config?: () => TableConfigResult
 }
 
 export class TableApi<
@@ -81,13 +81,13 @@ export class TableApi<
     const createColumns = keys(this.columns).map(name =>
       this.columnDefinition(name)
     )
-    const createConstraints = entries(this.config ?? {})
-      .filter(([, constraint]) => hasConstraint(constraint))
-      .map(([key, constraint]) => {
-        const {name} = getData(constraint as HasData<{name?: string}>)
-        return sql`constraint ${sql.identifier(name ?? key)} ${getConstraint(
-          constraint as HasConstraint
-        )}`
+    const createConstraints = configEntries(this.config?.())
+      .filter(([, value]) => hasConstraint(value))
+      .map(([key, value]) => {
+        const {name} = getData(value as HasData<{name?: string}>)
+        const constraint = getConstraint(value as HasConstraint)
+        if (!name && !key) return constraint
+        return sql`constraint ${sql.identifier(name ?? key!)} ${constraint}`
       })
     return sql.join(createColumns.concat(createConstraints), sql`, `)
   }
@@ -133,7 +133,17 @@ export class TableApi<
 
   indexes(): Record<string, Index> {
     return fromEntries(
-      entries(this.config ?? {}).filter(([, config]) => config instanceof Index)
+      configEntries(this.config?.())
+        .filter(([, value]) => value instanceof Index)
+        .map(([key, value]) => {
+          const {name} = getData(value as HasData<{name?: string}>)
+          const indexName = name ?? key
+          if (!indexName)
+            throw new Error(
+              `Index in table "${this.name}" requires a name when table config is an array`
+            )
+          return [indexName, value]
+        })
     ) as Record<string, Index>
   }
 }
@@ -159,7 +169,7 @@ export function primaryKeyColumns(tableApi: TableApi): Set<string> {
     const columnApi = getData(column)
     if (columnApi.primary) columns.add(columnApi.name ?? name)
   }
-  for (const constraint of Object.values(tableApi.config ?? {})) {
+  for (const [, constraint] of configEntries(tableApi.config?.())) {
     if (!(constraint instanceof PrimaryKeyConstraint)) continue
     for (const field of getData(constraint).fields) columns.add(field.fieldName)
   }
@@ -226,21 +236,30 @@ export type TableUpdate<Definition extends TableDefinition> = {
     : never
 }
 
-export type TableConfigSetting<Name extends string> =
-  | UniqueConstraint<Name>
-  | PrimaryKeyConstraint<Name>
-  | ForeignKeyConstraint<Name>
-  | Index<Name>
+export type TableConfigSetting =
+  | UniqueConstraint
+  | PrimaryKeyConstraint
+  | ForeignKeyConstraint
+  | Index
 
-export interface TableConfig<Name extends string = string> extends Record<
-  string,
-  TableConfigSetting<Name>
-> {}
+export type TableConfig = Record<string, TableConfigSetting>
+
+export type TableConfigArray = ReadonlyArray<TableConfigSetting>
+
+export type TableConfigResult = TableConfig | TableConfigArray
+
+function configEntries(
+  config?: TableConfigResult
+): Array<readonly [string | undefined, TableConfigSetting]> {
+  if (!config) return []
+  if (Array.isArray(config)) return config.map(value => [undefined, value])
+  return entries(config)
+}
 
 export function table<Definition extends TableDefinition, Name extends string>(
   name: Name,
   columns: Definition,
-  config?: (self: Table<Definition, Name>) => TableConfig<Name>,
+  config?: (self: Table<Definition, Name>) => TableConfigResult,
   schemaName?: string
 ): Table<Definition, Name> {
   const api = assign(new TableApi<Definition, Name>(), {
@@ -261,7 +280,7 @@ export function table<Definition extends TableDefinition, Name extends string>(
     },
     ...fields
   }
-  if (config) api.config = config(table)
+  if (config) api.config = () => config(table)
   return table
 }
 

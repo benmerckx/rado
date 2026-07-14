@@ -12,6 +12,7 @@ import {testInclude} from './integration/TestInclude.ts'
 import {testJoins} from './integration/TestJoins.ts'
 import {testJson} from './integration/TestJson.ts'
 import {testMigration} from './integration/TestMigration.ts'
+import {testMutationResult} from './integration/TestMutationResult.ts'
 import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
 import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
@@ -35,6 +36,7 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   testColumns(db, prefixed)
   testDirectQuery(db, prefixed)
   testSubquery(db, prefixed)
+  testMutationResult(db, prefixed)
   testPreparedQuery(db, prefixed)
   testJoins(db, prefixed)
   testJson(db, prefixed)

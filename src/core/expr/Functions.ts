@@ -10,7 +10,7 @@ export function callFunction<Result>(
 
 function get(target: Record<string, Function>, method: string) {
   return (target[method] ??= (...args: Array<Input<unknown>>) => {
-    return callFunction(sql.identifier(method), args)
+    return callFunction(sql.functionName(method), args)
   })
 }
 
