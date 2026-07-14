@@ -18,7 +18,10 @@ export function testDirectQuery(db: Database, test: DefineTest) {
     const [rawRows] = await db.execute(
       sql<{value: string}>`select ${'raw'} as value`
     )
-    test.equal(rawRows, [{value: 'raw'}])
+    test.equal(
+      rawRows.map(row => row.value),
+      ['raw']
+    )
 
     await db.create(Node)
     try {
