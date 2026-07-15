@@ -14,6 +14,7 @@ import {
   getSelection,
   getSql,
   getTable,
+  getTargetAlias,
   getTarget,
   hasField,
   hasSelection,
@@ -89,9 +90,17 @@ function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
   return query
 }
 
-export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<SelectionRow<Input>, Meta>
-  implements HasQuery<SelectionRow<Input>>
+type SelectFirstResult<Input, Nullable extends boolean> =
+  | SelectionRow<Input>
+  | (Nullable extends true ? null : never)
+
+export class SelectFirst<
+  Input,
+  Meta extends QueryMeta = QueryMeta,
+  Nullable extends boolean = false
+>
+  extends SingleQuery<SelectFirstResult<Input, Nullable>, Meta>
+  implements HasQuery<SelectFirstResult<Input, Nullable>>
 {
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
@@ -105,15 +114,15 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(getData(this))
   }
 
-  get [internalQuery](): Sql<SelectionRow<Input>> {
-    return selectQuery(getData(this)) as Sql<SelectionRow<Input>>
+  get [internalQuery](): Sql<SelectFirstResult<Input, Nullable>> {
+    return selectQuery(getData(this)) as Sql<SelectFirstResult<Input, Nullable>>
   }
 
-  get [internalSql](): Sql<SelectionRow<Input>> {
+  get [internalSql](): Sql<SelectFirstResult<Input, Nullable>> {
     return mapScalarSelection(
       sql`(${getQuery(this)})`,
       getSelection(this).input
-    ) as Sql<SelectionRow<Input>>
+    ) as Sql<SelectFirstResult<Input, Nullable>>
   }
 }
 
@@ -790,7 +799,8 @@ function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   )
 }
 
-export function querySelection({select, from}: SelectQuery): Selection {
+export function querySelection(query: SelectQuery): Selection {
+  const {select, from} = query
   if (select) {
     if (from) {
       const selectedTargets = new Set<string>()
@@ -798,9 +808,16 @@ export function querySelection({select, from}: SelectQuery): Selection {
       collectReferencedTargets(select as SelectionInput, selectedTargets)
       collectFromTargets(from, fromTargets)
       if (fromTargets.size > 0) {
-        for (const targetName of selectedTargets)
-          if (!fromTargets.has(targetName))
+        const targetAlias = getTargetAlias(query)
+        for (const targetName of selectedTargets) {
+          if (targetName === Sql.SELF_TARGET) continue
+          const mappedName =
+            targetAlias?.sourceName === targetName
+              ? targetAlias.name
+              : targetName
+          if (!fromTargets.has(mappedName))
             throw new Error(`Unknown target in select: ${targetName}`)
+        }
       }
     }
     if (hasSql(select) && hasSelection(select)) {

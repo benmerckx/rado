@@ -53,6 +53,19 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return new Sql(emitter => emitter.emitSelf(this, name))
   }
 
+  scopeTarget(
+    sourceName: string,
+    name: string,
+    selfName = sourceName
+  ): Sql<Value> {
+    const result = new Sql<Value>(emitter =>
+      emitter.scopeTarget(this, sourceName, name, selfName)
+    )
+    result.alias = this.alias
+    result.mapFromDriverValue = this.mapFromDriverValue
+    return result
+  }
+
   forSelection(): Sql<Value> {
     return this
   }

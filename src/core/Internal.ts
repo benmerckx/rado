@@ -19,6 +19,17 @@ export const internalInclude: unique symbol = Symbol()
 export const internalEnum: unique symbol = Symbol()
 export const internalCreate: unique symbol = Symbol()
 export const internalDrop: unique symbol = Symbol()
+export const internalTargetAlias: unique symbol = Symbol()
+
+export interface TargetAlias {
+  sourceName: string
+  name: string
+  selfName?: string
+}
+
+export interface HasTargetAlias {
+  readonly [internalTargetAlias]?: TargetAlias
+}
 
 export declare class HasData<Data> {
   get [internalData](): Data
@@ -32,7 +43,7 @@ export declare class HasSelection<
   get [internalSelection](): Selection<Input>
 }
 export declare class HasTarget<Name extends string = string> {
-  get [internalTarget](): Sql
+  readonly [internalTarget]: Sql
 }
 export declare class HasQuery<Result = unknown> {
   get [internalQuery](): Sql<Result>
@@ -102,3 +113,5 @@ export const hasCreate = (obj: object): obj is HasCreate =>
 export const getCreate = (obj: HasCreate) => obj[internalCreate]
 export const hasDrop = (obj: object): obj is HasDrop => internalDrop in obj
 export const getDrop = (obj: HasDrop) => obj[internalDrop]
+export const getTargetAlias = (obj: object): TargetAlias | undefined =>
+  (obj as HasTargetAlias)[internalTargetAlias]

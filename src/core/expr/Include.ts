@@ -1,5 +1,11 @@
 import type {DriverSpecs} from '../Driver.ts'
-import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
+import {
+  type HasSql,
+  getData,
+  getTargetAlias,
+  internalData,
+  internalSql
+} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
 import type {SelectQuery} from '../query/Query.ts'
@@ -88,7 +94,15 @@ export function includeQuery(query: IncludeQuery): Sql {
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)
   )
-  return sql`(select ${
+  const result = sql`(select ${
     first ? subject : jsonAggregateArray(subject)
   } from (${inner}) as _)`
+  const targetAlias = getTargetAlias(query)
+  return targetAlias
+    ? result.scopeTarget(
+        targetAlias.sourceName,
+        targetAlias.name,
+        targetAlias.selfName
+      )
+    : result
 }

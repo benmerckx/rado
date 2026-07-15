@@ -9,11 +9,7 @@
     "groups": [
       {
         "group": "Start here",
-        "pages": [
-          "index",
-          "getting-started",
-          "drivers"
-        ]
+        "pages": ["index", "getting-started", "drivers"]
       },
       {
         "group": "Defining your schema",
@@ -39,6 +35,7 @@
           "queries/delete",
           "queries/operators",
           "queries/aggregates",
+          "queries/orm",
           "queries/include",
           "queries/json",
           "queries/set-operations",
@@ -57,9 +54,7 @@
       },
       {
         "group": "Background",
-        "pages": [
-          "drizzle"
-        ]
+        "pages": ["drizzle"]
       }
     ]
   }
