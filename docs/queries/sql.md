@@ -1,7 +1,7 @@
 # The sql tag
 
 The `sql` template tag is the escape hatch for everything the builder doesn't
-cover — written safely, with automatic parameterization and full participation
+cover. It is written safely, with automatic parameterization and full participation
 in the type system.
 
 ```ts
@@ -14,7 +14,7 @@ const adults = await db
   .where(sql`${User.age} >= ${minAge}`)
 ```
 
-Interpolated values become bound parameters — never string concatenation, no
+Interpolated values become bound parameters. There is no string concatenation and no
 SQL injection. Interpolated columns, tables and other rado expressions are
 embedded as proper identifiers and SQL.
 
@@ -52,7 +52,7 @@ const [average] = await db.select(avg(Post.views).mapWith(Number)).from(Post)
 // number | null instead of string | null
 ```
 
-`mapWith` accepts a function or anything with `mapFromDriverValue` — handy for
+`mapWith` accepts a function or anything with `mapFromDriverValue`. Use it for
 dates, bigints or custom decoders.
 
 ## Building blocks in the `sql` namespace
@@ -76,7 +76,7 @@ sql`${sql.inline(100)}` // → 100 in the SQL text, no parameter
 
 ### `sql.placeholder(name)`
 
-A named parameter, filled in at execution time — the backbone of
+A named parameter is filled in at execution time. This is the backbone of
 [prepared statements](../runtime/prepared-statements.md):
 
 ```ts
@@ -114,7 +114,7 @@ const nowExpr = sql.universal({
 ```
 
 This is how [universal columns](../schema/columns-universal.md) are
-implemented — and yours to use anywhere.
+implemented, and you can use it anywhere.
 
 ### `sql.unsafe(string)`
 

@@ -1,7 +1,7 @@
 # Universal queries
 
-A rado specialty: write a schema and queries once, run them on SQLite,
-PostgreSQL or MySQL — picked at runtime, not build time.
+Write a schema and queries once, then run them on SQLite,
+PostgreSQL or MySQL. The database is picked at runtime, not build time.
 
 ## Why
 
@@ -11,9 +11,9 @@ storage wants users to bring their own engine. A test suite wants to run the
 same logic on every supported driver. Universal queries make all of these a
 configuration detail instead of an architecture problem.
 
-## The recipe
+## Setup
 
-**1. Define the schema with universal columns:**
+1. Define the schema with universal columns:
 
 ```ts
 import {table} from 'rado'
@@ -27,10 +27,10 @@ const User = table('user', {
 })
 ```
 
-Each universal column emits the correct SQL type per dialect — see the
+Each universal column emits the correct SQL type per dialect. See the
 [type table](../schema/columns-universal.md#available-types).
 
-**2. Connect whichever driver the environment dictates:**
+2. Connect whichever driver the environment dictates:
 
 ```ts
 import {connect as sqlite} from 'rado/driver/better-sqlite3'
@@ -41,15 +41,15 @@ const db = process.env.DATABASE_URL
   : sqlite(new Database('local.db'))
 ```
 
-**3. Query as usual:**
+3. Query as usual:
 
 ```ts
 const names = await db.select(User.name).from(User).where(eq(User.active, true))
 ```
 
 The same query object emits dialect-correct SQL for whatever database executes
-it — identifier quoting, parameter style, JSON access syntax, boolean
-representation, all handled.
+it. Identifier quoting, parameter style, JSON access syntax and boolean
+representation are all handled.
 
 ## Typing universal code
 
@@ -90,7 +90,7 @@ schema definition.
 
 - Stick to features all your target databases share (the types help: e.g.
   `returning` won't be offered on a MySQL-typed database)
-- Test against every engine you claim to support — rado's own test suite does
-  exactly this, running shared integration tests over all drivers
+- Test against every engine you claim to support. Rado's own test suite runs
+  shared integration tests over all drivers
 - Column behaviors at the edges differ (numeric precision, date handling);
   the universal column types pick safe mappings, but verify your edge cases

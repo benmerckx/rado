@@ -25,7 +25,7 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   mapFromDriverValue?: (input: unknown, specs: DriverSpecs) => Value
   readonly [internalSql] = this
 
-  constructor(public emit: (emitter: Emitter) => void) {}
+  constructor(public emit: (emitter: Emitter) => void = noop) {}
 
   as(name: string): Sql<Value> {
     this.alias = name
@@ -65,6 +65,10 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   if(condition: unknown): Sql<Value> | undefined {
     return condition ? this : undefined
   }
+
+  get isEmpty(): boolean {
+    return this.emit === noop
+  }
 }
 
 class JsonPathSql<T> extends Sql<T> {
@@ -98,7 +102,7 @@ export function sql<T>(
 
 export namespace sql {
   export function empty<T>(): Sql<T> {
-    return new Sql(noop)
+    return new Sql()
   }
 
   export function unsafe<T>(directSql: string | number): Sql<T> {
@@ -119,6 +123,12 @@ export namespace sql {
 
   export function identifier<T>(identifier: string): Sql<T> {
     return new Sql(emitter => emitter.emitIdentifierOrSelf(identifier))
+  }
+
+  export function functionName<T>(name: string): Sql<T> {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+      throw new Error(`Invalid SQL function name: ${name}`)
+    return new Sql(emitter => emitter.emitUnsafe(name))
   }
 
   export function field<T>(field: FieldData): Sql<T> {
@@ -166,7 +176,11 @@ export namespace sql {
     items: Array<Sql | HasSql | undefined | false>,
     separator: Sql = sql` `
   ): Sql<T> {
-    const parts = items.filter(Boolean) as Array<Sql | HasSql>
+    const parts = items.filter(item => {
+      if (!item) return false
+      return !getSql(item).isEmpty
+    }) as Array<Sql | HasSql>
+    if (parts.length === 0) return empty()
     return new Sql(emitter => {
       for (let i = 0; i < parts.length; i++) {
         if (i > 0) separator.emit(emitter)

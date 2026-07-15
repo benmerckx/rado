@@ -20,7 +20,7 @@ await db.drop(Post, User)
 
 ## Auto-migration with `db.migrate`
 
-For an existing database, `db.migrate` _diffs_ each table you pass against
+For an existing database, `db.migrate` diffs each table you pass against
 what's actually in the database and applies the difference:
 
 ```ts
@@ -44,8 +44,8 @@ rado works: Node.js, Bun, Deno, Cloudflare Workers and the browser
 
 ## A word of warning
 
-`db.migrate` is _declarative and destructive_. If your code no longer
-mentions a column, the migration drops it — along with its data. That's the
+`db.migrate` is declarative and destructive. If your code no longer
+mentions a column, the migration drops it along with its data. That's the
 contract: the database ends up matching the code.
 
 Treat it accordingly:
@@ -59,16 +59,16 @@ Treat it accordingly:
 
 ## How renames are detected
 
-A renamed _property_ with an explicit column name keeps its identity:
+A renamed property with an explicit column name keeps its identity:
 
 ```ts
 // before
 const T = table('t', {fieldA: varchar('field_a', {length: 10})})
-// after — property renamed, column name kept: no data loss
+// after: property renamed, column name kept, no data loss
 const T = table('t', {fieldB: varchar('field_a', {length: 10})})
 ```
 
-A changed _column name_ is a drop-and-add. When in doubt, inspect what would
+A changed column name is a drop-and-add. When in doubt, inspect what would
 run (see below).
 
 ## Running raw migration SQL

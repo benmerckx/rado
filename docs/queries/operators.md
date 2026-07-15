@@ -139,7 +139,7 @@ db.select().from(User).orderBy(asc(User.name), desc(User.id))
 ## When you need more
 
 Anything missing from this page can be written with the
-[`sql` tag](sql.md) — fully typed and parameterized:
+[`sql` tag](sql.md). It is fully typed and parameterized:
 
 ```ts
 where(sql<boolean>`${User.name} similar to ${pattern}`)

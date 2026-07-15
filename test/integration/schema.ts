@@ -1,5 +1,5 @@
-import {foreignKey, primaryKey, table, unique} from '@/index.ts'
-import {boolean, id, integer, json, text} from '@/universal.ts'
+import {foreignKey, primaryKey, table, unique} from '#/index.ts'
+import {boolean, id, integer, json, text} from '#/universal.ts'
 
 export const Node = table('Node', {
   id: id(),

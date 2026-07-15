@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {eq, type Database} from '@/index.ts'
+import {eq, type Database} from '#/index.ts'
 import {WithJson} from './schema.ts'
 
 export function testJson(db: Database, test: DefineTest) {

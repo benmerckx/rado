@@ -1,5 +1,5 @@
 import {suite} from '@alinea/suite'
-import {sql} from '@/core/Sql.ts'
+import {sql} from '#/core/Sql.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
@@ -13,6 +13,11 @@ suite(import.meta, test => {
 
   test('identifier', () => {
     test.equal(emit(sql.identifier('name')), '"name"')
+  })
+
+  test('function name', () => {
+    test.equal(emit(sql.functionName('count')), 'count')
+    test.throws(() => emit(sql.functionName('count); drop table users; --')))
   })
 
   test('inline value', () => {

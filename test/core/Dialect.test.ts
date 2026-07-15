@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {sql} from '@/core/Sql.ts'
-import {mysqlDialect} from '@/mysql/dialect.ts'
-import {sqliteDialect} from '@/sqlite/dialect.ts'
+import {sql} from '#/core/Sql.ts'
+import {mysqlDialect} from '#/mysql/dialect.ts'
+import {sqliteDialect} from '#/sqlite/dialect.ts'
 
 const test = suite(import.meta)
 
@@ -26,4 +26,11 @@ test('sqlite json path quotes string segments', () => {
     asSql: true
   })
   test.equal(sqliteDialect.inline(path), '"doc"->>\'$."a[0]"."x.y"\'')
+})
+
+test('sql query with no active chunks emits empty string', () => {
+  const empty = sql.query({a: false, b: false})
+
+  test.equal(sqliteDialect.inline(empty), '')
+  test.equal(sqliteDialect.inline(sql.join([sql`x`, empty])), 'x')
 })

@@ -65,7 +65,7 @@ export function include<Input, Meta extends QueryMeta>(
 export namespace include {
   export function one<Input, Meta extends QueryMeta>(
     select: SelectBase<Input, Meta>
-  ): Include<RowOfRecord<Input> | null, Meta> {
+  ): Include<SelectionRow<Input> | null, Meta> {
     return new Include({
       ...(getData(select) as QueryData<Meta> & SelectQuery),
       first: true
@@ -77,7 +77,9 @@ export function includeQuery(query: IncludeQuery): Sql {
   const {first, limit, offset, orderBy} = query
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query)
-  const inner = wrapQuery ? sql`select * from (${innerQuery})` : innerQuery
+  const inner = wrapQuery
+    ? sql`select * from (${innerQuery}) as __`
+    : innerQuery
   const fields = querySelection(query).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)

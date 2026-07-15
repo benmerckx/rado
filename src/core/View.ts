@@ -180,6 +180,11 @@ export class DefinedView<Definition extends TableDefinition> extends ViewBase {
 }
 
 export function view(name: string): QueryView
+export function view(
+  name: string,
+  columns: undefined,
+  schemaName: string
+): QueryView
 export function view<Definition extends TableDefinition>(
   name: string,
   columns: Definition,

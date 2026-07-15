@@ -23,7 +23,7 @@ const names = await union(
 | `except`       | rows in the first query but not the second |
 | `exceptAll`    | same, duplicates kept (PostgreSQL/MySQL)   |
 
-Both queries must select the same shape — TypeScript enforces this.
+Both queries must select the same shape. TypeScript enforces this.
 
 ## Chained style
 
@@ -50,7 +50,7 @@ const everything = await unionAll(
 
 ## Ordering and limiting the combined result
 
-A set operation is itself a query — chain `orderBy`, `limit` and `offset` on
+A set operation is itself a query. Chain `orderBy`, `limit` and `offset` on
 the result:
 
 ```ts

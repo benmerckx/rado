@@ -21,7 +21,7 @@ The callback receives a transaction `tx` with the full database API. If the
 callback throws, everything rolls back; if it returns, everything commits and
 the return value is yours.
 
-On synchronous drivers the callback is synchronous too — no `await`:
+On synchronous drivers the callback is synchronous too. No `await`:
 
 ```ts
 const result = db.transaction(tx => {
@@ -58,7 +58,7 @@ try {
 
 ## Nested transactions
 
-Transactions nest via savepoints — an inner failure rolls back to the
+Transactions nest via savepoints. An inner failure rolls back to the
 savepoint without dooming the outer transaction:
 
 ```ts
@@ -78,7 +78,7 @@ await db.transaction(async tx => {
 
 ## Transaction options
 
-Dialect-specific options are passed as the second argument — for example on
+Dialect-specific options are passed as the second argument. For example on
 PostgreSQL:
 
 ```ts
@@ -101,8 +101,8 @@ const [users, , posts] = await db.batch([
 ])
 ```
 
-On Cloudflare D1 — which has no interactive transactions — `batch` is _the_
-way to get atomicity, mapping directly onto D1's native batch API.
+On Cloudflare D1, which has no interactive transactions, use `batch` for
+atomicity. It maps directly onto D1's native batch API.
 
 ## Creating and dropping in bulk
 

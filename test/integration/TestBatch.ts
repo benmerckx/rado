@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, eq} from '@/index.ts'
+import {type Database, eq} from '#/index.ts'
 import {Node} from './schema.ts'
 
 export function testBatch(db: Database, test: DefineTest) {
@@ -19,6 +19,24 @@ export function testBatch(db: Database, test: DefineTest) {
         {id: 1, textField: 'world', bool: true},
         {id: 2, textField: 'world', bool: true}
       ])
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
+  test('batch selection and mutation results', async () => {
+    await db.create(Node)
+    try {
+      await db.insert(Node).values({
+        textField: 'hello',
+        bool: true
+      })
+      const results = await db.batch([
+        db.select(Node.textField).from(Node).where(eq(Node.id, 1)),
+        db.update(Node).set({textField: 'world'}).where(eq(Node.id, 1)),
+        db.select(Node.textField).from(Node).where(eq(Node.id, 1))
+      ])
+      test.equal(results, [['hello'], [], ['world']])
     } finally {
       await db.drop(Node)
     }

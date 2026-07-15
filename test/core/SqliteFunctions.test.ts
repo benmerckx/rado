@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {table} from '@/index.ts'
-import {integer} from '@/sqlite/columns.ts'
-import {bm25, cast} from '@/sqlite/functions.ts'
+import {table} from '#/index.ts'
+import {integer} from '#/sqlite/columns.ts'
+import {bm25, cast} from '#/sqlite/functions.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
@@ -10,7 +10,7 @@ suite(import.meta, test => {
   })
 
   test('eq', () => {
-    test.equal(emit(bm25(Node, 1, 2)), '"bm25"("Node", 1, 2)')
+    test.equal(emit(bm25(Node, 1, 2)), 'bm25("Node", 1, 2)')
   })
 
   test('cast', () => {

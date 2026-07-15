@@ -3,6 +3,7 @@ import {type HasData, type HasSql, getData, internalData} from './Internal.ts'
 import {type Sql, sql} from './Sql.ts'
 
 class IndexData {
+  name?: string
   fields!: Array<HasSql>
   concurrently?: boolean
   unique?: boolean
@@ -15,74 +16,80 @@ class IndexData {
 
 export class IndexApi extends IndexData {
   toSql(tableName: string, indexName: string, ifNotExists: boolean): Sql {
+    const fields = this.fields.map(field =>
+      sql.join([
+        field,
+        this.order && sql.unsafe(this.order),
+        this.nulls && sql`nulls ${sql.unsafe(this.nulls)}`
+      ])
+    )
     return sql
       .join([
         sql`create`,
         this.unique && sql`unique`,
         sql`index`,
+        this.concurrently && sql`concurrently`,
         ifNotExists && sql`if not exists`,
         sql.identifier(indexName),
         sql`on`,
-        sql`${sql.identifier(tableName)}(${sql.join(this.fields, sql`, `)})`,
+        this.only && sql`only`,
+        sql.identifier(tableName),
+        this.using && sql`using ${this.using}`,
+        sql`(${sql.join(fields, sql`, `)})`,
         this.where && sql`where ${this.where}`
       ])
       .inlineFields(false)
   }
 }
 
-export class Index<
-  TableName extends string = string
-> implements HasData<IndexData> {
-  declare private brand: [TableName];
+export class Index implements HasData<IndexData> {
   [internalData]: IndexApi
 
   constructor(data: IndexData) {
     this[internalData] = Object.assign(new IndexApi(), data)
   }
 
-  on<TableName extends string>(
-    ...fields: Array<Field<unknown, TableName> | HasSql>
-  ): Index<TableName> {
+  on(...fields: Array<Field | HasSql>): Index {
     return new Index({...getData(this), fields})
   }
 
-  concurrently(): Index<TableName> {
+  concurrently(): Index {
     return new Index({...getData(this), concurrently: true})
   }
 
-  only(): Index<TableName> {
+  only(): Index {
     return new Index({...getData(this), only: true})
   }
 
-  using<Sql>(using: HasSql<Sql>): Index<TableName> {
+  using<Sql>(using: HasSql<Sql>): Index {
     return new Index({...getData(this), using})
   }
 
-  asc(): Index<TableName> {
+  asc(): Index {
     return new Index({...getData(this), order: 'asc'})
   }
 
-  desc(): Index<TableName> {
+  desc(): Index {
     return new Index({...getData(this), order: 'desc'})
   }
 
-  nullsFirst(): Index<TableName> {
+  nullsFirst(): Index {
     return new Index({...getData(this), nulls: 'first'})
   }
 
-  nullsLast(): Index<TableName> {
+  nullsLast(): Index {
     return new Index({...getData(this), nulls: 'last'})
   }
 
-  where(where: HasSql<boolean>): Index<TableName> {
+  where(where: HasSql<boolean>): Index {
     return new Index({...getData(this), where})
   }
 }
 
-export function index(): Index<string> {
-  return new Index({fields: []})
+export function index(name?: string): Index {
+  return new Index({name, fields: []})
 }
 
-export function uniqueIndex(): Index<string> {
-  return new Index({fields: [], unique: true})
+export function uniqueIndex(name?: string): Index {
+  return new Index({name, fields: [], unique: true})
 }

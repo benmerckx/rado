@@ -6,7 +6,11 @@ import {
   internalTarget
 } from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
-import type {Table, TableConfig, TableDefinition} from '../core/Table.ts'
+import type {
+  Table,
+  TableConfigResult,
+  TableDefinition
+} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {
   type DefinedView,
@@ -37,7 +41,7 @@ export class PgSchema<SchemaName extends string> implements HasCreate, HasDrop {
   table<Definition extends TableDefinition, TableName extends string>(
     tableName: TableName,
     columns: Definition,
-    config?: (self: Table<Definition>) => TableConfig<TableName>
+    config?: (self: Table<Definition, TableName>) => TableConfigResult
   ): Table<Definition, TableName> {
     return table(tableName, columns, config, this.#schemaName)
   }

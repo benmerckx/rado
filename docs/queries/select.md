@@ -34,7 +34,7 @@ const rows = await db
 // Array<{id: number, name: string, nameLength: number}>
 ```
 
-Selections can be nested — the result mirrors the shape:
+Selections can be nested. The result mirrors the shape:
 
 ```ts
 const rows = await db
@@ -46,7 +46,7 @@ const rows = await db
 // Array<{id: number, contact: {name: string, email: string | null}}>
 ```
 
-Spreading a table works too, handy for "everything plus":
+Spreading a table is useful for "everything plus":
 
 ```ts
 const rows = await db
@@ -59,7 +59,7 @@ const rows = await db
 ### A single expression
 
 Select a bare field or expression and you get an array of values instead of
-objects — a small thing you'll end up using constantly:
+objects:
 
 ```ts
 const names = await db.select(User.name).from(User)
@@ -81,7 +81,7 @@ const rows = await db
 
 ## Filtering with `where`
 
-`where` accepts one or more conditions — multiple arguments are combined with
+`where` accepts one or more conditions. Multiple arguments are combined with
 `and`:
 
 ```ts
@@ -106,7 +106,7 @@ await db
 The full operator catalog lives in [Filter operators](operators.md).
 
 Conditions passed as `undefined` are ignored, which makes optional filters
-pleasant:
+easy to assemble:
 
 ```ts
 function findUsers(filters: {name?: string; minId?: number}) {
@@ -206,7 +206,7 @@ await db.select().from(User).for('share', {of: User, skipLocked: true})
 
 ## Immutability: build once, branch freely
 
-Every method returns a _new_ query. A base query can safely fan out:
+Every method returns a new query. A base query can safely fan out:
 
 ```ts
 const posts = db.select().from(Post)

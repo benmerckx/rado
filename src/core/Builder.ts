@@ -14,7 +14,7 @@ import {
   internalQuery
 } from './Internal.ts'
 import type {IsPostgres, QueryMeta} from './MetaData.ts'
-import type {QueryData, SingleQuery} from './Queries.ts'
+import type {MutationQuery, QueryData, SingleQuery} from './Queries.ts'
 import type {CTE} from './query/CTE.ts'
 import {Delete, DeleteFrom} from './query/Delete.ts'
 import {Insert, InsertInto} from './query/Insert.ts'
@@ -171,9 +171,10 @@ export class Builder<Meta extends QueryMeta> extends BuilderBase<Meta> {
   }
   $with(cteName: string): {
     as<Input>(query: UnionBase<Input, Meta>): CTE<Input>
-    as<Input>(query: Delete<Input, Meta>): CTE<Input>
-    as<Input>(query: Update<Input, Meta>): CTE<Input>
-    as<Input>(query: Insert<Input, Meta>): CTE<Input>
+    as<Input extends SelectionInput>(
+      query: MutationQuery<Input, Meta>
+    ): CTE<Input>
+    as(query: HasQuery): CTE
   }
   $with(
     cteName: string,

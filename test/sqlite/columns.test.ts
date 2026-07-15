@@ -1,5 +1,5 @@
 import {suite} from '@alinea/suite'
-import * as sqlite from '@/sqlite/columns.ts'
+import * as sqlite from '#/sqlite/columns.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
 
 const test = suite(import.meta)

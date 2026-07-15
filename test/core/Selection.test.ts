@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {getSelection} from '@/core/Internal.ts'
-import {eq, selection, sql, table} from '@/index.ts'
-import {integer, text} from '@/universal.ts'
+import {getSelection} from '#/core/Internal.ts'
+import {eq, selection, sql, table} from '#/index.ts'
+import {integer, text} from '#/universal.ts'
 import {builder} from '../TestUtils.ts'
 import {emit} from '../TestUtils.ts'
 

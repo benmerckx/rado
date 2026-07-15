@@ -3,7 +3,7 @@
 import {expect} from 'bun:test'
 import {suite} from '@alinea/suite'
 import {PGlite} from '@electric-sql/pglite'
-import {'@electric-sql/pglite' as connect} from '@/driver.ts'
+import {'@electric-sql/pglite' as connect} from '#/driver.ts'
 import {
   type Column,
   type Database,
@@ -37,7 +37,7 @@ import {
   sql,
   sum,
   sumDistinct
-} from '@/index.ts'
+} from '#/index.ts'
 import {
   alias,
   bigint,
@@ -82,7 +82,7 @@ import {
   unique,
   uuid,
   varchar
-} from '@/postgres.ts'
+} from '#/postgres.ts'
 
 type Equal<A, B extends A & (A extends B ? unknown : never)> = true
 const Expect = <T extends true>() => {}

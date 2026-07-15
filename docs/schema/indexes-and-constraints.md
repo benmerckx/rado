@@ -1,7 +1,7 @@
 # Indexes & constraints
 
 Single-column constraints usually live on the column itself
-(`.primaryKey()`, `.unique()`, `.references()` — see
+(`.primaryKey()`, `.unique()`, `.references()`. See
 [Tables](tables.md#column-modifiers)). For anything composite or named, pass a
 config callback as the third argument of `table`. It receives the table and
 returns an object of constraints and indexes:
@@ -91,6 +91,6 @@ available on the builder.
 ## When do they apply?
 
 Constraints and indexes are emitted by `db.create(Table)` and kept up to date
-by `db.migrate(Table)` — the migration diff adds, drops and recreates indexes
+by `db.migrate(Table)`. The migration diff adds, drops and recreates indexes
 and constraints to match your definition. See
 [Migrations](../runtime/migrations.md).

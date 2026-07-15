@@ -1,7 +1,7 @@
 # Include
 
-`include` fetches related rows as part of a select — nested arrays or objects,
-fully typed, declared inline. It's rado's answer to "I want the user _and_
+`include` fetches related rows as part of a select. It returns nested arrays or objects,
+fully typed, declared inline. It's rado's answer to "I want the user and
 their posts" without a separate ORM API, a relations file or N+1 queries.
 
 ```ts
@@ -17,14 +17,14 @@ const users = await db
 // Array<{id: number, name: string, ..., posts: Array<Post>}>
 ```
 
-The inner select references the outer table (`User.id`) directly — that's the
+The inner select references the outer table (`User.id`) directly. That's the
 relationship, declared exactly where it's used. Everything runs as a single
 query using JSON aggregation under the hood.
 
 ## `include.one` for single rows
 
 When the relation is to-one (or you only want the first match), `include.one`
-returns an object instead of an array — `null` when there's no match:
+returns an object instead of an array. `null` when there's no match:
 
 ```ts
 const posts = await db
@@ -41,7 +41,7 @@ const posts = await db
 
 ## Shaping the included selection
 
-The inner query is a regular select — filter it, sort it, limit it, shape it:
+The inner query is a regular select. Filter it, sort it, limit it and shape it:
 
 ```ts
 const users = await db
@@ -85,7 +85,7 @@ const users = await db
 
 ## Selecting a bare include
 
-An include is an expression like any other — it can even be the whole
+An include is an expression like any other. It can even be the whole
 selection:
 
 ```ts

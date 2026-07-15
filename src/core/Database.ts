@@ -13,7 +13,8 @@ import {
   getCreate,
   getDrop,
   getResolver,
-  getSql,
+  hasQuery,
+  hasSelection,
   internalResolver
 } from './Internal.ts'
 import type {
@@ -94,6 +95,12 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
+    if (this.dialect.runtime === 'mysql' && tables.length > 1) {
+      const run = async () => {
+        for (const table of tables) await this.migrate(table)
+      }
+      return run() as Deliver<Meta, void>
+    }
     const computeDiff = this.diff
     return this.transaction<void>(
       txGenerator(function* (tx) {
@@ -111,16 +118,34 @@ export class Database<Meta extends QueryMeta = Either>
     return new BatchQuery(getResolver(this), queries)
   }
 
-  execute(input: HasSql): Deliver<Meta, void>
-  execute(input: HasSql) {
-    const inner = getSql(input)
-    const emitter = this.dialect.emit(inner.inlineValues())
-    if (emitter.hasParams) throw new Error('Query has parameters')
-    return this.driver.exec(emitter.sql)
+  execute<Result>(input: HasQuery<Result>): Deliver<Meta, Result>
+  execute<Result>(input: HasSql<Result>): Deliver<Meta, [Array<Result>]>
+  execute(input: HasSql | HasQuery) {
+    if (hasQuery(input)) {
+      const query = input as SingleQuery<unknown, Meta>
+      return hasSelection(input)
+        ? (query as SingleQuery<Array<unknown>, Meta>).all(this)
+        : query.run(this)
+    }
+
+    const emitter = this.dialect.emit(input)
+    const statement = this.driver.prepare(emitter.sql, {isSelection: true})
+    try {
+      const result = statement.all(emitter.bind())
+      if (result instanceof Promise)
+        return result
+          .then(rows => [rows])
+          .finally(statement.free.bind(statement))
+      statement.free()
+      return [result]
+    } catch (error) {
+      statement.free()
+      throw error
+    }
   }
 
   refreshMaterializedView(view: HasTarget): Deliver<Meta, void> {
-    return this.execute(sql`refresh materialized view ${view}`)
+    return this.run(sql`refresh materialized view ${view}`)
   }
 
   transaction<T>(

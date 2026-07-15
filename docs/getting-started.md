@@ -9,7 +9,7 @@ journey: install, connect, define a schema, create tables, query.
 npm install rado
 ```
 
-You'll also need a database driver. Rado doesn't ship one — it wraps the
+You'll also need a database driver. Rado doesn't ship one. It wraps the
 client you already use. For this guide we'll use SQLite via
 [better-sqlite3](https://www.npmjs.com/package/better-sqlite3):
 
@@ -32,12 +32,12 @@ import {connect} from 'rado/driver/better-sqlite3'
 const db = connect(new Database('app.db'))
 ```
 
-That's the only driver-specific line you'll write. Everything that follows is
-identical for PostgreSQL and MySQL — see [Drivers](drivers.md) for the full
+That is the only driver-specific line in this guide. Everything that follows
+is identical for PostgreSQL and MySQL. See [Drivers](drivers.md) for the full
 list of supported clients.
 
-One nice detail: better-sqlite3 is a synchronous driver, so `db` is a
-_synchronous_ database. You can `await` queries (they're thenable), or skip the
+One detail to know: better-sqlite3 is a synchronous driver, so `db` is a
+synchronous database. You can `await` queries (they're thenable), or skip the
 `await` entirely and get results right away. Async drivers like `pg` give you
 an async database where `await` is required. The query building API is the
 same either way.
@@ -45,7 +45,7 @@ same either way.
 ## Define a schema
 
 A table is a name plus an object of columns. Column types come from the
-dialect module — `rado/sqlite` here:
+dialect module. `rado/sqlite` here:
 
 ```ts
 import {sqliteTable} from 'rado/sqlite'
@@ -73,11 +73,11 @@ A few things to notice:
   column named `name`. Pass a string (`text('full_name')`) only when the
   database column name differs from the property.
 - Modifiers chain: `.notNull()`, `.unique()`, `.primaryKey()`, `.default()`,
-  `.references()`. They also narrow the TypeScript types — a `.notNull()`
+  `.references()`. They also narrow the TypeScript types. A `.notNull()`
   column won't be `| null` in your results.
 - `sqliteTable` is a dialect-typed version of the generic `table` export from
   `rado`. If you want schema that runs on any database, use `table` with
-  column types from `rado/universal` — see
+  column types from `rado/universal`. See
   [Universal queries](runtime/universal-queries.md).
 
 More on all of this in [Tables](schema/tables.md).
@@ -89,7 +89,7 @@ db.create(User, Post)
 ```
 
 `db.create` emits `create table` (and any index) statements. For evolving an
-existing database to match your schema, there's `db.migrate` — see
+existing database to match your schema, there's `db.migrate`. See
 [Migrations](runtime/migrations.md).
 
 ## Insert some rows
@@ -126,10 +126,10 @@ import {eq} from 'rado'
 const users = db.select().from(User)
 // [{id: 1, name: 'Ada Lovelace', email: 'ada@example.com'}, ...]
 
-// A subset of columns — results are typed accordingly
+// A subset of columns, with results typed accordingly
 const names = db.select({id: User.id, name: User.name}).from(User)
 
-// A single expression — results are an array of values, not objects
+// A single expression, with results returned as an array of values
 const justNames = db.select(User.name).from(User)
 // ['Ada Lovelace', 'Grace Hopper']
 

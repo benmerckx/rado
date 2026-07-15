@@ -1,5 +1,6 @@
 import type {Input} from '../expr/Input.ts'
 import type {HasSql, HasTarget} from '../Internal.ts'
+import type {Index} from '../Index.ts'
 import type {MakeNullable, SelectionInput, SelectionRow} from '../Selection.ts'
 import type {Sql} from '../Sql.ts'
 import type {
@@ -12,42 +13,51 @@ import type {
 import type {Expand} from '../Types.ts'
 import type {CTE} from './CTE.ts'
 
-export interface InnerJoin<Target> {
+export type IndexHint = Index | string
+
+export interface IndexHintConfig {
+  useIndex?: IndexHint | Array<IndexHint>
+  forceIndex?: IndexHint | Array<IndexHint>
+  ignoreIndex?: IndexHint | Array<IndexHint>
+  indexedBy?: IndexHint
+}
+
+export interface InnerJoin<Target> extends IndexHintConfig {
   innerJoin: Target
   on: HasSql<boolean>
 }
 
-export interface InnerJoinLateral<Target> {
+export interface InnerJoinLateral<Target> extends IndexHintConfig {
   innerJoinLateral: Target
   on: HasSql<boolean>
 }
 
-export interface LeftJoin<Target> {
+export interface LeftJoin<Target> extends IndexHintConfig {
   leftJoin: Target
   on: HasSql<boolean>
 }
 
-export interface LeftJoinLateral<Target> {
+export interface LeftJoinLateral<Target> extends IndexHintConfig {
   leftJoinLateral: Target
   on: HasSql<boolean>
 }
 
-export interface RightJoin<Target> {
+export interface RightJoin<Target> extends IndexHintConfig {
   rightJoin: Target
   on: HasSql<boolean>
 }
 
-export interface FullJoin<Target> {
+export interface FullJoin<Target> extends IndexHintConfig {
   fullJoin: Target
   on: HasSql<boolean>
 }
 
-export interface CrossJoin<Target> {
+export interface CrossJoin<Target> extends IndexHintConfig {
   crossJoin: Target
   on?: undefined
 }
 
-export interface CrossJoinLateral<Target> {
+export interface CrossJoinLateral<Target> extends IndexHintConfig {
   crossJoinLateral: Target
   on?: undefined
 }
@@ -97,7 +107,7 @@ export type FromGuard<Target = HasTarget | Sql> =
 
 export interface SelectionBase<
   Returning = SelectionInput
-> extends SelectBase<Returning> {
+> extends SelectBase<Returning>, IndexHintConfig {
   select: Returning
   from?: FromGuard
   for?: HasSql
@@ -214,6 +224,7 @@ export interface InsertQuery<
   returning?: Returning
   on?: Array<Conflict<Definition>>
   overridingSystemValue?: boolean
+  ignore?: boolean
 }
 
 export interface DeleteQuery<

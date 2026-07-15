@@ -1,6 +1,7 @@
 import type {PGlite, Transaction} from '@electric-sql/pglite'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
@@ -29,11 +30,12 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res.rows)
   }
 
-  async run(params: Array<unknown>) {
-    await this.client.query(this.sql, params, {
+  async run(params: Array<unknown>): Promise<MutationResultBase> {
+    const result = await this.client.query(this.sql, params, {
       rowMode: 'array',
       parsers: RAW_DATE_TIME_PARSERS
     })
+    return {affectedRows: result.affectedRows ?? 0}
   }
 
   get(params: Array<unknown>): Promise<object> {

@@ -1,8 +1,8 @@
 # Custom column types
 
-When the built-in column types don't cover your case — exotic database types,
-custom serialization, value objects — define your own. A column is just a
-`Column` instance with a SQL type and optional value mappers.
+When the built-in column types don't cover your case, define your own. This
+works for exotic database types, custom serialization and value objects. A
+column is a `Column` instance with a SQL type and optional value mappers.
 
 ## The basic recipe
 
@@ -30,12 +30,12 @@ const User = table('user', {
 
 The pieces:
 
-- **`type`** — a SQL fragment used in `create table` and migrations
-- **`mapToDriverValue`** — converts your JavaScript value to what the driver
+- **`type`**: a SQL fragment used in `create table` and migrations
+- **`mapToDriverValue`**: converts your JavaScript value to what the driver
   expects, applied on insert/update and in conditions
-- **`mapFromDriverValue`** — converts the raw driver value back, applied to
+- **`mapFromDriverValue`**: converts the raw driver value back, applied to
   results
-- **`name`** — optional explicit column name, forwarded as usual
+- **`name`**: optional explicit column name, forwarded as usual
 
 The generic parameter of `Column<T>` sets the TypeScript type; modifiers like
 `.notNull()` keep working on top.
@@ -57,8 +57,8 @@ function stringSet(name?: string): Column<Set<string> | null> {
 
 ## Example: per-dialect SQL types
 
-Use `sql.universal` to emit a different type per database — this is exactly
-how the [universal columns](columns-universal.md) are built:
+Use `sql.universal` to emit a different type per database. This is how the
+[universal columns](columns-universal.md) are built:
 
 ```ts
 import {Column, sql} from 'rado'
@@ -95,7 +95,7 @@ function settings(name?: string): JsonColumn<{theme: string}> {
 
 > Note: drivers differ in whether they hand JSON back parsed or as text.
 > When rado knows the driver parses JSON natively it skips your
-> `mapFromDriverValue` accordingly — test against the drivers you target.
+> `mapFromDriverValue` accordingly. Test against the drivers you target.
 
 ## Narrowing instead of mapping
 

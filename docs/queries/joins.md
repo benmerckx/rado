@@ -22,7 +22,7 @@ db.select().from(A).fullJoin(B, on) // all of both, either side nullable
 db.select().from(A).crossJoin(B) // cartesian product, no condition
 ```
 
-The join condition is any boolean expression — typically `eq` between two
+The join condition is any boolean expression, typically `eq` between two
 columns, but anything from [Filter operators](operators.md) works, including
 `and`-ed combinations.
 
@@ -36,7 +36,7 @@ const rows = await db
   .select()
   .from(User)
   .leftJoin(Post, eq(Post.authorId, User.id))
-// Array<{user: User, post: Post | null}> — Post is null when unmatched
+// Array<{user: User, post: Post | null}>. Post is null when unmatched
 ```
 
 With the default `select()`, joined results are grouped per table. Select
@@ -87,8 +87,8 @@ More in [Subqueries & CTEs](subqueries-and-ctes.md).
 
 ## Lateral joins (PostgreSQL/MySQL)
 
-A lateral join lets the joined subquery reference columns from earlier tables
-— think "for each row, run this subquery":
+A lateral join lets the joined subquery reference columns from earlier tables.
+Think "for each row, run this subquery":
 
 ```ts
 const latestPost = db
@@ -109,5 +109,5 @@ Available variants: `leftJoinLateral`, `innerJoinLateral`,
 `crossJoinLateral`.
 
 > Tip: if you're reaching for a lateral join to fetch related rows, also look
-> at [Include](include.md) — it expresses "fetch these related rows per
+> at [Include](include.md). It expresses "fetch these related rows per
 > result" directly and works on every dialect.

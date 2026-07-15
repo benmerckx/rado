@@ -1,7 +1,7 @@
 # Prepared statements
 
 Queries with named placeholders can be prepared once and executed many times
-with different inputs — skipping query construction and, on drivers that
+with different inputs. This skips query construction and, on drivers that
 support it, reusing the database's prepared statement.
 
 ## Placeholders + `prepare`
@@ -38,7 +38,7 @@ a silent `null`.
 
 ## Placeholders anywhere
 
-Placeholders work wherever values do — conditions, limits, inserted values:
+Placeholders work wherever values do: conditions, limits and inserted values.
 
 ```ts
 const page = db
@@ -54,7 +54,7 @@ await page.all({pageSize: 10, offset: 20})
 
 ## One-off execution with inputs
 
-You don't have to `prepare` to use placeholders — `execute(inputs)` works on
+You don't have to `prepare` to use placeholders. `execute(inputs)` works on
 any query:
 
 ```ts

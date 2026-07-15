@@ -13,7 +13,7 @@ await db.delete(User).where(eq(User.id, 1))
 
 ## Conditions
 
-`where` accepts the same operators as select — see
+`where` accepts the same operators as select. See
 [Filter operators](operators.md):
 
 ```ts

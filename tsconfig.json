@@ -12,7 +12,7 @@
     "esModuleInterop": true,
     "types": ["bun-types", "@cloudflare/workers-types"],
     "paths": {
-      "@/*": ["./src/*"]
+      "#/*": ["./src/*"]
     }
   },
   "include": ["."]

@@ -6,6 +6,7 @@ import type {
   BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 
@@ -22,9 +23,12 @@ class PreparedStatement implements AsyncStatement {
     return result.rows
   }
 
-  async run(params: Array<InValue>) {
+  async run(params: Array<InValue>): Promise<MutationResultBase> {
     const result = await this.client.execute({sql: this.sql, args: params})
-    // return {rowsAffected: result.rowsAffected}
+    return {
+      affectedRows: result.rowsAffected,
+      insertId: result.lastInsertRowid
+    }
   }
 
   async get(params: Array<InValue>): Promise<object | null> {
@@ -52,7 +56,7 @@ export class LibSQLClient implements AsyncDriver {
     await this.client.execute(query)
   }
 
-  prepare(sql: string, options: PrepareOptions): PreparedStatement {
+  prepare(sql: string, options?: PrepareOptions): PreparedStatement {
     return new PreparedStatement(this.client, sql)
   }
 

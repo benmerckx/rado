@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {eq, table} from '@/index.ts'
-import {QueryBuilder} from '@/postgres/builder.ts'
-import {integer} from '@/sqlite/columns.ts'
+import {eq, table} from '#/index.ts'
+import {QueryBuilder} from '#/postgres/builder.ts'
+import {integer} from '#/sqlite/columns.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {

@@ -1,7 +1,9 @@
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
+import {Index} from '../Index.ts'
 import {
+  type HasData,
   type HasQuery,
   type HasSelection,
   type HasSql,
@@ -24,7 +26,7 @@ import {
   internalSql,
   internalTarget
 } from '../Internal.ts'
-import type {IsMysql, IsPostgres, QueryMeta} from '../MetaData.ts'
+import type {IsMysql, IsPostgres, IsSqlite, QueryMeta} from '../MetaData.ts'
 import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
   type IsNullable,
@@ -42,6 +44,8 @@ import type {VirtualTarget} from '../Virtual.ts'
 import {formatCTE} from './CTE.ts'
 import type {
   CompoundSelect,
+  IndexHint,
+  IndexHintConfig,
   Join,
   JoinOp,
   QueryBase,
@@ -51,6 +55,17 @@ import type {
   Union as UnionSegment
 } from './Query.ts'
 import {formatModifiers} from './Shared.ts'
+
+type MySqlIndexHintConfig = Pick<
+  IndexHintConfig,
+  'useIndex' | 'forceIndex' | 'ignoreIndex'
+>
+type SqliteIndexHintConfig = Pick<IndexHintConfig, 'indexedBy'>
+type IndexHintConfigFor<Meta extends QueryMeta> = Meta extends IsMysql
+  ? MySqlIndexHintConfig
+  : Meta extends IsSqlite
+    ? SqliteIndexHintConfig
+    : never
 
 type UnionTarget<Input, Meta extends QueryMeta> =
   | UnionBase<Input, Meta>
@@ -479,23 +494,33 @@ type RetypeSubQueryInput<Input, TableName extends string> =
 
 export interface WithoutSelection<Meta extends QueryMeta> {
   from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>
+    from: Table<Definition, Name>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     TableFields<Definition>,
     Meta,
     Record<Name, TableFields<Definition>>
   >
-  from<Input>(from: SubQuery<Input>): SelectionFrom<Input, Meta>
-  from<Input>(from: VirtualTarget<Input>): SelectionFrom<Input, Meta>
+  from<Input, Name extends string>(
+    from: SubQuery<Input, Name>
+  ): SelectionFromTargets<Input, Meta, Name>
+  from<Input>(
+    from: VirtualTarget<Input>
+  ): SelectionFromTargets<Input, Meta, string>
 }
 
 export interface WithSelection<Input, Meta extends QueryMeta>
   extends SelectBase<Input, Meta>, HasSql<SelectResult<Input>> {
   from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>
-  ): SelectionFrom<Input, Meta>
-  from(from: HasTarget): SelectionFrom<Input, Meta>
-  from(from: SubQuery<unknown>): SelectionFrom<Input, Meta>
+    from: Table<Definition, Name>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<Input, Meta, Name>
+  from<SubInput, Name extends string>(
+    from: SubQuery<SubInput, Name>
+  ): SelectionFromTargets<Input, Meta, Name>
+  from<Name extends string>(
+    from: HasTarget<Name>
+  ): SelectionFromTargets<Input, Meta, Name>
   from(from: HasSql): Select<Input, Meta>
 }
 
@@ -507,7 +532,8 @@ export interface AllFrom<
   leftJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     Expand<Tables & MakeNullable<Record<Name, TableFields<Definition>>>>,
     Meta
@@ -523,7 +549,8 @@ export interface AllFrom<
   ): AllFrom<Input, Meta, Tables>
   leftJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     Expand<Tables & MakeNullable<Record<Name, TableFields<Definition>>>>,
     Meta
@@ -539,7 +566,8 @@ export interface AllFrom<
   rightJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     Expand<MakeNullable<Tables> & Record<Name, TableFields<Definition>>>,
     Meta
@@ -552,7 +580,8 @@ export interface AllFrom<
   innerJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   innerJoin<Input, Name extends string>(
     right: SubQuery<Input, Name>,
@@ -565,7 +594,8 @@ export interface AllFrom<
   ): AllFrom<Input, Meta, Tables>
   innerJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   innerJoinLateral<Input, Name extends string>(
     right: SubQuery<Input, Name>,
@@ -577,7 +607,8 @@ export interface AllFrom<
   ): AllFrom<Input, Meta, Tables>
   crossJoin(right: Sql): AllFrom<Input, Meta, Tables>
   crossJoin<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>
+    right: Table<Definition, Name>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   crossJoin<Input, Name extends string>(
     right: SubQuery<Input, Name>
@@ -585,7 +616,8 @@ export interface AllFrom<
   crossJoin(right: HasTarget): AllFrom<Input, Meta, Tables>
   crossJoinLateral(right: Sql): AllFrom<Input, Meta, Tables>
   crossJoinLateral<Definition extends TableDefinition, Name extends string>(
-    right: Table<Definition, Name>
+    right: Table<Definition, Name>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<Expand<Tables & Record<Name, TableFields<Definition>>>, Meta>
   crossJoinLateral<Input, Name extends string>(
     right: SubQuery<Input, Name>
@@ -594,7 +626,8 @@ export interface AllFrom<
   fullJoin(right: Sql, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     Expand<
       MakeNullable<Tables> & MakeNullable<Record<Name, TableFields<Definition>>>
@@ -611,30 +644,46 @@ export interface AllFrom<
   fullJoin(right: HasTarget, on: HasSql<boolean>): AllFrom<Input, Meta, Tables>
 }
 
-type MarkFieldsAsNullable<Input, TableName extends string> = Expand<{
-  [K in keyof Input]: Input[K] extends Field<infer T, TableName>
-    ? HasSql<T | null>
-    : Input[K] extends Table<infer Definition, TableName>
-      ? TableFields<Definition> & IsNullable
-      : Input[K] extends Record<
-            string,
-            Field<unknown, TableName> | HasSql<unknown>
-          >
-        ? Input[K] & IsNullable
-        : Input[K] extends SelectionRecord
-          ? MarkFieldsAsNullable<Input[K], TableName>
-          : Input[K]
-}>
+type MarkFieldsAsNullable<Input, TableName extends string> =
+  Input extends Table<infer Definition, TableName>
+    ? TableFields<Definition> & IsNullable
+    : Input extends Table
+      ? Input
+      : Expand<{
+          [K in keyof Input]: Input[K] extends Field<infer T, TableName>
+            ? HasSql<T | null>
+            : Input[K] extends Table<infer Definition, TableName>
+              ? TableFields<Definition> & IsNullable
+              : Input[K] extends Record<
+                    string,
+                    Field<unknown, TableName> | HasSql<unknown>
+                  >
+                ? Input[K] & IsNullable
+                : Input[K] extends SelectionRecord
+                  ? MarkFieldsAsNullable<Input[K], TableName>
+                  : Input[K]
+        }>
 
 export interface SelectionFrom<
   Input,
   Meta extends QueryMeta
+> extends SelectionFromTargets<Input, Meta, never> {}
+
+interface SelectionFromTargets<
+  Input,
+  Meta extends QueryMeta,
+  FromNames extends string = never
 > extends SelectBase<Input, Meta> {
   leftJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, Name>,
+    Meta,
+    FromNames | Name
+  >
   leftJoin<Name extends string>(
     right: HasTarget<Name>,
     on: HasSql<boolean>
@@ -646,8 +695,13 @@ export interface SelectionFrom<
   ): SelectionFrom<Input, Meta>
   leftJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, Name>,
+    Meta,
+    FromNames | Name
+  >
   leftJoinLateral<Name extends string>(
     right: HasTarget<Name>,
     on: HasSql<boolean>
@@ -659,12 +713,26 @@ export interface SelectionFrom<
   rightJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   rightJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, FromNames>,
+    Meta,
+    FromNames | Name
+  >
+  rightJoin(
+    right: HasTarget,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   rightJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   innerJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   innerJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames | Name>
+  innerJoin(
+    right: HasTarget,
     on: HasSql<boolean>
   ): SelectionFrom<Input, Meta>
   innerJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
@@ -674,8 +742,9 @@ export interface SelectionFrom<
   ): SelectionFrom<Input, Meta>
   innerJoinLateral<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<Input, Meta, FromNames | Name>
   innerJoinLateral(
     right: HasTarget,
     on: HasSql<boolean>
@@ -693,13 +762,29 @@ export interface SelectionFrom<
   fullJoin(right: Sql, on: HasSql<boolean>): SelectionFrom<Input, Meta>
   fullJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
-    on: HasSql<boolean>
-  ): SelectionFrom<Input, Meta>
+    on: HasSql<boolean>,
+    config?: IndexHintConfigFor<Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<MarkFieldsAsNullable<Input, FromNames>, Name>,
+    Meta,
+    FromNames | Name
+  >
   fullJoin<Name extends string>(
     right: HasTarget<Name>,
     on: HasSql<boolean>
-  ): SelectionFrom<MarkFieldsAsNullable<Input, Name>, Meta>
-  fullJoin(right: HasTarget, on: HasSql<boolean>): SelectionFrom<Input, Meta>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<MarkFieldsAsNullable<Input, FromNames>, Name>,
+    Meta,
+    FromNames | Name
+  >
+  fullJoin(
+    right: HasTarget,
+    on: HasSql<boolean>
+  ): SelectionFromTargets<
+    MarkFieldsAsNullable<Input, FromNames>,
+    Meta,
+    FromNames
+  >
 }
 
 function collectReferencedTargets(input: SelectionInput, names: Set<string>) {
@@ -820,33 +905,80 @@ function applyJoins(base: Selection, joins: Array<Join>): Selection {
 }
 
 function joinOp(join: Join) {
-  const {on, ...rest} = join
+  const {on, useIndex, forceIndex, ignoreIndex, indexedBy, ...rest} = join
   const op = Object.keys(rest)[0] as JoinOp
   const target = (<Record<string, HasTarget | Sql>>rest)[op]
-  return {target, op, on}
+  return {
+    target,
+    op,
+    on,
+    config: {useIndex, forceIndex, ignoreIndex, indexedBy}
+  }
 }
 
-function formatTarget(target: HasTarget): Sql {
-  if (hasTable(target)) return getTable(target).target()
-  return getTarget(target)
+function indexHintName(hint: IndexHint): string {
+  if (typeof hint === 'string') return hint
+  if (hint instanceof Index) {
+    const {name} = getData(hint as HasData<{name?: string}>)
+    if (!name) throw new Error('Index hint requires a named index')
+    return name
+  }
+  throw new Error('Invalid index hint')
 }
 
-function formatFrom(from: SelectQuery['from']): Sql {
+function formatIndexHint(
+  hints?: IndexHint | Array<IndexHint>
+): Sql | undefined {
+  const values = hints ? [hints].flat() : []
+  if (values.length === 0) return
+  const names = sql.join(
+    values.map(index => sql.identifier(indexHintName(index))),
+    sql`, `
+  )
+  return sql`(${names})`
+}
+
+function formatIndexHints(config?: IndexHintConfig): Sql | undefined {
+  if (!config) return
+  return sql.query({
+    useIndex: formatIndexHint(config.useIndex),
+    forceIndex: formatIndexHint(config.forceIndex),
+    ignoreIndex: formatIndexHint(config.ignoreIndex),
+    indexedBy: config.indexedBy
+      ? sql.identifier(indexHintName(config.indexedBy))
+      : undefined
+  })
+}
+
+function formatTarget(target: HasTarget, indexHints?: IndexHintConfig): Sql {
+  const formattedTarget = hasTable(target)
+    ? getTable(target).target()
+    : getTarget(target)
+  if (!hasTable(target)) return formattedTarget
+  return sql.join([formattedTarget, formatIndexHints(indexHints)])
+}
+
+function formatFrom(
+  from: SelectQuery['from'],
+  baseConfig?: IndexHintConfig
+): Sql {
   if (!from) throw new Error('No target defined')
   if (Array.isArray(from)) {
     return sql.join(
       from.map(join => {
-        if (hasTarget(join)) return formatTarget(join)
+        if (hasTarget(join)) return formatTarget(join, baseConfig)
         if (hasSql(join)) return getSql(join)
-        const {target, op, on} = joinOp(join)
+        const {target, op, on, config} = joinOp(join)
         return sql.query({
-          [op]: hasTarget(target) ? formatTarget(target) : getSql(target),
+          [op]: hasTarget(target)
+            ? formatTarget(target, config)
+            : getSql(target),
           on
         })
       })
     )
   }
-  return hasTarget(from) ? formatTarget(from) : getSql(from)
+  return hasTarget(from) ? formatTarget(from, baseConfig) : getSql(from)
 }
 
 export function selectQuery(query: SelectQuery): Sql {
@@ -861,7 +993,7 @@ export function selectQuery(query: SelectQuery): Sql {
     formatCTE(query),
     {
       select,
-      from: from && formatFrom(from),
+      from: from && formatFrom(from, query),
       for: query.for,
       where,
       groupBy: groupBy && sql.join(groupBy, sql`, `),

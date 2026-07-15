@@ -1,6 +1,7 @@
 import type {BindParams, Database as Client} from 'sql.js'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
@@ -27,10 +28,10 @@ class PreparedStatement implements SyncStatement {
     return Array.from(this.iterate(params))
   }
 
-  run(params: Array<unknown>): {rowsAffected: number} {
+  run(params: Array<unknown>): MutationResultBase {
     this.stmt.run(params as BindParams)
     this.stmt.reset()
-    return {rowsAffected: this.client.getRowsModified()}
+    return {affectedRows: this.client.getRowsModified()}
   }
 
   get(params: Array<unknown>) {

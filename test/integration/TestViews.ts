@@ -1,6 +1,6 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, eq, sql, view} from '@/index.ts'
-import {integer, text} from '@/universal.ts'
+import {type Database, eq, sql, view} from '#/index.ts'
+import {integer, text} from '#/universal.ts'
 import {Node} from './schema.ts'
 
 export function testViews(db: Database, test: DefineTest) {

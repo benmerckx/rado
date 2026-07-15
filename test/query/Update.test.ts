@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {sql, table} from '@/index.ts'
-import {QueryBuilder} from '@/postgres/builder.ts'
-import {integer, json} from '@/sqlite/columns.ts'
+import {sql, table} from '#/index.ts'
+import {QueryBuilder} from '#/postgres/builder.ts'
+import {integer, json} from '#/sqlite/columns.ts'
 import {Functions} from '../../src/core/expr/Functions.ts'
 import {builder, emit} from '../TestUtils.ts'
 
@@ -34,7 +34,7 @@ suite(import.meta, test => {
     })
     test.equal(
       emit(query),
-      'update "Node" set "data" = "json_patch"("data", {"a":1})'
+      'update "Node" set "data" = json_patch("data", {"a":1})'
     )
   })
 

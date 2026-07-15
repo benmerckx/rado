@@ -1,8 +1,8 @@
 import {suite} from '@alinea/suite'
-import * as e from '@/core/expr/Conditions.ts'
-import {Functions} from '@/core/expr/Functions.ts'
-import {jsonExpr} from '@/core/expr/Json.ts'
-import {sql} from '@/index.ts'
+import * as e from '#/core/expr/Conditions.ts'
+import {Functions} from '#/core/expr/Functions.ts'
+import {jsonExpr} from '#/core/expr/Json.ts'
+import {sql} from '#/index.ts'
 import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
@@ -123,6 +123,6 @@ suite(import.meta, test => {
 
   test('function', () => {
     const patch = Functions.json_patch({a: 1}, {b: 1})
-    test.equal(emit(patch), '"json_patch"({"a":1}, {"b":1})')
+    test.equal(emit(patch), 'json_patch({"a":1}, {"b":1})')
   })
 })

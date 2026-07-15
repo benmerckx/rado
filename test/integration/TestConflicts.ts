@@ -1,7 +1,7 @@
 import type {DefineTest} from '@alinea/suite'
-import type {IsMysql, IsPostgres} from '@/core/MetaData.ts'
-import {type Database, table} from '@/index.ts'
-import {varchar} from '@/universal.ts'
+import type {IsMysql, IsPostgres} from '#/core/MetaData.ts'
+import {type Database, table} from '#/index.ts'
+import {varchar} from '#/universal.ts'
 
 export const WithUnique = table('WithUnique', {
   value: varchar(undefined, {length: 1}).primaryKey()

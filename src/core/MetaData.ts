@@ -2,11 +2,11 @@ export type QueryMode = 'sync' | 'async' | undefined
 export type Runtime = 'sqlite' | 'mysql' | 'postgres'
 export type QueryDialect = 'universal' | Runtime
 
-export type Deliver<Meta extends QueryMeta, Result> = Meta extends Either
-  ? Result | Promise<Result>
-  : Meta extends Sync
-    ? Result
-    : Promise<Result>
+export type Deliver<Meta extends QueryMeta, Result> = Meta extends Sync
+  ? Result
+  : Meta extends Async
+    ? Promise<Result>
+    : Result | Promise<Result>
 
 export interface QueryMeta {
   mode: QueryMode
@@ -43,3 +43,35 @@ export interface Either extends QueryMeta {
   mode: 'sync' | 'async'
   dialect: QueryDialect
 }
+
+export interface MutationResultBase {
+  affectedRows: number
+  changedRows?: number
+  insertId?: number | bigint
+}
+
+export type MysqlMutationResult = {
+  affectedRows: number
+  changedRows: number
+  insertId: number
+}
+
+export type PostgresMutationResult = {
+  affectedRows: number
+  changedRows?: never
+  insertId?: never
+}
+
+export type SqliteMutationResult = {
+  affectedRows: number
+  changedRows?: never
+  insertId?: number | bigint
+}
+
+export type MutationResult<Meta extends QueryMeta> = Meta extends IsMysql
+  ? MysqlMutationResult
+  : Meta extends IsPostgres
+    ? PostgresMutationResult
+    : Meta extends IsSqlite
+      ? SqliteMutationResult
+      : MutationResultBase

@@ -5,6 +5,7 @@ import type {
   BatchedQuery,
   PrepareOptions
 } from '../core/Driver.ts'
+import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 
@@ -23,9 +24,17 @@ class PreparedStatement implements AsyncStatement {
       .then(({results}) => results)
   }
 
-  async run(params: Array<unknown>) {
+  async run(params: Array<unknown>): Promise<MutationResultBase> {
     const results = await this.stmt.bind(...params).run()
-    // return {rowsAffected: results.meta.rows_written}
+    const meta = results.meta as {
+      changes?: number
+      rows_written?: number
+      last_row_id?: number
+    }
+    return {
+      affectedRows: meta.changes ?? meta.rows_written ?? 0,
+      insertId: meta.last_row_id
+    }
   }
 
   async get(params: Array<unknown>): Promise<object | null> {
@@ -51,8 +60,11 @@ export class D1Driver implements AsyncDriver {
     await this.client.exec(query)
   }
 
-  prepare(sql: string, options: PrepareOptions): PreparedStatement {
-    return new PreparedStatement(this.client.prepare(sql), options.isSelection)
+  prepare(sql: string, options?: PrepareOptions): PreparedStatement {
+    return new PreparedStatement(
+      this.client.prepare(sql),
+      options?.isSelection ?? false
+    )
   }
 
   async close(): Promise<void> {}
@@ -62,7 +74,11 @@ export class D1Driver implements AsyncDriver {
       this.client.prepare(sql).bind(...params)
     )
     const rows = await this.client.batch(stmts)
-    return rows.map(row => row.results)
+    return rows.map((row, index) => {
+      const isSelection = queries[index]?.isSelection
+      if (!isSelection) return []
+      return (row.results as Array<Record<string, unknown>>).map(Object.values)
+    })
   }
 
   async transaction<T>(): Promise<T> {

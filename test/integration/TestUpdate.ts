@@ -1,6 +1,6 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, eq, table} from '@/index.ts'
-import {concat, integer} from '@/universal.ts'
+import {type Database, eq, table} from '#/index.ts'
+import {concat, integer} from '#/universal.ts'
 import {Node} from './schema.ts'
 
 export function testUpdate(db: Database, test: DefineTest) {

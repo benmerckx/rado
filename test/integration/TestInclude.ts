@@ -1,6 +1,6 @@
 import type {DefineTest} from '@alinea/suite'
-import {eq, include, table, type Database} from '@/index.ts'
-import {id, integer, lastInsertId, text} from '@/universal.ts'
+import {eq, include, table, type Database} from '#/index.ts'
+import {id, integer, lastInsertId, text} from '#/universal.ts'
 
 export function testInclude(db: Database, test: DefineTest) {
   test('include', async () => {
@@ -13,11 +13,18 @@ export function testInclude(db: Database, test: DefineTest) {
       userId: integer().notNull(),
       title: text().notNull()
     })
-    await db.create(User, Post)
+    const UserRole = table('UserRole', {
+      id: id(),
+      userId: integer().notNull(),
+      role: text().notNull()
+    })
+    await db.create(User, Post, UserRole)
     await db.insert(User).values({name: 'Bob'})
     const user1 = await db.select(lastInsertId()).get()
     await db.insert(Post).values({userId: user1!, title: 'Post 1'})
     await db.insert(Post).values({userId: user1!, title: 'Post 2'})
+    await db.insert(UserRole).values({userId: user1!, role: 'admin'})
+    await db.insert(UserRole).values({userId: user1!, role: 'editor'})
     const posts = include(
       db.select().from(Post).where(eq(Post.userId, User.id))
     )
@@ -34,6 +41,45 @@ export function testInclude(db: Database, test: DefineTest) {
         {id: 2, userId: user1, title: 'Post 2'}
       ]
     })
+
+    const selectUser = {
+      ...User,
+      roles: include(
+        db
+          .select(UserRole.role)
+          .from(UserRole)
+          .where(eq(UserRole.userId, User.id))
+          .orderBy(UserRole.id)
+      )
+    }
+    const usersWithRoles = db
+      .select(selectUser)
+      .from(User)
+      .where(eq(User.id, user1))
+    const userWithRoles = await usersWithRoles.get()
+    test.equal(userWithRoles, {
+      id: user1,
+      name: 'Bob',
+      roles: ['admin', 'editor']
+    })
+
+    const userWithFirstRoleQuery = db
+      .select({
+        firstRole: include.one(
+          db
+            .select(UserRole.role)
+            .from(UserRole)
+            .where(eq(UserRole.userId, User.id))
+            .orderBy(UserRole.id)
+            .limit(1)
+        )
+      })
+      .from(User)
+      .where(eq(User.id, user1))
+
+    const userWithFirstRole = await userWithFirstRoleQuery.get()
+    test.equal(userWithFirstRole, {firstRole: 'admin'})
+
     const emptyOne = await db
       .select({
         empty: include.one(db.select().from(User).where(eq(User.id, 42)))
@@ -92,6 +138,6 @@ export function testInclude(db: Database, test: DefineTest) {
         ]
       }
     })
-    await db.drop(User, Post)
+    await db.drop(User, Post, UserRole)
   })
 }

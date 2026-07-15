@@ -1,0 +1,66 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "rado",
+  "colors": {
+    "primary": "#2563eb"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Start here",
+        "pages": [
+          "index",
+          "getting-started",
+          "drivers"
+        ]
+      },
+      {
+        "group": "Defining your schema",
+        "pages": [
+          "schema/tables",
+          "schema/columns-sqlite",
+          "schema/columns-postgres",
+          "schema/columns-mysql",
+          "schema/columns-universal",
+          "schema/indexes-and-constraints",
+          "schema/views",
+          "schema/postgres-schemas-and-enums",
+          "schema/custom-types"
+        ]
+      },
+      {
+        "group": "Querying",
+        "pages": [
+          "queries/select",
+          "queries/joins",
+          "queries/insert",
+          "queries/update",
+          "queries/delete",
+          "queries/operators",
+          "queries/aggregates",
+          "queries/include",
+          "queries/json",
+          "queries/set-operations",
+          "queries/subqueries-and-ctes",
+          "queries/sql"
+        ]
+      },
+      {
+        "group": "Running queries",
+        "pages": [
+          "runtime/transactions-and-batch",
+          "runtime/prepared-statements",
+          "runtime/migrations",
+          "runtime/universal-queries"
+        ]
+      },
+      {
+        "group": "Background",
+        "pages": [
+          "drizzle"
+        ]
+      }
+    ]
+  }
+}

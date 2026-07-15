@@ -13,7 +13,7 @@ const greatPosts = await db.select().from(Post).where(eq(Post.rating, 5))
 ```
 
 If you've used [Drizzle ORM](https://orm.drizzle.team), the code above looks
-familiar — that's intentional. Rado deliberately aligns its query building
+familiar. That's intentional. Rado deliberately aligns its query building
 syntax with Drizzle, while making a few different choices under the hood:
 simpler types, immutable queries, a much smaller footprint and queries that can
 run on any of the supported databases. Read about the project's history in
@@ -21,21 +21,21 @@ run on any of the supported databases. Read about the project's history in
 
 ## Features
 
-- **Fully typed** — schema definitions drive query and result types, with
-  plain, readable TypeScript types (no 200-deep conditional type rabbit holes)
-- **Immutable queries** — every method returns a new query, so you can branch
+- **Fully typed**: schema definitions drive query and result types, with
+  plain, readable TypeScript types
+- **Immutable queries**: every method returns a new query, so you can branch
   and reuse query fragments without surprises
-- **Universal queries** — write a query once, run it on SQLite, PostgreSQL or
+- **Universal queries**: write a query once, run it on SQLite, PostgreSQL or
   MySQL, chosen at runtime
-- **First-class JSON columns** — select and filter on typed JSON fields with
+- **First-class JSON columns**: select and filter on typed JSON fields with
   plain property access
-- **`include` instead of an ORM** — fetch related rows as nested arrays or
+- **`include` instead of an ORM**: fetch related rows as nested arrays or
   objects inside the query builder, no relations setup required
-- **Auto-migrations** — diff your schema against the database and update it
+- **Auto-migrations**: diff your schema against the database and update it
   anywhere, including the browser
-- **Zero dependencies, small bundle** — `rado` + the PostgreSQL utilities
+- **Zero dependencies, small bundle**: `rado` + the PostgreSQL utilities
   bundle to roughly 8.5 kB gzipped
-- **No code generation step** — your schema is just TypeScript
+- **No code generation step**: your schema is just TypeScript
 
 ## Installation
 
@@ -121,21 +121,22 @@ const db = connect(new Database('app.db'))
 | PostgreSQL | [@neondatabase/serverless](https://www.npmjs.com/package/@neondatabase/serverless) | `rado/driver/pg`             | async      |
 | PostgreSQL | [@vercel/postgres](https://www.npmjs.com/package/@vercel/postgres)                 | `rado/driver/pg`             | async      |
 | SQLite     | [better-sqlite3](https://www.npmjs.com/package/better-sqlite3)                     | `rado/driver/better-sqlite3` | sync       |
+| SQLite     | `node:sqlite`                                                                      | `rado/driver/node-sqlite`    | sync       |
 | SQLite     | `bun:sqlite`                                                                       | `rado/driver/bun-sqlite`     | sync       |
 | SQLite     | [sql.js](https://www.npmjs.com/package/sql.js)                                     | `rado/driver/sql.js`         | sync       |
 | SQLite     | [@libsql/client](https://www.npmjs.com/package/@libsql/client)                     | `rado/driver/libsql`         | async      |
 | SQLite     | Cloudflare D1                                                                      | `rado/driver/d1`             | async      |
 | MySQL      | [mysql2](https://www.npmjs.com/package/mysql2)                                     | `rado/driver/mysql2`         | async      |
 
-Synchronous drivers give you a fully synchronous database — no `await`
-required (although it still works if you like the aesthetic). See
+Synchronous drivers give you a fully synchronous database. No `await`
+required, although awaiting queries still works. See
 [Drivers](docs/drivers.md) for details.
 
 ## A taste of the API
 
 ### Immutable queries
 
-Queries are values. Branch them, reuse them, store them in variables — nothing
+Queries are values. Branch them, reuse them, store them in variables. Nothing
 mutates:
 
 ```ts
@@ -215,8 +216,9 @@ More in [Universal queries](docs/runtime/universal-queries.md).
 await db.migrate(User, Post)
 ```
 
-Works in Node.js, Bun, Deno and the browser. Powerful and a little dangerous —
-read [Migrations](docs/runtime/migrations.md) before pointing it at production.
+Works in Node.js, Bun, Deno and the browser. It is powerful and a little
+direct, so read [Migrations](docs/runtime/migrations.md) before pointing it at
+production.
 
 ## Coming from Drizzle?
 
@@ -231,7 +233,7 @@ import {mysqlTable} from 'rado/mysql' // was 'drizzle-orm/mysql-core'
 
 Rado also exposes compatibility helpers such as `InferSelectModel`,
 `InferInsertModel`, `getTableColumns` and `TransactionRollbackError`. See
-[Coming from Drizzle](docs/drizzle.md) for a full side-by-side comparison —
+[Coming from Drizzle](docs/drizzle.md) for a full side-by-side comparison of
 what's the same, what's better and what's missing.
 
 ## License
