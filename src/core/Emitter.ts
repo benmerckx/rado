@@ -37,7 +37,6 @@ export abstract class Emitter {
     return value
   }
 
-  #selfNames = new Map<string, string>()
   emitIdentifierOrSelf(value: string): void {
     if (value === Sql.SELF_TARGET) {
       if (!this.#selfName) throw new Error('Self target not defined')
@@ -52,20 +51,10 @@ export abstract class Emitter {
   }
 
   #selfName: string | undefined
-  emitSelf(
-    inner: Sql,
-    name: string,
-    sourceName = Sql.SELF_TARGET,
-    selfName = name
-  ): void {
-    const previousSelfName = this.#selfName
-    const previousSourceName = this.#selfNames.get(sourceName)
-    this.#selfName = selfName
-    this.#selfNames.set(sourceName, name)
+  emitSelf(inner: Sql, name: string): void {
+    this.#selfName = name
     inner.emit(this)
-    this.#selfName = previousSelfName
-    if (previousSourceName) this.#selfNames.set(sourceName, previousSourceName)
-    else this.#selfNames.delete(sourceName)
+    this.#selfName = undefined
   }
 
   #inlineFields = false
@@ -86,9 +75,7 @@ export abstract class Emitter {
 
   emitField({targetName, fieldName}: FieldData): void {
     if (this.#inlineFields) return this.emitIdentifier(fieldName)
-    const selfName = this.#selfNames.get(targetName)
-    if (selfName) this.emitIdentifier(selfName)
-    else this.emitIdentifierOrSelf(targetName)
+    this.emitIdentifierOrSelf(targetName)
     this.emitUnsafe('.')
     this.emitIdentifier(fieldName)
   }

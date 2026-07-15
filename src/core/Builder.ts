@@ -82,19 +82,19 @@ class BuilderBase<Meta extends QueryMeta> {
 
   $query<Returning extends SelectionInput>(
     select: SelectionQuery<Returning>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   $query<const From extends FromGuard>(
     from: FromQuery<From>
   ): SingleQuery<FromRow<From>, Meta>
   $query<Returning extends SelectionInput, Definition extends TableDefinition>(
     insert: InsertQuery<Returning, Definition>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   $query<Returning extends SelectionInput, Definition extends TableDefinition>(
     remove: DeleteQuery<Returning, Definition>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   $query<Returning extends SelectionInput, Definition extends TableDefinition>(
     update: UpdateQuery<Returning, Definition>
-  ): SingleQuery<Returning, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta>
   $query(query: Query): SingleQuery<unknown, Meta> {
     const data = {...getData(this), ...query}
     if ('delete' in query) return new Delete(data as DeleteQuery)

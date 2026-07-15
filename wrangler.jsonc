@@ -3,6 +3,6 @@
   "name": "rado-docs",
   "compatibility_date": "2026-06-10",
   "assets": {
-    "directory": "./docs/dist",
-  },
+    "directory": "./docs/dist"
+  }
 }

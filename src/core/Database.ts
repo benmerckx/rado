@@ -26,7 +26,7 @@ import type {
   Sync
 } from './MetaData.ts'
 import {ORM} from './ORM.ts'
-import {BatchQuery} from './Queries.ts'
+import {BatchQuery, type SingleQuery} from './Queries.ts'
 import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'
 import {type Sql, sql} from './Sql.ts'

@@ -3,14 +3,18 @@ import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
 import type {SelectQuery} from '../query/Query.ts'
-import {type SelectBase, querySelection, selectQuery} from '../query/Select.ts'
-import type {MapRowContext, RowOfRecord} from '../Selection.ts'
+import {
+  type Select,
+  type SelectBase,
+  querySelection,
+  selectQuery
+} from '../query/Select.ts'
+import type {MapRowContext, SelectionRow} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {jsonAggregateArray, jsonArray} from './Json.ts'
 
 export type IncludeQuery = SelectQuery & {
   first: boolean
-  self?: {name: string; sourceName?: string; selfName?: string}
 }
 
 export class Include<
@@ -57,8 +61,8 @@ export class Include<
 }
 
 export function include<Input, Meta extends QueryMeta>(
-  select: SelectBase<Input, Meta>
-): Include<Array<RowOfRecord<Input>>, Meta> {
+  select: Select<Input, Meta>
+): Include<Array<SelectionRow<Input>>, Meta> {
   return new Include({...getData(select), first: false})
 }
 
@@ -84,14 +88,7 @@ export function includeQuery(query: IncludeQuery): Sql {
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)
   )
-  const result = sql`(select ${
+  return sql`(select ${
     first ? subject : jsonAggregateArray(subject)
   } from (${inner}) as _)`
-  return query.self
-    ? result.nameSelf(
-        query.self.name,
-        query.self.sourceName,
-        query.self.selfName
-      )
-    : result
 }

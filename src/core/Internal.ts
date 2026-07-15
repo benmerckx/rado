@@ -32,7 +32,7 @@ export declare class HasSelection<
   get [internalSelection](): Selection<Input>
 }
 export declare class HasTarget<Name extends string = string> {
-  readonly [internalTarget]: Sql
+  get [internalTarget](): Sql
 }
 export declare class HasQuery<Result = unknown> {
   get [internalQuery](): Sql<Result>

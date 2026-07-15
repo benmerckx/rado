@@ -18,17 +18,16 @@ export class QueryData<Meta extends QueryMeta> {
   first?: boolean
 }
 
-type Exec<Result, Meta extends QueryMeta> = () => Deliver<Meta, Result>
+type Exec = Function
 
-export class Operation<
+class Executable<
   Result,
-  Meta extends QueryMeta,
-  RunResult = Result
+  Meta extends QueryMeta
 > implements PromiseLike<Result> {
   declare private brand: [Meta]
 
-  #execute: Exec<Result, Meta>
-  constructor(exec: Exec<Result, Meta>) {
+  #execute: Exec
+  constructor(exec: Exec) {
     this.#execute = exec
   }
 
@@ -41,8 +40,8 @@ export class Operation<
     return result as Result
   }
 
-  run(): Deliver<Meta, RunResult> {
-    return this.#execute() as unknown as Deliver<Meta, RunResult>
+  run(): Deliver<Meta, Result | MutationResult<Meta>> {
+    return this.#execute()
   }
 
   async then<TResult1 = Result, TResult2 = never>(
@@ -56,8 +55,8 @@ export class Operation<
       | null
   ): Promise<TResult1 | TResult2> {
     try {
-      const result = (await this.#execute()) as Result
-      return onfulfilled ? onfulfilled(result) : (result as unknown as TResult1)
+      const result = await this.#execute()
+      return onfulfilled ? onfulfilled(result) : result
     } catch (error) {
       return onrejected ? onrejected(error) : Promise.reject(error)
     }
@@ -77,16 +76,13 @@ export class Operation<
   }
 }
 
-export class BatchQuery<Results, Meta extends QueryMeta> extends Operation<
+export class BatchQuery<Results, Meta extends QueryMeta> extends Executable<
   Array<Results>,
   Meta
 > {
   constructor(queryResolver: Resolver, queries: Array<HasSql | HasQuery>) {
     super(() => {
-      return queryResolver.batch(queries).execute() as Deliver<
-        Meta,
-        Array<Results>
-      >
+      return queryResolver.batch(queries).execute()
     })
   }
 }
@@ -94,12 +90,12 @@ export class BatchQuery<Results, Meta extends QueryMeta> extends Operation<
 export abstract class SingleQuery<
   Result,
   Meta extends QueryMeta
-> extends Operation<Result, Meta, void> {
+> extends Executable<Result, Meta> {
   readonly [internalData]: QueryData<Meta>;
   abstract [internalQuery]: Sql
 
   constructor(data: QueryData<Meta>) {
-    super(() => this.#exec(undefined) as Deliver<Meta, Result>)
+    super(() => this.#exec(undefined))
     this[internalData] = data
   }
 

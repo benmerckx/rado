@@ -2,11 +2,7 @@
   "name": "@rado/rado",
   "version": "1.3.0-preview.6",
   "publish": {
-    "include": [
-      "README.md",
-      "LICENSE",
-      "src"
-    ]
+    "include": ["README.md", "LICENSE", "src"]
   },
   "exports": {
     ".": "./src/index.ts",
