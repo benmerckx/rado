@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
-import {table} from '@/core/Table.ts'
-import {columns, desc, eq, many, one, sql} from '@/index.ts'
-import {boolean, id, integer, text} from '@/universal.ts'
+import {table} from '#/core/Table.ts'
+import {desc, eq, many, one, sql} from '#/index.ts'
+import {boolean, id, integer, text} from '#/universal.ts'
 
 const users = table('user', {
   id: id(),
@@ -46,7 +46,7 @@ const Post = {
 }
 
 async function createDb() {
-  const {'bun:sqlite': connect} = await import('@/driver.ts')
+  const {'bun:sqlite': connect} = await import('#/driver.ts')
   const {Database} = await import('bun:sqlite')
   const db = connect(new Database(':memory:'))
   await db.create(users, posts, comments, groups)

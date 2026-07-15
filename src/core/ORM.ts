@@ -16,44 +16,53 @@ import {Select, SelectBase, SelectFirst, WithSelection} from './query/Select.ts'
 import {SelectionInput, SelectionRow} from './Selection.ts'
 import {Table, TableDefinition, TableFields, TableRow} from './Table.ts'
 
+type ORMSelectionQuery<Input extends SelectionInput = SelectionInput> = Omit<
+  SelectionQuery<Input>,
+  'from' | 'select'
+> & {
+  select?: Input
+}
+
 export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
   abstract transaction<T>(run: (tx: ORM<Meta>) => T): T
 
   find<Returning extends SelectionInput>(
-    table: HasTable,
-    query?: SelectionQuery<Returning>
-  ): SingleQuery<Returning, Meta>
-  find<Definition extends TableDefinition>(
-    table: Table<Definition>,
-    query?: SelectionBase<TableFields<Definition>>
-  ): SingleQuery<TableFields<Definition>, Meta>
-  find<Input>(
-    table: Table,
-    query?: SelectionBase<Input>
-  ): SingleQuery<Input, Meta> {
+    table: HasTarget,
+    query: ORMSelectionQuery<Returning> & {select: Returning}
+  ): SelectBase<Returning, Meta>
+  find<Target extends HasTarget & SelectionInput>(
+    table: Target,
+    query?: ORMSelectionQuery<Target>
+  ): SelectBase<Target, Meta>
+  find(
+    table: HasTarget & SelectionInput,
+    query?: ORMSelectionQuery
+  ): SelectBase<SelectionInput, Meta> {
     return new SelectBase({
       ...getData(this),
-      select: table,
-      ...query
+      ...query,
+      from: table,
+      select: query?.select ?? table
     })
   }
 
   first<Returning extends SelectionInput>(
-    table: HasTable,
-    query?: SelectionQuery<Returning>
+    table: HasTarget,
+    query: ORMSelectionQuery<Returning> & {select: Returning}
   ): SelectFirst<Returning, Meta>
-  first<Definition extends TableDefinition>(
-    table: Table<Definition>,
-    query?: SelectionBase<TableFields<Definition>>
-  ): SelectFirst<TableFields<Definition>, Meta>
-  first<Input extends SelectionInput>(
-    table: Input,
-    query?: SelectionBase<Input>
-  ): SelectFirst<Input, Meta> {
+  first<Target extends HasTarget & SelectionInput>(
+    table: Target,
+    query?: ORMSelectionQuery<Target>
+  ): SelectFirst<Target, Meta>
+  first(
+    table: HasTarget & SelectionInput,
+    query?: ORMSelectionQuery
+  ): SelectFirst<SelectionInput, Meta> {
     return new SelectFirst({
       ...getData(this),
-      select: table,
-      ...query
+      ...query,
+      from: table,
+      select: query?.select ?? table
     })
   }
 
