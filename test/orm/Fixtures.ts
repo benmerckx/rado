@@ -26,15 +26,20 @@ export const comments = table('comment', {
   body: text().notNull()
 })
 
+export const Post = {
+  ...posts,
+  author: one(users, {from: posts.authorId, to: users.id}),
+  comments: many(comments, {from: posts.id, to: comments.postId})
+}
+
 export const User = {
   ...users,
   posts: many(posts, {from: users.id, to: posts.authorId})
 }
 
-export const Post = {
-  ...posts,
-  author: one(users, {from: posts.authorId, to: users.id}),
-  comments: many(comments, {from: posts.id, to: comments.postId})
+export const UserGraph = {
+  ...users,
+  posts: many(Post, {from: users.id, to: posts.authorId})
 }
 
 export async function createDb() {

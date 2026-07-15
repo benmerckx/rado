@@ -70,6 +70,36 @@ suite(import.meta, test => {
     })
   })
 
+  test('relation joins use the aliased relation target', async () => {
+    const db = await createDb()
+    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
+    const withComment = await db
+      .insert(posts)
+      .values({authorId: ada!.id, title: 'With comment'})
+      .returning()
+      .get()
+    await db.insert(posts).values({authorId: ada!.id, title: 'No comment'})
+    await db.insert(comments).values({postId: withComment!.id, body: 'Visible'})
+
+    const result = await db.first(User, {
+      where: eq(User.id, ada!.id),
+      select: {
+        posts: User.posts({
+          joins: [
+            {
+              innerJoin: comments,
+              on: eq(comments.postId, posts.id)
+            }
+          ],
+          select: {title: posts.title, body: comments.body}
+        })
+      }
+    })
+    test.equal(result, {
+      posts: [{title: 'With comment', body: 'Visible'}]
+    })
+  })
+
   test('self relation callbacks distinguish related and outer rows', async () => {
     const nodes = table('node', {
       id: id(),

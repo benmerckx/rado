@@ -45,6 +45,21 @@ The relation query is an ordinary correlated select compiled through
 ordering, grouping, joins, and interpolated field expressions continue to use
 the normal rado query representation.
 
+Joins use the existing declarative join objects without replacing the fixed
+relation target:
+
+```ts
+UserModel.posts({
+  select: {title: Post.title, body: Comment.body},
+  joins: [
+    {
+      innerJoin: Comment,
+      on: eq(Comment.postId, Post.id)
+    }
+  ]
+})
+```
+
 ## Find, first, and count
 
 ```ts
@@ -54,6 +69,45 @@ const total = await db.count(UserModel, {where: eq(User.active, true)})
 ```
 
 `first` returns `null` when no row matches. `count` returns a scalar number.
+
+## Save one or many rows
+
+`save` accepts either one physical row or an array and returns the same
+cardinality. A supplied primary key updates the matching row, or inserts it
+when it does not exist. A missing primary key inserts a new row:
+
+```ts
+const ada = await db.save(UserModel, {name: 'Ada'})
+const users = await db.save(UserModel, [{name: 'Grace'}, {name: 'Lin'}])
+const updated = await db.save(UserModel, {
+  id: ada.id,
+  email: 'ada@example.com'
+})
+```
+
+Array saves run in a transaction and preserve input order. `save` only handles
+the relation values that are supplied. A `one` relation is saved before its
+parent so its key can be copied to the parent's foreign key. A `many` relation
+is saved after its parent so the parent key can be copied to every child:
+
+```ts
+const post = await db.save(PostModel, {
+  title: 'Hello',
+  author: {name: 'Ada'},
+  comments: [{body: 'Nice'}, {body: 'Thanks'}]
+})
+```
+
+Relations omitted from the value are left untouched. A supplied `many` array
+upserts those children but does not delete rows omitted from the array. Nested
+graph saves work when a relation targets another spread model; a relation that
+targets a bare table saves only that table's physical fields.
+
+Save plans are built lazily once per model object, including physical columns,
+primary keys, relation metadata, and foreign-key property mappings. Rado does
+not maintain an identity map. Use the regular mutation builders when explicit
+conflict targets, deletion synchronization, or single-statement bulk SQL are
+required.
 
 ## Self-relations
 

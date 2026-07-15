@@ -55,7 +55,7 @@ export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends HasTarget<Name> {
-  get [internalTable](): TableApi<Definition, Name>
+  readonly [internalTable]: TableApi<Definition, Name>
 }
 export declare class HasField {
   get [internalField](): FieldData

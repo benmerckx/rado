@@ -1,4 +1,6 @@
+import {txGenerator} from '../universal/transactions.ts'
 import {Builder} from './Builder.ts'
+import type {Transaction} from './Database.ts'
 import {count as countExpr} from './expr/Aggregate.ts'
 import {and, eq} from './expr/Conditions.ts'
 import {Field} from './expr/Field.ts'
@@ -13,18 +15,103 @@ import {
   HasTarget,
   internalTargetAlias
 } from './Internal.ts'
-import {QueryMeta} from './MetaData.ts'
-import {SelectionQuery} from './query/Query.ts'
+import {Deliver, QueryMeta} from './MetaData.ts'
+import {Insert} from './query/Insert.ts'
+import {FromGuard, Join, SelectionQuery} from './query/Query.ts'
 import {Select, SelectFirst} from './query/Select.ts'
 import {SelectionInput, SelectionRow} from './Selection.ts'
 import {Sql} from './Sql.ts'
-import {alias, Table, TableDefinition, TableFields, TableRow} from './Table.ts'
+import {
+  alias,
+  primaryKeyColumns,
+  Table,
+  TableDefinition,
+  TableFields,
+  TableInsert,
+  TableUpdate
+} from './Table.ts'
+import {Expand} from './Types.ts'
 
 export type ORMQuery<Input extends SelectionInput = SelectionInput> = Omit<
   SelectionQuery<Input>,
   'from' | 'select'
 > & {
   select?: Input
+  joins?: Array<Join>
+}
+
+export type TableSave<Definition extends TableDefinition> =
+  | TableInsert<Definition>
+  | TableUpdate<Definition>
+
+type ModelDefinition<Model extends HasTable> =
+  Model extends HasTable<infer Definition> ? Definition : never
+
+type ModelName<Model extends HasTable> =
+  Model extends HasTable<infer _Definition, infer Name> ? Name : string
+
+type ModelRow<Model extends HasTable & object> = SelectionRow<
+  ModelColumns<Model>
+>
+
+type RelationSaveInput<Relation> =
+  Relation extends ManyRelation<
+    infer _Definition,
+    infer _TargetName,
+    infer _FromName,
+    infer Target
+  >
+    ? ReadonlyArray<ModelSave<Target>>
+    : Relation extends OneRelation<
+          infer _Definition,
+          infer _TargetName,
+          infer _FromName,
+          infer Target
+        >
+      ? ModelSave<Target> | null
+      : never
+
+export type ModelSave<Model extends HasTable & object> = TableSave<
+  ModelDefinition<Model>
+> & {
+  [Key in keyof Model as RelationSaveInput<Model[Key]> extends never
+    ? never
+    : Key]?: RelationSaveInput<Model[Key]>
+}
+
+type RelationSaveResult<Relation, Input> =
+  Relation extends ManyRelation<
+    infer _Definition,
+    infer _TargetName,
+    infer _FromName,
+    infer Target
+  >
+    ? Input extends ReadonlyArray<infer Item>
+      ? Array<ModelSaveResult<Target, Item>>
+      : never
+    : Relation extends OneRelation<
+          infer _Definition,
+          infer _TargetName,
+          infer _FromName,
+          infer Target
+        >
+      ? Input extends null
+        ? null
+        : ModelSaveResult<Target, Input>
+      : never
+
+export type ModelSaveResult<Model extends HasTable & object, Input> = Expand<
+  ModelRow<Model> & {
+    [Key in keyof Input & keyof Model as RelationSaveInput<
+      Model[Key]
+    > extends never
+      ? never
+      : Key]: RelationSaveResult<Model[Key], Input[Key]>
+  }
+>
+
+function queryFrom(target: HasTarget, joins?: Array<Join>): FromGuard {
+  return joins?.length ? [target, ...joins] : target
 }
 
 export type ModelColumns<Model> = {
@@ -53,6 +140,10 @@ export function columns(model: HasTarget & object): Record<string, HasSql> {
 }
 
 export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
+  abstract transaction<Result>(
+    run: (tx: Transaction<Meta>) => Deliver<Meta, Result>
+  ): Deliver<Meta, Result>
+
   find<Returning extends SelectionInput>(
     model: HasTarget,
     query: ORMQuery<Returning> & {select: Returning}
@@ -65,11 +156,12 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
     model: HasTarget & object,
     query: ORMQuery<any> = {}
   ): Select<any, Meta> {
+    const {joins, ...selection} = query
     return new Select({
       ...getData(this),
-      ...query,
-      from: model,
-      select: query.select ?? columns(model)
+      ...selection,
+      from: queryFrom(model, joins),
+      select: selection.select ?? columns(model)
     })
   }
 
@@ -85,11 +177,12 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
     model: HasTarget & object,
     query: ORMQuery<any> = {}
   ): SelectFirst<any, Meta, true> {
+    const {joins, ...selection} = query
     return new SelectFirst<any, Meta, true>({
       ...getData(this),
-      ...query,
-      from: model,
-      select: query.select ?? columns(model)
+      ...selection,
+      from: queryFrom(model, joins),
+      select: selection.select ?? columns(model)
     })
   }
 
@@ -104,12 +197,244 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
       where: query.where
     })
   }
+
+  save<Model extends HasTable & object, const Inputs extends Array<object>>(
+    model: Model,
+    values: Inputs & Array<ModelSave<Model>>
+  ): Deliver<Meta, Array<ModelSaveResult<Model, Inputs[number]>>>
+  save<Model extends HasTable & object, const Input extends object>(
+    model: Model,
+    value: Input & ModelSave<Model>
+  ): Deliver<Meta, ModelSaveResult<Model, Input>>
+  save<Model extends HasTable & object>(
+    model: Model,
+    input: ModelSave<Model> | Array<ModelSave<Model>>
+  ): Deliver<Meta, ModelRow<Model> | Array<ModelRow<Model>>> {
+    const many = Array.isArray(input)
+    const values = many ? input : [input]
+
+    return this.transaction(
+      txGenerator(function* (tx) {
+        const result = []
+        for (const value of values)
+          result.push(
+            yield* saveRecord(tx, model, value as Record<string, unknown>)
+          )
+        return many ? result : result[0]
+      })
+    ) as Deliver<Meta, ModelRow<Model> | Array<ModelRow<Model>>>
+  }
+}
+
+function modelFieldKey(model: HasTable, field: HasField): string {
+  const fieldName = getField(field).fieldName
+  for (const [key, column] of Object.entries(getTable(model).columns)) {
+    const columnName = getData(column).name ?? key
+    if (columnName === fieldName) return key
+  }
+  throw new Error(`Relation field ${fieldName} does not belong to its model`)
+}
+
+interface SaveRelation {
+  key: string
+  kind: 'one' | 'many'
+  target: HasTable & object
+  from: string
+  to: string
+}
+
+interface SavePlan {
+  model: HasTable & object
+  target: Table<TableDefinition>
+  columns: Array<string>
+  selection: SelectionInput
+  primary: Array<{key: string; field: HasSql}>
+  relations: Array<SaveRelation>
+}
+
+const savePlans = new WeakMap<object, SavePlan>()
+
+function savePlan(model: HasTable & object): SavePlan {
+  const cached = savePlans.get(model)
+  if (cached) return cached
+
+  const table = getTable(model)
+  const target = model as Table<TableDefinition>
+  const primaryNames = primaryKeyColumns(table)
+  const primary = Object.entries(table.columns).flatMap(([key, column]) => {
+    const data = getData(column)
+    const fieldName = data.name ?? key
+    return primaryNames.has(fieldName) ? [{key, field: target[key]}] : []
+  })
+  const relations = Object.entries(model).flatMap(([key, value]) => {
+    if (
+      typeof value !== 'function' ||
+      !(relationData in (value as unknown as object))
+    )
+      return []
+    const data = (value as RelationDescriptor<HasTable & object>)[relationData]
+    return [
+      {
+        key,
+        kind: data.kind,
+        target: data.target,
+        from: modelFieldKey(model, data.options.from),
+        to: modelFieldKey(data.target, data.options.to)
+      }
+    ]
+  })
+
+  const plan = {
+    model,
+    target,
+    columns: Object.keys(table.columns),
+    selection: columns(model),
+    primary,
+    relations
+  }
+  savePlans.set(model, plan)
+  return plan
+}
+
+function physicalRecord(
+  plan: SavePlan,
+  value: Record<string, unknown>
+): Record<string, unknown> {
+  return Object.fromEntries(plan.columns.map(key => [key, value[key]]))
+}
+
+function* savePhysical<Meta extends QueryMeta>(
+  tx: Transaction<Meta>,
+  plan: SavePlan,
+  value: Record<string, unknown>
+): Generator<Promise<unknown>, Record<string, unknown>, unknown> {
+  const {model, target, primary} = plan
+  const hasPrimary =
+    primary.length > 0 && primary.every(({key}) => value[key] !== undefined)
+
+  if (hasPrimary) {
+    const where = and(...primary.map(({key, field}) => eq(field, value[key])))
+    const update = Object.fromEntries(
+      Object.entries(value).filter(
+        ([key, fieldValue]) =>
+          fieldValue !== undefined &&
+          !primary.some(primary => primary.key === key)
+      )
+    ) as TableUpdate<TableDefinition>
+
+    if (Object.keys(update).length > 0)
+      yield* tx.update(target).set(update).where(where)
+
+    const existing = yield* tx.first(model, {where})
+    if (existing) return existing as Record<string, unknown>
+
+    yield* new Insert<void, Meta>({
+      ...getData(tx),
+      insert: target,
+      values: value as TableInsert<TableDefinition>,
+      overridingSystemValue: tx.dialect.runtime === 'postgres'
+    })
+    const inserted = yield* tx.first(model, {where})
+    if (!inserted) throw new Error('save() could not reload the inserted row')
+    return inserted as Record<string, unknown>
+  }
+
+  if (tx.dialect.runtime !== 'mysql') {
+    const inserted = yield* new Insert<SelectionInput, Meta>({
+      ...getData(tx),
+      insert: target,
+      values: value as TableInsert<TableDefinition>,
+      returning: plan.selection
+    })
+    if (!inserted[0]) throw new Error('save() did not return the inserted row')
+    return inserted[0] as Record<string, unknown>
+  }
+
+  if (primary.length !== 1)
+    throw new Error(
+      'save() requires a supplied primary key or one generated primary key on MySQL'
+    )
+  const mutation = yield* new Insert<void, Meta>({
+    ...getData(tx),
+    insert: target,
+    values: value as TableInsert<TableDefinition>
+  })
+  if (mutation.insertId === undefined)
+    throw new Error('save() did not receive an inserted primary key')
+  const where = eq(primary[0].field, mutation.insertId)
+  const inserted = yield* tx.first(model, {where})
+  if (!inserted) throw new Error('save() could not reload the inserted row')
+  return inserted as Record<string, unknown>
+}
+
+function* saveRecord<Meta extends QueryMeta>(
+  tx: Transaction<Meta>,
+  model: HasTable & object,
+  input: Record<string, unknown>
+): Generator<Promise<unknown>, Record<string, unknown>, unknown> {
+  const plan = savePlan(model)
+  const value = physicalRecord(plan, input)
+  const included: Record<string, unknown> = {}
+
+  for (const relation of plan.relations) {
+    const {key, from, target, to} = relation
+    if (relation.kind !== 'one' || input[key] === undefined) continue
+    if (input[key] === null) {
+      value[from] = null
+      included[key] = null
+      continue
+    }
+    if (typeof input[key] !== 'object')
+      throw new Error(`Relation ${key} must be an object or null`)
+    const related = yield* saveRecord(
+      tx,
+      target,
+      input[key] as Record<string, unknown>
+    )
+    value[from] = related[to]
+    included[key] = related
+  }
+
+  const saved = yield* savePhysical(tx, plan, value)
+
+  for (const relation of plan.relations) {
+    const {key, from, target, to} = relation
+    if (relation.kind !== 'many' || input[key] === undefined) continue
+    if (!Array.isArray(input[key]))
+      throw new Error(`Relation ${key} must be an array`)
+    const related = []
+    for (const child of input[key]) {
+      if (!child || typeof child !== 'object')
+        throw new Error(`Relation ${key} must contain objects`)
+      related.push(
+        yield* saveRecord(tx, target, {
+          ...(child as Record<string, unknown>),
+          [to]: saved[from]
+        })
+      )
+    }
+    included[key] = related
+  }
+
+  return {...saved, ...included}
 }
 
 export interface RelationOptions<FromName extends string = string> {
   from: HasSql & HasField & Field<unknown, FromName>
-  to: HasSql
+  to: HasSql & HasField
   alias?: string
+}
+
+const relationData: unique symbol = Symbol()
+
+interface RelationData<Target extends HasTable & object> {
+  kind: 'one' | 'many'
+  target: Target
+  options: RelationOptions
+}
+
+interface RelationDescriptor<Target extends HasTable & object> {
+  readonly [relationData]: RelationData<Target>
 }
 
 type RelationQueryFactory<
@@ -129,12 +454,13 @@ type SelfRelationQueryFactory<
 export interface ManyRelation<
   Definition extends TableDefinition,
   TargetName extends string,
-  FromName extends string
-> {
-  (): Include<Array<TableRow<Definition>>>
+  FromName extends string,
+  Target extends HasTable & object = Table<Definition, TargetName>
+> extends RelationDescriptor<Target> {
+  (): Include<Array<ModelRow<Target>>>
   (
     query: ORMQuery<TableFields<Definition, TargetName>>
-  ): Include<Array<TableRow<Definition>>>
+  ): Include<Array<ModelRow<Target>>>
   <Input extends SelectionInput>(
     query: ORMQuery<Input> & {select: Input}
   ): Include<Array<SelectionRow<Input>>>
@@ -146,12 +472,13 @@ export interface ManyRelation<
 export interface OneRelation<
   Definition extends TableDefinition,
   TargetName extends string,
-  FromName extends string
-> {
-  (): Include<TableRow<Definition> | null>
+  FromName extends string,
+  Target extends HasTable & object = Table<Definition, TargetName>
+> extends RelationDescriptor<Target> {
+  (): Include<ModelRow<Target> | null>
   (
     query: ORMQuery<TableFields<Definition, TargetName>>
-  ): Include<TableRow<Definition> | null>
+  ): Include<ModelRow<Target> | null>
   <Input extends SelectionInput>(
     query: ORMQuery<Input> & {select: Input}
   ): Include<SelectionRow<Input> | null>
@@ -186,19 +513,21 @@ function relationSource(from: HasSql & HasField, targetName: string): HasSql {
 
 function relation<
   Kind extends 'one' | 'many',
-  Definition extends TableDefinition,
-  TargetName extends string,
+  Target extends HasTable & object,
   FromName extends string
 >(
   kind: Kind,
-  target: Table<Definition, TargetName>,
+  target: Target,
   options: RelationOptions<FromName>
 ): Kind extends 'one'
-  ? OneRelation<Definition, TargetName, FromName>
-  : ManyRelation<Definition, TargetName, FromName> {
+  ? OneRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target>
+  : ManyRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
+  type Definition = ModelDefinition<Target>
+  type TargetName = ModelName<Target>
+  const relationTable = target as unknown as Table<Definition, TargetName>
   const targetName = getTable(target).aliased
   const sourceName = getField(options.from).targetName
-  const parent = parentFields(target)
+  const parent = parentFields(relationTable)
   let invocationId = 0
 
   const build = (input?: ORMQuery | RelationQueryFactory<Definition, any>) => {
@@ -207,21 +536,22 @@ function relation<
         'Relation callbacks are only available for self-relations'
       )
     const query = typeof input === 'function' ? input(parent) : (input ?? {})
+    const {joins, ...selection} = query
     invocationId += 1
     const name = options.alias
       ? invocationId === 1
         ? options.alias
         : `${options.alias}_${invocationId}`
       : relationAlias()
-    const relationTarget = alias(target, name)
-    const select = query.select ?? columns(target)
+    const relationTarget = alias(relationTable, name)
+    const select = selection.select ?? columns(target)
     const data = {
-      ...query,
-      from: relationTarget,
+      ...selection,
+      from: queryFrom(relationTarget, joins),
       select,
       where: and(
         eq(options.to, relationSource(options.from, targetName)),
-        query.where
+        selection.where
       ),
       [internalTargetAlias]: {
         sourceName: targetName,
@@ -233,29 +563,23 @@ function relation<
     return kind === 'one' ? include.one(scoped) : include(scoped)
   }
 
-  return build as Kind extends 'one'
-    ? OneRelation<Definition, TargetName, FromName>
-    : ManyRelation<Definition, TargetName, FromName>
+  return Object.assign(build, {
+    [relationData]: {kind, target, options}
+  }) as unknown as Kind extends 'one'
+    ? OneRelation<Definition, TargetName, FromName, Target>
+    : ManyRelation<Definition, TargetName, FromName, Target>
 }
 
-export function one<
-  Definition extends TableDefinition,
-  TargetName extends string,
-  FromName extends string
->(
-  target: Table<Definition, TargetName>,
+export function one<Target extends HasTable & object, FromName extends string>(
+  target: Target,
   options: RelationOptions<FromName>
-): OneRelation<Definition, TargetName, FromName> {
+): OneRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
   return relation('one', target, options)
 }
 
-export function many<
-  Definition extends TableDefinition,
-  TargetName extends string,
-  FromName extends string
->(
-  target: Table<Definition, TargetName>,
+export function many<Target extends HasTable & object, FromName extends string>(
+  target: Target,
   options: RelationOptions<FromName>
-): ManyRelation<Definition, TargetName, FromName> {
+): ManyRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
   return relation('many', target, options)
 }
