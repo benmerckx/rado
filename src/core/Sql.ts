@@ -16,6 +16,11 @@ export type Decoder<T = unknown> =
   | ((value: unknown) => T)
   | {mapFromDriverValue?(value: unknown, specs: DriverSpecs): T}
 
+export interface TargetScope {
+  sourceName: string
+  name: string
+}
+
 const noop = () => {}
 
 export class Sql<Value = unknown> implements HasSql<Value> {
@@ -53,13 +58,9 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return new Sql(emitter => emitter.emitSelf(this, name))
   }
 
-  scopeTarget(
-    sourceName: string,
-    name: string,
-    selfName = sourceName
-  ): Sql<Value> {
+  scopeTarget(sourceName: string, name: string): Sql<Value> {
     const result = new Sql<Value>(emitter =>
-      emitter.scopeTarget(this, sourceName, name, selfName)
+      emitter.scopeTarget(this, sourceName, name)
     )
     result.alias = this.alias
     result.mapFromDriverValue = this.mapFromDriverValue

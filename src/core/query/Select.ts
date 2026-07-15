@@ -14,7 +14,6 @@ import {
   getSelection,
   getSql,
   getTable,
-  getTargetAlias,
   getTarget,
   hasField,
   hasSelection,
@@ -38,7 +37,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {Sql, sql} from '../Sql.ts'
+import {Sql, type TargetScope, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import type {VirtualTarget} from '../Virtual.ts'
@@ -799,7 +798,10 @@ function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   )
 }
 
-export function querySelection(query: SelectQuery): Selection {
+export function querySelection(
+  query: SelectQuery,
+  targetScope?: TargetScope
+): Selection {
   const {select, from} = query
   if (select) {
     if (from) {
@@ -808,12 +810,11 @@ export function querySelection(query: SelectQuery): Selection {
       collectReferencedTargets(select as SelectionInput, selectedTargets)
       collectFromTargets(from, fromTargets)
       if (fromTargets.size > 0) {
-        const targetAlias = getTargetAlias(query)
         for (const targetName of selectedTargets) {
           if (targetName === Sql.SELF_TARGET) continue
           const mappedName =
-            targetAlias?.sourceName === targetName
-              ? targetAlias.name
+            targetScope?.sourceName === targetName
+              ? targetScope.name
               : targetName
           if (!fromTargets.has(mappedName))
             throw new Error(`Unknown target in select: ${targetName}`)
@@ -932,12 +933,15 @@ function formatFrom(
   return hasTarget(from) ? formatTarget(from, baseConfig) : getSql(from)
 }
 
-export function selectQuery(query: SelectQuery): Sql {
+export function selectQuery(
+  query: SelectQuery,
+  targetScope?: TargetScope
+): Sql {
   const {from, where, groupBy, having, distinct, distinctOn} = query
   const prefix = distinctOn
     ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
     : distinct && sql`distinct`
-  const selected = querySelection(query)
+  const selected = querySelection(query, targetScope)
   const select = sql.join([prefix, selected])
 
   return sql.query(

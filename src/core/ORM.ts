@@ -12,8 +12,7 @@ import {
   HasField,
   HasSql,
   HasTable,
-  HasTarget,
-  internalTargetAlias
+  HasTarget
 } from './Internal.ts'
 import {Deliver, QueryMeta} from './MetaData.ts'
 import {Insert} from './query/Insert.ts'
@@ -48,28 +47,18 @@ type ModelDefinition<Model extends HasTable> =
   Model extends HasTable<infer Definition> ? Definition : never
 
 type ModelName<Model extends HasTable> =
-  Model extends HasTable<infer _Definition, infer Name> ? Name : string
+  Model extends HasTarget<infer Name> ? Name : string
 
 type ModelRow<Model extends HasTable & object> = SelectionRow<
   ModelColumns<Model>
 >
 
 type RelationSaveInput<Relation> =
-  Relation extends ManyRelation<
-    infer _Definition,
-    infer _TargetName,
-    infer _FromName,
-    infer Target
-  >
-    ? ReadonlyArray<ModelSave<Target>>
-    : Relation extends OneRelation<
-          infer _Definition,
-          infer _TargetName,
-          infer _FromName,
-          infer Target
-        >
-      ? ModelSave<Target> | null
-      : never
+  Relation extends RelationDescriptor<infer Kind, infer Target>
+    ? Kind extends 'many'
+      ? ReadonlyArray<ModelSave<Target>>
+      : ModelSave<Target> | null
+    : never
 
 export type ModelSave<Model extends HasTable & object> = TableSave<
   ModelDefinition<Model>
@@ -80,25 +69,15 @@ export type ModelSave<Model extends HasTable & object> = TableSave<
 }
 
 type RelationSaveResult<Relation, Input> =
-  Relation extends ManyRelation<
-    infer _Definition,
-    infer _TargetName,
-    infer _FromName,
-    infer Target
-  >
-    ? Input extends ReadonlyArray<infer Item>
-      ? Array<ModelSaveResult<Target, Item>>
-      : never
-    : Relation extends OneRelation<
-          infer _Definition,
-          infer _TargetName,
-          infer _FromName,
-          infer Target
-        >
-      ? Input extends null
+  Relation extends RelationDescriptor<infer Kind, infer Target>
+    ? Kind extends 'many'
+      ? Input extends ReadonlyArray<infer Item>
+        ? Array<ModelSaveResult<Target, Item>>
+        : never
+      : Input extends null
         ? null
         : ModelSaveResult<Target, Input>
-      : never
+    : never
 
 export type ModelSaveResult<Model extends HasTable & object, Input> = Expand<
   ModelRow<Model> & {
@@ -272,7 +251,9 @@ function savePlan(model: HasTable & object): SavePlan {
       !(relationData in (value as unknown as object))
     )
       return []
-    const data = (value as RelationDescriptor<HasTable & object>)[relationData]
+    const data = (
+      value as RelationDescriptor<'one' | 'many', HasTable & object>
+    )[relationData]
     return [
       {
         key,
@@ -427,14 +408,20 @@ export interface RelationOptions<FromName extends string = string> {
 
 const relationData: unique symbol = Symbol()
 
-interface RelationData<Target extends HasTable & object> {
-  kind: 'one' | 'many'
+interface RelationData<
+  Kind extends 'one' | 'many',
+  Target extends HasTable & object
+> {
+  kind: Kind
   target: Target
   options: RelationOptions
 }
 
-interface RelationDescriptor<Target extends HasTable & object> {
-  readonly [relationData]: RelationData<Target>
+interface RelationDescriptor<
+  Kind extends 'one' | 'many',
+  Target extends HasTable & object
+> {
+  readonly [relationData]: RelationData<Kind, Target>
 }
 
 type RelationQueryFactory<
@@ -456,7 +443,7 @@ export interface ManyRelation<
   TargetName extends string,
   FromName extends string,
   Target extends HasTable & object = Table<Definition, TargetName>
-> extends RelationDescriptor<Target> {
+> extends RelationDescriptor<'many', Target> {
   (): Include<Array<ModelRow<Target>>>
   (
     query: ORMQuery<TableFields<Definition, TargetName>>
@@ -474,7 +461,7 @@ export interface OneRelation<
   TargetName extends string,
   FromName extends string,
   Target extends HasTable & object = Table<Definition, TargetName>
-> extends RelationDescriptor<Target> {
+> extends RelationDescriptor<'one', Target> {
   (): Include<ModelRow<Target> | null>
   (
     query: ORMQuery<TableFields<Definition, TargetName>>
@@ -552,15 +539,13 @@ function relation<
       where: and(
         eq(options.to, relationSource(options.from, targetName)),
         selection.where
-      ),
-      [internalTargetAlias]: {
-        sourceName: targetName,
-        name,
-        selfName: sourceName
-      }
+      )
     }
     const scoped = new Select(data)
-    return kind === 'one' ? include.one(scoped) : include(scoped)
+    const targetScope = {sourceName: targetName, name}
+    return kind === 'one'
+      ? include.one(scoped, targetScope)
+      : include(scoped, targetScope)
   }
 
   return Object.assign(build, {

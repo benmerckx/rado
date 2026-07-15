@@ -79,15 +79,10 @@ export abstract class Emitter {
     return current
   }
 
-  scopeTarget(
-    inner: Sql,
-    sourceName: string,
-    name: string,
-    selfName = sourceName
-  ): void {
+  scopeTarget(inner: Sql, sourceName: string, name: string): void {
     const previousSelfName = this.#selfName
     const previousName = this.#targetNames.get(sourceName)
-    this.#selfName = this.#resolveTarget(selfName)
+    this.#selfName = this.#resolveTarget(sourceName)
     this.#targetNames.set(sourceName, name)
     try {
       inner.emit(this)
