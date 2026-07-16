@@ -32,7 +32,7 @@ export declare class HasSelection<
   get [internalSelection](): Selection<Input>
 }
 export declare class HasTarget<Name extends string = string> {
-  get [internalTarget](): Sql
+  readonly [internalTarget]: Sql
 }
 export declare class HasQuery<Result = unknown> {
   get [internalQuery](): Sql<Result>
@@ -44,7 +44,7 @@ export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends HasTarget<Name> {
-  get [internalTable](): TableApi<Definition, Name>
+  readonly [internalTable]: TableApi<Definition, Name>
 }
 export declare class HasField {
   get [internalField](): FieldData

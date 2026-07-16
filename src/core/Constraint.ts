@@ -80,9 +80,7 @@ export function primaryKey(options: {
   columns: Array<Field>
 }): PrimaryKeyConstraint
 export function primaryKey(...fields: Array<Field>): PrimaryKeyConstraint
-export function primaryKey(
-  ...args: Array<any>
-): PrimaryKeyConstraint {
+export function primaryKey(...args: Array<any>): PrimaryKeyConstraint {
   if (args.length === 1 && 'columns' in args[0])
     return new PrimaryKeyConstraint({
       name: args[0].name,
@@ -130,9 +128,7 @@ export function foreignKey(options: {
   foreignColumns?: Array<Field>
 }): ForeignKeyConstraint
 export function foreignKey(...fields: Array<Field>): ForeignKeyConstraint
-export function foreignKey(
-  ...args: Array<any>
-): ForeignKeyConstraint {
+export function foreignKey(...args: Array<any>): ForeignKeyConstraint {
   if (args.length === 1 && 'columns' in args[0])
     return new ForeignKeyConstraint({
       name: args[0].name,

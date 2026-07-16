@@ -1,6 +1,6 @@
 import type {Input} from '../expr/Input.ts'
-import type {HasSql, HasTarget} from '../Internal.ts'
 import type {Index} from '../Index.ts'
+import type {HasSql, HasTarget} from '../Internal.ts'
 import type {MakeNullable, SelectionInput, SelectionRow} from '../Selection.ts'
 import type {Sql} from '../Sql.ts'
 import type {
@@ -105,9 +105,8 @@ export type FromGuard<Target = HasTarget | Sql> =
   | Target
   | [Target, ...Array<Join<Target>>]
 
-interface SelectionBase<
-  Returning = SelectionInput
-> extends SelectBase<Returning>, IndexHintConfig {
+interface SelectionBase<Returning = SelectionInput>
+  extends SelectBase<Returning>, IndexHintConfig {
   select: Returning
   from?: FromGuard
   for?: HasSql

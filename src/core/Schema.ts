@@ -4,11 +4,7 @@ import {
   type TableDefinition,
   table
 } from './Table.ts'
-import {
-  type DefinedView,
-  type QueryView,
-  view
-} from './View.ts'
+import {type DefinedView, type QueryView, view} from './View.ts'
 
 type Prefix<
   SchemaName extends string,

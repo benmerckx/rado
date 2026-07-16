@@ -1,10 +1,10 @@
 import {suite} from '@alinea/suite'
 import {eq} from '#/core/expr/Conditions.ts'
 import {index} from '#/core/Index.ts'
+import {mysqlTable} from '#/mysql.ts'
 import {QueryBuilder} from '#/mysql/builder.ts'
 import {int, varchar} from '#/mysql/columns.ts'
 import {mysqlDialect} from '#/mysql/dialect.ts'
-import {mysqlTable} from '#/mysql.ts'
 
 suite(import.meta, test => {
   const db = new QueryBuilder()
