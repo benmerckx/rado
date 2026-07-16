@@ -1,5 +1,6 @@
 import type {DefineTest} from '@alinea/suite'
 import type {Database} from '#/core/Database.ts'
+import {eq, one} from '#/index.ts'
 import {Post, posts, postTags, User, UserGraph, users} from './Fixtures.ts'
 
 export function testORMSave(db: Database, test: DefineTest) {
@@ -143,6 +144,53 @@ export function testORMSave(db: Database, test: DefineTest) {
     test.equal(updated.author.name, 'Grace')
     test.equal(updated.authorId, updated.author.id)
     test.equal(await db.count(users), 2)
+  })
+
+  test('save enforces required and scoped one relations', async () => {
+    let nullError: unknown
+    try {
+      await db.save(Post, {title: 'Null author', author: null} as any)
+    } catch (caught) {
+      nullError = caught
+    }
+    test.ok(nullError instanceof Error)
+
+    const AdaPost = {
+      ...posts,
+      author: one(users, {
+        from: posts.authorId,
+        to: users.id,
+        required: true,
+        where: eq(users.name, 'Ada')
+      })
+    }
+    const saved = await db.save(AdaPost, {
+      title: 'Valid',
+      author: {name: 'Ada'}
+    })
+    test.equal(saved.author.name, 'Ada')
+
+    let scopeError: unknown
+    try {
+      await db.save(AdaPost, {
+        title: 'Invalid scope',
+        author: {name: 'Grace'}
+      })
+    } catch (caught) {
+      scopeError = caught
+    }
+    test.ok(scopeError instanceof Error)
+
+    let manyScopeError: unknown
+    try {
+      await db.save(User, {
+        name: 'Grace',
+        publishedPosts: [{title: 'Draft', published: false}]
+      })
+    } catch (caught) {
+      manyScopeError = caught
+    }
+    test.ok(manyScopeError instanceof Error)
   })
 
   if (db.driver.supportsTransactions) {

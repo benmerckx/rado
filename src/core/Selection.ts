@@ -20,7 +20,11 @@ import type {Expand} from './Types.ts'
 import {type VirtualTarget, virtualTarget} from './Virtual.ts'
 
 declare const nullable: unique symbol
-export interface SelectionRecord extends Record<string, SelectionInput> {}
+type SelectionFunction = (...args: Array<any>) => any
+export interface SelectionRecord extends Record<
+  string,
+  SelectionInput | SelectionFunction
+> {}
 export type IsNullable = {[nullable]: true}
 export type MakeNullable<T> = Expand<{[K in keyof T]: T[K] & IsNullable}>
 export type SelectionInput =
@@ -30,9 +34,11 @@ export type SelectionInput =
   | SelectionRecord
   | Include<unknown>
 export type RowOfRecord<Input> = Expand<{
-  [Key in keyof Input as Key extends string ? Key : never]: SelectionRow<
-    Input[Key]
-  >
+  [Key in keyof Input as Key extends string
+    ? Input[Key] extends SelectionFunction
+      ? never
+      : Key
+    : never]: SelectionRow<Input[Key]>
 }>
 export type SelectionRow<Input> =
   Input extends HasSql<infer Value>
@@ -49,6 +55,12 @@ export interface MapRowContext {
   values: Array<unknown>
   index: number
   specs: DriverSpecs
+}
+
+function selectionEntries(input: SelectionInput) {
+  return Object.entries(input).filter(
+    ([, value]) => typeof value !== 'function'
+  )
 }
 interface Column {
   targetName?: string
@@ -99,7 +111,7 @@ function firstTargetName(input: SelectionInput): string | undefined {
   const expr = getSql(input as HasSql)
   if (expr) return hasField(input) ? getField(input).targetName : undefined
   if (!input || typeof input !== 'object') return
-  for (const value of Object.values(input)) {
+  for (const [, value] of selectionEntries(input)) {
     const name = firstTargetName(value)
     if (name) return name
   }
@@ -127,7 +139,7 @@ export class Selection<
     if (expr) return new SqlColumn(expr, getField(<any>input)?.targetName)
     return new ObjectColumn(
       nullable,
-      Object.entries(input).map(([name, value]) => [
+      selectionEntries(input).map(([name, value]) => [
         name,
         this.#defineColumn(nullable, value)
       ])
@@ -157,7 +169,7 @@ export class Selection<
       if (expr === target) return exprName
       return
     }
-    for (const [name, value] of Object.entries(input)) {
+    for (const [name, value] of selectionEntries(input)) {
       const alias = this.#aliasOf(value, names, target, name)
       if (alias) return alias
     }
@@ -175,7 +187,7 @@ export class Selection<
       while (names.has(exprName)) exprName = `${exprName}_`
       return [exprName]
     }
-    return Object.entries(input).flatMap(([name, value]) =>
+    return selectionEntries(input).flatMap(([name, value]) =>
       this.#fieldNames(value, names, name)
     )
   }
@@ -200,7 +212,7 @@ export class Selection<
       }
       return [expr]
     }
-    return Object.entries(input).flatMap(([name, value]) =>
+    return selectionEntries(input).flatMap(([name, value]) =>
       this.#selectionToSql(value, names, name)
     )
   }
@@ -215,7 +227,7 @@ export class Selection<
       if (hasField(input)) names.add(getField(input).targetName)
       return
     }
-    for (const value of Object.values(input))
+    for (const [, value] of selectionEntries(input))
       this.#collectTargetNames(value, names)
   }
 

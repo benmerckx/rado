@@ -1,43 +1,41 @@
 import type {DefineTest} from '@alinea/suite'
 import type {Database} from '#/core/Database.ts'
-import {columns, eq} from '#/index.ts'
+import {and, eq} from '#/index.ts'
 import {
   comments,
-  insertRow,
+  CompositeChild,
+  compositeParentTags,
+  CompositeParent,
   Node,
   nodes,
   Post,
   posts,
-  postTags,
   tags,
   User,
+  UserGraph,
   users
 } from './Fixtures.ts'
 
 export function testORMRelations(db: Database, test: DefineTest) {
   test('relations are selected explicitly and remain fully shaped', async () => {
-    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
-    const hello = await insertRow(
-      db,
-      posts,
-      {authorId: ada.id, title: 'Hello'},
-      eq(posts.title, 'Hello')
-    )
-    await db.insert(posts).values({authorId: ada!.id, title: 'World'})
-    await db.insert(comments).values({postId: hello!.id, body: 'Nice'})
+    const ada = await db.save(UserGraph, {
+      name: 'Ada',
+      posts: [{title: 'Hello', comments: [{body: 'Nice'}]}, {title: 'World'}]
+    })
+    const hello = ada.posts[0]
 
     const user = await db.first(User, {
-      where: eq(User.id, ada!.id),
+      where: eq(User.id, ada.id),
       select: {
-        ...columns(User),
-        posts: User.posts({
+        ...User,
+        posts: User.posts(() => ({
           select: {title: posts.title},
           orderBy: [posts.title]
-        })
+        }))
       }
     })
     test.equal(user, {
-      id: ada!.id,
+      id: ada.id,
       name: 'Ada',
       email: null,
       loginCount: 0,
@@ -45,7 +43,7 @@ export function testORMRelations(db: Database, test: DefineTest) {
     })
 
     const post = await db.first(Post, {
-      where: eq(Post.id, hello!.id),
+      where: eq(Post.id, hello.id),
       select: {
         title: Post.title,
         author: Post.author({select: {name: users.name}}),
@@ -60,11 +58,13 @@ export function testORMRelations(db: Database, test: DefineTest) {
   })
 
   test('nested relations resolve their source through the outer alias', async () => {
-    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
-    await db.insert(posts).values({authorId: ada!.id, title: 'Hello'})
+    const ada = await db.save(UserGraph, {
+      name: 'Ada',
+      posts: [{title: 'Hello'}]
+    })
 
     const result = await db.first(User, {
-      where: eq(User.id, ada!.id),
+      where: eq(User.id, ada.id),
       select: {
         posts: User.posts({
           select: {
@@ -80,18 +80,16 @@ export function testORMRelations(db: Database, test: DefineTest) {
   })
 
   test('relation joins use the aliased relation target', async () => {
-    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
-    const withComment = await insertRow(
-      db,
-      posts,
-      {authorId: ada.id, title: 'With comment'},
-      eq(posts.title, 'With comment')
-    )
-    await db.insert(posts).values({authorId: ada!.id, title: 'No comment'})
-    await db.insert(comments).values({postId: withComment!.id, body: 'Visible'})
+    const ada = await db.save(UserGraph, {
+      name: 'Ada',
+      posts: [
+        {title: 'With comment', comments: [{body: 'Visible'}]},
+        {title: 'No comment'}
+      ]
+    })
 
     const result = await db.first(User, {
-      where: eq(User.id, ada!.id),
+      where: eq(User.id, ada.id),
       select: {
         posts: User.posts({
           joins: [
@@ -110,29 +108,19 @@ export function testORMRelations(db: Database, test: DefineTest) {
   })
 
   test('many relations resolve through a join table', async () => {
-    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
-    const hello = await insertRow(
-      db,
-      posts,
-      {authorId: ada.id, title: 'Hello'},
-      eq(posts.title, 'Hello')
-    )
-    const world = await insertRow(
-      db,
-      posts,
-      {authorId: ada.id, title: 'World'},
-      eq(posts.title, 'World')
-    )
-    const orm = await insertRow(db, tags, {name: 'ORM'}, eq(tags.name, 'ORM'))
-    const sql = await insertRow(db, tags, {name: 'SQL'}, eq(tags.name, 'SQL'))
-    await db.insert(postTags).values([
-      {postId: hello!.id, tagId: orm!.id},
-      {postId: hello!.id, tagId: sql!.id},
-      {postId: world!.id, tagId: sql!.id}
-    ])
+    const hello = await db.save(Post, {
+      title: 'Hello',
+      author: {name: 'Ada'},
+      tags: [{name: 'ORM'}, {name: 'SQL'}]
+    })
+    await db.save(Post, {
+      title: 'World',
+      authorId: hello.author.id,
+      tags: [{id: hello.tags[1].id}]
+    })
 
     const result = await db.first(Post, {
-      where: eq(Post.id, hello!.id),
+      where: eq(Post.id, hello.id),
       select: {
         title: Post.title,
         tags: Post.tags({select: {name: tags.name}, orderBy: [tags.name]})
@@ -144,28 +132,88 @@ export function testORMRelations(db: Database, test: DefineTest) {
     })
   })
 
+  test('definition filters scope relation loads and predicates', async () => {
+    const ada = await db.save(UserGraph, {
+      name: 'Ada',
+      posts: [
+        {title: 'Published', published: true},
+        {title: 'Draft', published: false}
+      ]
+    })
+
+    const result = await db.first(User, {
+      where: eq(User.id, ada.id),
+      select: {
+        posts: User.publishedPosts({select: {title: posts.title}})
+      }
+    })
+    test.equal(result, {posts: [{title: 'Published'}]})
+    test.equal(
+      await db.count(User, {
+        where: User.publishedPosts.some({where: eq(posts.title, 'Draft')})
+      }),
+      0
+    )
+  })
+
+  test('composite direct and through relations load all key pairs', async () => {
+    const parent = await db.save(CompositeParent, {
+      tenant: 'acme',
+      code: 'root',
+      label: 'Root',
+      children: [{title: 'Child'}],
+      tags: [{name: 'Composite'}]
+    })
+
+    test.equal(parent.children[0], {
+      id: parent.children[0].id,
+      tenant: 'acme',
+      parentCode: 'root',
+      title: 'Child'
+    })
+    test.equal(await db.find(compositeParentTags), [
+      {tenant: 'acme', parentCode: 'root', tagId: parent.tags[0].id}
+    ])
+
+    const result = await db.first(CompositeParent, {
+      where: and(
+        eq(CompositeParent.tenant, 'acme'),
+        eq(CompositeParent.code, 'root')
+      ),
+      select: {
+        children: CompositeParent.children({
+          select: {title: CompositeChild.title}
+        }),
+        tags: CompositeParent.tags({select: {name: tags.name}})
+      }
+    })
+    test.equal(result, {
+      children: [{title: 'Child'}],
+      tags: [{name: 'Composite'}]
+    })
+
+    const child = await db.first(CompositeChild, {
+      where: eq(CompositeChild.id, parent.children[0].id),
+      select: {parent: CompositeChild.parent()}
+    })
+    test.equal(child, {
+      parent: {tenant: 'acme', code: 'root', label: 'Root'}
+    })
+  })
+
   test('self relation callbacks distinguish related and outer rows', async () => {
-    const root = await insertRow(
-      db,
-      nodes,
-      {name: 'Root'},
-      eq(nodes.name, 'Root')
-    )
-    const middle = await insertRow(
-      db,
-      nodes,
-      {name: 'Middle', parentId: root.id},
-      eq(nodes.name, 'Middle')
-    )
-    const child = await insertRow(
-      db,
-      nodes,
-      {name: 'Child', parentId: middle.id},
-      eq(nodes.name, 'Child')
-    )
+    const root = await db.save(nodes, {name: 'Root'})
+    const middle = await db.save(nodes, {
+      name: 'Middle',
+      parentId: root.id
+    })
+    const child = await db.save(nodes, {
+      name: 'Child',
+      parentId: middle.id
+    })
 
     const result = await db.first(Node, {
-      where: eq(Node.id, child!.id),
+      where: eq(Node.id, child.id),
       select: {
         relation: Node.parent(parent => ({
           select: {
@@ -185,8 +233,8 @@ export function testORMRelations(db: Database, test: DefineTest) {
     })
     test.equal(result, {
       relation: {
-        parentId: middle!.id,
-        childId: child!.id,
+        parentId: middle.id,
+        childId: child.id,
         parentName: 'Middle',
         childName: 'Child',
         grandparent: {

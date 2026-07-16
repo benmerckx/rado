@@ -62,19 +62,13 @@ export function testORMPredicates(db: Database, test: DefineTest) {
   })
 
   test('many relation predicates resolve through tables', async () => {
-    const ada = await db.save(User, {name: 'Ada'})
-    await db.save(Post, [
-      {
-        authorId: ada.id,
-        title: 'ORM post',
-        tags: [{name: 'ORM'}, {name: 'SQL'}]
-      },
-      {
-        authorId: ada.id,
-        title: 'SQL post',
-        tags: [{name: 'SQL'}]
-      }
-    ])
+    await db.save(UserGraph, {
+      name: 'Ada',
+      posts: [
+        {title: 'ORM post', tags: [{name: 'ORM'}, {name: 'SQL'}]},
+        {title: 'SQL post', tags: [{name: 'SQL'}]}
+      ]
+    })
 
     const orm = await db.find(Post, {
       where: Post.tags.some({where: eq(tags.name, 'ORM')}),
@@ -91,8 +85,10 @@ export function testORMPredicates(db: Database, test: DefineTest) {
 
   test('self relation predicate callbacks distinguish outer rows', async () => {
     const root = await db.save(nodes, {name: 'Root'})
-    await db.save(nodes, {name: 'Middle', parentId: root.id})
-    await db.save(nodes, {name: 'Other', parentId: root.id})
+    await db.save(nodes, [
+      {name: 'Middle', parentId: root.id},
+      {name: 'Other', parentId: root.id}
+    ])
 
     const result = await db.find(Node, {
       where: Node.parent.is(child => ({

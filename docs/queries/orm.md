@@ -7,7 +7,7 @@ a separate query builder, result hydration pass, or automatic relation loading.
 ## Define a model
 
 Spread a table and add `one` or `many` relations. A relation is defined by the
-two fields that should be equal:
+fields that should be equal:
 
 ```ts
 import {many, one} from 'rado'
@@ -19,17 +19,24 @@ const UserModel = {
 
 const PostModel = {
   ...Post,
-  author: one(User, {from: Post.authorId, to: User.id})
+  author: one(User, {
+    from: Post.authorId,
+    to: User.id,
+    required: true
+  })
 }
 ```
 
 `db.find(UserModel)` and `db.first(UserModel)` select physical columns only.
-Relations run only when their functions appear in an explicit selection:
+Function-valued properties are ignored while a selection is compiled and are
+omitted from its result type. This means the entire model can also be spread
+into an explicit selection; invoking a relation replaces that property with
+the relation result:
 
 ```ts
 const users = await db.find(UserModel, {
   select: {
-    ...columns(UserModel),
+    ...UserModel,
     posts: UserModel.posts({
       select: {title: Post.title},
       where: eq(Post.published, true),
@@ -38,6 +45,33 @@ const users = await db.find(UserModel, {
     })
   }
 })
+```
+
+For composite relations, pass equally sized field arrays. Each pair is joined
+with `and` in the generated correlation:
+
+```ts
+const LineModel = {
+  ...Line,
+  order: one(Order, {
+    from: [Line.storeId, Line.orderNumber],
+    to: [Order.storeId, Order.number],
+    required: true
+  })
+}
+```
+
+Use a definition-level `where` to scope every load and relation predicate:
+
+```ts
+const UserModel = {
+  ...User,
+  publishedPosts: many(Post, {
+    from: User.id,
+    to: Post.authorId,
+    where: eq(Post.published, true)
+  })
+}
 ```
 
 The relation query is an ordinary correlated select compiled through
@@ -81,6 +115,9 @@ const PostModel = {
 
 Loading the relation produces one correlated query with an inner join through
 `PostTag`. Relation selections and filters still refer to `Tag` normally.
+Composite endpoint keys use arrays in the same order on both sides. The
+corresponding `through.from` and `through.to` values must have matching
+lengths.
 
 Joins use the existing declarative join objects without replacing the fixed
 relation target:
@@ -169,10 +206,25 @@ upserts those children but does not delete rows omitted from the array. Nested
 graph saves work when a relation targets another spread model; a relation that
 targets a bare table saves only that table's physical fields.
 
+Setting `required: true` on a `one` relation removes `null` from relation query
+results and from that relation's save input. Inserts must supply either the
+nested relation or all local foreign-key fields. Updates may omit the relation
+to leave it unchanged. After saving the parent, Rado verifies that the local
+keys resolve to a target row; if the relation has a definition-level `where`,
+the target must satisfy it too. This is ORM-level validation—direct insert and
+update builders still follow the database schema alone.
+
+Graph saves also validate supplied nested values against a relation's
+definition-level `where`. The target model needs a primary key so Rado can
+reload and validate the saved row. Composite relations copy every configured
+key pair between parent, child, and through rows.
+
 For a many-to-many relation, `save` first saves each target and then upserts its
 join row. A composite primary key over the two join fields makes repeated saves
 idempotent. As with direct `many` relations, omitted associations are not
-deleted.
+deleted. On a batch-only driver, required and scoped validation has the same
+non-atomic caveat as the rest of `save`: a validation failure can happen after
+an earlier write has committed.
 
 Save plans are built lazily once per model object, including physical columns,
 primary keys, relation metadata, and foreign-key property mappings. Rado does
@@ -181,6 +233,11 @@ conflict targets, deletion synchronization, or single-statement bulk SQL are
 required.
 
 ## Self-relations
+
+Any relation query or predicate can be supplied as a callback when constructing
+the query lazily is more convenient. On non-self relations the callback takes
+no arguments. Self-relation callbacks additionally receive fields representing
+the outer row.
 
 Relation targets are aliased automatically. For a self-relation, pass a
 callback when the selection needs fields from both the outer row and the

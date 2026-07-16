@@ -20,7 +20,7 @@ import type {Deliver, QueryMeta} from './MetaData.ts'
 import {Insert} from './query/Insert.ts'
 import type {FromGuard, Join, SelectionQuery} from './query/Query.ts'
 import {Select, SelectFirst} from './query/Select.ts'
-import type {SelectionInput, SelectionRow} from './Selection.ts'
+import type {RowOfRecord, SelectionInput, SelectionRow} from './Selection.ts'
 import {Sql, sql} from './Sql.ts'
 import {
   alias,
@@ -51,15 +51,19 @@ type ModelDefinition<Model extends HasTable> =
 type ModelName<Model extends HasTable> =
   Model extends HasTarget<infer Name> ? Name : string
 
-type ModelRow<Model extends HasTable & object> = SelectionRow<
-  ModelColumns<Model>
->
+type ModelSelection<Model extends object> = {
+  [Key in keyof Model as Model[Key] extends (...args: Array<any>) => any
+    ? never
+    : Key]: Model[Key]
+}
+
+type ModelRow<Model extends HasTable & object> = RowOfRecord<Model>
 
 type RelationSaveInput<Relation> =
-  Relation extends RelationDescriptor<infer Kind, infer Target>
+  Relation extends RelationDescriptor<infer Kind, infer Target, infer Required>
     ? Kind extends 'many'
       ? ReadonlyArray<ModelSave<Target>>
-      : ModelSave<Target> | null
+      : ModelSave<Target> | ([Required] extends [true] ? never : null)
     : never
 
 export type ModelSave<Model extends HasTable & object> = TableSave<
@@ -71,7 +75,7 @@ export type ModelSave<Model extends HasTable & object> = TableSave<
 }
 
 type RelationSaveResult<Relation, Input> =
-  Relation extends RelationDescriptor<infer Kind, infer Target>
+  Relation extends RelationDescriptor<infer Kind, infer Target, boolean>
     ? Kind extends 'many'
       ? Input extends ReadonlyArray<infer Item>
         ? Array<ModelSaveResult<Target, Item>>
@@ -95,31 +99,6 @@ function queryFrom(target: HasTarget, joins?: Array<Join>): FromGuard {
   return joins?.length ? [target, ...joins] : target
 }
 
-export type ModelColumns<Model> = {
-  [Key in keyof Model as Key extends string
-    ? Model[Key] extends HasSql
-      ? Key
-      : never
-    : never]: Extract<Model[Key], HasSql>
-}
-
-export function columns<
-  Definition extends TableDefinition,
-  Name extends string
->(model: Table<Definition, Name>): TableFields<Definition, Name>
-export function columns<Model extends HasTarget & object>(
-  model: Model
-): ModelColumns<Model>
-export function columns(model: HasTarget & object): Record<string, HasSql> {
-  const definition = getTable(model as HasTable).columns
-  return Object.fromEntries(
-    Object.keys(definition).map(name => [
-      name,
-      (model as Record<string, HasSql>)[name]
-    ])
-  )
-}
-
 export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
   abstract driver: Driver
 
@@ -133,8 +112,8 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
   ): Select<Returning, Meta>
   find<Model extends HasTarget & object>(
     model: Model,
-    query?: ORMQuery<ModelColumns<Model>>
-  ): Select<ModelColumns<Model>, Meta>
+    query?: ORMQuery<Model>
+  ): Select<ModelSelection<Model>, Meta>
   find(
     model: HasTarget & object,
     query: ORMQuery<any> = {}
@@ -144,7 +123,7 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
       ...getData(this),
       ...selection,
       from: queryFrom(model, joins),
-      select: selection.select ?? columns(model)
+      select: selection.select ?? model
     })
   }
 
@@ -154,8 +133,8 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
   ): SelectFirst<Returning, Meta, true>
   first<Model extends HasTarget & object>(
     model: Model,
-    query?: ORMQuery<ModelColumns<Model>>
-  ): SelectFirst<ModelColumns<Model>, Meta, true>
+    query?: ORMQuery<Model>
+  ): SelectFirst<ModelSelection<Model>, Meta, true>
   first(
     model: HasTarget & object,
     query: ORMQuery<any> = {}
@@ -165,7 +144,7 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
       ...getData(this),
       ...selection,
       from: queryFrom(model, joins),
-      select: selection.select ?? columns(model)
+      select: selection.select ?? model
     })
   }
 
@@ -229,12 +208,14 @@ interface SaveRelation {
   key: string
   kind: 'one' | 'many'
   target: HasTable & object
-  from: string
-  to: string
+  from: Array<string>
+  to: Array<string>
+  required: boolean
+  where?: HasSql<boolean>
   through?: {
     target: HasTable & object
-    from: string
-    to: string
+    from: Array<string>
+    to: Array<string>
   }
 }
 
@@ -265,7 +246,7 @@ function savePlan(model: HasTable & object): SavePlan {
     if (typeof value !== 'function' || !(relationData in (value as object)))
       return []
     const data = (
-      value as RelationDescriptor<'one' | 'many', HasTable & object>
+      value as RelationDescriptor<'one' | 'many', HasTable & object, boolean>
     )[relationData]
     const through = data.options.through
     return [
@@ -273,12 +254,22 @@ function savePlan(model: HasTable & object): SavePlan {
         key,
         kind: data.kind,
         target: data.target,
-        from: modelFieldKey(model, data.options.from),
-        to: modelFieldKey(data.target, data.options.to),
+        from: relationFields(data.options.from).map(field =>
+          modelFieldKey(model, field)
+        ),
+        to: relationFields(data.options.to).map(field =>
+          modelFieldKey(data.target, field)
+        ),
+        required: data.required,
+        where: data.options.where,
         through: through && {
           target: through.table,
-          from: modelFieldKey(through.table, through.from),
-          to: modelFieldKey(through.table, through.to)
+          from: relationFields(through.from).map(field =>
+            modelFieldKey(through.table, field)
+          ),
+          to: relationFields(through.to).map(field =>
+            modelFieldKey(through.table, field)
+          )
         }
       }
     ]
@@ -288,7 +279,7 @@ function savePlan(model: HasTable & object): SavePlan {
     model,
     target,
     columns: Object.keys(table.columns),
-    selection: columns(model),
+    selection: model,
     primary,
     relations
   }
@@ -367,6 +358,26 @@ function* savePhysical<Meta extends QueryMeta>(
   return inserted as Record<string, unknown>
 }
 
+function* validateRelationScope<Meta extends QueryMeta>(
+  tx: Transaction<Meta>,
+  relation: SaveRelation,
+  saved: Record<string, unknown>
+): Generator<Promise<unknown>, void, unknown> {
+  if (!relation.where) return
+  const plan = savePlan(relation.target)
+  if (plan.primary.length === 0)
+    throw new Error(
+      `Scoped relation ${relation.key} requires a primary key on its target`
+    )
+  const where = and(
+    ...plan.primary.map(({key, field}) => eq(field, saved[key])),
+    relation.where
+  )
+  const related = yield* tx.first(relation.target, {where})
+  if (!related)
+    throw new Error(`Saved value does not match relation ${relation.key}`)
+}
+
 function* saveRecord<Meta extends QueryMeta>(
   tx: Transaction<Meta>,
   model: HasTable & object,
@@ -377,10 +388,16 @@ function* saveRecord<Meta extends QueryMeta>(
   const included: Record<string, unknown> = {}
 
   for (const relation of plan.relations) {
-    const {key, from, target, to} = relation
-    if (relation.kind !== 'one' || input[key] === undefined) continue
+    const {key, from, required, target, to} = relation
+    if (relation.kind !== 'one') continue
+    if (
+      required &&
+      (input[key] === null || from.some(field => input[field] === null))
+    )
+      throw new Error(`Required relation ${key} cannot be null`)
+    if (input[key] === undefined) continue
     if (input[key] === null) {
-      value[from] = null
+      for (const field of from) value[field] = null
       included[key] = null
       continue
     }
@@ -391,11 +408,29 @@ function* saveRecord<Meta extends QueryMeta>(
       target,
       input[key] as Record<string, unknown>
     )
-    value[from] = related[to]
+    yield* validateRelationScope(tx, relation, related)
+    for (let index = 0; index < from.length; index++)
+      value[from[index]!] = related[to[index]!]
     included[key] = related
   }
 
   const saved = yield* savePhysical(tx, plan, value)
+
+  for (const relation of plan.relations) {
+    if (relation.kind !== 'one' || !relation.required) continue
+    const values = relation.from.map(field => saved[field])
+    if (values.some(value => value === null || value === undefined))
+      throw new Error(`Required relation ${relation.key} is missing`)
+    const where = and(
+      ...relation.to.map((field, index) =>
+        eq((relation.target as Record<string, HasSql>)[field], values[index])
+      ),
+      relation.where
+    )
+    const related = yield* tx.first(relation.target, {where})
+    if (!related)
+      throw new Error(`Required relation ${relation.key} is missing`)
+  }
 
   for (const relation of plan.relations) {
     const {key, from, target, through, to} = relation
@@ -406,21 +441,20 @@ function* saveRecord<Meta extends QueryMeta>(
     for (const child of input[key]) {
       if (!child || typeof child !== 'object')
         throw new Error(`Relation ${key} must contain objects`)
-      const savedChild = yield* saveRecord(
-        tx,
-        target,
-        through
-          ? (child as Record<string, unknown>)
-          : {
-              ...(child as Record<string, unknown>),
-              [to]: saved[from]
-            }
-      )
-      if (through)
-        yield* saveRecord(tx, through.target, {
-          [through.from]: saved[from],
-          [through.to]: savedChild[to]
-        })
+      const childInput = {...(child as Record<string, unknown>)}
+      if (!through)
+        for (let index = 0; index < to.length; index++)
+          childInput[to[index]!] = saved[from[index]!]
+      const savedChild = yield* saveRecord(tx, target, childInput)
+      yield* validateRelationScope(tx, relation, savedChild)
+      if (through) {
+        const join: Record<string, unknown> = {}
+        for (let index = 0; index < through.from.length; index++)
+          join[through.from[index]!] = saved[from[index]!]
+        for (let index = 0; index < through.to.length; index++)
+          join[through.to[index]!] = savedChild[to[index]!]
+        yield* saveRecord(tx, through.target, join)
+      }
       related.push(savedChild)
     }
     included[key] = related
@@ -429,40 +463,62 @@ function* saveRecord<Meta extends QueryMeta>(
   return {...saved, ...included}
 }
 
-export interface RelationOptions<FromName extends string = string> {
-  from: HasSql & HasField & Field<unknown, FromName>
-  to: HasSql & HasField
+type RelationField<FromName extends string = string> = HasSql &
+  HasField &
+  Field<unknown, FromName>
+
+export type RelationFields<FromName extends string = string> =
+  | RelationField<FromName>
+  | ReadonlyArray<RelationField<FromName>>
+
+interface RelationBaseOptions<FromName extends string = string> {
+  from: RelationFields<FromName>
+  to: RelationFields
   alias?: string
+  where?: HasSql<boolean>
+}
+
+export interface RelationOptions<
+  FromName extends string = string,
+  Required extends boolean = false
+> extends RelationBaseOptions<FromName> {
+  required?: Required
 }
 
 export interface RelationThrough {
   table: HasTable & object
-  from: HasSql & HasField
-  to: HasSql & HasField
+  from: RelationFields
+  to: RelationFields
 }
 
 export interface ManyRelationOptions<
   FromName extends string = string
-> extends RelationOptions<FromName> {
+> extends RelationBaseOptions<FromName> {
   through?: RelationThrough
 }
+
+type AnyRelationOptions<FromName extends string = string> =
+  ManyRelationOptions<FromName> & {required?: boolean}
 
 const relationData: unique symbol = Symbol()
 
 interface RelationData<
   Kind extends 'one' | 'many',
-  Target extends HasTable & object
+  Target extends HasTable & object,
+  Required extends boolean = false
 > {
   kind: Kind
   target: Target
-  options: ManyRelationOptions
+  options: AnyRelationOptions
+  required: Required
 }
 
 interface RelationDescriptor<
   Kind extends 'one' | 'many',
-  Target extends HasTable & object
+  Target extends HasTable & object,
+  Required extends boolean = false
 > {
-  readonly [relationData]: RelationData<Kind, Target>
+  readonly [relationData]: RelationData<Kind, Target, Required>
 }
 
 type RelationQueryFactory<
@@ -470,14 +526,14 @@ type RelationQueryFactory<
   Input extends SelectionInput
 > = (parent: TableFields<Definition>) => ORMQuery<Input>
 
-type SelfRelationQueryFactory<
+type RelationQueryCallback<
   Definition extends TableDefinition,
   TargetName extends string,
   FromName extends string,
   Input extends SelectionInput
 > = [FromName] extends [TargetName]
   ? RelationQueryFactory<Definition, Input>
-  : never
+  : () => ORMQuery<Input>
 
 export interface RelationPredicateQuery {
   where?: HasSql<boolean>
@@ -488,13 +544,13 @@ type RelationPredicateFactory<Definition extends TableDefinition> = (
   parent: TableFields<Definition>
 ) => RelationPredicateQuery
 
-type SelfRelationPredicateFactory<
+type RelationPredicateCallback<
   Definition extends TableDefinition,
   TargetName extends string,
   FromName extends string
 > = [FromName] extends [TargetName]
   ? RelationPredicateFactory<Definition>
-  : never
+  : () => RelationPredicateQuery
 
 export interface ManyRelation<
   Target extends HasTable & object,
@@ -508,7 +564,7 @@ export interface ManyRelation<
     query: ORMQuery<Input> & {select: Input}
   ): Include<Array<SelectionRow<Input>>>
   <Input extends SelectionInput>(
-    query: SelfRelationQueryFactory<
+    query: RelationQueryCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName,
@@ -519,23 +575,24 @@ export interface ManyRelation<
 
 export interface OneRelation<
   Target extends HasTable & object,
-  FromName extends string
-> extends RelationDescriptor<'one', Target> {
-  (): Include<ModelRow<Target> | null>
+  FromName extends string,
+  Required extends boolean = false
+> extends RelationDescriptor<'one', Target, Required> {
+  (): Include<ModelRow<Target> | ([Required] extends [true] ? never : null)>
   (
     query: ORMQuery<TableFields<ModelDefinition<Target>, ModelName<Target>>>
-  ): Include<ModelRow<Target> | null>
+  ): Include<ModelRow<Target> | ([Required] extends [true] ? never : null)>
   <Input extends SelectionInput>(
     query: ORMQuery<Input> & {select: Input}
-  ): Include<SelectionRow<Input> | null>
+  ): Include<SelectionRow<Input> | ([Required] extends [true] ? never : null)>
   <Input extends SelectionInput>(
-    query: SelfRelationQueryFactory<
+    query: RelationQueryCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName,
       Input
     >
-  ): Include<SelectionRow<Input> | null>
+  ): Include<SelectionRow<Input> | ([Required] extends [true] ? never : null)>
 }
 
 let relationId = 0
@@ -549,8 +606,9 @@ function parentFields<Definition extends TableDefinition>(
   target: Table<Definition>
 ): TableFields<Definition> {
   return Object.fromEntries(
-    Object.entries(columns(target)).map(([name, value]) => {
-      const field = getField(value)
+    Object.keys(getTable(target).columns).map(name => {
+      const value = target[name]
+      const field = getField(value as HasField)
       return [name, new Field(Sql.SELF_TARGET, field.fieldName, field.source)]
     })
   ) as TableFields<Definition>
@@ -562,6 +620,26 @@ function relationSource(from: HasSql & HasField, targetName: string): HasSql {
   return new Field(Sql.SELF_TARGET, field.fieldName, field.source)
 }
 
+function relationFields<FromName extends string>(
+  fields: RelationFields<FromName>
+): Array<RelationField<FromName>> {
+  return Array.isArray(fields)
+    ? [...fields]
+    : [fields as RelationField<FromName>]
+}
+
+function pairedRelationFields(
+  left: RelationFields,
+  right: RelationFields,
+  description: string
+): Array<[RelationField, RelationField]> {
+  const leftFields = relationFields(left)
+  const rightFields = relationFields(right)
+  if (leftFields.length !== rightFields.length)
+    throw new Error(`${description} must contain the same number of fields`)
+  return leftFields.map((field, index) => [field, rightFields[index]!])
+}
+
 type RelationInput<Definition extends TableDefinition> =
   | ORMQuery
   | RelationQueryFactory<Definition, any>
@@ -571,12 +649,13 @@ type RelationInput<Definition extends TableDefinition> =
 abstract class Relation<
   Kind extends 'one' | 'many',
   Target extends HasTable & object,
-  FromName extends string
+  FromName extends string,
+  Required extends boolean = false
 >
   extends Callable
-  implements RelationDescriptor<Kind, Target>
+  implements RelationDescriptor<Kind, Target, Required>
 {
-  readonly [relationData]: RelationData<Kind, Target>
+  readonly [relationData]: RelationData<Kind, Target, Required>
   readonly #relationTable: Table<ModelDefinition<Target>, ModelName<Target>>
   readonly #targetName: string
   readonly #sourceName: string
@@ -586,28 +665,38 @@ abstract class Relation<
   constructor(
     readonly kind: Kind,
     readonly target: Target,
-    readonly options: ManyRelationOptions<FromName>
+    readonly options: AnyRelationOptions<FromName>
   ) {
-    let callable!: Relation<Kind, Target, FromName>
-    super((input?: RelationInput<ModelDefinition<Target>>) =>
-      callable.load(input)
-    )
-    callable = this
-    this[relationData] = {kind, target, options}
+    super((input?: RelationInput<ModelDefinition<Target>>) => this.load(input))
+    const required = Boolean(options.required) as Required
+    this[relationData] = {kind, target, options, required}
     this.#relationTable = target as unknown as Table<
       ModelDefinition<Target>,
       ModelName<Target>
     >
     this.#targetName = getTable(target).aliased
-    this.#sourceName = getField(options.from).targetName
+    const from = relationFields(options.from)
+    this.#sourceName = getField(from[0]!).targetName
+    if (from.some(field => getField(field).targetName !== this.#sourceName))
+      throw new Error('Relation from fields must belong to the same model')
+    if (options.through) {
+      pairedRelationFields(
+        options.from,
+        options.through.from,
+        'Relation from and through.from'
+      )
+      pairedRelationFields(
+        options.to,
+        options.through.to,
+        'Relation to and through.to'
+      )
+    } else {
+      pairedRelationFields(options.from, options.to, 'Relation from and to')
+    }
     this.#parent = parentFields(this.#relationTable)
   }
 
   #resolve(input?: RelationInput<ModelDefinition<Target>>): ORMQuery {
-    if (typeof input === 'function' && this.#sourceName !== this.#targetName)
-      throw new Error(
-        'Relation callbacks are only available for self-relations'
-      )
     return typeof input === 'function' ? input(this.#parent) : (input ?? {})
   }
 
@@ -626,29 +715,49 @@ abstract class Relation<
     if (through) {
       const throughTable = through.table as Table<TableDefinition>
       const throughTarget = alias(throughTable, `${name}_through`)
-      const throughFrom =
-        throughTarget[modelFieldKey(throughTable, through.from)]
-      const throughTo = throughTarget[modelFieldKey(throughTable, through.to)]
+      const throughFrom = relationFields(through.from).map(
+        field => throughTarget[modelFieldKey(throughTable, field)]
+      )
+      const throughTo = relationFields(through.to).map(
+        field => throughTarget[modelFieldKey(throughTable, field)]
+      )
+      const targetPairs = pairedRelationFields(
+        this.options.to,
+        through.to,
+        'Relation to and through.to'
+      )
+      const sourcePairs = pairedRelationFields(
+        this.options.from,
+        through.from,
+        'Relation from and through.from'
+      )
       from = queryFrom(relationTarget, [
-        {innerJoin: throughTarget, on: eq(this.options.to, throughTo)},
+        {
+          innerJoin: throughTarget,
+          on: and(...targetPairs.map(([to], index) => eq(to, throughTo[index])))
+        },
         ...(joins ?? [])
       ])
-      relationWhere = eq(
-        throughFrom,
-        relationSource(this.options.from, this.#targetName)
+      relationWhere = and(
+        ...sourcePairs.map(([outer], index) =>
+          eq(throughFrom[index], relationSource(outer, this.#targetName))
+        )
       )
     } else {
       from = queryFrom(relationTarget, joins)
-      relationWhere = eq(
-        this.options.to,
-        relationSource(this.options.from, this.#targetName)
+      relationWhere = and(
+        ...pairedRelationFields(
+          this.options.to,
+          this.options.from,
+          'Relation from and to'
+        ).map(([to, outer]) => eq(to, relationSource(outer, this.#targetName)))
       )
     }
     const data = {
       ...selection,
       from,
       select,
-      where: and(relationWhere, selection.where)
+      where: and(relationWhere, this.options.where, selection.where)
     }
     const targetScope = {sourceName: this.#targetName, name}
     return {data, targetScope}
@@ -658,7 +767,7 @@ abstract class Relation<
     const query = this.#resolve(input)
     const {data, targetScope} = this.#correlated(
       query,
-      query.select ?? columns(this.target)
+      query.select ?? this.target
     )
     const scoped = new Select(data)
     return this.kind === 'one'
@@ -686,15 +795,16 @@ abstract class Relation<
 
 export class OneRelation<
   Target extends HasTable & object,
-  FromName extends string
-> extends Relation<'one', Target, FromName> {
-  constructor(target: Target, options: RelationOptions<FromName>) {
+  FromName extends string,
+  Required extends boolean = false
+> extends Relation<'one', Target, FromName, Required> {
+  constructor(target: Target, options: RelationOptions<FromName, Required>) {
     super('one', target, options)
   }
 
   is(query?: RelationPredicateQuery): Sql<boolean>
   is(
-    query: SelfRelationPredicateFactory<
+    query: RelationPredicateCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName
@@ -710,7 +820,7 @@ export class OneRelation<
 
   isNot(query?: RelationPredicateQuery): Sql<boolean>
   isNot(
-    query: SelfRelationPredicateFactory<
+    query: RelationPredicateCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName
@@ -728,14 +838,14 @@ export class OneRelation<
 export class ManyRelation<
   Target extends HasTable & object,
   FromName extends string
-> extends Relation<'many', Target, FromName> {
+> extends Relation<'many', Target, FromName, false> {
   constructor(target: Target, options: ManyRelationOptions<FromName>) {
     super('many', target, options)
   }
 
   some(query?: RelationPredicateQuery): Sql<boolean>
   some(
-    query: SelfRelationPredicateFactory<
+    query: RelationPredicateCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName
@@ -751,7 +861,7 @@ export class ManyRelation<
 
   none(query?: RelationPredicateQuery): Sql<boolean>
   none(
-    query: SelfRelationPredicateFactory<
+    query: RelationPredicateCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName
@@ -767,7 +877,7 @@ export class ManyRelation<
 
   every(query?: RelationPredicateQuery): Sql<boolean>
   every(
-    query: SelfRelationPredicateFactory<
+    query: RelationPredicateCallback<
       ModelDefinition<Target>,
       ModelName<Target>,
       FromName
@@ -785,10 +895,14 @@ export class ManyRelation<
   }
 }
 
-export function one<Target extends HasTable & object, FromName extends string>(
+export function one<
+  Target extends HasTable & object,
+  FromName extends string,
+  Required extends boolean = false
+>(
   target: Target,
-  options: RelationOptions<FromName>
-): OneRelation<Target, FromName> {
+  options: RelationOptions<FromName, Required>
+): OneRelation<Target, FromName, Required> {
   return new OneRelation(target, options)
 }
 

@@ -132,6 +132,25 @@ suite(import.meta, test => {
         >
       >()
 
+      const spreadWithPosts = db.find(User, {
+        select: {
+          ...User,
+          posts: User.posts({select: {title: posts.title}})
+        }
+      })
+      Expect<
+        Equal<
+          Awaited<typeof spreadWithPosts>,
+          Array<{
+            id: number
+            name: string
+            email: string | null
+            loginCount: number
+            posts: Array<{title: string}>
+          }>
+        >
+      >()
+
       const withAuthor = db.find(Post, {
         select: {author: Post.author()}
       })
@@ -144,7 +163,7 @@ suite(import.meta, test => {
               name: string
               email: string | null
               loginCount: number
-            } | null
+            }
           }>
         >
       >()
@@ -154,6 +173,9 @@ suite(import.meta, test => {
       })
       Expect<Equal<typeof predicate, Sql<boolean>>>()
       db.find(User, {where: predicate})
+
+      // @ts-expect-error required relations cannot be saved as null
+      db.save(Post, {title: 'Invalid', author: null})
 
       const saved = db.save(User, {name: 'Ada'})
       Expect<

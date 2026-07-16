@@ -90,17 +90,17 @@ function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
 }
 
 type SelectFirstResult<Input, Nullable extends boolean> =
-  | SelectionRow<Input>
+  | Expand<SelectionRow<Input>>
   | (Nullable extends true ? null : never)
 
 export class SelectFirst<
   Input,
   Meta extends QueryMeta = QueryMeta,
   Nullable extends boolean = false
->
-  extends SingleQuery<SelectFirstResult<Input, Nullable>, Meta>
-  implements HasQuery<SelectFirstResult<Input, Nullable>>
-{
+> extends SingleQuery<
+  Expand<SelectionRow<Input>> | (Nullable extends true ? null : never),
+  Meta
+> {
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
   constructor(data: QueryData<Meta> & SelectQuery) {
