@@ -4,32 +4,32 @@ import type {Transaction} from './Database.ts'
 import {count as countExpr} from './expr/Aggregate.ts'
 import {and, eq} from './expr/Conditions.ts'
 import {Field} from './expr/Field.ts'
-import {include, Include} from './expr/Include.ts'
+import {include, type Include} from './expr/Include.ts'
 import {
   getData,
   getField,
   getTable,
-  HasField,
-  HasSql,
-  HasTable,
-  HasTarget
+  type HasField,
+  type HasSql,
+  type HasTable,
+  type HasTarget
 } from './Internal.ts'
-import {Deliver, QueryMeta} from './MetaData.ts'
+import type {Deliver, QueryMeta} from './MetaData.ts'
 import {Insert} from './query/Insert.ts'
-import {FromGuard, Join, SelectionQuery} from './query/Query.ts'
+import type {FromGuard, Join, SelectionQuery} from './query/Query.ts'
 import {Select, SelectFirst} from './query/Select.ts'
-import {SelectionInput, SelectionRow} from './Selection.ts'
+import type {SelectionInput, SelectionRow} from './Selection.ts'
 import {Sql} from './Sql.ts'
 import {
   alias,
   primaryKeyColumns,
-  Table,
-  TableDefinition,
-  TableFields,
-  TableInsert,
-  TableUpdate
+  type Table,
+  type TableDefinition,
+  type TableFields,
+  type TableInsert,
+  type TableUpdate
 } from './Table.ts'
-import {Expand} from './Types.ts'
+import type {Expand} from './Types.ts'
 
 export type ORMQuery<Input extends SelectionInput = SelectionInput> = Omit<
   SelectionQuery<Input>,

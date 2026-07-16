@@ -1,10 +1,11 @@
-import {suite} from '@alinea/suite'
-import {table} from '#/core/Table.ts'
-import {columns, eq, one} from '#/index.ts'
-import {id, integer, text} from '#/universal.ts'
+import type {DefineTest} from '@alinea/suite'
+import type {Database} from '#/core/Database.ts'
+import {columns, eq} from '#/index.ts'
 import {
   comments,
-  createDb,
+  insertRow,
+  Node,
+  nodes,
   Post,
   posts,
   postTags,
@@ -13,15 +14,15 @@ import {
   users
 } from './Fixtures.ts'
 
-suite(import.meta, test => {
+export function testORMRelations(db: Database, test: DefineTest) {
   test('relations are selected explicitly and remain fully shaped', async () => {
-    const db = await createDb()
-    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
-    const hello = await db
-      .insert(posts)
-      .values({authorId: ada!.id, title: 'Hello'})
-      .returning()
-      .get()
+    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
+    const hello = await insertRow(
+      db,
+      posts,
+      {authorId: ada.id, title: 'Hello'},
+      eq(posts.title, 'Hello')
+    )
     await db.insert(posts).values({authorId: ada!.id, title: 'World'})
     await db.insert(comments).values({postId: hello!.id, body: 'Nice'})
 
@@ -59,8 +60,7 @@ suite(import.meta, test => {
   })
 
   test('nested relations resolve their source through the outer alias', async () => {
-    const db = await createDb()
-    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
+    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
     await db.insert(posts).values({authorId: ada!.id, title: 'Hello'})
 
     const result = await db.first(User, {
@@ -80,13 +80,13 @@ suite(import.meta, test => {
   })
 
   test('relation joins use the aliased relation target', async () => {
-    const db = await createDb()
-    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
-    const withComment = await db
-      .insert(posts)
-      .values({authorId: ada!.id, title: 'With comment'})
-      .returning()
-      .get()
+    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
+    const withComment = await insertRow(
+      db,
+      posts,
+      {authorId: ada.id, title: 'With comment'},
+      eq(posts.title, 'With comment')
+    )
     await db.insert(posts).values({authorId: ada!.id, title: 'No comment'})
     await db.insert(comments).values({postId: withComment!.id, body: 'Visible'})
 
@@ -110,20 +110,21 @@ suite(import.meta, test => {
   })
 
   test('many relations resolve through a join table', async () => {
-    const db = await createDb()
-    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
-    const hello = await db
-      .insert(posts)
-      .values({authorId: ada!.id, title: 'Hello'})
-      .returning()
-      .get()
-    const world = await db
-      .insert(posts)
-      .values({authorId: ada!.id, title: 'World'})
-      .returning()
-      .get()
-    const orm = await db.insert(tags).values({name: 'ORM'}).returning().get()
-    const sql = await db.insert(tags).values({name: 'SQL'}).returning().get()
+    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
+    const hello = await insertRow(
+      db,
+      posts,
+      {authorId: ada.id, title: 'Hello'},
+      eq(posts.title, 'Hello')
+    )
+    const world = await insertRow(
+      db,
+      posts,
+      {authorId: ada.id, title: 'World'},
+      eq(posts.title, 'World')
+    )
+    const orm = await insertRow(db, tags, {name: 'ORM'}, eq(tags.name, 'ORM'))
+    const sql = await insertRow(db, tags, {name: 'SQL'}, eq(tags.name, 'SQL'))
     await db.insert(postTags).values([
       {postId: hello!.id, tagId: orm!.id},
       {postId: hello!.id, tagId: sql!.id},
@@ -144,28 +145,24 @@ suite(import.meta, test => {
   })
 
   test('self relation callbacks distinguish related and outer rows', async () => {
-    const nodes = table('node', {
-      id: id(),
-      parentId: integer().references((): any => nodes.id),
-      name: text().notNull()
-    })
-    const Node = {
-      ...nodes,
-      parent: one(nodes, {from: nodes.parentId, to: nodes.id})
-    }
-    const db = await createDb()
-    await db.create(nodes)
-    const root = await db.insert(nodes).values({name: 'Root'}).returning().get()
-    const middle = await db
-      .insert(nodes)
-      .values({name: 'Middle', parentId: root!.id})
-      .returning()
-      .get()
-    const child = await db
-      .insert(nodes)
-      .values({name: 'Child', parentId: middle!.id})
-      .returning()
-      .get()
+    const root = await insertRow(
+      db,
+      nodes,
+      {name: 'Root'},
+      eq(nodes.name, 'Root')
+    )
+    const middle = await insertRow(
+      db,
+      nodes,
+      {name: 'Middle', parentId: root.id},
+      eq(nodes.name, 'Middle')
+    )
+    const child = await insertRow(
+      db,
+      nodes,
+      {name: 'Child', parentId: middle.id},
+      eq(nodes.name, 'Child')
+    )
 
     const result = await db.first(Node, {
       where: eq(Node.id, child!.id),
@@ -199,4 +196,4 @@ suite(import.meta, test => {
       }
     })
   })
-})
+}

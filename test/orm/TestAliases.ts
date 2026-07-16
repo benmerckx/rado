@@ -1,11 +1,11 @@
-import {suite} from '@alinea/suite'
+import type {DefineTest} from '@alinea/suite'
+import type {Database} from '#/core/Database.ts'
 import {desc, eq, many, sql} from '#/index.ts'
-import {createDb, posts, User, users} from './Fixtures.ts'
+import {insertRow, posts, User, users} from './Fixtures.ts'
 
-suite(import.meta, test => {
+export function testORMAliases(db: Database, test: DefineTest) {
   test('relation aliases cover filters, ordering, and raw sql', async () => {
-    const db = await createDb()
-    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
+    const ada = await insertRow(db, users, {name: 'Ada'}, eq(users.name, 'Ada'))
     await db.insert(posts).values([
       {authorId: ada!.id, title: 'A'},
       {authorId: ada!.id, title: 'B'}
@@ -25,7 +25,6 @@ suite(import.meta, test => {
   })
 
   test('explicit relation aliases remain available for readable sql', async () => {
-    const db = await createDb()
     const UserWithAlias = {
       ...users,
       posts: many(posts, {
@@ -38,7 +37,10 @@ suite(import.meta, test => {
       select: {posts: UserWithAlias.posts({select: {title: posts.title}})}
     })
     const emitted = query.toSQL().sql
-    test.ok(emitted.includes('as "user_posts"'))
-    test.ok(emitted.includes('"user_posts"."title"'))
+    const quote = db.dialect.runtime === 'mysql' ? '`' : '"'
+    test.ok(emitted.includes(`as ${quote}user_posts${quote}`))
+    test.ok(
+      emitted.includes(`${quote}user_posts${quote}.${quote}title${quote}`)
+    )
   })
-})
+}

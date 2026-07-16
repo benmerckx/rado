@@ -18,6 +18,7 @@ import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
 import {testUpdate} from './integration/TestUpdate.ts'
 import {testViews} from './integration/TestViews.ts'
+import {testORM} from './orm/TestORM.ts'
 
 export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   const prefixed = Object.assign(
@@ -25,8 +26,9 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
       (test as any)(`${label}: ${name}`, ...args),
     test
   ) as DefineTest<any>
-  const closeDb = () => {
+  const closeDb = (cleanup: () => Promise<void>) => {
     prefixed('close database', async () => {
+      await cleanup()
       await Promise.resolve(db.driver.close())
     })
   }
@@ -46,9 +48,10 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   testConflicts(db, prefixed)
   testUpdate(db, prefixed)
   testViews(db, prefixed)
+  const cleanupORM = testORM(db, prefixed)
   if (db.driver.supportsTransactions) {
     testTransactions(db, prefixed)
     testMigration(db, prefixed)
   }
-  closeDb()
+  closeDb(cleanupORM)
 }

@@ -91,9 +91,16 @@ export function includeQuery(
   const {first, limit, offset, orderBy} = query
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query, targetScope)
+  const orderedQuery =
+    orderBy && limit === undefined
+      ? sql.universal({
+          mysql: sql`${innerQuery} limit ${sql.unsafe('18446744073709551615')}`,
+          default: innerQuery
+        })
+      : innerQuery
   const inner = wrapQuery
-    ? sql`select * from (${innerQuery}) as __`
-    : innerQuery
+    ? sql`select * from (${orderedQuery}) as __`
+    : orderedQuery
   const fields = querySelection(query, targetScope).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)

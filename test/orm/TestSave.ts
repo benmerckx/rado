@@ -1,21 +1,14 @@
-import {suite} from '@alinea/suite'
-import {
-  createDb,
-  Post,
-  posts,
-  postTags,
-  User,
-  UserGraph,
-  users
-} from './Fixtures.ts'
+import type {DefineTest} from '@alinea/suite'
+import type {Database} from '#/core/Database.ts'
+import {Post, posts, postTags, User, UserGraph, users} from './Fixtures.ts'
 
-suite(import.meta, test => {
+export function testORMSave(db: Database, test: DefineTest) {
   test('save inserts one row and returns database defaults', async () => {
-    const db = await createDb()
     const saved = await db.save(User, {name: 'Ada'})
 
+    test.ok(saved.id > 0)
     test.equal(saved, {
-      id: 1,
+      id: saved.id,
       name: 'Ada',
       email: null,
       loginCount: 0
@@ -23,18 +16,17 @@ suite(import.meta, test => {
   })
 
   test('save accepts arrays and preserves result cardinality', async () => {
-    const db = await createDb()
     const saved = await db.save(User, [{name: 'Ada'}, {name: 'Grace'}])
 
+    test.ok(saved[0].id !== saved[1].id)
     test.equal(saved, [
-      {id: 1, name: 'Ada', email: null, loginCount: 0},
-      {id: 2, name: 'Grace', email: null, loginCount: 0}
+      {id: saved[0].id, name: 'Ada', email: null, loginCount: 0},
+      {id: saved[1].id, name: 'Grace', email: null, loginCount: 0}
     ])
     test.equal(await db.save(User, []), [])
   })
 
   test('save updates by primary key and inserts unknown keys', async () => {
-    const db = await createDb()
     const ada = await db.save(User, {name: 'Ada'})
 
     const updated = await db.save(User, {
@@ -58,7 +50,6 @@ suite(import.meta, test => {
   })
 
   test('save inserts one and many relations in dependency order', async () => {
-    const db = await createDb()
     const saved = await db.save(Post, {
       title: 'Hello',
       author: {name: 'Ada'},
@@ -68,13 +59,12 @@ suite(import.meta, test => {
     test.equal(saved.author.name, 'Ada')
     test.equal(saved.authorId, saved.author.id)
     test.equal(saved.comments, [
-      {id: 1, postId: saved.id, body: 'Nice'},
-      {id: 2, postId: saved.id, body: 'Thanks'}
+      {id: saved.comments[0].id, postId: saved.id, body: 'Nice'},
+      {id: saved.comments[1].id, postId: saved.id, body: 'Thanks'}
     ])
   })
 
   test('save recursively follows relation target models', async () => {
-    const db = await createDb()
     const saved = await db.save(UserGraph, {
       name: 'Ada',
       posts: [
@@ -85,19 +75,20 @@ suite(import.meta, test => {
       ]
     })
 
+    const post = saved.posts[0]
+    const comment = post.comments[0]
     test.equal(saved.posts, [
       {
-        id: 1,
+        id: post.id,
         authorId: saved.id,
         title: 'Hello',
         published: false,
-        comments: [{id: 1, postId: 1, body: 'Nested'}]
+        comments: [{id: comment.id, postId: post.id, body: 'Nested'}]
       }
     ])
   })
 
   test('save inserts and reuses many-to-many relations through a join table', async () => {
-    const db = await createDb()
     const saved = await db.save(Post, {
       title: 'Hello',
       author: {name: 'Ada'},
@@ -122,7 +113,6 @@ suite(import.meta, test => {
   })
 
   test('save upserts supplied children without deleting omitted rows', async () => {
-    const db = await createDb()
     const user = await db.save(User, {
       name: 'Ada',
       posts: [{title: 'First'}, {title: 'Untouched'}]
@@ -140,7 +130,6 @@ suite(import.meta, test => {
   })
 
   test('save reassigns one relations while updating the parent', async () => {
-    const db = await createDb()
     const post = await db.save(Post, {
       title: 'Hello',
       author: {name: 'Ada'}
@@ -157,7 +146,6 @@ suite(import.meta, test => {
   })
 
   test('array saves are atomic', async () => {
-    const db = await createDb()
     let error: unknown
     try {
       await db.save(User, [{name: 'Ada'}, {}])
@@ -170,7 +158,6 @@ suite(import.meta, test => {
   })
 
   test('graph saves roll back parent rows when a child fails', async () => {
-    const db = await createDb()
     let error: unknown
     try {
       await db.save(User, {name: 'Ada', posts: [{}]})
@@ -183,24 +170,18 @@ suite(import.meta, test => {
     test.equal(await db.count(posts), 0)
   })
 
-  test('save overrides generated postgres identities for unknown keys', async () => {
-    const {'@electric-sql/pglite': connect} = await import('#/driver.ts')
-    const {PGlite} = await import('@electric-sql/pglite')
-    const db = connect(new PGlite())
-    try {
-      await db.create(users)
+  if (db.dialect.runtime === 'postgres')
+    test('save overrides generated postgres identities for unknown keys', async () => {
       const generated = await db.save(User, {name: 'Ada'})
-      const explicit = await db.save(User, {id: 20, name: 'Lin'})
+      const explicitId = generated.id + 10_000
+      const explicit = await db.save(User, {id: explicitId, name: 'Lin'})
 
       test.equal(generated.name, 'Ada')
       test.equal(explicit, {
-        id: 20,
+        id: explicitId,
         name: 'Lin',
         email: null,
         loginCount: 0
       })
-    } finally {
-      await db.close()
-    }
-  })
-})
+    })
+}
