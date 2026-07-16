@@ -1,5 +1,5 @@
 import {table} from '#/core/Table.ts'
-import {many, one} from '#/index.ts'
+import {many, one, primaryKey} from '#/index.ts'
 import {boolean, id, integer, text} from '#/universal.ts'
 
 export const users = table('user', {
@@ -26,10 +26,33 @@ export const comments = table('comment', {
   body: text().notNull()
 })
 
+export const tags = table('tag', {
+  id: id(),
+  name: text().notNull()
+})
+
+export const postTags = table(
+  'post_tag',
+  {
+    postId: integer()
+      .notNull()
+      .references(() => posts.id),
+    tagId: integer()
+      .notNull()
+      .references(() => tags.id)
+  },
+  self => [primaryKey(self.postId, self.tagId)]
+)
+
 export const Post = {
   ...posts,
   author: one(users, {from: posts.authorId, to: users.id}),
-  comments: many(comments, {from: posts.id, to: comments.postId})
+  comments: many(comments, {from: posts.id, to: comments.postId}),
+  tags: many(tags, {
+    from: posts.id,
+    to: tags.id,
+    through: {table: postTags, from: postTags.postId, to: postTags.tagId}
+  })
 }
 
 export const User = {
@@ -46,6 +69,6 @@ export async function createDb() {
   const {'bun:sqlite': connect} = await import('#/driver.ts')
   const {Database} = await import('bun:sqlite')
   const db = connect(new Database(':memory:'))
-  await db.create(users, posts, comments)
+  await db.create(users, posts, comments, tags, postTags)
   return db
 }

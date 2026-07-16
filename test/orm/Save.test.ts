@@ -1,5 +1,13 @@
 import {suite} from '@alinea/suite'
-import {createDb, Post, posts, User, UserGraph, users} from './Fixtures.ts'
+import {
+  createDb,
+  Post,
+  posts,
+  postTags,
+  User,
+  UserGraph,
+  users
+} from './Fixtures.ts'
 
 suite(import.meta, test => {
   test('save inserts one row and returns database defaults', async () => {
@@ -86,6 +94,31 @@ suite(import.meta, test => {
         comments: [{id: 1, postId: 1, body: 'Nested'}]
       }
     ])
+  })
+
+  test('save inserts and reuses many-to-many relations through a join table', async () => {
+    const db = await createDb()
+    const saved = await db.save(Post, {
+      title: 'Hello',
+      author: {name: 'Ada'},
+      tags: [{name: 'ORM'}, {name: 'SQL'}]
+    })
+
+    test.equal(
+      saved.tags.map(tag => tag.name),
+      ['ORM', 'SQL']
+    )
+    test.equal(await db.find(postTags), [
+      {postId: saved.id, tagId: saved.tags[0].id},
+      {postId: saved.id, tagId: saved.tags[1].id}
+    ])
+
+    const updated = await db.save(Post, {
+      id: saved.id,
+      tags: [{id: saved.tags[0].id}]
+    })
+    test.equal(updated.tags, [saved.tags[0]])
+    test.equal(await db.count(postTags), 2)
   })
 
   test('save upserts supplied children without deleting omitted rows', async () => {

@@ -2,7 +2,16 @@ import {suite} from '@alinea/suite'
 import {table} from '#/core/Table.ts'
 import {columns, eq, one} from '#/index.ts'
 import {id, integer, text} from '#/universal.ts'
-import {comments, createDb, Post, posts, User, users} from './Fixtures.ts'
+import {
+  comments,
+  createDb,
+  Post,
+  posts,
+  postTags,
+  tags,
+  User,
+  users
+} from './Fixtures.ts'
 
 suite(import.meta, test => {
   test('relations are selected explicitly and remain fully shaped', async () => {
@@ -97,6 +106,40 @@ suite(import.meta, test => {
     })
     test.equal(result, {
       posts: [{title: 'With comment', body: 'Visible'}]
+    })
+  })
+
+  test('many relations resolve through a join table', async () => {
+    const db = await createDb()
+    const ada = await db.insert(users).values({name: 'Ada'}).returning().get()
+    const hello = await db
+      .insert(posts)
+      .values({authorId: ada!.id, title: 'Hello'})
+      .returning()
+      .get()
+    const world = await db
+      .insert(posts)
+      .values({authorId: ada!.id, title: 'World'})
+      .returning()
+      .get()
+    const orm = await db.insert(tags).values({name: 'ORM'}).returning().get()
+    const sql = await db.insert(tags).values({name: 'SQL'}).returning().get()
+    await db.insert(postTags).values([
+      {postId: hello!.id, tagId: orm!.id},
+      {postId: hello!.id, tagId: sql!.id},
+      {postId: world!.id, tagId: sql!.id}
+    ])
+
+    const result = await db.first(Post, {
+      where: eq(Post.id, hello!.id),
+      select: {
+        title: Post.title,
+        tags: Post.tags({select: {name: tags.name}, orderBy: [tags.name]})
+      }
+    })
+    test.equal(result, {
+      title: 'Hello',
+      tags: [{name: 'ORM'}, {name: 'SQL'}]
     })
   })
 

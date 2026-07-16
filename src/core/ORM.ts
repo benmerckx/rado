@@ -220,6 +220,11 @@ interface SaveRelation {
   target: HasTable & object
   from: string
   to: string
+  through?: {
+    target: HasTable & object
+    from: string
+    to: string
+  }
 }
 
 interface SavePlan {
@@ -251,13 +256,19 @@ function savePlan(model: HasTable & object): SavePlan {
     const data = (
       value as RelationDescriptor<'one' | 'many', HasTable & object>
     )[relationData]
+    const through = data.options.through
     return [
       {
         key,
         kind: data.kind,
         target: data.target,
         from: modelFieldKey(model, data.options.from),
-        to: modelFieldKey(data.target, data.options.to)
+        to: modelFieldKey(data.target, data.options.to),
+        through: through && {
+          target: through.table,
+          from: modelFieldKey(through.table, through.from),
+          to: modelFieldKey(through.table, through.to)
+        }
       }
     ]
   })
@@ -376,7 +387,7 @@ function* saveRecord<Meta extends QueryMeta>(
   const saved = yield* savePhysical(tx, plan, value)
 
   for (const relation of plan.relations) {
-    const {key, from, target, to} = relation
+    const {key, from, target, through, to} = relation
     if (relation.kind !== 'many' || input[key] === undefined) continue
     if (!Array.isArray(input[key]))
       throw new Error(`Relation ${key} must be an array`)
@@ -384,12 +395,22 @@ function* saveRecord<Meta extends QueryMeta>(
     for (const child of input[key]) {
       if (!child || typeof child !== 'object')
         throw new Error(`Relation ${key} must contain objects`)
-      related.push(
-        yield* saveRecord(tx, target, {
-          ...(child as Record<string, unknown>),
-          [to]: saved[from]
-        })
+      const savedChild = yield* saveRecord(
+        tx,
+        target,
+        through
+          ? (child as Record<string, unknown>)
+          : {
+              ...(child as Record<string, unknown>),
+              [to]: saved[from]
+            }
       )
+      if (through)
+        yield* saveRecord(tx, through.target, {
+          [through.from]: saved[from],
+          [through.to]: savedChild[to]
+        })
+      related.push(savedChild)
     }
     included[key] = related
   }
@@ -403,6 +424,18 @@ export interface RelationOptions<FromName extends string = string> {
   alias?: string
 }
 
+export interface RelationThrough {
+  table: HasTable & object
+  from: HasSql & HasField
+  to: HasSql & HasField
+}
+
+export interface ManyRelationOptions<
+  FromName extends string = string
+> extends RelationOptions<FromName> {
+  through?: RelationThrough
+}
+
 const relationData: unique symbol = Symbol()
 
 interface RelationData<
@@ -411,7 +444,7 @@ interface RelationData<
 > {
   kind: Kind
   target: Target
-  options: RelationOptions
+  options: ManyRelationOptions
 }
 
 interface RelationDescriptor<
@@ -502,7 +535,7 @@ function relation<
 >(
   kind: Kind,
   target: Target,
-  options: RelationOptions<FromName>
+  options: ManyRelationOptions<FromName>
 ): Kind extends 'one'
   ? OneRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target>
   : ManyRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
@@ -529,14 +562,29 @@ function relation<
       : relationAlias()
     const relationTarget = alias(relationTable, name)
     const select = selection.select ?? columns(target)
+    const through = options.through
+    let from: FromGuard
+    let relationWhere: HasSql<boolean>
+    if (through) {
+      const throughTable = through.table as Table<TableDefinition>
+      const throughTarget = alias(throughTable, `${name}_through`)
+      const throughFrom =
+        throughTarget[modelFieldKey(throughTable, through.from)]
+      const throughTo = throughTarget[modelFieldKey(throughTable, through.to)]
+      from = queryFrom(relationTarget, [
+        {innerJoin: throughTarget, on: eq(options.to, throughTo)},
+        ...(joins ?? [])
+      ])
+      relationWhere = eq(throughFrom, relationSource(options.from, targetName))
+    } else {
+      from = queryFrom(relationTarget, joins)
+      relationWhere = eq(options.to, relationSource(options.from, targetName))
+    }
     const data = {
       ...selection,
-      from: queryFrom(relationTarget, joins),
+      from,
       select,
-      where: and(
-        eq(options.to, relationSource(options.from, targetName)),
-        selection.where
-      )
+      where: and(relationWhere, selection.where)
     }
     const scoped = new Select(data)
     const targetScope = {sourceName: targetName, name}
@@ -559,7 +607,7 @@ export function one<Target extends HasTable & object, FromName extends string>(
 
 export function many<Target extends HasTable & object, FromName extends string>(
   target: Target,
-  options: RelationOptions<FromName>
+  options: ManyRelationOptions<FromName>
 ): ManyRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
   return relation('many', target, options)
 }

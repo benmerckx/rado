@@ -88,6 +88,24 @@ suite(import.meta, test => {
         >
       >()
 
+      const savedTaggedPost = db.save(Post, {
+        title: 'Hello',
+        authorId: 1,
+        tags: [{name: 'ORM'}]
+      })
+      Expect<
+        Equal<
+          Awaited<typeof savedTaggedPost>,
+          {
+            id: number
+            authorId: number
+            title: string
+            published: boolean
+            tags: Array<{id: number; name: string}>
+          }
+        >
+      >()
+
       const first = db.first(User)
       Expect<
         Equal<
