@@ -145,30 +145,51 @@ export function testORMSave(db: Database, test: DefineTest) {
     test.equal(await db.count(users), 2)
   })
 
-  test('array saves are atomic', async () => {
-    let error: unknown
-    try {
-      await db.save(User, [{name: 'Ada'}, {}])
-    } catch (caught) {
-      error = caught
-    }
+  if (db.driver.supportsTransactions) {
+    test('array saves are atomic', async () => {
+      let error: unknown
+      try {
+        await db.save(User, [{name: 'Ada'}, {}])
+      } catch (caught) {
+        error = caught
+      }
 
-    test.ok(error instanceof Error)
-    test.equal(await db.count(User), 0)
-  })
+      test.ok(error instanceof Error)
+      test.equal(await db.count(User), 0)
+    })
 
-  test('graph saves roll back parent rows when a child fails', async () => {
-    let error: unknown
-    try {
-      await db.save(User, {name: 'Ada', posts: [{}]})
-    } catch (caught) {
-      error = caught
-    }
+    test('graph saves roll back parent rows when a child fails', async () => {
+      let error: unknown
+      try {
+        await db.save(User, {name: 'Ada', posts: [{}]})
+      } catch (caught) {
+        error = caught
+      }
 
-    test.ok(error instanceof Error)
-    test.equal(await db.count(User), 0)
-    test.equal(await db.count(posts), 0)
-  })
+      test.ok(error instanceof Error)
+      test.equal(await db.count(User), 0)
+      test.equal(await db.count(posts), 0)
+    })
+  } else {
+    test('save retains earlier writes without transactions', async () => {
+      let error: unknown
+      try {
+        await db.save(User, [{name: 'Ada'}, {}])
+      } catch (caught) {
+        error = caught
+      }
+
+      test.ok(error instanceof Error)
+      const rows = await db.find(User)
+      test.equal(rows.length, 1)
+      test.equal(rows[0], {
+        id: rows[0]!.id,
+        name: 'Ada',
+        email: null,
+        loginCount: 0
+      })
+    })
+  }
 
   if (db.dialect.runtime === 'postgres')
     test('save overrides generated postgres identities for unknown keys', async () => {

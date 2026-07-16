@@ -11,6 +11,6 @@ export function testORM(db: Database, test: DefineTest) {
   testORMQueries(db, orm.test)
   testORMAliases(db, orm.test)
   testORMRelations(db, orm.test)
-  if (db.driver.supportsTransactions) testORMSave(db, orm.test)
+  testORMSave(db, orm.test)
   return orm.cleanup
 }

@@ -1,6 +1,7 @@
 import {txGenerator} from '../universal/transactions.ts'
 import {Builder} from './Builder.ts'
 import type {Transaction} from './Database.ts'
+import type {Driver} from './Driver.ts'
 import {count as countExpr} from './expr/Aggregate.ts'
 import {and, eq} from './expr/Conditions.ts'
 import {Field} from './expr/Field.ts'
@@ -119,6 +120,8 @@ export function columns(model: HasTarget & object): Record<string, HasSql> {
 }
 
 export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
+  abstract driver: Driver
+
   abstract transaction<Result>(
     run: (tx: Transaction<Meta>) => Deliver<Meta, Result>
   ): Deliver<Meta, Result>
@@ -191,16 +194,23 @@ export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
   ): Deliver<Meta, ModelRow<Model> | Array<ModelRow<Model>>> {
     const many = Array.isArray(input)
     const values = many ? input : [input]
+    const run = txGenerator<
+      Record<string, unknown> | Array<Record<string, unknown>>,
+      Meta
+    >(function* (tx) {
+      const result = []
+      for (const value of values)
+        result.push(
+          yield* saveRecord(tx, model, value as Record<string, unknown>)
+        )
+      return many ? result : result[0]!
+    })
 
-    return this.transaction(
-      txGenerator(function* (tx) {
-        const result = []
-        for (const value of values)
-          result.push(
-            yield* saveRecord(tx, model, value as Record<string, unknown>)
-          )
-        return many ? result : result[0]
-      })
+    // The save runner only uses the database API shared with Transaction.
+    return (
+      this.driver.supportsTransactions
+        ? this.transaction(run)
+        : run(this as unknown as Transaction<Meta>)
     ) as Deliver<Meta, ModelRow<Model> | Array<ModelRow<Model>>>
   }
 }

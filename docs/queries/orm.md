@@ -122,10 +122,13 @@ const updated = await db.save(UserModel, {
 })
 ```
 
-Array saves run in a transaction and preserve input order. `save` only handles
-the relation values that are supplied. A `one` relation is saved before its
-parent so its key can be copied to the parent's foreign key. A `many` relation
-is saved after its parent so the parent key can be copied to every child:
+Array saves preserve input order and run in a transaction when the driver
+supports interactive transactions. On batch-only drivers such as Cloudflare
+D1, `save` executes the same dependency-ordered operations sequentially. A
+failure can therefore leave earlier writes committed. `save` only handles the
+relation values that are supplied. A `one` relation is saved before its parent
+so its key can be copied to the parent's foreign key. A `many` relation is
+saved after its parent so the parent key can be copied to every child:
 
 ```ts
 const post = await db.save(PostModel, {
