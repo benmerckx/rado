@@ -113,7 +113,7 @@ export function columns(model: HasTarget & object): Record<string, HasSql> {
   return Object.fromEntries(
     Object.keys(definition).map(name => [
       name,
-      (model as unknown as Record<string, HasSql>)[name]
+      (model as Record<string, HasSql>)[name]
     ])
   )
 }
@@ -246,10 +246,7 @@ function savePlan(model: HasTable & object): SavePlan {
     return primaryNames.has(fieldName) ? [{key, field: target[key]}] : []
   })
   const relations = Object.entries(model).flatMap(([key, value]) => {
-    if (
-      typeof value !== 'function' ||
-      !(relationData in (value as unknown as object))
-    )
+    if (typeof value !== 'function' || !(relationData in (value as object)))
       return []
     const data = (
       value as RelationDescriptor<'one' | 'many', HasTable & object>
@@ -548,11 +545,9 @@ function relation<
       : include(scoped, targetScope)
   }
 
-  return Object.assign(build, {
+  return Object.assign(<any>build, {
     [relationData]: {kind, target, options}
-  }) as unknown as Kind extends 'one'
-    ? OneRelation<Definition, TargetName, FromName, Target>
-    : ManyRelation<Definition, TargetName, FromName, Target>
+  })
 }
 
 export function one<Target extends HasTable & object, FromName extends string>(
