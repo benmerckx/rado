@@ -51,11 +51,11 @@ For composite relations, pass equally sized field arrays. Each pair is joined
 with `and` in the generated correlation:
 
 ```ts
-const LineModel = {
-  ...Line,
+const OrderItemModel = {
+  ...OrderItem,
   order: one(Order, {
-    from: [Line.storeId, Line.orderNumber],
-    to: [Order.storeId, Order.number],
+    from: [OrderItem.storeId, OrderItem.orderNumber],
+    to: [Order.storeId, Order.orderNumber],
     required: true
   })
 }

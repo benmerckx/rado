@@ -52,31 +52,31 @@ export const nodes = table('orm_node', {
   name: text().notNull()
 })
 
-export const compositeParents = table(
-  'orm_composite_parent',
+export const orders = table(
+  'orm_order',
   {
-    tenant: varchar('tenant', {length: 100}).notNull(),
-    code: varchar('code', {length: 100}).notNull(),
-    label: text().notNull()
+    storeId: varchar('storeId', {length: 100}).notNull(),
+    orderNumber: varchar('orderNumber', {length: 100}).notNull(),
+    customer: text().notNull()
   },
-  self => [primaryKey(self.tenant, self.code)]
+  self => [primaryKey(self.storeId, self.orderNumber)]
 )
 
-export const compositeChildren = table('orm_composite_child', {
+export const orderItems = table('orm_order_item', {
   id: id(),
-  tenant: varchar('tenant', {length: 100}).notNull(),
-  parentCode: varchar('parentCode', {length: 100}).notNull(),
-  title: text().notNull()
+  storeId: varchar('storeId', {length: 100}).notNull(),
+  orderNumber: varchar('orderNumber', {length: 100}).notNull(),
+  product: text().notNull()
 })
 
-export const compositeParentTags = table(
-  'orm_composite_parent_tag',
+export const orderTags = table(
+  'orm_order_tag',
   {
-    tenant: varchar('tenant', {length: 100}).notNull(),
-    parentCode: varchar('parentCode', {length: 100}).notNull(),
+    storeId: varchar('storeId', {length: 100}).notNull(),
+    orderNumber: varchar('orderNumber', {length: 100}).notNull(),
     tagId: integer().notNull()
   },
-  self => [primaryKey(self.tenant, self.parentCode, self.tagId)]
+  self => [primaryKey(self.storeId, self.orderNumber, self.tagId)]
 )
 
 export const Node = {
@@ -114,28 +114,28 @@ export const UserGraph = {
   posts: many(Post, {from: users.id, to: posts.authorId})
 }
 
-export const CompositeChild = {
-  ...compositeChildren,
-  parent: one(compositeParents, {
-    from: [compositeChildren.tenant, compositeChildren.parentCode],
-    to: [compositeParents.tenant, compositeParents.code],
+export const OrderItem = {
+  ...orderItems,
+  order: one(orders, {
+    from: [orderItems.storeId, orderItems.orderNumber],
+    to: [orders.storeId, orders.orderNumber],
     required: true
   })
 }
 
-export const CompositeParent = {
-  ...compositeParents,
-  children: many(compositeChildren, {
-    from: [compositeParents.tenant, compositeParents.code],
-    to: [compositeChildren.tenant, compositeChildren.parentCode]
+export const Order = {
+  ...orders,
+  items: many(orderItems, {
+    from: [orders.storeId, orders.orderNumber],
+    to: [orderItems.storeId, orderItems.orderNumber]
   }),
   tags: many(tags, {
-    from: [compositeParents.tenant, compositeParents.code],
+    from: [orders.storeId, orders.orderNumber],
     to: tags.id,
     through: {
-      table: compositeParentTags,
-      from: [compositeParentTags.tenant, compositeParentTags.parentCode],
-      to: compositeParentTags.tagId
+      table: orderTags,
+      from: [orderTags.storeId, orderTags.orderNumber],
+      to: orderTags.tagId
     }
   })
 }
@@ -143,9 +143,9 @@ export const CompositeParent = {
 const initialized = new WeakSet<Database>()
 
 async function clearORM(db: Database) {
-  await db.delete(compositeParentTags)
-  await db.delete(compositeChildren)
-  await db.delete(compositeParents)
+  await db.delete(orderTags)
+  await db.delete(orderItems)
+  await db.delete(orders)
   await db.delete(postTags)
   await db.delete(comments)
   await db.delete(tags)
@@ -157,9 +157,9 @@ async function clearORM(db: Database) {
 async function cleanupORM(db: Database) {
   if (!initialized.delete(db)) return
   await db.drop(
-    compositeParentTags,
-    compositeChildren,
-    compositeParents,
+    orderTags,
+    orderItems,
+    orders,
     postTags,
     comments,
     tags,
@@ -181,9 +181,9 @@ export function ormTests(db: Database, test: DefineTest) {
             tags,
             postTags,
             nodes,
-            compositeParents,
-            compositeChildren,
-            compositeParentTags
+            orders,
+            orderItems,
+            orderTags
           )
           initialized.add(db)
         }

@@ -3,11 +3,11 @@ import type {Database} from '#/core/Database.ts'
 import {and, eq} from '#/index.ts'
 import {
   comments,
-  CompositeChild,
-  compositeParentTags,
-  CompositeParent,
   Node,
   nodes,
+  Order,
+  OrderItem,
+  orderTags,
   Post,
   posts,
   tags,
@@ -156,48 +156,56 @@ export function testORMRelations(db: Database, test: DefineTest) {
     )
   })
 
-  test('composite direct and through relations load all key pairs', async () => {
-    const parent = await db.save(CompositeParent, {
-      tenant: 'acme',
-      code: 'root',
-      label: 'Root',
-      children: [{title: 'Child'}],
-      tags: [{name: 'Composite'}]
+  test('orders use their store and order number across relations', async () => {
+    const order = await db.save(Order, {
+      storeId: 'antwerp',
+      orderNumber: '2026-001',
+      customer: 'Ada',
+      items: [{product: 'Keyboard'}],
+      tags: [{name: 'Priority'}]
     })
 
-    test.equal(parent.children[0], {
-      id: parent.children[0].id,
-      tenant: 'acme',
-      parentCode: 'root',
-      title: 'Child'
+    test.equal(order.items[0], {
+      id: order.items[0].id,
+      storeId: 'antwerp',
+      orderNumber: '2026-001',
+      product: 'Keyboard'
     })
-    test.equal(await db.find(compositeParentTags), [
-      {tenant: 'acme', parentCode: 'root', tagId: parent.tags[0].id}
+    test.equal(await db.find(orderTags), [
+      {
+        storeId: 'antwerp',
+        orderNumber: '2026-001',
+        tagId: order.tags[0].id
+      }
     ])
 
-    const result = await db.first(CompositeParent, {
+    const result = await db.first(Order, {
       where: and(
-        eq(CompositeParent.tenant, 'acme'),
-        eq(CompositeParent.code, 'root')
+        eq(Order.storeId, 'antwerp'),
+        eq(Order.orderNumber, '2026-001')
       ),
       select: {
-        children: CompositeParent.children({
-          select: {title: CompositeChild.title}
+        items: Order.items({
+          select: {product: OrderItem.product}
         }),
-        tags: CompositeParent.tags({select: {name: tags.name}})
+        tags: Order.tags({select: {name: tags.name}})
       }
     })
     test.equal(result, {
-      children: [{title: 'Child'}],
-      tags: [{name: 'Composite'}]
+      items: [{product: 'Keyboard'}],
+      tags: [{name: 'Priority'}]
     })
 
-    const child = await db.first(CompositeChild, {
-      where: eq(CompositeChild.id, parent.children[0].id),
-      select: {parent: CompositeChild.parent()}
+    const item = await db.first(OrderItem, {
+      where: eq(OrderItem.id, order.items[0].id),
+      select: {order: OrderItem.order()}
     })
-    test.equal(child, {
-      parent: {tenant: 'acme', code: 'root', label: 'Root'}
+    test.equal(item, {
+      order: {
+        storeId: 'antwerp',
+        orderNumber: '2026-001',
+        customer: 'Ada'
+      }
     })
   })
 
