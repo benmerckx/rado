@@ -11,7 +11,11 @@ import {
 } from '../query/Select.ts'
 import type {MapRowContext, SelectionRow} from '../Selection.ts'
 import {type Sql, type TargetScope, sql} from '../Sql.ts'
-import {jsonAggregateArray, jsonArray} from './Json.ts'
+import {
+  jsonAggregateArray,
+  jsonArray,
+  preserveJsonAggregateOrder
+} from './Json.ts'
 
 export type IncludeQuery = SelectQuery & {
   first: boolean
@@ -91,16 +95,13 @@ export function includeQuery(
   const {first, limit, offset, orderBy} = query
   const wrapQuery = Boolean(limit || offset || orderBy)
   const innerQuery = selectQuery(query, targetScope)
-  const orderedQuery =
-    orderBy && limit === undefined
-      ? sql.universal({
-          mysql: sql`${innerQuery} limit ${sql.unsafe('18446744073709551615')}`,
-          default: innerQuery
-        })
+  const aggregateInput =
+    orderBy?.length && limit === undefined
+      ? preserveJsonAggregateOrder(innerQuery)
       : innerQuery
   const inner = wrapQuery
-    ? sql`select * from (${orderedQuery}) as __`
-    : orderedQuery
+    ? sql`select * from (${aggregateInput}) as __`
+    : aggregateInput
   const fields = querySelection(query, targetScope).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)

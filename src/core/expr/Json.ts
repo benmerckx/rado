@@ -63,6 +63,20 @@ export function jsonAggregateArray(...args: Array<Input<unknown>>) {
   )
 }
 
+/**
+ * Preserve the input order of a JSON aggregate on MySQL.
+ *
+ * MySQL ignores ORDER BY in a derived table when the outer query aggregates
+ * it. LIMIT prevents the derived table from being merged, and the maximum
+ * unsigned limit retains every row without computing an extra window column.
+ */
+export function preserveJsonAggregateOrder(rows: Sql): Sql {
+  return sql.universal({
+    mysql: sql`${rows} limit 18446744073709551615`,
+    default: rows
+  })
+}
+
 export function jsonArray(...args: Array<Input<unknown>>) {
   return callFunction(
     sql.universal({
