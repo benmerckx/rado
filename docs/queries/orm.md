@@ -107,6 +107,32 @@ const total = await db.count(UserModel, {where: eq(User.active, true)})
 
 `first` returns `null` when no row matches. `count` returns a scalar number.
 
+## Filter by relations
+
+Relation descriptors expose correlated predicates that can be used anywhere a
+normal SQL condition is accepted. `many` relations provide `some`, `none`, and
+`every`; `one` relations provide `is` and `isNot`:
+
+```ts
+const authors = await db.find(UserModel, {
+  where: UserModel.posts.some({
+    where: eq(Post.published, true)
+  })
+})
+
+const postsWithoutArchivedTags = await db.find(PostModel, {
+  where: PostModel.tags.none({
+    where: eq(Tag.name, 'archived')
+  })
+})
+```
+
+Calling `some()` or `is()` without a query checks whether the relation exists.
+`none()` and `isNot()` negate that check. `every()` follows the usual vacuous
+truth rule: it also matches rows with no related records. Predicate queries
+accept `where` and `joins`, and many-to-many predicates automatically use the
+configured through table.
+
 ## Save one or many rows
 
 `save` accepts either one physical row or an array and returns the same
@@ -183,6 +209,6 @@ Aliases are scoped, so nested relations and nested self-relations resolve
 against their immediate parent. Pass `{alias: 'parent'}` in the relation
 definition only when readable generated SQL or stable SQL snapshots matter.
 
-For relation predicates such as `some`, synchronization that deletes omitted
-relations, join tables with additional required data, or other advanced cases,
-use the underlying `select`, `join`, and `include` APIs directly.
+For synchronization that deletes omitted relations, join tables with additional
+required data, or other advanced cases, use the underlying `select`, `join`,
+and `include` APIs directly.

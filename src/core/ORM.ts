@@ -1,9 +1,10 @@
 import {txGenerator} from '../universal/transactions.ts'
+import {Callable} from '../util/Callable.ts'
 import {Builder} from './Builder.ts'
 import type {Transaction} from './Database.ts'
 import type {Driver} from './Driver.ts'
 import {count as countExpr} from './expr/Aggregate.ts'
-import {and, eq} from './expr/Conditions.ts'
+import {and, eq, exists, not} from './expr/Conditions.ts'
 import {Field} from './expr/Field.ts'
 import {include, type Include} from './expr/Include.ts'
 import {
@@ -20,7 +21,7 @@ import {Insert} from './query/Insert.ts'
 import type {FromGuard, Join, SelectionQuery} from './query/Query.ts'
 import {Select, SelectFirst} from './query/Select.ts'
 import type {SelectionInput, SelectionRow} from './Selection.ts'
-import {Sql} from './Sql.ts'
+import {Sql, sql} from './Sql.ts'
 import {
   alias,
   primaryKeyColumns,
@@ -478,39 +479,62 @@ type SelfRelationQueryFactory<
   ? RelationQueryFactory<Definition, Input>
   : never
 
-export interface ManyRelation<
+export interface RelationPredicateQuery {
+  where?: HasSql<boolean>
+  joins?: Array<Join>
+}
+
+type RelationPredicateFactory<Definition extends TableDefinition> = (
+  parent: TableFields<Definition>
+) => RelationPredicateQuery
+
+type SelfRelationPredicateFactory<
   Definition extends TableDefinition,
   TargetName extends string,
-  FromName extends string,
-  Target extends HasTable & object = Table<Definition, TargetName>
+  FromName extends string
+> = [FromName] extends [TargetName]
+  ? RelationPredicateFactory<Definition>
+  : never
+
+export interface ManyRelation<
+  Target extends HasTable & object,
+  FromName extends string
 > extends RelationDescriptor<'many', Target> {
   (): Include<Array<ModelRow<Target>>>
   (
-    query: ORMQuery<TableFields<Definition, TargetName>>
+    query: ORMQuery<TableFields<ModelDefinition<Target>, ModelName<Target>>>
   ): Include<Array<ModelRow<Target>>>
   <Input extends SelectionInput>(
     query: ORMQuery<Input> & {select: Input}
   ): Include<Array<SelectionRow<Input>>>
   <Input extends SelectionInput>(
-    query: SelfRelationQueryFactory<Definition, TargetName, FromName, Input>
+    query: SelfRelationQueryFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName,
+      Input
+    >
   ): Include<Array<SelectionRow<Input>>>
 }
 
 export interface OneRelation<
-  Definition extends TableDefinition,
-  TargetName extends string,
-  FromName extends string,
-  Target extends HasTable & object = Table<Definition, TargetName>
+  Target extends HasTable & object,
+  FromName extends string
 > extends RelationDescriptor<'one', Target> {
   (): Include<ModelRow<Target> | null>
   (
-    query: ORMQuery<TableFields<Definition, TargetName>>
+    query: ORMQuery<TableFields<ModelDefinition<Target>, ModelName<Target>>>
   ): Include<ModelRow<Target> | null>
   <Input extends SelectionInput>(
     query: ORMQuery<Input> & {select: Input}
   ): Include<SelectionRow<Input> | null>
   <Input extends SelectionInput>(
-    query: SelfRelationQueryFactory<Definition, TargetName, FromName, Input>
+    query: SelfRelationQueryFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName,
+      Input
+    >
   ): Include<SelectionRow<Input> | null>
 }
 
@@ -538,41 +562,65 @@ function relationSource(from: HasSql & HasField, targetName: string): HasSql {
   return new Field(Sql.SELF_TARGET, field.fieldName, field.source)
 }
 
-function relation<
+type RelationInput<Definition extends TableDefinition> =
+  | ORMQuery
+  | RelationQueryFactory<Definition, any>
+  | RelationPredicateQuery
+  | RelationPredicateFactory<Definition>
+
+abstract class Relation<
   Kind extends 'one' | 'many',
   Target extends HasTable & object,
   FromName extends string
->(
-  kind: Kind,
-  target: Target,
-  options: ManyRelationOptions<FromName>
-): Kind extends 'one'
-  ? OneRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target>
-  : ManyRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
-  type Definition = ModelDefinition<Target>
-  type TargetName = ModelName<Target>
-  const relationTable = target as unknown as Table<Definition, TargetName>
-  const targetName = getTable(target).aliased
-  const sourceName = getField(options.from).targetName
-  const parent = parentFields(relationTable)
-  let invocationId = 0
+>
+  extends Callable
+  implements RelationDescriptor<Kind, Target>
+{
+  readonly [relationData]: RelationData<Kind, Target>
+  readonly #relationTable: Table<ModelDefinition<Target>, ModelName<Target>>
+  readonly #targetName: string
+  readonly #sourceName: string
+  readonly #parent: TableFields<ModelDefinition<Target>>
+  #invocationId = 0
 
-  const build = (input?: ORMQuery | RelationQueryFactory<Definition, any>) => {
-    if (typeof input === 'function' && sourceName !== targetName)
+  constructor(
+    readonly kind: Kind,
+    readonly target: Target,
+    readonly options: ManyRelationOptions<FromName>
+  ) {
+    let callable!: Relation<Kind, Target, FromName>
+    super((input?: RelationInput<ModelDefinition<Target>>) =>
+      callable.load(input)
+    )
+    callable = this
+    this[relationData] = {kind, target, options}
+    this.#relationTable = target as unknown as Table<
+      ModelDefinition<Target>,
+      ModelName<Target>
+    >
+    this.#targetName = getTable(target).aliased
+    this.#sourceName = getField(options.from).targetName
+    this.#parent = parentFields(this.#relationTable)
+  }
+
+  #resolve(input?: RelationInput<ModelDefinition<Target>>): ORMQuery {
+    if (typeof input === 'function' && this.#sourceName !== this.#targetName)
       throw new Error(
         'Relation callbacks are only available for self-relations'
       )
-    const query = typeof input === 'function' ? input(parent) : (input ?? {})
+    return typeof input === 'function' ? input(this.#parent) : (input ?? {})
+  }
+
+  #correlated(query: ORMQuery, select: SelectionInput) {
     const {joins, ...selection} = query
-    invocationId += 1
-    const name = options.alias
-      ? invocationId === 1
-        ? options.alias
-        : `${options.alias}_${invocationId}`
+    this.#invocationId += 1
+    const name = this.options.alias
+      ? this.#invocationId === 1
+        ? this.options.alias
+        : `${this.options.alias}_${this.#invocationId}`
       : relationAlias()
-    const relationTarget = alias(relationTable, name)
-    const select = selection.select ?? columns(target)
-    const through = options.through
+    const relationTarget = alias(this.#relationTable, name)
+    const through = this.options.through
     let from: FromGuard
     let relationWhere: HasSql<boolean>
     if (through) {
@@ -582,13 +630,19 @@ function relation<
         throughTarget[modelFieldKey(throughTable, through.from)]
       const throughTo = throughTarget[modelFieldKey(throughTable, through.to)]
       from = queryFrom(relationTarget, [
-        {innerJoin: throughTarget, on: eq(options.to, throughTo)},
+        {innerJoin: throughTarget, on: eq(this.options.to, throughTo)},
         ...(joins ?? [])
       ])
-      relationWhere = eq(throughFrom, relationSource(options.from, targetName))
+      relationWhere = eq(
+        throughFrom,
+        relationSource(this.options.from, this.#targetName)
+      )
     } else {
       from = queryFrom(relationTarget, joins)
-      relationWhere = eq(options.to, relationSource(options.from, targetName))
+      relationWhere = eq(
+        this.options.to,
+        relationSource(this.options.from, this.#targetName)
+      )
     }
     const data = {
       ...selection,
@@ -596,28 +650,151 @@ function relation<
       select,
       where: and(relationWhere, selection.where)
     }
+    const targetScope = {sourceName: this.#targetName, name}
+    return {data, targetScope}
+  }
+
+  private load(input?: RelationInput<ModelDefinition<Target>>) {
+    const query = this.#resolve(input)
+    const {data, targetScope} = this.#correlated(
+      query,
+      query.select ?? columns(this.target)
+    )
     const scoped = new Select(data)
-    const targetScope = {sourceName: targetName, name}
-    return kind === 'one'
+    return this.kind === 'one'
       ? include.one(scoped, targetScope)
       : include(scoped, targetScope)
   }
 
-  return Object.assign(<any>build, {
-    [relationData]: {kind, target, options}
-  })
+  protected predicate(
+    input:
+      | RelationPredicateQuery
+      | RelationPredicateFactory<ModelDefinition<Target>>
+      | undefined,
+    options: {negateExists?: boolean; negateWhere?: boolean} = {}
+  ): Sql<boolean> {
+    const query = this.#resolve(input)
+    const where = options.negateWhere ? not(query.where ?? and()) : query.where
+    const {data, targetScope} = this.#correlated({...query, where}, sql`1`)
+    const condition = exists(new Select(data)).scopeTarget(
+      targetScope.sourceName,
+      targetScope.name
+    )
+    return options.negateExists ? not(condition) : condition
+  }
+}
+
+export class OneRelation<
+  Target extends HasTable & object,
+  FromName extends string
+> extends Relation<'one', Target, FromName> {
+  constructor(target: Target, options: RelationOptions<FromName>) {
+    super('one', target, options)
+  }
+
+  is(query?: RelationPredicateQuery): Sql<boolean>
+  is(
+    query: SelfRelationPredicateFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName
+    >
+  ): Sql<boolean>
+  is(
+    query?:
+      | RelationPredicateQuery
+      | RelationPredicateFactory<ModelDefinition<Target>>
+  ): Sql<boolean> {
+    return this.predicate(query)
+  }
+
+  isNot(query?: RelationPredicateQuery): Sql<boolean>
+  isNot(
+    query: SelfRelationPredicateFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName
+    >
+  ): Sql<boolean>
+  isNot(
+    query?:
+      | RelationPredicateQuery
+      | RelationPredicateFactory<ModelDefinition<Target>>
+  ): Sql<boolean> {
+    return this.predicate(query, {negateExists: true})
+  }
+}
+
+export class ManyRelation<
+  Target extends HasTable & object,
+  FromName extends string
+> extends Relation<'many', Target, FromName> {
+  constructor(target: Target, options: ManyRelationOptions<FromName>) {
+    super('many', target, options)
+  }
+
+  some(query?: RelationPredicateQuery): Sql<boolean>
+  some(
+    query: SelfRelationPredicateFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName
+    >
+  ): Sql<boolean>
+  some(
+    query?:
+      | RelationPredicateQuery
+      | RelationPredicateFactory<ModelDefinition<Target>>
+  ): Sql<boolean> {
+    return this.predicate(query)
+  }
+
+  none(query?: RelationPredicateQuery): Sql<boolean>
+  none(
+    query: SelfRelationPredicateFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName
+    >
+  ): Sql<boolean>
+  none(
+    query?:
+      | RelationPredicateQuery
+      | RelationPredicateFactory<ModelDefinition<Target>>
+  ): Sql<boolean> {
+    return this.predicate(query, {negateExists: true})
+  }
+
+  every(query?: RelationPredicateQuery): Sql<boolean>
+  every(
+    query: SelfRelationPredicateFactory<
+      ModelDefinition<Target>,
+      ModelName<Target>,
+      FromName
+    >
+  ): Sql<boolean>
+  every(
+    query?:
+      | RelationPredicateQuery
+      | RelationPredicateFactory<ModelDefinition<Target>>
+  ): Sql<boolean> {
+    return this.predicate(query, {
+      negateExists: true,
+      negateWhere: true
+    })
+  }
 }
 
 export function one<Target extends HasTable & object, FromName extends string>(
   target: Target,
   options: RelationOptions<FromName>
-): OneRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
-  return relation('one', target, options)
+): OneRelation<Target, FromName> {
+  return new OneRelation(target, options)
 }
 
 export function many<Target extends HasTable & object, FromName extends string>(
   target: Target,
   options: ManyRelationOptions<FromName>
-): ManyRelation<ModelDefinition<Target>, ModelName<Target>, FromName, Target> {
-  return relation('many', target, options)
+): ManyRelation<Target, FromName> {
+  return new ManyRelation(target, options)
 }

@@ -2,7 +2,7 @@ import {suite} from '@alinea/suite'
 import type {Database} from '#/core/Database.ts'
 import type {Sync} from '#/core/MetaData.ts'
 import {table} from '#/core/Table.ts'
-import {one} from '#/index.ts'
+import {eq, one, type Sql} from '#/index.ts'
 import {id, integer, text} from '#/universal.ts'
 import {Post, posts, User, UserGraph} from './Fixtures.ts'
 
@@ -149,6 +149,12 @@ suite(import.meta, test => {
         >
       >()
 
+      const predicate = User.posts.some({
+        where: eq(posts.published, true)
+      })
+      Expect<Equal<typeof predicate, Sql<boolean>>>()
+      db.find(User, {where: predicate})
+
       const saved = db.save(User, {name: 'Ada'})
       Expect<
         Equal<
@@ -230,6 +236,12 @@ suite(import.meta, test => {
           }>
         >
       >()
+
+      db.find(Node, {
+        where: Node.parent.is(outer => ({
+          where: eq(nodes.name, outer.name)
+        }))
+      })
     })
   })
 })
