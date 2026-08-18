@@ -1,13 +1,13 @@
-# Thin ORM helpers
+# ORM helpers
 
-Rado's ORM helpers are a small convenience layer over the regular select and
-include APIs. They add reusable relationship definitions without introducing
-a separate query builder, result hydration pass, or automatic relation loading.
+Rado's ORM layer adds reusable relation definitions and an explicit write
+planner to the regular query API. Relations are loaded only when selected, and
+write operations never infer insert or update from the shape of a value.
 
 ## Define a model
 
-Spread a table and add `one` or `many` relations. A relation is defined by the
-fields that should be equal:
+Spread a table and add `one` or `many` relations. The `from` and `to`
+fields define the values copied or compared between both sides:
 
 ```ts
 import {many, one} from 'rado'
@@ -27,28 +27,8 @@ const PostModel = {
 }
 ```
 
-`db.find(UserModel)` and `db.first(UserModel)` select physical columns only.
-Function-valued properties are ignored while a selection is compiled and are
-omitted from its result type. This means the entire model can also be spread
-into an explicit selection; invoking a relation replaces that property with
-the relation result:
-
-```ts
-const users = await db.find(UserModel, {
-  select: {
-    ...UserModel,
-    posts: UserModel.posts({
-      select: {title: Post.title},
-      where: eq(Post.published, true),
-      orderBy: [Post.title],
-      limit: 5
-    })
-  }
-})
-```
-
-For composite relations, pass equally sized field arrays. Each pair is joined
-with `and` in the generated correlation:
+For composite relations, pass equally sized arrays. Fields at the same index
+form one key pair:
 
 ```ts
 const OrderItemModel = {
@@ -61,7 +41,9 @@ const OrderItemModel = {
 }
 ```
 
-Use a definition-level `where` to scope every load and relation predicate:
+A definition-level `where` scopes every load, predicate, and operation that
+selects existing related rows. It does not rewrite values supplied to a
+relation insert:
 
 ```ts
 const UserModel = {
@@ -74,16 +56,61 @@ const UserModel = {
 }
 ```
 
-The relation query is an ordinary correlated select compiled through
-`include`, so it stays in the same SQL statement. Selection, filtering,
-ordering, grouping, joins, and interpolated field expressions continue to use
-the normal rado query representation.
+## Select relations
+
+`db.find(UserModel)` and `db.first(UserModel)` select physical columns only.
+Invoke a relation to include it. Relation descriptors expose their target
+fields, so selections and conditions do not need callbacks:
+
+```ts
+const users = await db.find(UserModel, {
+  select: {
+    ...UserModel,
+    posts: UserModel.posts({
+      select: {title: UserModel.posts.title},
+      where: eq(UserModel.posts.published, true),
+      orderBy: [UserModel.posts.title],
+      limit: 5
+    })
+  }
+})
+```
+
+The fields on a relation are scoped to that relation's SQL alias. Use
+`UserModel.posts.title` inside its query rather than the original
+`Post.title`. If a relation targets another model, its nested relations are
+available in the same way:
+
+```ts
+UserGraph.posts({
+  select: {
+    title: UserGraph.posts.title,
+    author: UserGraph.posts.author({
+      select: {name: UserGraph.posts.author.name}
+    })
+  }
+})
+```
+
+Relation queries are ordinary correlated selects compiled through `include`.
+They accept the usual selection, filtering, ordering, grouping, and join
+options:
+
+```ts
+UserModel.posts({
+  select: {title: UserModel.posts.title, body: Comment.body},
+  joins: [
+    {
+      innerJoin: Comment,
+      on: eq(Comment.postId, UserModel.posts.id)
+    }
+  ]
+})
+```
 
 ## Many-to-many relations
 
-Add `through` to a `many` relation when its endpoints are connected by a join
-table. The outer `from` and `to` fields identify the endpoint keys; the fields
-inside `through` identify the corresponding keys on the join table:
+Add `through` when two models are connected by a join table:
 
 ```ts
 const PostTag = table(
@@ -113,26 +140,9 @@ const PostModel = {
 }
 ```
 
-Loading the relation produces one correlated query with an inner join through
-`PostTag`. Relation selections and filters still refer to `Tag` normally.
-Composite endpoint keys use arrays in the same order on both sides. The
-corresponding `through.from` and `through.to` values must have matching
-lengths.
-
-Joins use the existing declarative join objects without replacing the fixed
-relation target:
-
-```ts
-UserModel.posts({
-  select: {title: Post.title, body: Comment.body},
-  joins: [
-    {
-      innerJoin: Comment,
-      on: eq(Comment.postId, Post.id)
-    }
-  ]
-})
-```
+`from` and `through.from` must have the same number of fields, as must
+`to` and `through.to`. Composite keys use the same index-based pairing as
+direct relations.
 
 ## Find, first, and count
 
@@ -142,107 +152,119 @@ const first = await db.first(UserModel, {where: eq(User.id, 1)})
 const total = await db.count(UserModel, {where: eq(User.active, true)})
 ```
 
-`first` returns `null` when no row matches. `count` returns a scalar number.
+`first` returns `null` when no row matches. `count` returns a number.
 
 ## Filter by relations
 
-Relation descriptors expose correlated predicates that can be used anywhere a
-normal SQL condition is accepted. `many` relations provide `some`, `none`, and
-`every`; `one` relations provide `is` and `isNot`:
+Use the standalone `some`, `none`, and `every` predicates with `many`
+relations, and `is` or `isNot` with `one` relations:
 
 ```ts
 const authors = await db.find(UserModel, {
-  where: UserModel.posts.some({
-    where: eq(Post.published, true)
-  })
+  where: some(UserModel.posts, eq(UserModel.posts.published, true))
 })
 
 const postsWithoutArchivedTags = await db.find(PostModel, {
-  where: PostModel.tags.none({
-    where: eq(Tag.name, 'archived')
+  where: none(PostModel.tags, eq(PostModel.tags.name, 'archived'))
+})
+```
+
+Omitting the condition checks relation existence. `every` follows vacuous
+truth and therefore also matches rows with no related records. The predicate
+can instead receive `{where, joins}` when joins are needed.
+
+## Build a write plan
+
+`db.write(Model)` starts a plan for that model. Establish its rows with a
+root `insert` or `where`, then append explicit operations:
+
+```ts
+const [ada] = await db
+  .write(UserModel)
+  .insert({name: 'Ada'})
+  .insert(UserModel.posts, [{title: 'Hello'}, {title: 'World'}])
+  .returning({
+    id: UserModel.id,
+    name: UserModel.name
   })
-})
 ```
 
-Calling `some()` or `is()` without a query checks whether the relation exists.
-`none()` and `isNot()` negate that check. `every()` follows the usual vacuous
-truth rule: it also matches rows with no related records. Predicate queries
-accept `where` and `joins`, and many-to-many predicates automatically use the
-configured through table.
+`returning()` returns the native result of the final model's root insert,
+update, or delete. It is written at the end of the JavaScript chain, but it is
+attached to that root mutation rather than querying the completed plan again.
+Operations appended after the root mutation therefore do not appear in its
+result. Use `find` when the final relation state is needed.
 
-## Save one or many rows
+Like the regular query builder, write-plan returning is available on
+PostgreSQL and SQLite but not MySQL. It always returns an array because an
+insert or update can affect multiple rows. No primary key is needed for
+returning.
 
-`save` accepts either one physical row or an array and returns the same
-cardinality. A supplied primary key updates the matching row, or inserts it
-when it does not exist. A missing primary key inserts a new row:
+MySQL also cannot return generated relation fields while executing a plan.
+When a later relation operation needs a field from an inserted row, provide
+that mapped field explicitly in the insert value. The planner does not infer
+it from `insertId`.
+
+Use `where` to modify existing rows and their relations:
 
 ```ts
-const ada = await db.save(UserModel, {name: 'Ada'})
-const users = await db.save(UserModel, [{name: 'Grace'}, {name: 'Lin'}])
-const updated = await db.save(UserModel, {
-  id: ada.id,
-  email: 'ada@example.com'
-})
+const updated = await db
+  .write(PostModel)
+  .where(eq(PostModel.id, postId))
+  .update({title: 'Updated'})
+  .insert(PostModel.comments, {body: 'New'})
+  .update(PostModel.comments, eq(PostModel.comments.id, commentId), {
+    body: 'Edited'
+  })
+  .delete(PostModel.comments, eq(PostModel.comments.id, obsoleteId))
+  .connect(PostModel.tags, eq(PostModel.tags.slug, 'typescript'))
+  .disconnect(PostModel.tags, eq(PostModel.tags.id, oldTagId))
+  .returning({id: PostModel.id, title: PostModel.title})
 ```
 
-Array saves preserve input order and run in a transaction when the driver
-supports interactive transactions. On batch-only drivers such as Cloudflare
-D1, `save` executes the same dependency-ordered operations sequentially. A
-failure can therefore leave earlier writes committed. `save` only handles the
-relation values that are supplied. A `one` relation is saved before its parent
-so its key can be copied to the parent's foreign key. A `many` relation is
-saved after its parent so the parent key can be copied to every child:
+The operations have distinct meanings:
+
+- `insert(relation, values)` creates related target rows and wires their
+  relation keys.
+- `update(relation, where, values)` changes matching related target rows.
+- `delete(relation, where)` deletes matching target rows.
+- `connect(relation, where)` keeps target rows and creates or updates the
+  association.
+- `disconnect(relation, where)` removes the association without deleting
+  target rows.
+
+For a direct `many`, inserts copy the parent `from` values to each target
+`to` field. For a `one`, the target is resolved first and its `to`
+values are copied to the parent. Through relations write or remove join rows.
+These mappings come entirely from the relation definition; primary keys are
+not inspected to decide which operation to perform.
+
+A relation update, delete, or disconnect is constrained by both the root
+scope and its own predicate. A direct-many `connect` requires the root scope
+to resolve to one parent because assigning the same target to several parents
+would be ambiguous. A one-relation `connect` likewise requires exactly one
+matching target.
+
+Call `write` again to include an unrelated model in the same plan:
 
 ```ts
-const post = await db.save(PostModel, {
-  title: 'Hello',
-  author: {name: 'Ada'},
-  comments: [{body: 'Nice'}, {body: 'Thanks'}]
-})
+await db
+  .write(PostModel)
+  .where(eq(PostModel.id, postId))
+  .update({title: 'Published'})
+  .write(AuditLog)
+  .insert({action: 'post.published', postId})
 ```
 
-Relations omitted from the value are left untouched. A supplied `many` array
-upserts those children but does not delete rows omitted from the array. Nested
-graph saves work when a relation targets another spread model; a relation that
-targets a bare table saves only that table's physical fields.
-
-Setting `required: true` on a `one` relation removes `null` from relation query
-results and from that relation's save input. Inserts must supply either the
-nested relation or all local foreign-key fields. Updates may omit the relation
-to leave it unchanged. After saving the parent, Rado verifies that the local
-keys resolve to a target row; if the relation has a definition-level `where`,
-the target must satisfy it too. This is ORM-level validation—direct insert and
-update builders still follow the database schema alone.
-
-Graph saves also validate supplied nested values against a relation's
-definition-level `where`. The target model needs a primary key so Rado can
-reload and validate the saved row. Composite relations copy every configured
-key pair between parent, child, and through rows.
-
-For a many-to-many relation, `save` first saves each target and then upserts its
-join row. A composite primary key over the two join fields makes repeated saves
-idempotent. As with direct `many` relations, omitted associations are not
-deleted. On a batch-only driver, required and scoped validation has the same
-non-atomic caveat as the rest of `save`: a validation failure can happen after
-an earlier write has committed.
-
-Save plans are built lazily once per model object, including physical columns,
-primary keys, relation metadata, and foreign-key property mappings. Rado does
-not maintain an identity map. Use the regular mutation builders when explicit
-conflict targets, deletion synchronization, or single-statement bulk SQL are
-required.
+`returning` applies to the final model in a multi-model plan. The whole plan
+runs in one interactive transaction when the driver supports transactions.
+On batch-only drivers, operations execute sequentially and an error may leave
+earlier writes committed.
 
 ## Self-relations
 
-Any relation query or predicate can be supplied as a callback when constructing
-the query lazily is more convenient. On non-self relations the callback takes
-no arguments. Self-relation callbacks additionally receive fields representing
-the outer row.
-
-Relation targets are aliased automatically. For a self-relation, pass a
-callback when the selection needs fields from both the outer row and the
-related row. Normal table fields refer to the related row; the callback value
-refers to the outer row:
+Self-relations use the same field API. Select outer fields at the root and
+related fields inside the relation:
 
 ```ts
 const NodeModel = {
@@ -252,20 +274,17 @@ const NodeModel = {
 
 const nodes = await db.find(NodeModel, {
   select: {
-    relation: NodeModel.parent(child => ({
+    childId: NodeModel.id,
+    childName: NodeModel.name,
+    parent: NodeModel.parent({
       select: {
-        parentId: Node.id,
-        childId: child.id
+        id: NodeModel.parent.id,
+        name: NodeModel.parent.name
       }
-    }))
+    })
   }
 })
 ```
 
-Aliases are scoped, so nested relations and nested self-relations resolve
-against their immediate parent. Pass `{alias: 'parent'}` in the relation
+Aliases are generated and scoped automatically. Set `alias` in a relation
 definition only when readable generated SQL or stable SQL snapshots matter.
-
-For synchronization that deletes omitted relations, join tables with additional
-required data, or other advanced cases, use the underlying `select`, `join`,
-and `include` APIs directly.

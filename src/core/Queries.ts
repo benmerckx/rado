@@ -20,7 +20,7 @@ export class QueryData<Meta extends QueryMeta> {
 
 type Exec = Function
 
-class Executable<
+export class Executable<
   Result,
   Meta extends QueryMeta
 > implements PromiseLike<Result> {

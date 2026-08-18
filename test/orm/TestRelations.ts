@@ -1,6 +1,6 @@
 import type {DefineTest} from '@alinea/suite'
 import type {Database} from '#/core/Database.ts'
-import {and, eq} from '#/index.ts'
+import {and, eq, some} from '#/index.ts'
 import {
   comments,
   Node,
@@ -9,45 +9,42 @@ import {
   OrderItem,
   orderTags,
   Post,
-  posts,
-  tags,
   User,
-  UserGraph,
-  users
+  UserGraph
 } from './Fixtures.ts'
 
 export function testORMRelations(db: Database, test: DefineTest) {
   test('relations are selected explicitly and remain fully shaped', async () => {
-    const ada = await db.save(UserGraph, {
-      name: 'Ada',
-      posts: [{title: 'Hello', comments: [{body: 'Nice'}]}, {title: 'World'}]
-    })
-    const hello = ada.posts[0]
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, [{title: 'Hello'}, {title: 'World'}])
+    await db
+      .write(Post)
+      .where(eq(Post.title, 'Hello'))
+      .insert(Post.comments, {body: 'Nice'})
 
     const user = await db.first(User, {
-      where: eq(User.id, ada.id),
+      where: eq(User.name, 'Ada'),
       select: {
-        ...User,
-        posts: User.posts(() => ({
-          select: {title: posts.title},
-          orderBy: [posts.title]
-        }))
+        name: User.name,
+        posts: User.posts({
+          select: {title: User.posts.title},
+          orderBy: [User.posts.title]
+        })
       }
     })
     test.equal(user, {
-      id: ada.id,
       name: 'Ada',
-      email: null,
-      loginCount: 0,
       posts: [{title: 'Hello'}, {title: 'World'}]
     })
 
     const post = await db.first(Post, {
-      where: eq(Post.id, hello.id),
+      where: eq(Post.title, 'Hello'),
       select: {
         title: Post.title,
-        author: Post.author({select: {name: users.name}}),
-        comments: Post.comments({select: {body: comments.body}})
+        author: Post.author({select: {name: Post.author.name}}),
+        comments: Post.comments({select: {body: Post.comments.body}})
       }
     })
     test.equal(post, {
@@ -58,18 +55,20 @@ export function testORMRelations(db: Database, test: DefineTest) {
   })
 
   test('nested relations resolve their source through the outer alias', async () => {
-    const ada = await db.save(UserGraph, {
-      name: 'Ada',
-      posts: [{title: 'Hello'}]
-    })
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, {title: 'Hello'})
 
-    const result = await db.first(User, {
-      where: eq(User.id, ada.id),
+    const result = await db.first(UserGraph, {
+      where: eq(UserGraph.name, 'Ada'),
       select: {
-        posts: User.posts({
+        posts: UserGraph.posts({
           select: {
-            title: posts.title,
-            author: Post.author({select: {name: users.name}})
+            title: UserGraph.posts.title,
+            author: UserGraph.posts.author({
+              select: {name: UserGraph.posts.author.name}
+            })
           }
         })
       }
@@ -80,25 +79,26 @@ export function testORMRelations(db: Database, test: DefineTest) {
   })
 
   test('relation joins use the aliased relation target', async () => {
-    const ada = await db.save(UserGraph, {
-      name: 'Ada',
-      posts: [
-        {title: 'With comment', comments: [{body: 'Visible'}]},
-        {title: 'No comment'}
-      ]
-    })
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, [{title: 'With comment'}, {title: 'No comment'}])
+    await db
+      .write(Post)
+      .where(eq(Post.title, 'With comment'))
+      .insert(Post.comments, {body: 'Visible'})
 
     const result = await db.first(User, {
-      where: eq(User.id, ada.id),
+      where: eq(User.name, 'Ada'),
       select: {
         posts: User.posts({
           joins: [
             {
               innerJoin: comments,
-              on: eq(comments.postId, posts.id)
+              on: eq(comments.postId, User.posts.id)
             }
           ],
-          select: {title: posts.title, body: comments.body}
+          select: {title: User.posts.title, body: comments.body}
         })
       }
     })
@@ -108,65 +108,113 @@ export function testORMRelations(db: Database, test: DefineTest) {
   })
 
   test('many relations resolve through a join table', async () => {
-    const hello = await db.save(Post, {
-      title: 'Hello',
-      author: {name: 'Ada'},
-      tags: [{name: 'ORM'}, {name: 'SQL'}]
-    })
-    await db.save(Post, {
-      title: 'World',
-      authorId: hello.author.id,
-      tags: [{id: hello.tags[1].id}]
-    })
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, {title: 'Hello'})
+      .write(Post)
+      .where(eq(Post.title, 'Hello'))
+      .insert(Post.tags, [{name: 'ORM'}, {name: 'SQL'}])
+      .write(User)
+      .where(eq(User.name, 'Ada'))
+      .insert(User.posts, {title: 'World'})
+      .write(Post)
+      .where(eq(Post.title, 'World'))
+      .connect(Post.tags, eq(Post.tags.name, 'SQL'))
 
     const result = await db.first(Post, {
-      where: eq(Post.id, hello.id),
+      where: eq(Post.title, 'Hello'),
       select: {
         title: Post.title,
-        tags: Post.tags({select: {name: tags.name}, orderBy: [tags.name]})
+        tags: Post.tags({
+          select: {name: Post.tags.name},
+          orderBy: [Post.tags.name]
+        })
       }
     })
     test.equal(result, {
       title: 'Hello',
       tags: [{name: 'ORM'}, {name: 'SQL'}]
     })
+    test.equal(
+      await db.first(Post, {
+        where: eq(Post.title, 'World'),
+        select: {tags: Post.tags({select: {name: Post.tags.name}})}
+      }),
+      {tags: [{name: 'SQL'}]}
+    )
+  })
+
+  test('relation fields cannot shadow relation loading internals', async () => {
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, {title: 'Hello'})
+      .write(Post)
+      .where(eq(Post.title, 'Hello'))
+      .insert(Post.tags, {name: 'ORM', include: 'loaded'})
+
+    test.equal(
+      await db.first(Post, {
+        where: eq(Post.title, 'Hello'),
+        select: {
+          tags: Post.tags({select: {include: Post.tags.include}})
+        }
+      }),
+      {tags: [{include: 'loaded'}]}
+    )
   })
 
   test('definition filters scope relation loads and predicates', async () => {
-    const ada = await db.save(UserGraph, {
-      name: 'Ada',
-      posts: [
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, [
         {title: 'Published', published: true},
         {title: 'Draft', published: false}
-      ]
-    })
+      ])
 
     const result = await db.first(User, {
-      where: eq(User.id, ada.id),
+      where: eq(User.name, 'Ada'),
       select: {
-        posts: User.publishedPosts({select: {title: posts.title}})
+        posts: User.publishedPosts({
+          select: {title: User.publishedPosts.title}
+        })
       }
     })
     test.equal(result, {posts: [{title: 'Published'}]})
     test.equal(
       await db.count(User, {
-        where: User.publishedPosts.some({where: eq(posts.title, 'Draft')})
+        where: some(User.publishedPosts, eq(User.publishedPosts.title, 'Draft'))
       }),
       0
     )
   })
 
   test('orders use their store and order number across relations', async () => {
-    const order = await db.save(Order, {
-      storeId: 'antwerp',
-      orderNumber: '2026-001',
-      customer: 'Ada',
-      items: [{product: 'Keyboard'}],
-      tags: [{name: 'Priority'}]
+    await db
+      .write(Order)
+      .insert({
+        storeId: 'antwerp',
+        orderNumber: '2026-001',
+        customer: 'Ada'
+      })
+      .insert(Order.items, {product: 'Keyboard'})
+      .insert(Order.tags, {name: 'Priority'})
+    const order = await db.first(Order, {
+      where: and(
+        eq(Order.storeId, 'antwerp'),
+        eq(Order.orderNumber, '2026-001')
+      ),
+      select: {
+        ...Order,
+        items: Order.items(),
+        tags: Order.tags()
+      }
     })
 
-    test.equal(order.items[0], {
-      id: order.items[0].id,
+    test.equal(order!.items[0], {
+      id: order!.items[0]!.id,
       storeId: 'antwerp',
       orderNumber: '2026-001',
       product: 'Keyboard'
@@ -175,7 +223,7 @@ export function testORMRelations(db: Database, test: DefineTest) {
       {
         storeId: 'antwerp',
         orderNumber: '2026-001',
-        tagId: order.tags[0].id
+        tagId: order!.tags[0]!.id
       }
     ])
 
@@ -186,9 +234,9 @@ export function testORMRelations(db: Database, test: DefineTest) {
       ),
       select: {
         items: Order.items({
-          select: {product: OrderItem.product}
+          select: {product: Order.items.product}
         }),
-        tags: Order.tags({select: {name: tags.name}})
+        tags: Order.tags({select: {name: Order.tags.name}})
       }
     })
     test.equal(result, {
@@ -197,7 +245,7 @@ export function testORMRelations(db: Database, test: DefineTest) {
     })
 
     const item = await db.first(OrderItem, {
-      where: eq(OrderItem.id, order.items[0].id),
+      where: eq(OrderItem.id, order!.items[0]!.id),
       select: {order: OrderItem.order()}
     })
     test.equal(item, {
@@ -209,47 +257,31 @@ export function testORMRelations(db: Database, test: DefineTest) {
     })
   })
 
-  test('self relation callbacks distinguish related and outer rows', async () => {
-    const root = await db.save(nodes, {name: 'Root'})
-    const middle = await db.save(nodes, {
-      name: 'Middle',
-      parentId: root.id
-    })
-    const child = await db.save(nodes, {
-      name: 'Child',
-      parentId: middle.id
-    })
+  test('self relation fields distinguish related and outer rows', async () => {
+    await db.write(nodes).insert({name: 'Root'})
+    const root = await db.first(nodes, {where: eq(nodes.name, 'Root')})
+    await db.write(nodes).insert({name: 'Middle', parentId: root!.id})
+    const middle = await db.first(nodes, {where: eq(nodes.name, 'Middle')})
+    await db.write(nodes).insert({name: 'Child', parentId: middle!.id})
+    const child = await db.first(nodes, {where: eq(nodes.name, 'Child')})
 
     const result = await db.first(Node, {
-      where: eq(Node.id, child.id),
+      where: eq(Node.id, child!.id),
       select: {
-        relation: Node.parent(parent => ({
+        childId: Node.id,
+        childName: Node.name,
+        parent: Node.parent({
           select: {
-            parentId: nodes.id,
-            childId: parent.id,
-            parentName: nodes.name,
-            childName: parent.name,
-            grandparent: Node.parent(middleRow => ({
-              select: {
-                grandparentName: nodes.name,
-                parentName: middleRow.name
-              }
-            }))
+            id: Node.parent.id,
+            name: Node.parent.name
           }
-        }))
+        })
       }
     })
     test.equal(result, {
-      relation: {
-        parentId: middle.id,
-        childId: child.id,
-        parentName: 'Middle',
-        childName: 'Child',
-        grandparent: {
-          grandparentName: 'Root',
-          parentName: 'Middle'
-        }
-      }
+      childId: child!.id,
+      childName: 'Child',
+      parent: {id: middle!.id, name: 'Middle'}
     })
   })
 }

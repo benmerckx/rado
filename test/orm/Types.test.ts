@@ -2,9 +2,9 @@ import {suite} from '@alinea/suite'
 import type {Database} from '#/core/Database.ts'
 import type {Sync} from '#/core/MetaData.ts'
 import {table} from '#/core/Table.ts'
-import {eq, one, type Sql} from '#/index.ts'
+import {eq, is, one, some, type Sql} from '#/index.ts'
 import {id, integer, text} from '#/universal.ts'
-import {Post, posts, User, UserGraph} from './Fixtures.ts'
+import {Post, User, UserGraph} from './Fixtures.ts'
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
@@ -16,9 +16,10 @@ const Expect = <T extends true>() => {}
 const typecheck = (_run: () => void) => {}
 
 suite(import.meta, test => {
-  test('ORM query and relation result types', () => {
+  test('ORM query, relation, and write result types', () => {
     typecheck(() => {
       const db: Database<Sync<'sqlite'>> = undefined!
+      const mysqlDb: Database<Sync<'mysql'>> = undefined!
 
       const found = db.find(User)
       Expect<
@@ -30,79 +31,6 @@ suite(import.meta, test => {
             email: string | null
             loginCount: number
           }>
-        >
-      >()
-
-      const nestedGraph = db.save(UserGraph, {
-        name: 'Ada',
-        posts: [{title: 'Hello', comments: [{body: 'Nice'}]}]
-      })
-      Expect<
-        Equal<
-          Awaited<typeof nestedGraph>,
-          {
-            id: number
-            name: string
-            email: string | null
-            loginCount: number
-            posts: Array<{
-              id: number
-              authorId: number
-              title: string
-              published: boolean
-              comments: Array<{
-                id: number
-                postId: number
-                body: string
-              }>
-            }>
-          }
-        >
-      >()
-
-      const savedPost = db.save(Post, {
-        title: 'Hello',
-        author: {name: 'Ada'},
-        comments: [{body: 'Nice'}]
-      })
-      Expect<
-        Equal<
-          Awaited<typeof savedPost>,
-          {
-            id: number
-            authorId: number
-            title: string
-            published: boolean
-            author: {
-              id: number
-              name: string
-              email: string | null
-              loginCount: number
-            }
-            comments: Array<{
-              id: number
-              postId: number
-              body: string
-            }>
-          }
-        >
-      >()
-
-      const savedTaggedPost = db.save(Post, {
-        title: 'Hello',
-        authorId: 1,
-        tags: [{name: 'ORM'}]
-      })
-      Expect<
-        Equal<
-          Awaited<typeof savedTaggedPost>,
-          {
-            id: number
-            authorId: number
-            title: string
-            published: boolean
-            tags: Array<{id: number; name: string}>
-          }
         >
       >()
 
@@ -122,7 +50,7 @@ suite(import.meta, test => {
       const withPosts = db.find(User, {
         select: {
           name: User.name,
-          posts: User.posts({select: {title: posts.title}})
+          posts: User.posts({select: {title: User.posts.title}})
         }
       })
       Expect<
@@ -132,21 +60,23 @@ suite(import.meta, test => {
         >
       >()
 
-      const spreadWithPosts = db.find(User, {
+      const nested = db.find(UserGraph, {
         select: {
-          ...User,
-          posts: User.posts({select: {title: posts.title}})
+          posts: UserGraph.posts({
+            select: {
+              title: UserGraph.posts.title,
+              author: UserGraph.posts.author({
+                select: {name: UserGraph.posts.author.name}
+              })
+            }
+          })
         }
       })
       Expect<
         Equal<
-          Awaited<typeof spreadWithPosts>,
+          Awaited<typeof nested>,
           Array<{
-            id: number
-            name: string
-            email: string | null
-            loginCount: number
-            posts: Array<{title: string}>
+            posts: Array<{title: string; author: {name: string}}>
           }>
         >
       >()
@@ -168,66 +98,57 @@ suite(import.meta, test => {
         >
       >()
 
-      const predicate = User.posts.some({
-        where: eq(posts.published, true)
-      })
+      const predicate = some(User.posts, eq(User.posts.published, true))
       Expect<Equal<typeof predicate, Sql<boolean>>>()
       db.find(User, {where: predicate})
 
-      // @ts-expect-error required relations cannot be saved as null
-      db.save(Post, {title: 'Invalid', author: null})
+      const inserted = db
+        .write(User)
+        .insert({name: 'Ada'})
+        .insert(User.posts, {title: 'Hello'})
+      Expect<Equal<Awaited<typeof inserted>, void>>()
 
-      const saved = db.save(User, {name: 'Ada'})
-      Expect<
-        Equal<
-          Awaited<typeof saved>,
-          {
-            id: number
-            name: string
-            email: string | null
-            loginCount: number
-          }
-        >
-      >()
-
-      const savedMany = db.save(User, [{name: 'Ada'}, {name: 'Grace'}])
-      Expect<
-        Equal<
-          Awaited<typeof savedMany>,
-          Array<{
-            id: number
-            name: string
-            email: string | null
-            loginCount: number
-          }>
-        >
-      >()
-
-      const savedGraph = db.save(User, {
-        name: 'Ada',
-        posts: [{title: 'Hello'}]
+      const returned = inserted.returning({
+        id: User.id,
+        name: User.name
       })
       Expect<
-        Equal<
-          Awaited<typeof savedGraph>,
-          {
-            id: number
-            name: string
-            email: string | null
-            loginCount: number
-            posts: Array<{
-              id: number
-              authorId: number
-              title: string
-              published: boolean
-            }>
-          }
-        >
+        Equal<Awaited<typeof returned>, Array<{id: number; name: string}>>
       >()
+
+      // @ts-expect-error returning is not available for mysql
+      mysqlDb.write(User).insert({name: 'Ada'}).returning()
+
+      const relationOnly = db
+        .write(User)
+        .where(eq(User.id, 1))
+        .insert(User.posts, {title: 'Hello'})
+      // @ts-expect-error returning requires a root mutation
+      relationOnly.returning()
+
+      const scoped = db
+        .write(Post)
+        .where(eq(Post.id, 1))
+        .update({title: 'Updated'})
+        .insert(Post.comments, {body: 'New'})
+        .update(Post.comments, eq(Post.comments.id, 2), {body: 'Edited'})
+        .delete(Post.comments, eq(Post.comments.id, 3))
+        .connect(Post.tags, eq(Post.tags.name, 'ORM'))
+        .disconnect(Post.tags, eq(Post.tags.id, 4))
+        .write(User)
+        .insert({name: 'Grace'})
+      Expect<Equal<Awaited<typeof scoped>, void>>()
+
+      // @ts-expect-error relation operations require an anchored root
+      db.write(User).insert(User.posts, {title: 'Hello'})
+      db.write(User)
+        .where(eq(User.id, 1))
+        // @ts-expect-error related updates use the related model's fields
+        .update(User.posts, eq(User.posts.id, 1), {name: 'Invalid'})
     })
   })
 
-  test('self relation callback result types', () => {
+  test('self relation field result types', () => {
     typecheck(() => {
       const db: Database<Sync<'sqlite'>> = undefined!
       const nodes = table('node', {
@@ -242,27 +163,26 @@ suite(import.meta, test => {
 
       const result = db.find(Node, {
         select: {
-          parent: Node.parent(outer => ({
+          childId: Node.id,
+          parent: Node.parent({
             select: {
-              parentId: nodes.id,
-              childId: outer.id
+              id: Node.parent.id
             }
-          }))
+          })
         }
       })
       Expect<
         Equal<
           Awaited<typeof result>,
           Array<{
-            parent: {parentId: number; childId: number} | null
+            childId: number
+            parent: {id: number} | null
           }>
         >
       >()
 
       db.find(Node, {
-        where: Node.parent.is(outer => ({
-          where: eq(nodes.name, outer.name)
-        }))
+        where: is(Node.parent, eq(Node.parent.name, Node.name))
       })
     })
   })

@@ -5,7 +5,7 @@ import {User, users} from './Fixtures.ts'
 
 export function testORMQueries(db: Database, test: DefineTest) {
   test('find, nullable first, and count use ordinary queries', async () => {
-    await db.insert(users).values([{name: 'Ada'}, {name: 'Grace'}])
+    await db.write(users).insert([{name: 'Ada'}, {name: 'Grace'}])
 
     const found = await db.find(User, {where: eq(User.name, 'Ada')})
     test.equal(found, [{id: 1, name: 'Ada', email: null, loginCount: 0}])

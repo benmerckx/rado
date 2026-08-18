@@ -5,7 +5,7 @@ import {testORMAliases} from './TestAliases.ts'
 import {testORMPredicates} from './TestPredicates.ts'
 import {testORMQueries} from './TestQueries.ts'
 import {testORMRelations} from './TestRelations.ts'
-import {testORMSave} from './TestSave.ts'
+import {testORMWrite} from './TestWrite.ts'
 
 export function testORM(db: Database, test: DefineTest) {
   const orm = ormTests(db, test)
@@ -13,6 +13,6 @@ export function testORM(db: Database, test: DefineTest) {
   testORMAliases(db, orm.test)
   testORMRelations(db, orm.test)
   testORMPredicates(db, orm.test)
-  testORMSave(db, orm.test)
+  testORMWrite(db, orm.test)
   return orm.cleanup
 }

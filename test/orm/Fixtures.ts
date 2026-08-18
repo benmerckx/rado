@@ -30,7 +30,8 @@ export const comments = table('orm_comment', {
 
 export const tags = table('orm_tag', {
   id: id(),
-  name: text().notNull()
+  name: text().notNull(),
+  include: text()
 })
 
 export const postTags = table(

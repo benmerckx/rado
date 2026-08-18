@@ -1,22 +1,22 @@
 import type {DefineTest} from '@alinea/suite'
 import type {Database} from '#/core/Database.ts'
 import {desc, eq, many, sql} from '#/index.ts'
-import {posts, User, UserGraph, users} from './Fixtures.ts'
+import {posts, User, users} from './Fixtures.ts'
 
 export function testORMAliases(db: Database, test: DefineTest) {
   test('relation aliases cover filters, ordering, and raw sql', async () => {
-    const ada = await db.save(UserGraph, {
-      name: 'Ada',
-      posts: [{title: 'A'}, {title: 'B'}]
-    })
+    await db
+      .write(User)
+      .insert({name: 'Ada'})
+      .insert(User.posts, [{title: 'A'}, {title: 'B'}])
 
     const result = await db.first(User, {
-      where: eq(User.id, ada.id),
+      where: eq(User.name, 'Ada'),
       select: {
         posts: User.posts({
-          select: {title: sql<string>`${posts.title}`},
-          where: sql<boolean>`${posts.title} is not null`,
-          orderBy: [desc(sql`${posts.title}`)]
+          select: {title: sql<string>`${User.posts.title}`},
+          where: sql<boolean>`${User.posts.title} is not null`,
+          orderBy: [desc(sql`${User.posts.title}`)]
         })
       }
     })
@@ -33,7 +33,11 @@ export function testORMAliases(db: Database, test: DefineTest) {
       })
     }
     const query = db.find(UserWithAlias, {
-      select: {posts: UserWithAlias.posts({select: {title: posts.title}})}
+      select: {
+        posts: UserWithAlias.posts({
+          select: {title: UserWithAlias.posts.title}
+        })
+      }
     })
     const emitted = query.toSQL().sql
     const quote = db.dialect.runtime === 'mysql' ? '`' : '"'
