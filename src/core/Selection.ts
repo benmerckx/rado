@@ -57,7 +57,7 @@ export interface MapRowContext {
   specs: DriverSpecs
 }
 
-function selectionEntries(input: SelectionInput) {
+export function selectionEntries(input: SelectionInput) {
   return Object.entries(input).filter(
     ([, value]) => typeof value !== 'function'
   )

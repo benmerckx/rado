@@ -169,9 +169,11 @@ const postsWithoutArchivedTags = await db.find(PostModel, {
 })
 ```
 
-Omitting the condition checks relation existence. `every` follows vacuous
-truth and therefore also matches rows with no related records. The predicate
-can instead receive `{where, joins}` when joins are needed.
+Omitting the condition checks relation existence for `some` and `is`, and
+absence for `none` and `isNot`. `every` follows vacuous truth and therefore
+also matches rows with no related records; without a condition it matches
+every root. The predicate can instead receive `{where, joins}` when joins
+are needed.
 
 ## Build a write plan
 
@@ -193,17 +195,47 @@ const [ada] = await db
 update, or delete. It is written at the end of the JavaScript chain, but it is
 attached to that root mutation rather than querying the completed plan again.
 Operations appended after the root mutation therefore do not appear in its
-result. Use `find` when the final relation state is needed.
+result. Use terminal `select` when the final relation state is needed:
+
+```ts
+const [post] = await db
+  .write(PostModel)
+  .insert({title: 'Hello'})
+  .insert(PostModel.author, {name: 'Ada'})
+  .insert(PostModel.tags, {name: 'SQL'})
+  .select({
+    title: PostModel.title,
+    author: PostModel.author(),
+    tags: PostModel.tags()
+  })
+```
+
+`select(selection)` combines captured root values with relations loaded after
+the writes. It does not look up the root again by a primary key: the captured
+values supply the root of the final query. It supports keyless tables, preserves
+duplicate root rows, and returns an array. Root values are the mutation snapshot;
+later trigger changes to the root are not reloaded. A `where`-only segment can
+also use `select`, in which case its captured values come from the scoped read.
+The initial implementation executes one final selection per captured root.
 
 Like the regular query builder, write-plan returning is available on
-PostgreSQL and SQLite but not MySQL. It always returns an array because an
+PostgreSQL and SQLite but not MySQL. Final graph selection has the same dialect
+restriction. Returning always returns an array because an
 insert or update can affect multiple rows. No primary key is needed for
 returning.
 
 MySQL also cannot return generated relation fields while executing a plan.
 When a later relation operation needs a field from an inserted row, provide
-that mapped field explicitly in the insert value. The planner does not infer
-it from `insertId`.
+that mapped field explicitly in the insert value, or define a client-side
+`$default(() => value)` on its column. Client defaults needed by a relation are
+evaluated once and the same value is used for both writes. SQL expressions and
+unknown database-generated relation values are rejected. The planner does not
+infer values from `insertId`.
+
+For existing MySQL rows, the planner captures required relation values before
+the root mutation, using a locking read when transactions are supported. Literal
+changes to those values are supported; SQL-computed changes and implicit
+`$onUpdate` changes to required relation values are rejected.
 
 Use `where` to modify existing rows and their relations:
 
@@ -236,8 +268,46 @@ The operations have distinct meanings:
 For a direct `many`, inserts copy the parent `from` values to each target
 `to` field. For a `one`, the target is resolved first and its `to`
 values are copied to the parent. Through relations write or remove join rows.
+When a plan covers multiple parents, direct-many inserts create children for
+each parent; through inserts create the target rows once and link them to
+every parent.
 These mappings come entirely from the relation definition; primary keys are
-not inspected to decide which operation to perform.
+not inspected to decide which operation to perform. Field mappings are validated
+and recorded when the relation is defined, including mappings between JavaScript
+property keys and explicit SQL column names. Each paired field list must be
+nonempty and have the same length; through relations validate both sides of the
+join table.
+
+### Write phases
+
+A segment is a dependency plan with these phases:
+
+1. Resolve `one`-relation inserts and connects that supply root foreign keys.
+2. Execute one root insert or update, including root-owned foreign-key changes.
+3. Execute dependent writes: target updates, child writes, and join-table writes.
+4. If requested, select the completed graph.
+
+Put the root `update` first, followed by root-owned `one` inserts, connects,
+disconnects, or deletes, then dependent operations. The builder types reject
+root changes after dependent writes. Root-owned foreign-key assignments are
+combined with the root update, so changing a field used in `where` does not
+prevent a subsequent author connection. Internal returning captures computed
+relation values whether or not public `returning()` is called.
+Root-only mutations do not load rows first or request internal returning.
+Internal row capture is added only when later operations or final graph
+selection need those values.
+
+Each root-owned relation field can be assigned only once per segment. Supply
+it either in the root values or through a relation operation. Conditional
+disconnects clear only matching associations; deleting an optional `one` target
+clears the association in the root phase and deletes the target afterward.
+Updating a `one` target is a dependent write and sees the newly established
+association.
+
+Use another `write(Model)` segment when an operation must depend on the results
+of an earlier phase. Root deletion occupies its own segment; delete dependents
+in an earlier segment when needed by foreign-key constraints. Empty scopes and
+empty root inserts perform no related writes.
 
 A relation update, delete, or disconnect is constrained by both the root
 scope and its own predicate. A direct-many `connect` requires the root scope
@@ -260,6 +330,10 @@ await db
 runs in one interactive transaction when the driver supports transactions.
 On batch-only drivers, operations execute sequentially and an error may leave
 earlier writes committed.
+
+Write plans are immutable: extending a plan does not change the original or
+other branches. Each step shares its preceding instructions; execution walks
+them in call order and resolves the dependency phases within each segment.
 
 ## Self-relations
 

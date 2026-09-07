@@ -4,15 +4,21 @@ import {table} from '#/core/Table.ts'
 import {eq, many, one, primaryKey} from '#/index.ts'
 import {boolean, id, integer, text, varchar} from '#/universal.ts'
 
+// Shared relation fixtures also run on dialects without mutation returning.
+let nextId = 0
+const clientId = integer()
+  .primaryKey()
+  .$default(() => ++nextId)
+
 export const users = table('orm_user', {
-  id: id(),
+  id: clientId,
   name: text().notNull(),
   email: text(),
   loginCount: integer().notNull().default(0)
 })
 
 export const posts = table('orm_post', {
-  id: id(),
+  id: clientId,
   authorId: integer()
     .notNull()
     .references(() => users.id),
@@ -29,7 +35,7 @@ export const comments = table('orm_comment', {
 })
 
 export const tags = table('orm_tag', {
-  id: id(),
+  id: clientId,
   name: text().notNull(),
   include: text()
 })
@@ -48,7 +54,7 @@ export const postTags = table(
 )
 
 export const nodes = table('orm_node', {
-  id: id(),
+  id: clientId,
   parentId: integer().references((): any => nodes.id),
   name: text().notNull()
 })

@@ -44,6 +44,23 @@ export function testORMPredicates(db: Database, test: DefineTest) {
       orderBy: [User.name]
     })
     test.equal(everyUser, [{name: 'Grace'}, {name: 'Lin'}])
+
+    test.equal(
+      await db.find(User, {
+        select: {
+          name: User.name,
+          some: some(User.posts),
+          none: none(User.posts),
+          every: every(User.posts, eq(User.posts.published, true))
+        },
+        orderBy: [User.name]
+      }),
+      [
+        {name: 'Ada', some: true, none: false, every: false},
+        {name: 'Grace', some: true, none: false, every: true},
+        {name: 'Lin', some: false, none: true, every: true}
+      ]
+    )
   })
 
   test('one relation predicates support is and isNot', async () => {
@@ -67,6 +84,20 @@ export function testORMPredicates(db: Database, test: DefineTest) {
       select: {title: Post.title}
     })
     test.equal(isNotAda, [{title: 'Grace post'}])
+
+    test.equal(
+      await db.find(Post, {
+        select: {
+          is: is(Post.author, eq(Post.author.name, 'Ada')),
+          isNot: isNot(Post.author, eq(Post.author.name, 'Ada'))
+        },
+        orderBy: [Post.title]
+      }),
+      [
+        {is: true, isNot: false},
+        {is: false, isNot: true}
+      ]
+    )
   })
 
   test('many relation predicates resolve through tables', async () => {

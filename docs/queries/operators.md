@@ -97,6 +97,9 @@ arrayOverlaps(Post.tags, ['sql', 'ts']) // tags && '{sql,ts}'
 
 ## Existence
 
+`exists` accepts a query builder or SQL query expression (including `sql.query`)
+and returns a boolean expression usable in filters or selections.
+
 ```ts
 import {exists} from 'rado'
 

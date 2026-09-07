@@ -38,7 +38,7 @@ export interface BaseColumnData {
   referenceOptions?: ReferenceOptions
   mapFromDriverValue?(value: unknown, specs: DriverSpecs): unknown
   mapToDriverValue?(value: unknown): unknown
-  $default?(): Sql
+  $default?(): unknown
   $onUpdate?(): Sql
   readonly [internalEnum]?: unknown
 }
@@ -88,10 +88,7 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
     return new Column({
       ...getData(this),
       $default: () =>
-        mapToColumn(
-          getData(this),
-          typeof value === 'function' ? (value as Function)() : value
-        )
+        typeof value === 'function' ? (value as Function)() : value
     })
   }
   $onUpdateFn(fn: () => Input<Value>): Column<Value, Nulls> {

@@ -118,6 +118,36 @@ suite(import.meta, test => {
 
       // @ts-expect-error returning is not available for mysql
       mysqlDb.write(User).insert({name: 'Ada'}).returning()
+      // @ts-expect-error graph selection needs captured database values
+      mysqlDb.write(User).insert({name: 'Ada'}).select({id: User.id})
+
+      const graph = inserted.select({
+        name: User.name,
+        posts: User.posts({select: {title: User.posts.title}})
+      })
+      Expect<
+        Equal<
+          Awaited<typeof graph>,
+          Array<{name: string; posts: Array<{title: string}>}>
+        >
+      >()
+
+      const dependencies = db
+        .write(Post)
+        .where(eq(Post.id, 1))
+        .update({title: 'Updated'})
+        .connect(Post.author, eq(Post.author.name, 'Ada'))
+      dependencies.returning({id: Post.id})
+      const children = dependencies.insert(Post.comments, {body: 'Hello'})
+      // @ts-expect-error root changes must precede dependent writes
+      children.connect(Post.author, eq(Post.author.name, 'Grace'))
+      // @ts-expect-error inserting a root dependency after children is ambiguous
+      children.insert(Post.author, {name: 'Grace'})
+      // @ts-expect-error root updates must precede dependent writes
+      db.write(User)
+        .where(eq(User.id, 1))
+        .insert(User.posts, {title: 'Hello'})
+        .update({name: 'Grace'})
 
       const relationOnly = db
         .write(User)
@@ -125,6 +155,7 @@ suite(import.meta, test => {
         .insert(User.posts, {title: 'Hello'})
       // @ts-expect-error returning requires a root mutation
       relationOnly.returning()
+      relationOnly.select({posts: User.posts()})
 
       const scoped = db
         .write(Post)

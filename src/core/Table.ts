@@ -156,7 +156,7 @@ export function tableFields(
     entries(columns).map(([name, column]) => {
       const columnApi = getData(column)
       const {name: givenName} = columnApi
-      const field = new Field(targetName, givenName ?? name, columnApi)
+      const field = new Field(targetName, givenName ?? name, columnApi, name)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })

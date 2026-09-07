@@ -2,12 +2,18 @@ import {txGenerator} from '../universal/transactions.ts'
 import {Callable} from '../util/Callable.ts'
 import {Builder} from './Builder.ts'
 import type {Transaction} from './Database.ts'
+import type {Dialect} from './Dialect.ts'
 import type {Driver} from './Driver.ts'
-import {count as countExpr} from './expr/Aggregate.ts'
-import {and, eq, exists as existsExpr, not, or} from './expr/Conditions.ts'
-import {Field} from './expr/Field.ts'
-import {include, type Include} from './expr/Include.ts'
+import {count as aggregateCount} from './expr/Aggregate.ts'
+import {and, eq, exists, not, or, when} from './expr/Conditions.ts'
+import {Field, type FieldData} from './expr/Field.ts'
+import {Include, type IncludeQuery} from './expr/Include.ts'
+import {mapToColumn} from './expr/Input.ts'
 import {
+  type HasRelation,
+  type HasSql,
+  type HasTable,
+  type HasTarget,
   getData,
   getField,
   getRelation,
@@ -16,1202 +22,1065 @@ import {
   hasRelation,
   hasSql,
   internalRelation,
-  type HasField,
-  type HasRelation,
-  type HasSql,
-  type HasTable,
-  type HasTarget
+  internalData
 } from './Internal.ts'
-import type {Deliver, IsPostgres, IsSqlite, QueryMeta} from './MetaData.ts'
-import {Executable} from './Queries.ts'
-import type {FromGuard, Join, SelectionQuery} from './query/Query.ts'
-import {Select, SelectFirst} from './query/Select.ts'
-import type {RowOfRecord, SelectionInput, SelectionRow} from './Selection.ts'
-import {Sql, sql, type TargetScope} from './Sql.ts'
+import type {Deliver, QueryMeta} from './MetaData.ts'
+import {Executable, type SingleQuery} from './Queries.ts'
+import type {
+  DeleteQuery,
+  InsertQuery,
+  Join,
+  SelectQuery,
+  UpdateQuery
+} from './query/Query.ts'
+import {Select, SelectFirst, selectQuery} from './query/Select.ts'
 import {
-  alias,
-  type Table,
-  type TableDefinition,
-  type TableFields,
-  type TableInsert,
-  type TableUpdate,
-  tableFields
-} from './Table.ts'
+  type SelectionInput,
+  type SelectionRow,
+  selectionEntries
+} from './Selection.ts'
+import {type Sql, type TargetScope, sql} from './Sql.ts'
+import {alias, type Table, type TableInsert, type TableUpdate} from './Table.ts'
 
-export type ORMQuery<Input extends SelectionInput = SelectionInput> = Omit<
-  SelectionQuery<Input>,
+type ModelSelection<M> = {
+  [K in keyof M as K extends string
+    ? M[K] extends Function
+      ? never
+      : K
+    : never]: Extract<M[K], SelectionInput>
+}
+type InsertRow<M> = M extends HasTable<infer D> ? TableInsert<D> : never
+type UpdateRow<M> = M extends HasTable<infer D> ? TableUpdate<D> : never
+export type ORMQuery<S extends SelectionInput = SelectionInput> = Omit<
+  SelectQuery<S>,
   'from' | 'select'
 > & {
-  select?: Input
+  select?: S
   joins?: Array<Join>
 }
-
-type ModelDefinition<Model extends HasTable> =
-  Model extends HasTable<infer Definition> ? Definition : never
-
-type ModelName<Model extends HasTable> =
-  Model extends HasTarget<infer Name> ? Name : string
-
-type ModelSelection<Model extends object> = {
-  [Key in keyof Model as Model[Key] extends (...args: Array<any>) => any
-    ? never
-    : Key]: Model[Key]
-}
-
-type ModelRow<Model extends HasTable> = RowOfRecord<Model>
-
-declare const internalRootMutation: unique symbol
-
-function queryFrom(target: HasTarget, joins?: Array<Join>): FromGuard {
-  return joins?.length ? [target, ...joins] : target
-}
-
-export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
-  abstract driver: Driver
-
-  abstract transaction<Result>(
-    run: (tx: Transaction<Meta>) => Deliver<Meta, Result>
-  ): Deliver<Meta, Result>
-
-  find<Returning extends SelectionInput>(
-    model: HasTarget,
-    query: ORMQuery<Returning> & {select: Returning}
-  ): Select<Returning, Meta>
-  find<Model extends HasTarget>(
-    model: Model,
-    query?: ORMQuery<Model>
-  ): Select<ModelSelection<Model>, Meta>
-  find(model: HasTarget, query: ORMQuery<any> = {}): Select<any, Meta> {
-    const {joins, ...selection} = query
-    return new Select({
-      ...getData(this),
-      ...selection,
-      from: queryFrom(model, joins),
-      select: selection.select ?? model
-    })
-  }
-
-  first<Returning extends SelectionInput>(
-    model: HasTarget,
-    query: ORMQuery<Returning> & {select: Returning}
-  ): SelectFirst<Returning, Meta, true>
-  first<Model extends HasTarget>(
-    model: Model,
-    query?: ORMQuery<Model>
-  ): SelectFirst<ModelSelection<Model>, Meta, true>
-  first(
-    model: HasTarget,
-    query: ORMQuery<any> = {}
-  ): SelectFirst<any, Meta, true> {
-    const {joins, ...selection} = query
-    return new SelectFirst<any, Meta, true>({
-      ...getData(this),
-      ...selection,
-      from: queryFrom(model, joins),
-      select: selection.select ?? model
-    })
-  }
-
-  count(
-    model: HasTarget,
-    query: {where?: HasSql<boolean>} = {}
-  ): SelectFirst<Sql<number>, Meta> {
-    return new SelectFirst({
-      ...getData(this),
-      from: model,
-      select: countExpr(),
-      where: query.where
-    })
-  }
-
-  write<Model extends HasTable>(model: Model): ModelWriteStart<Model, Meta> {
-    return new ModelWriteStart(this, [], model)
-  }
-}
-
-function modelFieldKey(model: HasTable, field: HasField): string {
-  const fieldName = getField(field).fieldName
-  for (const [key, column] of Object.entries(getTable(model).columns)) {
-    const columnName = getData(column).name ?? key
-    if (columnName === fieldName) return key
-  }
-  throw new Error(`Relation field ${fieldName} does not belong to its model`)
-}
-
-type RelationField<FromName extends string = string> = HasSql &
-  HasField &
-  Field<unknown, FromName>
-
 export type RelationFields<FromName extends string = string> =
-  | RelationField<FromName>
-  | ReadonlyArray<RelationField<FromName>>
-
-interface RelationBaseOptions<FromName extends string = string> {
+  | Field<unknown, FromName>
+  | readonly Field<unknown, FromName>[]
+export interface RelationOptions<
+  FromName extends string = string,
+  Required extends boolean = false
+> {
   from: RelationFields<FromName>
   to: RelationFields
   alias?: string
   where?: HasSql<boolean>
-}
-
-export interface RelationOptions<
-  FromName extends string = string,
-  Required extends boolean = false
-> extends RelationBaseOptions<FromName> {
   required?: Required
 }
-
 export interface RelationThrough {
   table: HasTable
   from: RelationFields
   to: RelationFields
 }
-
 export interface ManyRelationOptions<
   FromName extends string = string
-> extends RelationBaseOptions<FromName> {
+> extends Omit<RelationOptions<FromName>, 'required'> {
   through?: RelationThrough
 }
-
-type AnyRelationOptions<FromName extends string = string> =
-  ManyRelationOptions<FromName> & {required?: boolean}
-
-interface RelationData<Target extends HasTable> {
-  target: Target
-  options: AnyRelationOptions
-  scope: string
-  predicate(
-    input?: RelationPredicateQuery | HasSql<boolean>,
-    options?: {negateExists?: boolean; negateWhere?: boolean}
-  ): Sql<boolean>
-}
-
-interface RelationDescriptor<Target extends HasTable> extends HasRelation<
-  RelationData<Target>
-> {}
-
-type RelationModel<Target extends object> = {
-  [Key in keyof Target as Target[Key] extends
-    | HasField
-    | RelationDescriptor<HasTable>
-    ? Key
-    : never]: Target[Key]
-}
-
-export interface RelationPredicateQuery {
-  where?: HasSql<boolean>
-  joins?: Array<Join>
-}
-
-export interface ManyRelation<
-  Target extends HasTable,
-  FromName extends string
-> extends RelationDescriptor<Target> {
-  (): Include<Array<ModelRow<Target>>>
-  (
-    query: ORMQuery<TableFields<ModelDefinition<Target>, ModelName<Target>>>
-  ): Include<Array<ModelRow<Target>>>
-  <Input extends SelectionInput>(
-    query: ORMQuery<Input> & {select: Input}
-  ): Include<Array<SelectionRow<Input>>>
-}
-
-export interface OneRelation<
-  Target extends HasTable,
-  FromName extends string,
-  Required extends boolean = false
-> extends RelationDescriptor<Target> {
-  (): Include<ModelRow<Target> | ([Required] extends [true] ? never : null)>
-  (
-    query: ORMQuery<TableFields<ModelDefinition<Target>, ModelName<Target>>>
-  ): Include<ModelRow<Target> | ([Required] extends [true] ? never : null)>
-  <Input extends SelectionInput>(
-    query: ORMQuery<Input> & {select: Input}
-  ): Include<SelectionRow<Input> | ([Required] extends [true] ? never : null)>
-}
+type OneOptions = RelationOptions<string, boolean>
+type Cardinality = 'one' | 'many'
+type RelationResult<K, R, S> = K extends 'many'
+  ? Array<SelectionRow<S>>
+  : SelectionRow<S> | (R extends true ? never : null)
+type Relation<
+  M extends HasTable = HasTable,
+  K extends Cardinality = Cardinality,
+  R extends boolean = boolean,
+  FromName extends string = string
+> = M &
+  HasRelation<RelationApi> & {
+    <S extends SelectionInput = ModelSelection<M>>(
+      options?: ORMQuery<S>
+    ): Include<RelationResult<K, R, S>>
+    readonly [relationType]: [M, K, R, FromName]
+  }
+declare const relationType: unique symbol
+type Many<M extends HasTable = HasTable> = Relation<M, 'many'>
+type One<M extends HasTable = HasTable, R extends boolean = boolean> = Relation<
+  M,
+  'one',
+  R
+>
 
 let relationId = 0
+const fields = (value: RelationFields): Array<FieldData> =>
+  (Array.isArray(value) ? value : [value]).map(getField)
+const field = (data: FieldData, targetName = data.targetName) =>
+  new Field(targetName, data.fieldName, data.source, data.key)
+const defaults = (model: HasTarget): SelectionInput =>
+  Object.fromEntries(selectionEntries(model))
 
-function relationAlias(): string {
-  relationId += 1
-  return `__rado_relation_${relationId}`
-}
+type RelationFactory = (
+  sourceScope: string,
+  alias: string
+) => Callable & HasRelation<RelationApi>
 
-function relationFields<FromName extends string>(
-  fields: RelationFields<FromName>
-): Array<RelationField<FromName>> {
-  return Array.isArray(fields)
-    ? [...fields]
-    : [fields as RelationField<FromName>]
-}
-
-function pairedRelationFields(
-  left: RelationFields,
-  right: RelationFields,
-  description: string
-): Array<[RelationField, RelationField]> {
-  const leftFields = relationFields(left)
-  const rightFields = relationFields(right)
-  if (leftFields.length !== rightFields.length)
-    throw new Error(`${description} must contain the same number of fields`)
-  return leftFields.map((field, index) => [field, rightFields[index]!])
-}
-
-type RelationInput = ORMQuery
-
-abstract class Relation<
-  Target extends HasTable,
-  FromName extends string,
-  Options extends AnyRelationOptions<FromName>
->
-  extends Callable
-  implements RelationDescriptor<Target>
-{
-  readonly [internalRelation]: RelationData<Target>
-  readonly #relationTable: Table<ModelDefinition<Target>, ModelName<Target>>
-  readonly #targetName: string
-  readonly #sourceName: string
-  readonly #sourceScope: string
-  readonly #scopeName: string
-  readonly #selection: SelectionInput
-  readonly #sourcePairs?: Array<[RelationField, RelationField]>
-  readonly #targetPairs: Array<[RelationField, RelationField]>
-  readonly #include: (select: Select<any>, scope: TargetScope) => Include<any>
-  #invocationId = 0
+class RelationApi {
+  readonly model: HasTable
+  readonly target: Table
+  readonly from: Array<FieldData>
+  readonly to: Array<FieldData>
+  readonly through?: {
+    table: HasTable
+    from: Array<FieldData>
+    to: Array<FieldData>
+  }
+  readonly required: boolean
+  readonly where?: HasSql<boolean>
+  readonly load: (query: IncludeQuery, scope?: TargetScope) => Include<unknown>
+  readonly owns: (kind: RelationWrite['kind']) => boolean
+  readonly #rebind: RelationFactory
 
   constructor(
-    target: Target,
-    options: Options,
-    includeRelation: (select: Select<any>, scope: TargetScope) => Include<any>,
+    model: HasTable,
+    options: ManyRelationOptions & OneOptions,
+    load: RelationApi['load'],
+    owns: RelationApi['owns'],
+    rebind: RelationFactory,
     sourceScope?: string
   ) {
-    super((input?: RelationInput) => this.#load(input))
-    this.#include = includeRelation
-    this.#relationTable = target as unknown as Table<
-      ModelDefinition<Target>,
-      ModelName<Target>
-    >
-    this.#targetName = getTable(target).aliased
-    this.#scopeName = relationAlias()
-    this[internalRelation] = {
-      target,
-      options,
-      scope: this.#scopeName,
-      predicate: (input, options) => this.#predicate(input, options)
+    this.model = model
+    this.target = alias(
+      model as Table,
+      options.alias ?? `__relation_${++relationId}`
+    )
+    this.from = fields(options.from).map(field =>
+      sourceScope ? {...field, targetName: sourceScope} : field
+    )
+    this.to = fields(options.to)
+    this.through = options.through && {
+      table: options.through.table,
+      from: fields(options.through.from),
+      to: fields(options.through.to)
     }
-    const from = relationFields(options.from)
-    this.#sourceName = getField(from[0]!).targetName
-    this.#sourceScope = sourceScope ?? this.#sourceName
-    if (from.some(field => getField(field).targetName !== this.#sourceName))
-      throw new Error('Relation from fields must belong to the same model')
-    if (options.through) {
-      this.#sourcePairs = pairedRelationFields(
-        options.from,
-        options.through.from,
-        'Relation from and through.from'
+    this.required = !!options.required
+    this.where = options.where
+    this.load = load
+    this.owns = owns
+    this.#rebind = rebind
+    for (const [from, to] of this.through
+      ? [
+          [this.from, this.through.from],
+          [this.to, this.through.to]
+        ]
+      : [[this.from, this.to]])
+      if (!from!.length || from!.length !== to!.length)
+        throw new Error(
+          'Relation field mappings must have equal, nonzero lengths'
+        )
+  }
+
+  rebind(sourceScope: string): Callable & HasRelation<RelationApi> {
+    return this.#rebind(sourceScope, getTable(this.target).aliased)
+  }
+
+  get scope(): TargetScope | undefined {
+    return this.from.some(
+      field => field.targetName === getTable(this.model).aliased
+    )
+      ? undefined
+      : {
+          sourceName: getTable(this.model).aliased,
+          name: getTable(this.target).aliased
+        }
+  }
+
+  query(options: ORMQuery = {}): SelectQuery {
+    const {joins = [], select = defaults(this.target), ...rest} = options
+    const targetName = getTable(this.target).aliased
+    const originalName = getTable(this.model).aliased
+    const target = (f: FieldData) => field(f, targetName)
+    const through = this.through
+    const correlation = and(
+      ...this.from.map((from, i) =>
+        eq(field(from), through ? field(through.from[i]!) : target(this.to[i]!))
       )
-      this.#targetPairs = pairedRelationFields(
-        options.to,
-        options.through.to,
-        'Relation to and through.to'
-      )
-    } else {
-      this.#targetPairs = pairedRelationFields(
-        options.to,
-        options.from,
-        'Relation from and to'
+    )
+    return {
+      ...rest,
+      select,
+      from: [
+        this.target,
+        ...(through
+          ? [
+              {
+                innerJoin: through.table,
+                on: and(
+                  ...this.to.map((to, i) =>
+                    eq(target(to), field(through.to[i]!))
+                  )
+                )
+              }
+            ]
+          : []),
+        ...joins
+      ],
+      where: and(
+        correlation,
+        this.where && getSql(this.where).scopeTarget(originalName, targetName),
+        options.where
       )
     }
-    const selection = tableFields(this.#scopeName, getTable(target).columns)
-    for (const [key, field] of Object.entries(selection))
+  }
+
+  exists(
+    predicate?: RelationPredicateQueryInput,
+    invert = false
+  ): Sql<boolean> {
+    const options =
+      predicate && hasSql(predicate) ? {where: predicate} : (predicate ?? {})
+    const query = this.query({
+      ...options,
+      select: sql`1`,
+      where: invert ? not(options.where ?? sql<boolean>`true`) : options.where
+    })
+    const result = exists(selectQuery(query))
+    const scope = this.scope
+    return scope ? result.scopeTarget(scope.sourceName, scope.name) : result
+  }
+
+  filter(where?: HasSql<boolean>): Sql<boolean> {
+    return and(this.where, where).scopeTarget(
+      getTable(this.target).aliased,
+      getTable(this.model).aliased
+    )
+  }
+}
+
+abstract class RelationDescriptor<
+  Target extends HasTable,
+  FromName extends string,
+  K extends Cardinality,
+  R extends boolean
+> extends Callable {
+  readonly [internalRelation]: RelationApi
+  declare readonly [relationType]: [Target, K, R, FromName]
+
+  constructor(data: RelationApi) {
+    super((options: ORMQuery = {}) =>
+      data.load({...data.query(options), first: false}, data.scope)
+    )
+    this[internalRelation] = data
+    for (const [key, value] of Object.entries(data.model)) {
+      const exposed =
+        typeof value === 'function' && hasRelation<RelationApi>(value)
+          ? getRelation(value).rebind(getTable(data.target).aliased)
+          : (data.target as unknown as Record<string, unknown>)[key]
       Object.defineProperty(this, key, {
-        value: field,
+        value: exposed,
         enumerable: true,
         configurable: true
       })
-    for (const [key, value] of Object.entries(target)) {
-      if (typeof value === 'function' && hasRelation(value)) {
-        let scoped: OneRelation<any, any, any> | ManyRelation<any, any>
-        Object.defineProperty(this, key, {
-          get: () => {
-            if (scoped) return scoped
-            const data = getRelation(value as WriteRelation)
-            scoped =
-              value instanceof OneRelation
-                ? new OneRelation(data.target, data.options, this.#scopeName)
-                : new ManyRelation(data.target, data.options, this.#scopeName)
-            return scoped
-          },
-          enumerable: true,
-          configurable: true
-        })
-      }
     }
-    this.#selection = selection
-  }
-
-  #source(field: RelationField): HasSql {
-    const data = getField(field)
-    return data.targetName === this.#sourceName
-      ? new Field(this.#sourceScope, data.fieldName, data.source)
-      : field
-  }
-
-  #correlated(query: ORMQuery, select: SelectionInput) {
-    const {joins, ...selection} = query
-    this.#invocationId += 1
-    const {options} = getRelation(this)
-    const name = options.alias
-      ? this.#invocationId === 1
-        ? options.alias
-        : `${options.alias}_${this.#invocationId}`
-      : relationAlias()
-    const relationTarget = alias(this.#relationTable, name)
-    const through = options.through
-    let from: FromGuard
-    let relationWhere: HasSql<boolean>
-    if (through) {
-      const throughTable = through.table as Table<TableDefinition>
-      const throughTarget = alias(throughTable, `${name}_through`)
-      const throughFrom = relationFields(through.from).map(
-        field => throughTarget[modelFieldKey(throughTable, field)]
-      )
-      const throughTo = relationFields(through.to).map(
-        field => throughTarget[modelFieldKey(throughTable, field)]
-      )
-      from = queryFrom(relationTarget, [
-        {
-          innerJoin: throughTarget,
-          on: and(
-            ...this.#targetPairs.map(([to], index) =>
-              eq(
-                relationTarget[modelFieldKey(this.#relationTable, to)],
-                throughTo[index]
-              )
-            )
-          )
-        },
-        ...(joins ?? [])
-      ])
-      relationWhere = and(
-        ...this.#sourcePairs!.map(([outer], index) =>
-          eq(throughFrom[index], this.#source(outer))
-        )
-      )
-    } else {
-      from = queryFrom(relationTarget, joins)
-      relationWhere = and(
-        ...this.#targetPairs.map(([to, outer]) =>
-          eq(
-            relationTarget[modelFieldKey(this.#relationTable, to)],
-            this.#source(outer)
-          )
-        )
-      )
-    }
-    const data = {
-      ...selection,
-      from,
-      select,
-      where: and(
-        relationWhere,
-        options.where &&
-          getSql(options.where).scopeTarget(this.#targetName, this.#scopeName),
-        selection.where
-      )
-    }
-    const targetScope = {
-      sourceName: this.#scopeName,
-      name
-    }
-    return {data, targetScope}
-  }
-
-  #load(input?: RelationInput) {
-    const query = input ?? {}
-    const {data, targetScope} = this.#correlated(
-      query,
-      query.select ?? this.#selection
-    )
-    const scoped = new Select(data)
-    return this.#include(scoped, targetScope)
-  }
-
-  #predicate(
-    input: RelationPredicateQuery | HasSql<boolean> | undefined,
-    options: {negateExists?: boolean; negateWhere?: boolean} = {}
-  ): Sql<boolean> {
-    const query: RelationPredicateQuery = !input
-      ? {}
-      : hasSql(input)
-        ? {where: input}
-        : input
-    const where = options.negateWhere ? not(query.where ?? and()) : query.where
-    const {data, targetScope} = this.#correlated({...query, where}, sql`1`)
-    const condition = existsExpr(new Select(data)).scopeTarget(
-      targetScope.sourceName,
-      targetScope.name
-    )
-    return options.negateExists ? not(condition) : condition
   }
 }
-
+interface RelationDescriptor<
+  Target extends HasTable,
+  FromName extends string,
+  K extends Cardinality,
+  R extends boolean
+> {
+  <S extends SelectionInput = ModelSelection<Target>>(
+    options?: ORMQuery<S>
+  ): Include<RelationResult<K, R, S>>
+}
 export class OneRelation<
   Target extends HasTable,
   FromName extends string,
   Required extends boolean = false
-> extends Relation<Target, FromName, RelationOptions<FromName, Required>> {
+> extends RelationDescriptor<Target, FromName, 'one', Required> {
   constructor(
     target: Target,
     options: RelationOptions<FromName, Required>,
     sourceScope?: string
   ) {
-    super(target, options, include.one, sourceScope)
+    super(
+      new RelationApi(
+        target,
+        options,
+        (query, scope) => new Include({...query, first: true}, scope),
+        kind => kind !== 'update',
+        (scope, alias) => new OneRelation(target, {...options, alias}, scope),
+        sourceScope
+      )
+    )
   }
 }
-
 export class ManyRelation<
   Target extends HasTable,
   FromName extends string
-> extends Relation<Target, FromName, ManyRelationOptions<FromName>> {
+> extends RelationDescriptor<Target, FromName, 'many', boolean> {
   constructor(
     target: Target,
     options: ManyRelationOptions<FromName>,
     sourceScope?: string
   ) {
-    super(target, options, include, sourceScope)
+    super(
+      new RelationApi(
+        target,
+        options,
+        (query, scope) => new Include({...query, first: false}, scope),
+        () => false,
+        (scope, alias) => new ManyRelation(target, {...options, alias}, scope),
+        sourceScope
+      )
+    )
   }
 }
-
+export function many<M extends HasTable, N extends string>(
+  model: M,
+  options: ManyRelationOptions<N>
+): M & ManyRelation<M, N> {
+  return new ManyRelation(model, options) as M & ManyRelation<M, N>
+}
 export function one<
-  Target extends HasTable,
-  FromName extends string,
-  Required extends boolean = false
->(
-  target: Target,
-  options: RelationOptions<FromName, Required>
-): OneRelation<Target, FromName, Required> & RelationModel<Target> {
-  return new OneRelation(target, options) as OneRelation<
-    Target,
-    FromName,
-    Required
-  > &
-    RelationModel<Target>
+  M extends HasTable,
+  N extends string,
+  R extends boolean = false
+>(model: M, options: RelationOptions<N, R>): M & OneRelation<M, N, R> {
+  return new OneRelation(model, options) as M & OneRelation<M, N, R>
 }
-
-export function many<Target extends HasTable, FromName extends string>(
-  target: Target,
-  options: ManyRelationOptions<FromName>
-): ManyRelation<Target, FromName> & RelationModel<Target> {
-  return new ManyRelation(target, options) as ManyRelation<Target, FromName> &
-    RelationModel<Target>
-}
-
-export function some<Target extends HasTable, FromName extends string>(
-  relation: ManyRelation<Target, FromName>,
-  input?: RelationPredicateQuery | HasSql<boolean>
-): Sql<boolean> {
-  return getRelation(relation).predicate(input)
-}
-
-export function none<Target extends HasTable, FromName extends string>(
-  relation: ManyRelation<Target, FromName>,
-  input?: RelationPredicateQuery | HasSql<boolean>
-): Sql<boolean> {
-  return getRelation(relation).predicate(input, {negateExists: true})
-}
-
-export function every<Target extends HasTable, FromName extends string>(
-  relation: ManyRelation<Target, FromName>,
-  input?: RelationPredicateQuery | HasSql<boolean>
-): Sql<boolean> {
-  return getRelation(relation).predicate(input, {
-    negateExists: true,
-    negateWhere: true
-  })
-}
-
-export function is<
-  Target extends HasTable,
-  FromName extends string,
-  Required extends boolean
->(
-  relation: OneRelation<Target, FromName, Required>,
-  input?: RelationPredicateQuery | HasSql<boolean>
-): Sql<boolean> {
-  return getRelation(relation).predicate(input)
-}
-
-export function isNot<
-  Target extends HasTable,
-  FromName extends string,
-  Required extends boolean
->(
-  relation: OneRelation<Target, FromName, Required>,
-  input?: RelationPredicateQuery | HasSql<boolean>
-): Sql<boolean> {
-  return getRelation(relation).predicate(input, {negateExists: true})
-}
-
-type ModelRelation<Model extends object> = {
-  [Key in keyof Model]: Model[Key] extends WriteRelation ? Model[Key] : never
-}[keyof Model]
-
-type RelationTarget<Relation> =
-  Relation extends RelationDescriptor<infer Target> ? Target : never
-
-type RelationInsert<Relation> = TableInsert<
-  ModelDefinition<RelationTarget<Relation>>
->
-
-type RelationUpdate<Relation> = TableUpdate<
-  ModelDefinition<RelationTarget<Relation>>
->
-
-type WriteRelation = RelationDescriptor<HasTable>
-
-interface WriteOperation<Relation = WriteRelationPlan> {
-  type: 'insert' | 'update' | 'delete' | 'connect' | 'disconnect'
-  action: typeof writeRootAction
-  prepare?: typeof prepareOneWrite
-  relation?: Relation
+export interface RelationPredicateQuery {
   where?: HasSql<boolean>
-  values?: Array<Record<string, unknown>>
-  set?: Record<string, unknown>
+  joins?: Array<Join>
+}
+type RelationPredicateQueryInput = HasSql<boolean> | RelationPredicateQuery
+export const some = (
+  relation: Many,
+  predicate?: RelationPredicateQueryInput
+): Sql<boolean> => getRelation(relation).exists(predicate)
+export const none = (
+  relation: Many,
+  predicate?: RelationPredicateQueryInput
+): Sql<boolean> => not(some(relation, predicate))
+export const every = (
+  relation: Many,
+  predicate?: RelationPredicateQueryInput
+): Sql<boolean> => not(getRelation(relation).exists(predicate, true))
+export const is = (
+  relation: One,
+  predicate?: RelationPredicateQueryInput
+): Sql<boolean> => getRelation(relation).exists(predicate)
+export const isNot = (
+  relation: One,
+  predicate?: RelationPredicateQueryInput
+): Sql<boolean> => not(is(relation, predicate))
+
+export abstract class ORM<Meta extends QueryMeta> extends Builder<Meta> {
+  abstract driver: Driver
+  abstract dialect: Dialect
+  abstract transaction<Result>(
+    callback: (tx: Transaction<Meta>) => Result | Promise<Result>
+  ): Deliver<Meta, Result>
+
+  find<M extends HasTarget, S extends SelectionInput = ModelSelection<M>>(
+    model: M,
+    options: ORMQuery<S> = {}
+  ): Select<S, Meta> {
+    const {joins = [], select = defaults(model), ...rest} = options
+    return new Select({
+      ...getData(this),
+      ...rest,
+      select,
+      from: [model, ...joins]
+    } as SelectQuery)
+  }
+  first<M extends HasTarget, S extends SelectionInput = ModelSelection<M>>(
+    model: M,
+    options: ORMQuery<S> = {}
+  ): SelectFirst<S, Meta, true> {
+    return new SelectFirst({...getData(this.find(model, options)), limit: 1})
+  }
+
+  count(
+    model: HasTarget,
+    options: Omit<ORMQuery, 'select'> = {}
+  ): SelectFirst<Sql<number>, Meta> {
+    return new SelectFirst(
+      getData(this.find(model, {...options, select: aggregateCount()}))
+    )
+  }
+  write<M extends HasTable>(model: M): ModelWriteStart<M, Meta> {
+    return new ModelWriteStart({orm: this, model})
+  }
 }
 
-interface WriteSegment {
+type Row = Record<string, unknown>
+type Values<M> = InsertRow<M> | Array<InsertRow<M>>
+type RelationModel<R> = R extends Relation<infer M> ? M : never
+type ModelRelations<M> = Extract<M[keyof M], Relation>
+type Phase = 'root' | 'owned' | 'dependent' | 'deleted'
+type Allowed<P extends Phase> = P extends 'deleted'
+  ? never
+  : P extends 'dependent'
+    ? Many
+    : Relation
+type Removable<P extends Phase> = P extends 'deleted'
+  ? never
+  : P extends 'dependent'
+    ? Many
+    : Many | One<HasTable, false>
+type Next<P extends Phase, R> = R extends Many
+  ? 'dependent'
+  : P extends 'root'
+    ? 'owned'
+    : P
+type Mutated<B extends boolean, R> = R extends One ? true : B
+type Native<Meta extends QueryMeta> = Meta['dialect'] extends
+  | 'postgres'
+  | 'sqlite'
+  ? unknown
+  : never
+
+interface WriteStartData<Meta extends QueryMeta> {
+  orm: ORM<Meta>
   model: HasTable
-  anchor:
-    | {type: 'insert'; values: Array<Record<string, unknown>>}
-    | {type: 'where'; where: HasSql<boolean>}
-  operations: Array<WriteOperation>
+  prev?: WriteData<Meta>
 }
 
-interface WriteContext<Meta extends QueryMeta> {
-  tx: Transaction<Meta>
-  segment: WriteSegment
-  table: Table<TableDefinition>
-  rows: Array<Record<string, unknown>>
-  returning?: SelectionInput
+interface WriteData<Meta extends QueryMeta> extends WriteStartData<Meta> {
+  instruction:
+    | {values: Array<Row>}
+    | {where: HasSql<boolean>}
+    | {set: Row}
+    | {delete: true}
+    | {action: RelationWrite}
 }
 
-interface WriteRelationPlan {
-  descriptor: WriteRelation
-  data: RelationData<HasTable>
-  target: Table<TableDefinition>
-  from: Array<string>
-  to: Array<string>
-  through?: {
-    table: Table<TableDefinition>
-    from: Array<string>
-    to: Array<string>
+export class ModelWriteStart<M extends HasTable, Meta extends QueryMeta> {
+  readonly [internalData]: WriteStartData<Meta>
+
+  constructor(data: WriteStartData<Meta>) {
+    this[internalData] = data
   }
-}
 
-interface WriteReturningResult {
-  row: Record<string, unknown>
-  result: unknown
-}
-
-function writeRelationPlan(
-  model: HasTable,
-  descriptor: WriteRelation
-): WriteRelationPlan {
-  const data = getRelation(descriptor)
-  const keys = (target: HasTable, fields: RelationFields) =>
-    relationFields(fields).map(field => modelFieldKey(target, field))
-  const through = data.options.through
-  return {
-    descriptor,
-    data,
-    target: data.target as Table<TableDefinition>,
-    from: keys(model, data.options.from),
-    to: keys(data.target, data.options.to),
-    through: through && {
-      table: through.table as Table<TableDefinition>,
-      from: keys(through.table, through.from),
-      to: keys(through.table, through.to)
-    }
-  }
-}
-
-function copyWriteFields(
-  target: Record<string, unknown>,
-  targetKeys: Array<string>,
-  source: Record<string, unknown>,
-  sourceKeys: Array<string>
-) {
-  for (let index = 0; index < targetKeys.length; index++)
-    target[targetKeys[index]!] = source[sourceKeys[index]!]
-}
-
-function writeJoinRows(
-  relation: WriteRelationPlan,
-  parents: Array<Record<string, unknown>>,
-  related: Array<Record<string, unknown>>
-) {
-  const {through, from, to} = relation
-  return parents.flatMap(parent =>
-    related.map(row => {
-      const join: Record<string, unknown> = {}
-      copyWriteFields(join, through!.from, parent, from)
-      copyWriteFields(join, through!.to, row, to)
-      return join
+  insert(values: Values<M>): ModelWrite<M, Meta, true> {
+    return new ModelWrite({
+      ...getData(this),
+      instruction: {values: array(values)}
     })
-  )
-}
-
-function writeRowsWhere(
-  model: HasTable,
-  keys: Array<string>,
-  rows: Array<Record<string, unknown>>,
-  sourceKeys = keys
-): HasSql<boolean> | undefined {
-  if (rows.length === 0) return
-  const fields = model as unknown as Record<string, HasSql>
-  return or(
-    ...rows.map(row =>
-      and(...keys.map((key, index) => eq(fields[key], row[sourceKeys[index]!])))
-    )
-  )
-}
-
-function writeTargetWhere(relation: WriteRelationPlan, where: HasSql<boolean>) {
-  return and(
-    relation.data.options.where,
-    getSql(where).scopeTarget(
-      relation.data.scope,
-      getTable(relation.target).aliased
-    )
-  )
-}
-
-function* insertWriteRow<Meta extends QueryMeta>(
-  tx: Transaction<Meta>,
-  model: HasTable,
-  value: Record<string, unknown>,
-  required: Array<string>
-): Generator<Promise<unknown>, Record<string, unknown>, unknown> {
-  const target = model as Table<TableDefinition>
-  const insert = {
-    insert: target,
-    values: value as TableInsert<TableDefinition>
   }
-  const inserted = {...value}
-  if (
-    tx.dialect.runtime === 'mysql' &&
-    required.some(key => inserted[key] === undefined)
-  )
-    throw new Error(
-      `write() requires explicit relation fields for ${getTable(model).name} on mysql`
-    )
-  if (tx.dialect.runtime === 'mysql') {
-    yield* tx.$query(insert)
-    return inserted
-  }
-  const returned = (yield* tx.$query({
-    ...insert,
-    returning: target
-  })) as unknown as Array<Record<string, unknown>>
-  if (!returned[0]) throw new Error('write() did not return the inserted row')
-  return returned[0]
-}
 
-function* resolveOneWrite<Meta extends QueryMeta>(
-  tx: Transaction<Meta>,
-  relation: WriteRelationPlan,
-  operation: WriteOperation
-): Generator<Promise<unknown>, Record<string, unknown>, unknown> {
-  if (operation.type === 'insert') {
-    if (operation.values!.length !== 1)
-      throw new Error('One relation insert expects one value')
-    return yield* insertWriteRow(
-      tx,
-      relation.data.target,
-      operation.values![0]!,
-      relation.to
-    )
-  }
-  const matches = (yield* tx.$query({
-    select: relation.target,
-    from: relation.target,
-    where: writeTargetWhere(relation, operation.where!)
-  })) as unknown as Array<Record<string, unknown>>
-  if (matches.length !== 1)
-    throw new Error('One relation connect expects one matching row')
-  return matches[0]!
-}
-
-function* relationWriteWhere<Meta extends QueryMeta>(
-  tx: Transaction<Meta>,
-  relation: WriteRelationPlan,
-  parents: Array<Record<string, unknown>>,
-  where: HasSql<boolean>
-): Generator<Promise<unknown>, HasSql<boolean> | undefined, unknown> {
-  const {target, from, to, through} = relation
-  let related = writeRowsWhere(target, to, parents, from)
-  if (through) {
-    const joins = (yield* tx.$query({
-      select: through.table,
-      from: through.table,
-      where: writeRowsWhere(through.table, through.from, parents, from)
-    })) as unknown as Array<Record<string, unknown>>
-    related = writeRowsWhere(target, to, joins, through.to)
-  }
-  return related && and(related, writeTargetWhere(relation, where))
-}
-
-function* prepareOneWrite<Meta extends QueryMeta>(
-  tx: Transaction<Meta>,
-  values: Array<Record<string, unknown>>,
-  operation: WriteOperation
-): Generator<Promise<unknown>, boolean, unknown> {
-  const relation = operation.relation
-  if (
-    !relation ||
-    !(relation.descriptor instanceof OneRelation) ||
-    (operation.type !== 'insert' && operation.type !== 'connect')
-  )
-    return false
-  const related = yield* resolveOneWrite(tx, relation, operation)
-  for (const value of values)
-    copyWriteFields(value, relation.from, related, relation.to)
-  return true
-}
-
-function* writeRootAction<Meta extends QueryMeta>(
-  context: WriteContext<Meta>,
-  operation: WriteOperation
-): Generator<Promise<unknown>, Array<unknown> | undefined, unknown> {
-  const {tx, segment, table, returning} = context
-  if (segment.anchor.type === 'insert') return
-  if (returning) {
-    const data = {
-      where: segment.anchor.where,
-      returning: {row: table, result: returning}
-    }
-    const returned = (yield* operation.type === 'update'
-      ? tx.$query({
-          ...data,
-          update: table,
-          set: operation.set as TableUpdate<TableDefinition>
-        })
-      : tx.$query({
-          ...data,
-          delete: table
-        })) as unknown as Array<WriteReturningResult>
-    context.rows = returned.map(value => value.row)
-    return returned.map(value => value.result)
-  }
-  if (operation.type === 'update') {
-    yield* tx.$query({
-      update: table,
-      set: operation.set as TableUpdate<TableDefinition>,
-      where: segment.anchor.where
-    })
-    for (const row of context.rows) Object.assign(row, operation.set)
-  } else {
-    yield* tx.$query({delete: table, where: segment.anchor.where})
+  where(where: HasSql<boolean>): ModelWrite<M, Meta, false> {
+    return new ModelWrite({...getData(this), instruction: {where}})
   }
 }
 
-function* writeRelationCreate<Meta extends QueryMeta>(
-  context: WriteContext<Meta>,
-  operation: WriteOperation
-): Generator<Promise<unknown>, undefined, unknown> {
-  const {tx, segment, table, rows} = context
-  const relation = operation.relation!
-  const {target, from, to, through} = relation
+class RelationWrite {
+  readonly kind: 'insert' | 'update' | 'delete' | 'connect' | 'disconnect'
+  readonly relation: RelationApi
+  readonly where?: HasSql<boolean>
+  readonly values?: Array<Row>
 
-  if (relation.descriptor instanceof OneRelation) {
-    if (segment.anchor.type !== 'where')
-      throw new Error(
-        `One relation ${operation.type} requires an existing scope`
+  constructor(
+    data: Pick<RelationWrite, 'kind' | 'relation' | 'where' | 'values'>
+  ) {
+    this.kind = data.kind
+    this.relation = data.relation
+    this.where = data.where
+    this.values = data.values
+  }
+
+  get ownsRoot(): boolean {
+    return this.relation.owns(this.kind)
+  }
+
+  *execute<Meta extends QueryMeta>(
+    execution: WriteExecution<Meta>,
+    roots: Array<Row>
+  ): Generator<Promise<unknown>, void, unknown> {
+    if (!roots.length) return
+    const {relation: r, kind, values, where} = this
+    const filter = r.filter(where)
+    const through = r.through
+    let scope = through ? sql<boolean>`false` : matches(r.to, roots, r.from)
+    if (through && kind !== 'insert' && kind !== 'connect') {
+      const links = yield* execution.read(
+        through.table,
+        matches(through.from, roots, r.from)
       )
-    const related = yield* resolveOneWrite(tx, relation, operation)
-    const set: Record<string, unknown> = {}
-    copyWriteFields(set, from, related, to)
-    yield* tx.$query({
-      update: table,
-      set: set as TableUpdate<TableDefinition>,
-      where: segment.anchor.where
-    })
-    for (const row of rows) Object.assign(row, set)
-    return
-  }
-
-  if (operation.type === 'insert') {
-    if (!through) {
-      for (const row of rows)
-        for (const value of operation.values!) {
-          const child = {...value}
-          copyWriteFields(child, to, row, from)
-          yield* insertWriteRow(tx, target, child, [])
-        }
-    } else {
-      const related = []
-      for (const value of operation.values!)
-        related.push(yield* insertWriteRow(tx, target, value, to))
-      for (const join of writeJoinRows(relation, rows, related))
-        yield* insertWriteRow(tx, through.table, join, [])
+      scope = matches(r.to, links, through.to)
     }
-    return
-  }
-
-  const targetWhere = writeTargetWhere(relation, operation.where!)
-  if (!through) {
-    if (rows.length !== 1)
-      throw new Error(
-        'Direct many relation connect expects one matching parent'
-      )
-    const set: Record<string, unknown> = {}
-    copyWriteFields(set, to, rows[0]!, from)
-    yield* tx.$query({
-      update: target,
-      set: set as TableUpdate<TableDefinition>,
-      where: targetWhere
-    })
-    return
-  }
-  const matches = (yield* tx.$query({
-    select: target,
-    from: target,
-    where: targetWhere
-  })) as unknown as Array<Record<string, unknown>>
-  const keys = [...through.from, ...through.to]
-  for (const join of writeJoinRows(relation, rows, matches)) {
-    const existing = (yield* tx.$query({
-      select: sql`1`,
-      from: through.table,
-      where: writeRowsWhere(through.table, keys, [join]),
-      limit: 1
-    })) as unknown as Array<unknown>
-    if (existing.length === 0)
-      yield* insertWriteRow(tx, through.table, join, [])
-  }
-}
-
-function* writeRelationChange<Meta extends QueryMeta>(
-  context: WriteContext<Meta>,
-  operation: WriteOperation
-): Generator<Promise<unknown>, undefined, unknown> {
-  const {tx, segment, table, rows} = context
-  const relation = operation.relation!
-  const {data, target, from, to, through} = relation
-  const scoped = yield* relationWriteWhere(tx, relation, rows, operation.where!)
-  if (!scoped) return
-  if (operation.type === 'update') {
-    yield* tx.$query({
-      update: target,
-      set: operation.set as TableUpdate<TableDefinition>,
-      where: scoped
-    })
-    return
-  }
-  if (relation.descriptor instanceof OneRelation) {
-    if (data.options.required)
-      throw new Error('Required relation cannot be deleted or disconnected')
-    if (segment.anchor.type !== 'where')
-      throw new Error(
-        'One relation delete or disconnect requires an existing scope'
-      )
-    const matches = (yield* tx.$query({
-      select: target,
-      from: target,
-      where: scoped
-    })) as unknown as Array<Record<string, unknown>>
-    const parentWhere = writeRowsWhere(segment.model, from, matches, to)
-    if (!parentWhere) return
-    const set = Object.fromEntries(from.map(key => [key, null]))
-    yield* tx.$query({
-      update: table,
-      set: set as TableUpdate<TableDefinition>,
-      where: and(segment.anchor.where, parentWhere)
-    })
-    if (operation.type === 'disconnect') return
-  }
-  if (!through) {
-    if (operation.type === 'delete') {
-      yield* tx.$query({delete: target, where: scoped})
+    if (kind === 'insert') {
+      if (through) {
+        const rows = yield* execution.insert(r.model, values!, r.to)
+        yield* execution.insert(
+          through.table,
+          roots.flatMap(root =>
+            rows.map(row => ({
+              ...assignments(through.from, r.from, root),
+              ...assignments(through.to, r.to, row)
+            }))
+          )
+        )
+      } else
+        yield* execution.insert(
+          r.model,
+          roots.flatMap(root =>
+            values!.map(value => ({
+              ...value,
+              ...assignments(r.to, r.from, root)
+            }))
+          )
+        )
       return
     }
-    const set = Object.fromEntries(to.map(key => [key, null]))
-    yield* tx.$query({
-      update: target,
-      set: set as TableUpdate<TableDefinition>,
-      where: scoped
-    })
-    return
-  }
-  const matches = (yield* tx.$query({
-    select: target,
-    from: target,
-    where: scoped
-  })) as unknown as Array<Record<string, unknown>>
-  const joins = writeJoinRows(relation, rows, matches)
-  const joinWhere =
-    operation.type === 'delete'
-      ? writeRowsWhere(through.table, through.to, matches, to)
-      : writeRowsWhere(through.table, [...through.from, ...through.to], joins)
-  if (joinWhere) yield* tx.$query({delete: through.table, where: joinWhere})
-  if (operation.type === 'delete')
-    yield* tx.$query({delete: target, where: scoped})
-}
-
-function executeWrite<Meta extends QueryMeta>(
-  orm: ORM<Meta>,
-  segments: Array<WriteSegment>,
-  returning?: SelectionInput
-): Deliver<Meta, void | Array<unknown>> {
-  const execute = txGenerator<void | Array<unknown>, Meta>(function* (tx) {
-    let result: void | Array<unknown> = undefined
-    for (let index = 0; index < segments.length; index++) {
-      const segment = segments[index]!
-      const table = segment.model as Table<TableDefinition>
-      const returns = returning !== undefined && index === segments.length - 1
-      const skipped = new Set<WriteOperation>()
-      let rows: Array<Record<string, unknown>>
-
-      if (segment.anchor.type === 'insert') {
-        const values = segment.anchor.values.map(value => ({...value}))
-        for (const operation of segment.operations) {
-          if (
-            operation.prepare &&
-            (yield* operation.prepare(tx, values, operation))
-          )
-            skipped.add(operation)
-        }
-        const required = segment.operations.flatMap(
-          operation => operation.relation?.from ?? []
-        )
-        rows = []
-        if (returns) {
-          const inserted = values.length
-            ? ((yield* tx.$query({
-                insert: table,
-                values: values as Array<TableInsert<TableDefinition>>,
-                returning: {row: table, result: returning}
-              })) as unknown as Array<WriteReturningResult>)
-            : []
-          rows = inserted.map(value => value.row)
-          result = inserted.map(value => value.result)
-        } else {
-          for (const value of values)
-            rows.push(yield* insertWriteRow(tx, segment.model, value, required))
-        }
+    if (kind === 'connect') {
+      if (through) {
+        const targets = yield* execution.read(r.model, filter)
+        for (const root of roots)
+          for (const target of targets) {
+            const value = {
+              ...assignments(through.from, r.from, root),
+              ...assignments(through.to, r.to, target)
+            }
+            const existing = yield* execution.read(
+              through.table,
+              matches([...through.from, ...through.to], [value])
+            )
+            if (!existing.length)
+              yield* execution.insert(through.table, [value])
+          }
       } else {
-        rows = segment.operations.some(operation => operation.relation)
-          ? ((yield* tx.$query({
-              select: table,
-              from: table,
-              where: segment.anchor.where
-            })) as unknown as Array<Record<string, unknown>>)
-          : []
+        if (roots.length !== 1)
+          throw new Error('Direct many connect requires exactly one parent')
+        yield* execution.query({
+          update: r.model,
+          where: filter,
+          set: assignments(r.to, r.from, roots[0]!)
+        })
       }
-
-      const context: WriteContext<Meta> = {
-        tx,
-        segment,
-        table,
-        rows,
-        returning: returns ? returning : undefined
-      }
-      for (const operation of segment.operations) {
-        if (skipped.has(operation)) continue
-        const returned = yield* operation.action(context, operation)
-        if (returned !== undefined) result = returned
-      }
+      return
     }
-    return result
-  })
-  return (
-    orm.driver.supportsTransactions
-      ? orm.transaction(execute)
-      : execute(orm as unknown as Transaction<Meta>)
-  ) as Deliver<Meta, void | Array<unknown>>
-}
-
-export class ModelWriteStart<Model extends HasTable, Meta extends QueryMeta> {
-  readonly #orm: ORM<Meta>
-  readonly #segments: Array<WriteSegment>
-  readonly #model: Model
-
-  constructor(orm: ORM<Meta>, segments: Array<WriteSegment>, model: Model) {
-    this.#orm = orm
-    this.#segments = segments
-    this.#model = model
-  }
-
-  insert(
-    values:
-      | TableInsert<ModelDefinition<Model>>
-      | Array<TableInsert<ModelDefinition<Model>>>
-  ): ModelWrite<Model, Meta, true> {
-    return new ModelWrite<Model, Meta, true>(this.#orm, [
-      ...this.#segments,
-      {
-        model: this.#model,
-        anchor: {
-          type: 'insert',
-          values: (Array.isArray(values) ? values : [values]) as Array<
-            Record<string, unknown>
-          >
-        },
-        operations: []
-      }
-    ])
-  }
-
-  where(where: HasSql<boolean>): ModelWrite<Model, Meta, false> {
-    return new ModelWrite<Model, Meta, false>(this.#orm, [
-      ...this.#segments,
-      {
-        model: this.#model,
-        anchor: {type: 'where', where},
-        operations: []
-      }
-    ])
+    if (kind === 'update') {
+      const set = Object.fromEntries(
+        Object.entries(values![0]!).map(([key, value]) => [
+          key,
+          value && typeof value === 'object' && hasSql(value)
+            ? getSql(value).scopeTarget(
+                getTable(r.target).aliased,
+                getTable(r.model).aliased
+              )
+            : value
+        ])
+      )
+      yield* execution.query({update: r.model, where: and(scope, filter), set})
+      return
+    }
+    if (through) {
+      const targets = yield* execution.read(r.model, and(scope, filter))
+      const links = matches(through.to, targets, r.to)
+      yield* execution.query({
+        delete: through.table,
+        where:
+          kind === 'delete'
+            ? links
+            : and(links, matches(through.from, roots, r.from))
+      })
+    }
+    if (kind === 'delete')
+      yield* execution.query({delete: r.model, where: and(scope, filter)})
+    else if (!through)
+      yield* execution.query({
+        update: r.model,
+        where: and(scope, filter),
+        set: Object.fromEntries(r.to.map(f => [f.key, null]))
+      })
   }
 }
+
+interface Segment {
+  model: HasTable
+  where?: HasSql<boolean>
+  query?: WriteQuery
+  actions: Array<RelationWrite>
+}
+interface Output {
+  kind: 'select' | 'returning'
+  selection: SelectionInput
+}
+const array = (values: Row | Array<Row>) =>
+  (Array.isArray(values) ? values : [values]).map(row => ({...row}))
 
 export class ModelWrite<
-  Model extends HasTable,
+  M extends HasTable,
   Meta extends QueryMeta,
-  RootMutation extends boolean = boolean
+  RootMutation extends boolean = boolean,
+  P extends Phase = 'root'
 > extends Executable<void, Meta> {
-  declare readonly [internalRootMutation]: RootMutation
-  readonly #orm: ORM<Meta>
-  readonly #segments: Array<WriteSegment>
+  readonly [internalData]: WriteData<Meta>
 
-  constructor(orm: ORM<Meta>, segments: Array<WriteSegment>) {
-    super(() => executeWrite(orm, segments) as Deliver<Meta, void>)
-    this.#orm = orm
-    this.#segments = segments
+  constructor(data: WriteData<Meta>) {
+    super(() => this.#execute())
+    this[internalData] = data
   }
 
-  #append<NextRootMutation extends boolean = RootMutation>(
-    operation: Omit<WriteOperation<WriteRelation>, 'action' | 'prepare'>
-  ): ModelWrite<Model, Meta, NextRootMutation> {
-    const current = this.#segments.at(-1)!
-    const relation =
-      operation.relation && writeRelationPlan(current.model, operation.relation)
-    const creates = operation.type === 'insert' || operation.type === 'connect'
-    const action = !relation
-      ? writeRootAction
-      : creates
-        ? writeRelationCreate
-        : writeRelationChange
-    const planned = {
-      ...operation,
-      action,
-      relation,
-      prepare: relation && creates ? prepareOneWrite : undefined
-    }
-    return new ModelWrite<Model, Meta, NextRootMutation>(this.#orm, [
-      ...this.#segments.slice(0, -1),
-      {
-        ...current,
-        operations: [...current.operations, planned]
-      }
-    ])
+  #append(instruction: WriteData<Meta>['instruction']): any {
+    const prev = getData(this)
+    return new ModelWrite({...prev, prev, instruction})
   }
 
-  update(
-    this: ModelWrite<Model, Meta, false>,
-    values: TableUpdate<ModelDefinition<Model>>
-  ): ModelWrite<Model, Meta, true>
-  update<Relation extends ModelRelation<Model>>(
-    relation: Relation,
-    where: HasSql<boolean>,
-    values: RelationUpdate<Relation>
-  ): ModelWrite<Model, Meta, RootMutation>
-  update(
-    relationOrValues: WriteRelation | Record<string, unknown>,
-    where?: HasSql<boolean>,
-    values?: Record<string, unknown>
-  ): ModelWrite<Model, Meta, boolean> {
-    if (typeof relationOrValues === 'function' && hasRelation(relationOrValues))
-      return this.#append({
-        type: 'update',
-        relation: relationOrValues,
-        where,
-        set: values
+  insert<R extends Allowed<P> & ModelRelations<M>>(
+    relation: R,
+    values: Values<RelationModel<R>>
+  ): ModelWrite<M, Meta, Mutated<RootMutation, R>, Next<P, R>>
+  insert(first: Relation, values: Row | Array<Row>): any {
+    if (typeof first === 'function' && hasRelation(first))
+      return this.#action({
+        kind: 'insert',
+        relation: getRelation(first),
+        values: array(values!)
       })
-    return this.#append<true>({
-      type: 'update',
-      set: relationOrValues as Record<string, unknown>
-    })
+    throw new Error('An anchored write expects a relation')
   }
-
-  insert<Relation extends ModelRelation<Model>>(
-    relation: Relation,
-    values: RelationInsert<Relation> | Array<RelationInsert<Relation>>
-  ): ModelWrite<Model, Meta, RootMutation> {
-    return this.#append({
-      type: 'insert',
-      relation,
-      values: (Array.isArray(values) ? values : [values]) as Array<
-        Record<string, unknown>
-      >
-    })
+  update<R extends ModelRelations<M>>(
+    this: P extends 'deleted' ? never : unknown,
+    relation: R,
+    predicate: HasSql<boolean>,
+    values: UpdateRow<RelationModel<R>>
+  ): ModelWrite<M, Meta, RootMutation, 'dependent'>
+  update(
+    this: P extends 'root'
+      ? RootMutation extends false
+        ? unknown
+        : never
+      : never,
+    values: UpdateRow<M>
+  ): ModelWrite<M, Meta, true, 'owned'>
+  update(first: Relation | Row, where?: HasSql<boolean>, values?: Row): any {
+    if (typeof first === 'function' && hasRelation(first))
+      return this.#action({
+        kind: 'update',
+        relation: getRelation(first),
+        where,
+        values: [values!]
+      })
+    if (!('where' in getData(this).instruction))
+      throw new Error('Root updates must precede relation operations')
+    return this.#append({set: {...first}})
   }
-
-  delete(this: ModelWrite<Model, Meta, false>): ModelWrite<Model, Meta, true>
-  delete<Relation extends ModelRelation<Model>>(
-    relation: Relation,
-    where: HasSql<boolean>
-  ): ModelWrite<Model, Meta, RootMutation>
+  delete<R extends Removable<P> & ModelRelations<M>>(
+    relation: R,
+    predicate: HasSql<boolean>
+  ): ModelWrite<M, Meta, Mutated<RootMutation, R>, Next<P, R>>
   delete(
-    relation?: WriteRelation,
-    where?: HasSql<boolean>
-  ): ModelWrite<Model, Meta, boolean> {
-    return relation
-      ? this.#append({type: 'delete', relation, where})
-      : this.#append<true>({type: 'delete'})
+    this: P extends 'root'
+      ? RootMutation extends false
+        ? unknown
+        : never
+      : never
+  ): ModelWrite<M, Meta, true, 'deleted'>
+  delete(relation?: Relation, where?: HasSql<boolean>): any {
+    if (relation)
+      return this.#action({
+        kind: 'delete',
+        relation: getRelation(relation),
+        where
+      })
+    if (!('where' in getData(this).instruction))
+      throw new Error('Root deletion requires a separate segment')
+    return this.#append({delete: true})
   }
-
-  connect<Relation extends ModelRelation<Model>>(
-    relation: Relation,
+  connect<R extends Allowed<P> & ModelRelations<M>>(
+    relation: R,
     where: HasSql<boolean>
-  ): ModelWrite<Model, Meta, RootMutation> {
-    return this.#append({
-      type: 'connect',
-      relation,
+  ): ModelWrite<M, Meta, Mutated<RootMutation, R>, Next<P, R>> {
+    return this.#action({
+      kind: 'connect',
+      relation: getRelation(relation),
+      where
+    })
+  }
+  disconnect<R extends Removable<P> & ModelRelations<M>>(
+    relation: R,
+    where: HasSql<boolean>
+  ): ModelWrite<M, Meta, Mutated<RootMutation, R>, Next<P, R>> {
+    return this.#action({
+      kind: 'disconnect',
+      relation: getRelation(relation),
       where
     })
   }
 
-  disconnect<Relation extends ModelRelation<Model>>(
-    relation: Relation,
-    where: HasSql<boolean>
-  ): ModelWrite<Model, Meta, RootMutation> {
-    return this.#append({
-      type: 'disconnect',
-      relation,
-      where
-    })
-  }
-
-  write<Next extends HasTable>(model: Next): ModelWriteStart<Next, Meta> {
-    return new ModelWriteStart(this.#orm, this.#segments, model)
-  }
-
-  returning(
-    this: ModelWrite<Model, IsPostgres | IsSqlite, true>
-  ): Executable<Array<ModelRow<Model>>, Meta>
-  returning<Returning extends SelectionInput>(
-    this: ModelWrite<Model, IsPostgres | IsSqlite, true>,
-    selection: Returning
-  ): Executable<Array<SelectionRow<Returning>>, Meta>
-  returning(
-    selection: SelectionInput = this.#segments.at(-1)!.model
-  ): Executable<Array<unknown>, Meta> {
-    return new Executable(
-      () =>
-        executeWrite(this.#orm, this.#segments, selection) as Deliver<
-          Meta,
-          Array<unknown>
-        >
+  #action(
+    data: Pick<RelationWrite, 'kind' | 'relation' | 'where' | 'values'>
+  ): any {
+    const action = new RelationWrite(data)
+    const current = getData(this)
+    const last = current.instruction
+    if ('delete' in last || ('where' in last && !last.where))
+      throw new Error('Relation writes require an anchored, non-deleted root')
+    if (
+      action.relation.from.some(
+        field => field.targetName !== getTable(current.model).aliased
+      )
     )
+      throw new Error('Relation does not belong to this root model')
+    if (action.ownsRoot) {
+      if (action.kind === 'insert' && action.values!.length !== 1)
+        throw new Error('One relation insert requires exactly one target')
+      if (
+        action.relation.required &&
+        (action.kind === 'delete' || action.kind === 'disconnect')
+      )
+        throw new Error(
+          'Required one relations cannot be disconnected or deleted'
+        )
+      const keys = new Set(action.relation.from.map(field => field.key))
+      for (
+        let node: WriteData<Meta> | undefined = current;
+        node;
+        node = node.prev
+      ) {
+        const step = node.instruction
+        if ('action' in step) {
+          if (!step.action.ownsRoot)
+            throw new Error(
+              'Root relation changes must precede dependent writes'
+            )
+          if (step.action.relation.from.some(field => keys.has(field.key)))
+            throw new Error('Ambiguous assignment of root relation fields')
+        }
+        const inputs =
+          'values' in step ? step.values : 'set' in step ? [step.set] : []
+        if (inputs.some(row => Object.keys(row).some(key => keys.has(key))))
+          throw new Error('Ambiguous assignment of root relation fields')
+        if ('values' in step || 'where' in step) break
+      }
+    }
+    return this.#append({action})
+  }
+
+  write<N extends HasTable>(model: N): ModelWriteStart<N, Meta> {
+    const prev = getData(this)
+    return new ModelWriteStart({orm: prev.orm, model, prev})
+  }
+  returning<S extends SelectionInput = ModelSelection<M>>(
+    this: Native<Meta> & (RootMutation extends true ? unknown : never),
+    selection?: S
+  ): Executable<Array<SelectionRow<S>>, Meta>
+  returning(
+    selection: SelectionInput = defaults(getData(this).model)
+  ): Executable<Array<unknown>, Meta> {
+    for (
+      let node: WriteData<Meta> | undefined = getData(this);
+      node;
+      node = node.prev
+    ) {
+      const step = node.instruction
+      if ('where' in step) break
+      if (!('action' in step) || step.action.ownsRoot)
+        return this.#output({kind: 'returning', selection})
+    }
+    throw new Error('Returning requires a root mutation')
+  }
+  select<S extends SelectionInput>(
+    this: Native<Meta>,
+    selection: S
+  ): Executable<Array<SelectionRow<S>>, Meta>
+  select(selection: SelectionInput): Executable<Array<unknown>, Meta> {
+    return this.#output({kind: 'select', selection})
+  }
+
+  #output(output: Output): Executable<Array<unknown>, Meta> {
+    if (getData(this).orm.dialect.runtime === 'mysql')
+      throw new Error('Write output requires native RETURNING')
+    return new Executable(() => this.#execute(output))
+  }
+
+  #execute(output?: Output) {
+    const tail = getData(this)
+    const run = txGenerator(function* (tx: Transaction<Meta>) {
+      const instructions: Array<WriteData<Meta>> = []
+      for (let node: WriteData<Meta> | undefined = tail; node; node = node.prev)
+        instructions.push(node)
+      const execution = new WriteExecution(tx)
+      let segment: Segment | undefined
+      for (let index = instructions.length - 1; index >= 0; index--) {
+        const {model, instruction} = instructions[index]!
+        if ('values' in instruction || 'where' in instruction) {
+          if (segment) yield* execution.execute(segment)
+          segment = {
+            model,
+            ...('values' in instruction
+              ? {query: {insert: model, values: array(instruction.values)}}
+              : instruction),
+            actions: []
+          }
+        } else if ('action' in instruction) {
+          segment!.actions.push(instruction.action)
+        } else
+          segment!.query =
+            'set' in instruction
+              ? {
+                  update: model,
+                  set: {...instruction.set},
+                  where: segment!.where
+                }
+              : {delete: model, where: segment!.where}
+      }
+      const result = yield* execution.execute(segment!, output)
+      return output ? result : undefined
+    })
+    return tail.orm.driver.supportsTransactions
+      ? tail.orm.transaction(run)
+      : run(tail.orm as Transaction<Meta>)
+  }
+}
+
+// Query's public overload describes one row, but mutation/select execution returns arrays.
+type WriteQuery =
+  | (Omit<InsertQuery, 'insert' | 'values'> & {
+      insert: HasTable
+      values: Array<Row>
+    })
+  | (Omit<UpdateQuery, 'update' | 'set'> & {update: HasTable; set: Row})
+  | (Omit<DeleteQuery, 'delete'> & {delete: HasTable})
+function matches(
+  fields: Array<FieldData>,
+  rows: Array<Row>,
+  source = fields
+): Sql<boolean> {
+  return rows.length
+    ? or(
+        ...rows.map(row =>
+          and(
+            ...fields.map((f, i) =>
+              row[source[i]!.key] == null
+                ? sql<boolean>`false`
+                : eq(field(f), row[source[i]!.key])
+            )
+          )
+        )
+      )
+    : sql`false`
+}
+function assignments(
+  to: Array<FieldData>,
+  from: Array<FieldData>,
+  row: Row
+): Row {
+  return Object.fromEntries(to.map((f, i) => [f.key, row[from[i]!.key]]))
+}
+
+class WriteExecution<Meta extends QueryMeta> {
+  readonly #tx: Transaction<Meta>
+  readonly #native: boolean
+
+  constructor(tx: Transaction<Meta>) {
+    this.#tx = tx
+    this.#native = tx.dialect.runtime !== 'mysql'
+  }
+
+  query(data: SelectQuery | WriteQuery): SingleQuery<Array<Row>, Meta> {
+    return this.#tx.$query(data as SelectQuery) as unknown as SingleQuery<
+      Array<Row>,
+      Meta
+    >
+  }
+
+  *read(
+    model: HasTable,
+    where?: HasSql<boolean>
+  ): Generator<Promise<unknown>, Array<Row>, unknown> {
+    return yield* this.query({
+      select: defaults(model),
+      from: model,
+      where,
+      for:
+        !this.#native && this.#tx.driver.supportsTransactions
+          ? sql`update`
+          : undefined
+    })
+  }
+
+  #clientValues(
+    model: HasTable,
+    values: Array<Row>,
+    needed: Array<FieldData>,
+    update = false
+  ): Array<Row> {
+    return values.map(value => {
+      const result = {...value}
+      for (const f of needed) {
+        const column = getData(getTable(model).columns[f.key]!)
+        if (!update && result[f.key] === undefined && column.$default)
+          result[f.key] = column.$default()
+        const v = result[f.key]
+        if (
+          (!update && v === undefined) ||
+          (v && typeof v === 'object' && hasSql(v)) ||
+          (update && v === undefined && column.$onUpdate)
+        )
+          throw new Error(
+            `MySQL requires explicit or client-generated relation field ${f.key}`
+          )
+      }
+      return result
+    })
+  }
+
+  *insert(
+    model: HasTable,
+    values: Array<Row>,
+    needed: Array<FieldData> = []
+  ): Generator<Promise<unknown>, Array<Row>, unknown> {
+    if (!values.length) return []
+    const native = this.#native
+    const input = native ? values : this.#clientValues(model, values, needed)
+    const rows = yield* this.query({
+      insert: model,
+      values: input,
+      returning: native && needed.length ? defaults(model) : undefined
+    })
+    return native && needed.length ? rows : input
+  }
+
+  *execute(
+    segment: Segment,
+    output?: Output
+  ): Generator<Promise<unknown>, Array<unknown>, unknown> {
+    const {model, where, actions} = segment
+    const native = this.#native
+    const parents = actions.filter(action => action.ownsRoot)
+    const dependents = actions.filter(action => !action.ownsRoot)
+    const needed = dependents.flatMap(a => a.relation.from)
+    const capture = needed.length > 0 || output?.kind === 'select'
+    let query = segment.query
+    const captureBefore = parents.length > 0 || (!query && capture)
+    let roots =
+      query && 'insert' in query
+        ? query.values
+        : captureBefore
+          ? yield* this.read(model, where)
+          : []
+    if (((query && 'insert' in query) || captureBefore) && !roots.length)
+      return []
+    if (parents.length) query ??= {update: model, set: {}, where}
+    const assigned = new Set(
+      parents.flatMap(a => a.relation.from.map(f => f.key))
+    )
+    if (!native) {
+      const unresolved = needed.filter(f => !assigned.has(f.key))
+      if (query && 'insert' in query)
+        query.values = this.#clientValues(model, query.values, unresolved)
+      else if (query && 'update' in query)
+        query.set = this.#clientValues(model, [query.set], unresolved, true)[0]!
+    }
+    const deletes: Array<{model: HasTable; where: HasSql<boolean>}> = []
+    for (const action of parents) {
+      const r = action.relation
+      let related: Array<Row>
+      if (action.kind === 'insert')
+        related = yield* this.insert(r.model, action.values!, r.to)
+      else
+        related = yield* this.read(
+          r.model,
+          and(
+            r.filter(action.where),
+            action.kind === 'connect' ? undefined : matches(r.to, roots, r.from)
+          )
+        )
+      if (action.kind === 'insert' || action.kind === 'connect') {
+        if (related.length !== 1)
+          throw new Error('One relation requires exactly one target')
+        const changes = assignments(r.from, r.to, related[0]!)
+        if (query && 'insert' in query)
+          query.values = query.values.map(row => ({...row, ...changes}))
+        else if (query && 'update' in query) Object.assign(query.set, changes)
+      } else {
+        const condition = matches(r.from, related, r.to)
+        if (action.kind === 'delete') {
+          deletes.push({model: r.model, where: matches(r.to, related)})
+        }
+        if (query && 'insert' in query)
+          query.values = query.values.map(row => ({
+            ...row,
+            ...Object.fromEntries(
+              r.from.map(f => [
+                f.key,
+                related.some(target =>
+                  r.from.every((f, i) => row[f.key] === target[r.to[i]!.key])
+                )
+                  ? null
+                  : row[f.key]
+              ])
+            )
+          }))
+        else if (query && 'update' in query)
+          for (const f of r.from)
+            query.set[f.key] = when([condition, null], field(f))
+      }
+    }
+    if (!native && query && 'update' in query && needed.length) {
+      const {set} = query
+      roots = yield* this.query({
+        select: Object.fromEntries(
+          needed.map(f => {
+            const column = getData(getTable(model).columns[f.key]!)
+            return [
+              f.key,
+              set[f.key] === undefined
+                ? field(f)
+                : mapToColumn(column, set[f.key]).mapWith(column)
+            ]
+          })
+        ),
+        from: model,
+        where,
+        for: this.#tx.driver.supportsTransactions ? sql`update` : undefined
+      })
+    }
+    let returned: Array<unknown> = []
+    if (query) {
+      if (native && (capture || output?.kind === 'returning'))
+        query.returning = {
+          ...(capture && {root: defaults(model)}),
+          ...(output?.kind === 'returning' && {result: output.selection})
+        }
+      const result = yield* this.query(query)
+      if (native) {
+        roots = capture ? result.map(row => row.root as Row) : []
+        if (output?.kind === 'returning')
+          returned = result.map(row => row.result)
+      } else if ('insert' in query) roots = query.values
+    }
+    for (const deletion of deletes)
+      yield* this.query({delete: deletion.model, where: deletion.where})
+    for (const action of dependents) yield* action.execute(this, roots)
+    if (output?.kind === 'select') {
+      const table = getTable(model)
+      const columns = Object.entries(table.columns)
+      // The empty table arm supplies column types; captured values supply rows.
+      const empty = sql.query({
+        select: sql.join(
+          columns.map(([key, col]) => sql.identifier(getData(col).name ?? key)),
+          sql`, `
+        ),
+        from: table.identifier(),
+        where: sql`false`
+      })
+      for (const root of roots) {
+        const source = sql.query(empty, {
+          unionAll: sql.query({
+            select: sql.join(
+              columns.map(([key, col]) => mapToColumn(getData(col), root[key])),
+              sql`, `
+            )
+          })
+        })
+        returned.push(
+          ...(yield* this.query({
+            select: output.selection,
+            from: sql`(${source}) as ${sql.identifier(table.aliased)}`
+          }))
+        )
+      }
+    }
+    return returned
   }
 }

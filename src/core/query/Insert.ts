@@ -188,7 +188,7 @@ function formatValues(
           const columnApi = getData(column)
           const {$onUpdate, $default, defaultValue} = columnApi
           if (expr !== undefined) return mapToColumn(columnApi, expr)
-          if ($default) return $default()
+          if ($default) return mapToColumn(columnApi, $default())
           if (defaultValue) return formatDefaultValue(defaultValue)
           if ($onUpdate) return $onUpdate()
           return defaultKeyword
