@@ -14,6 +14,7 @@ import {
   getCreate,
   getDrop,
   getResolver,
+  getTable,
   hasQuery,
   hasSelection,
   internalResolver
@@ -90,6 +91,8 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
+    if (tables.some(table => getTable(table).temporary))
+      throw new Error('Temporary tables cannot be migrated')
     if (this.dialect.runtime === 'mysql' && tables.length > 1) {
       const run = async () => {
         for (const table of tables) await this.migrate(table)

@@ -7,6 +7,8 @@ import type {
   SyncStatement
 } from '#/core/Driver.ts'
 import {sql} from '#/core/Sql.ts'
+import {temporaryTable} from '#/core/Table.ts'
+import {integer} from '#/sqlite/columns.ts'
 import {sqliteDialect} from '#/sqlite/dialect.ts'
 
 const test = suite(import.meta)
@@ -37,6 +39,9 @@ test('database frees direct statements after success and failure', () => {
     batch: () => []
   }
   const db = new SyncDatabase(driver, sqliteDialect, undefined!)
+
+  const Scratch = temporaryTable('Scratch', {id: integer()})
+  test.throws(() => db.migrate(Scratch), 'Temporary tables cannot be migrated')
 
   test.equal(db.get(sql`select 1`), null)
   test.equal(db.all(sql`select 1`), [])

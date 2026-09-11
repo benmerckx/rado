@@ -1,8 +1,8 @@
 import {suite} from '@alinea/suite'
 import {foreignKey, primaryKey, unique} from '#/core/Constraint.ts'
 import {index} from '#/core/Index.ts'
-import {getCreate} from '#/core/Internal.ts'
-import {table} from '#/core/Table.ts'
+import {getCreate, getDrop} from '#/core/Internal.ts'
+import {table, temporaryTable} from '#/core/Table.ts'
 import {integer, text} from '#/sqlite/columns.ts'
 import {emit} from '../TestUtils.ts'
 
@@ -13,6 +13,19 @@ suite(import.meta, test => {
 
   test('format table and column name', () => {
     test.equal(emit(Node.id), '"Node"."id"')
+  })
+
+  test('temporary table creation and removal', () => {
+    const Scratch = temporaryTable('Scratch', {
+      id: integer(),
+      value: text()
+    })
+
+    test.equal(
+      emit(getCreate(Scratch)[0]),
+      'create temporary table "Scratch" ("id" integer, "value" text)'
+    )
+    test.equal(emit(getDrop(Scratch)[0]), 'drop table if exists "Scratch"')
   })
 
   test('object config uses keys as fallback names', () => {

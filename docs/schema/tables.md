@@ -29,6 +29,29 @@ import {mysqlTable} from 'rado/mysql'
 Use the wrapper of your database for best-fitting types, or stay generic with
 `table` + `rado/universal` columns if a query should run anywhere.
 
+## Temporary tables
+
+Temporary tables have the same typed query interface as regular tables, but
+`db.create` emits `create temporary table`:
+
+```ts
+import {temporaryTable} from 'rado'
+
+const Scratch = temporaryTable('scratch', {
+  id: integer().notNull(),
+  value: text()
+})
+
+await db.create(Scratch)
+await db.insert(Scratch).values({id: 1, value: 'hello'})
+await db.drop(Scratch)
+```
+
+Rado does not manage the table's lifetime: temporary tables are scoped according
+to the connection semantics of the database and driver in use. They can be
+created or dropped on either a database or transaction, but cannot be passed to
+`db.migrate`.
+
 ## Column names are inferred
 
 The property name becomes the column name. Only pass a name when they differ:

@@ -39,6 +39,7 @@ class TableData {
   name!: string
   alias?: string
   schemaName?: string
+  temporary?: boolean
   columns!: TableDefinition
   config?: () => TableConfigResult
 }
@@ -105,7 +106,9 @@ export class TableApi<
 
   createTable(altName?: string, ifNotExists = false): Sql {
     return sql.join([
-      sql`create table`,
+      sql`create`,
+      this.temporary ? sql`temporary` : undefined,
+      sql`table`,
       ifNotExists ? sql`if not exists` : undefined,
       this.identifier(altName),
       sql`(${this.createDefinition()})`
@@ -262,9 +265,31 @@ export function table<Definition extends TableDefinition, Name extends string>(
   config?: (self: Table<Definition, Name>) => TableConfigResult,
   schemaName?: string
 ): Table<Definition, Name> {
+  return createTable(name, columns, config, schemaName, false)
+}
+
+export function temporaryTable<
+  Definition extends TableDefinition,
+  Name extends string
+>(
+  name: Name,
+  columns: Definition,
+  config?: (self: Table<Definition, Name>) => TableConfigResult
+): Table<Definition, Name> {
+  return createTable(name, columns, config, undefined, true)
+}
+
+function createTable<Definition extends TableDefinition, Name extends string>(
+  name: Name,
+  columns: Definition,
+  config: ((self: Table<Definition, Name>) => TableConfigResult) | undefined,
+  schemaName: string | undefined,
+  temporary: boolean
+): Table<Definition, Name> {
   const api = assign(new TableApi<Definition, Name>(), {
     name,
     schemaName,
+    temporary,
     columns
   })
   const fields = tableFields(api.aliased, api.columns)
