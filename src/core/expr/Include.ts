@@ -10,8 +10,12 @@ import {
   selectQuery
 } from '../query/Select.ts'
 import type {MapRowContext, SelectionRow} from '../Selection.ts'
-import {type Sql, sql} from '../Sql.ts'
-import {jsonAggregateArray, jsonArray} from './Json.ts'
+import {type Sql, type TargetScope, sql} from '../Sql.ts'
+import {
+  jsonAggregateArray,
+  jsonArray,
+  preserveJsonAggregateOrder
+} from './Json.ts'
 
 export type IncludeQuery = SelectQuery & {
   first: boolean
@@ -23,15 +27,17 @@ export class Include<
 > implements HasSql<Result> {
   declare private brand: [Result]
   readonly [internalData]: QueryData<Meta> & IncludeQuery
+  readonly #targetScope?: TargetScope
 
-  constructor(data: QueryData<Meta> & IncludeQuery) {
+  constructor(data: QueryData<Meta> & IncludeQuery, targetScope?: TargetScope) {
     this[internalData] = data
+    this.#targetScope = targetScope
   }
 
   #mapFromDriverValue = (value: any, specs: DriverSpecs): any => {
     const query = getData(this)
     const parsed = specs.parsesJson ? value : JSON.parse(value)
-    const selected = querySelection(query)
+    const selected = querySelection(query, this.#targetScope)
     if (query.first) {
       const result = parsed
         ? selected.mapRow({values: parsed, index: 0, specs})
@@ -54,41 +60,56 @@ export class Include<
   }
 
   get [internalSql](): Sql<Result> {
-    return includeQuery(getData(this)).mapWith<Result>({
+    return includeQuery(getData(this), this.#targetScope).mapWith<Result>({
       mapFromDriverValue: this.#mapFromDriverValue
     })
   }
 }
 
 export function include<Input, Meta extends QueryMeta>(
-  select: Select<Input, Meta>
+  select: Select<Input, Meta>,
+  targetScope?: TargetScope
 ): Include<Array<SelectionRow<Input>>, Meta> {
-  return new Include({...getData(select), first: false})
+  return new Include({...getData(select), first: false}, targetScope)
 }
 
 export namespace include {
   export function one<Input, Meta extends QueryMeta>(
-    select: SelectBase<Input, Meta>
+    select: SelectBase<Input, Meta>,
+    targetScope?: TargetScope
   ): Include<SelectionRow<Input> | null, Meta> {
-    return new Include({
-      ...(getData(select) as QueryData<Meta> & SelectQuery),
-      first: true
-    })
+    return new Include(
+      {
+        ...(getData(select) as QueryData<Meta> & SelectQuery),
+        first: true
+      },
+      targetScope
+    )
   }
 }
 
-export function includeQuery(query: IncludeQuery): Sql {
+export function includeQuery(
+  query: IncludeQuery,
+  targetScope?: TargetScope
+): Sql {
   const {first, limit, offset, orderBy} = query
   const wrapQuery = Boolean(limit || offset || orderBy)
-  const innerQuery = selectQuery(query)
+  const innerQuery = selectQuery(query, targetScope)
+  const aggregateInput =
+    orderBy?.length && limit === undefined
+      ? preserveJsonAggregateOrder(innerQuery)
+      : innerQuery
   const inner = wrapQuery
-    ? sql`select * from (${innerQuery}) as __`
-    : innerQuery
-  const fields = querySelection(query).fieldNames()
+    ? sql`select * from (${aggregateInput}) as __`
+    : aggregateInput
+  const fields = querySelection(query, targetScope).fieldNames()
   const subject = jsonArray(
     ...fields.map(name => sql`_.${sql.identifier(name)}`)
   )
-  return sql`(select ${
+  const result = sql`(select ${
     first ? subject : jsonAggregateArray(subject)
   } from (${inner}) as _)`
+  return targetScope
+    ? result.scopeTarget(targetScope.sourceName, targetScope.name)
+    : result
 }

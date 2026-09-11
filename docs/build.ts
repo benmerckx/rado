@@ -745,9 +745,7 @@ async function build(): Promise<void> {
     const raw = Bun.markdown.html(markdown)
     const {html, headings} = addHeadingIds(raw)
     const content = highlightCodeBlocks(html)
-    const outFile = file
-      .replace(/\\/g, '/')
-      .replace(/\.md$/, '.html')
+    const outFile = file.replace(/\\/g, '/').replace(/\.md$/, '.html')
     const depth = outFile.split('/').length - 1
     const prefix = '../'.repeat(depth)
     const title =

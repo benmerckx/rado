@@ -52,9 +52,45 @@ export abstract class Emitter {
 
   #selfName: string | undefined
   emitSelf(inner: Sql, name: string): void {
+    const previous = this.#selfName
     this.#selfName = name
-    inner.emit(this)
-    this.#selfName = undefined
+    try {
+      inner.emit(this)
+    } finally {
+      this.#selfName = previous
+    }
+  }
+
+  #targetNames = new Map<string, string>()
+
+  #resolveTarget(name: string): string {
+    const seen = new Set<string>()
+    let current = name
+    while (!seen.has(current)) {
+      seen.add(current)
+      if (current === Sql.SELF_TARGET) {
+        if (!this.#selfName) throw new Error('Self target not defined')
+        return this.#selfName
+      }
+      const mapped = this.#targetNames.get(current)
+      if (!mapped || mapped === current) return current
+      current = mapped
+    }
+    return current
+  }
+
+  scopeTarget(inner: Sql, sourceName: string, name: string): void {
+    const previousSelfName = this.#selfName
+    const previousName = this.#targetNames.get(sourceName)
+    this.#selfName = this.#resolveTarget(sourceName)
+    this.#targetNames.set(sourceName, name)
+    try {
+      inner.emit(this)
+    } finally {
+      this.#selfName = previousSelfName
+      if (previousName === undefined) this.#targetNames.delete(sourceName)
+      else this.#targetNames.set(sourceName, previousName)
+    }
   }
 
   #inlineFields = false
@@ -75,7 +111,7 @@ export abstract class Emitter {
 
   emitField({targetName, fieldName}: FieldData): void {
     if (this.#inlineFields) return this.emitIdentifier(fieldName)
-    this.emitIdentifierOrSelf(targetName)
+    this.emitIdentifier(this.#resolveTarget(targetName))
     this.emitUnsafe('.')
     this.emitIdentifier(fieldName)
   }

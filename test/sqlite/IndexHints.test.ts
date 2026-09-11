@@ -1,10 +1,10 @@
 import {suite} from '@alinea/suite'
 import {eq} from '#/core/expr/Conditions.ts'
 import {index} from '#/core/Index.ts'
+import {sqliteTable} from '#/sqlite.ts'
 import {QueryBuilder} from '#/sqlite/builder.ts'
 import {integer, text} from '#/sqlite/columns.ts'
 import {sqliteDialect} from '#/sqlite/dialect.ts'
-import {sqliteTable} from '#/sqlite.ts'
 
 suite(import.meta, test => {
   const db = new QueryBuilder()

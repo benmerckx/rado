@@ -26,6 +26,16 @@ suite(import.meta, test => {
     test.equal(emit(e.not(true)), 'not true')
   })
 
+  test('exists accepts queries and SQL without double parentheses', () => {
+    test.equal(emit(e.exists(builder.select(sql`1`))), 'exists (select 1)')
+    test.equal(emit(e.exists(sql.query({select: sql`1`}))), 'exists (select 1)')
+    test.equal(e.exists(sql`select 1`).mapFromDriverValue!(1, undefined!), true)
+    test.equal(
+      e.exists(sql`select 1`).mapFromDriverValue!(0, undefined!),
+      false
+    )
+  })
+
   test('gt', () => {
     test.equal(emit(e.gt(1, 2)), '1 > 2')
   })

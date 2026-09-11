@@ -37,7 +37,7 @@ import {
   type SelectionRow,
   selection
 } from '../Selection.ts'
-import {Sql, sql} from '../Sql.ts'
+import {Sql, type TargetScope, sql} from '../Sql.ts'
 import type {Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import type {VirtualTarget} from '../Virtual.ts'
@@ -89,10 +89,18 @@ function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
   return query
 }
 
-export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
-  extends SingleQuery<SelectionRow<Input>, Meta>
-  implements HasQuery<SelectionRow<Input>>
-{
+type SelectFirstResult<Input, Nullable extends boolean> =
+  | Expand<SelectionRow<Input>>
+  | (Nullable extends true ? null : never)
+
+export class SelectFirst<
+  Input,
+  Meta extends QueryMeta = QueryMeta,
+  Nullable extends boolean = false
+> extends SingleQuery<
+  Expand<SelectionRow<Input>> | (Nullable extends true ? null : never),
+  Meta
+> {
   readonly [internalData]: QueryData<Meta> & SelectQuery
 
   constructor(data: QueryData<Meta> & SelectQuery) {
@@ -105,15 +113,15 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
     return querySelection(getData(this))
   }
 
-  get [internalQuery](): Sql<SelectionRow<Input>> {
-    return selectQuery(getData(this)) as Sql<SelectionRow<Input>>
+  get [internalQuery](): Sql<SelectFirstResult<Input, Nullable>> {
+    return selectQuery(getData(this)) as Sql<SelectFirstResult<Input, Nullable>>
   }
 
-  get [internalSql](): Sql<SelectionRow<Input>> {
+  get [internalSql](): Sql<SelectFirstResult<Input, Nullable>> {
     return mapScalarSelection(
       sql`(${getQuery(this)})`,
       getSelection(this).input
-    ) as Sql<SelectionRow<Input>>
+    ) as Sql<SelectFirstResult<Input, Nullable>>
   }
 }
 
@@ -790,7 +798,11 @@ function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   )
 }
 
-export function querySelection({select, from}: SelectQuery): Selection {
+export function querySelection(
+  query: SelectQuery,
+  targetScope?: TargetScope
+): Selection {
+  const {select, from} = query
   if (select) {
     if (from) {
       const selectedTargets = new Set<string>()
@@ -798,9 +810,15 @@ export function querySelection({select, from}: SelectQuery): Selection {
       collectReferencedTargets(select as SelectionInput, selectedTargets)
       collectFromTargets(from, fromTargets)
       if (fromTargets.size > 0) {
-        for (const targetName of selectedTargets)
-          if (!fromTargets.has(targetName))
+        for (const targetName of selectedTargets) {
+          if (targetName === Sql.SELF_TARGET) continue
+          const mappedName =
+            targetScope?.sourceName === targetName
+              ? targetScope.name
+              : targetName
+          if (!fromTargets.has(mappedName))
             throw new Error(`Unknown target in select: ${targetName}`)
+        }
       }
     }
     if (hasSql(select) && hasSelection(select)) {
@@ -915,12 +933,15 @@ function formatFrom(
   return hasTarget(from) ? formatTarget(from, baseConfig) : getSql(from)
 }
 
-export function selectQuery(query: SelectQuery): Sql {
+export function selectQuery(
+  query: SelectQuery,
+  targetScope?: TargetScope
+): Sql {
   const {from, where, groupBy, having, distinct, distinctOn} = query
   const prefix = distinctOn
     ? sql`distinct on (${sql.join(distinctOn, sql`, `)})`
     : distinct && sql`distinct`
-  const selected = querySelection(query)
+  const selected = querySelection(query, targetScope)
   const select = sql.join([prefix, selected])
 
   return sql.query(

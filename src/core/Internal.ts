@@ -19,6 +19,7 @@ export const internalInclude: unique symbol = Symbol()
 export const internalEnum: unique symbol = Symbol()
 export const internalCreate: unique symbol = Symbol()
 export const internalDrop: unique symbol = Symbol()
+export const internalRelation: unique symbol = Symbol()
 
 export declare class HasData<Data> {
   get [internalData](): Data
@@ -32,7 +33,7 @@ export declare class HasSelection<
   get [internalSelection](): Selection<Input>
 }
 export declare class HasTarget<Name extends string = string> {
-  get [internalTarget](): Sql
+  readonly [internalTarget]: Sql
 }
 export declare class HasQuery<Result = unknown> {
   get [internalQuery](): Sql<Result>
@@ -44,10 +45,13 @@ export declare class HasTable<
   Definition extends TableDefinition = TableDefinition,
   Name extends string = string
 > extends HasTarget<Name> {
-  get [internalTable](): TableApi<Definition, Name>
+  readonly [internalTable]: TableApi<Definition, Name>
 }
 export declare class HasField {
   get [internalField](): FieldData
+}
+export declare class HasRelation<Data = unknown> {
+  get [internalRelation](): Data
 }
 export declare class HasResolver<Meta extends QueryMeta = QueryMeta> {
   get [internalResolver](): Resolver<Meta>
@@ -86,6 +90,10 @@ export const hasTable = (obj: object): obj is HasTable => internalTable in obj
 export const getTable = (obj: HasTable) => obj[internalTable]
 export const hasField = (obj: object): obj is HasField => internalField in obj
 export const getField = (obj: HasField) => obj[internalField]
+export const hasRelation = <Data>(obj: object): obj is HasRelation<Data> =>
+  internalRelation in obj
+export const getRelation = <Data>(obj: HasRelation<Data>) =>
+  obj[internalRelation]
 export const hasResolver = <Meta extends QueryMeta>(
   obj: object
 ): obj is HasResolver<Meta> => internalResolver in obj

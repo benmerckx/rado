@@ -8,9 +8,11 @@
   },
   "rules": {
     "typescript/no-explicit-any": "off",
+    "typescript/no-extraneous-class": "off",
     "typescript/no-non-null-assertion": "off",
     "typescript/no-namespace": "off",
     "typescript/no-this-alias": "off",
+    "typescript/no-unsafe-declaration-merging": "off",
     "no-shadow": "off",
     "no-unused-expressions": "off",
     "no-unused-vars": "off",

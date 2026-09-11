@@ -36,6 +36,7 @@ you're coming from Drizzle ORM, jump straight to
 - [Delete](queries/delete.md): removing rows
 - [Filter operators](queries/operators.md): `eq`, `and`, `or`, `inArray` and the rest
 - [Aggregates](queries/aggregates.md): `count`, `sum`, `avg`, `min`, `max`
+- [ORM helpers](queries/orm.md): reusable relations, relation predicates, and explicit write plans
 - [Include](queries/include.md): nested results without an ORM
 - [JSON](queries/json.md): typed JSON columns
 - [Set operations](queries/set-operations.md): `union`, `intersect`, `except`

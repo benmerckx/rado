@@ -6,11 +6,7 @@ import {
   internalTarget
 } from '../core/Internal.ts'
 import {type Sql, sql} from '../core/Sql.ts'
-import type {
-  Table,
-  TableConfigResult,
-  TableDefinition
-} from '../core/Table.ts'
+import type {Table, TableConfigResult, TableDefinition} from '../core/Table.ts'
 import {table} from '../core/Table.ts'
 import {
   type DefinedView,

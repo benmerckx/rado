@@ -5,6 +5,7 @@ import {type Decoder, type Sql, sql} from '../Sql.ts'
 export interface FieldData {
   targetName: string
   fieldName: string
+  key: string
   source: Decoder
 }
 
@@ -18,9 +19,10 @@ export class Field<
   constructor(
     targetName: string,
     fieldName: string,
-    source: Decoder<Value> = {}
+    source: Decoder<Value> = {},
+    key = fieldName
   ) {
-    const field = {targetName, fieldName, source}
+    const field = {targetName, fieldName, source, key}
     this[internalField] = field
     const expr = sql.field(field).as(fieldName).mapWith<Value>(source)
     this[internalSql] = expr
