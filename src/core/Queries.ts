@@ -149,11 +149,13 @@ export abstract class SingleQuery<
   }
 
   prepare<Inputs extends Record<string, unknown>>(
-    name?: string
+    name?: string,
+    db?: HasResolver
   ): PreparedQuery<Result, Inputs, Meta> {
-    return <PreparedQuery<Result, Inputs, Meta>>(
-      getData(this).resolver!.prepare(this, name)
-    )
+    const data = getData(this)
+    const resolver = db ? getResolver(db) : data.resolver
+    if (!resolver) throw new Error('Query has no resolver')
+    return <PreparedQuery<Result, Inputs, Meta>>resolver.prepare(this, name)
   }
 
   toSQL(db?: HasResolver): {sql: string; params: Array<unknown>} {
