@@ -30,7 +30,7 @@ class PreparedStatement implements SyncStatement {
   }
 
   get(params: Array<unknown>) {
-    return <object>this.stmt.get(...params)
+    return <object>this.stmt.get(...params) ?? null
   }
 
   values(params: Array<unknown>) {
