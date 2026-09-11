@@ -4,6 +4,44 @@ import {txGenerator} from '../../src/universal.ts'
 import {Node} from './schema.ts'
 
 export function testTransactions(db: Database, test: DefineTest) {
+  test('transactions roll back thrown errors', async () => {
+    await db.create(Node)
+    try {
+      const failure = new Error('transaction failed')
+      let caught: unknown
+      try {
+        await db.transaction(async tx => {
+          await tx.insert(Node).values({textField: 'rolled back', bool: true})
+          throw failure
+        })
+      } catch (error) {
+        caught = error
+      }
+      test.equal(caught, failure)
+      test.equal(await db.select().from(Node), [])
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
+  test('nested transactions roll back to a savepoint', async () => {
+    await db.create(Node)
+    try {
+      await db.transaction(async tx => {
+        await tx.insert(Node).values({textField: 'outer', bool: true})
+        try {
+          await tx.transaction(async inner => {
+            await inner.insert(Node).values({textField: 'inner', bool: true})
+            throw new Error('nested transaction failed')
+          })
+        } catch {}
+      })
+      test.equal(await db.select(Node.textField).from(Node), ['outer'])
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
   test('transactions', async () => {
     await db.create(Node)
     try {

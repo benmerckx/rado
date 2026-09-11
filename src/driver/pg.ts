@@ -94,7 +94,6 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res.rows)
   }
 
-  free() {}
 }
 
 export class PgDriver implements AsyncDriver {

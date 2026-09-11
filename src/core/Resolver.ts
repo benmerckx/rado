@@ -1,10 +1,17 @@
 import type {Dialect} from './Dialect.ts'
-import type {BatchedQuery, Driver, DriverSpecs, Statement} from './Driver.ts'
+import {
+  type BatchedQuery,
+  type Driver,
+  type DriverSpecs,
+  type PrepareOptions,
+  type Statement
+} from './Driver.ts'
 import type {Emitter} from './Emitter.ts'
 import {
   type HasQuery,
   type HasSql,
   getSelection,
+  hasQuery,
   hasSelection
 } from './Internal.ts'
 import type {MutationResult, QueryMeta} from './MetaData.ts'
@@ -23,6 +30,29 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   toSQL(query: HasQuery): {sql: string; params: Array<unknown>} {
     const emitter = this.#dialect.emit(query)
     return {sql: emitter.sql, params: emitter.bind()}
+  }
+
+  get(query: HasSql | HasQuery): unknown | Promise<unknown> {
+    if (hasQuery(query))
+      return this.#executeQuery(query, statement => statement.get())
+    return this.#executeRaw(query, undefined, (statement, params) =>
+      statement.get(params)
+    )
+  }
+
+  all(
+    query: HasSql | HasQuery,
+    options?: PrepareOptions
+  ): unknown | Promise<unknown> {
+    if (hasQuery(query))
+      return this.#executeQuery(query, statement => statement.all())
+    return this.#executeRaw(query, options, (statement, params) =>
+      statement.all(params)
+    )
+  }
+
+  run(query: HasQuery): unknown | Promise<unknown> {
+    return this.#executeQuery(query, statement => statement.run())
   }
 
   prepare(query: HasQuery, name?: string): PreparedStatement<Meta> {
@@ -46,6 +76,45 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
         return {sql: emitter.sql, params: emitter.bind(), isSelection, mapRow}
       })
     )
+  }
+
+  #executeRaw<Result>(
+    query: HasSql,
+    options: PrepareOptions | undefined,
+    run: (
+      statement: Statement,
+      params: Array<unknown>
+    ) => Result | Promise<Result>
+  ): Result | Promise<Result> {
+    const emitter = this.#dialect.emit(query)
+    const statement = this.#driver.prepare(emitter.sql, options)
+    return this.#execute(statement, () => run(statement, emitter.bind()))
+  }
+
+  #executeQuery<Result>(
+    query: HasQuery,
+    run: (statement: PreparedStatement<Meta>) => Result | Promise<Result>
+  ): Result | Promise<Result> {
+    const statement = this.prepare(query, '')
+    return this.#execute(statement, () => run(statement))
+  }
+
+  #execute<Result>(
+    statement: Statement | PreparedStatement<Meta>,
+    run: () => Result | Promise<Result>
+  ): Result | Promise<Result> {
+    try {
+      const result = run()
+      if (result instanceof Promise) {
+        return result.finally(
+          () =>
+            statement[Symbol.asyncDispose]?.() ?? statement[Symbol.dispose]?.()
+        ) as Promise<Result>
+      }
+      return result
+    } finally {
+      statement[Symbol.dispose]?.()
+    }
   }
 }
 
@@ -135,8 +204,8 @@ export class PreparedStatement<Meta extends QueryMeta> {
 
   get(inputs?: Record<string, unknown>): unknown | Promise<unknown> {
     const rows = this.all(inputs)
-    if (rows instanceof Promise) return rows.then(rows => rows[0])
-    return rows[0]
+    if (rows instanceof Promise) return rows.then(rows => rows[0] ?? null)
+    return rows[0] ?? null
   }
 
   run(inputs?: Record<string, unknown>): unknown {
@@ -153,7 +222,13 @@ export class PreparedStatement<Meta extends QueryMeta> {
     return this.all(inputs)
   }
 
-  free(): void {
-    this.#stmt.free()
+  [Symbol.dispose](): void {
+    this.#stmt[Symbol.dispose]?.()
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    const asyncDispose = this.#stmt[Symbol.asyncDispose]
+    if (asyncDispose) return asyncDispose.call(this.#stmt)
+    this.#stmt[Symbol.dispose]?.()
   }
 }

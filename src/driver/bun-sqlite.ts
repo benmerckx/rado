@@ -41,7 +41,7 @@ class PreparedStatement implements SyncStatement {
     return this.stmt.values(...params)
   }
 
-  free() {
+  [Symbol.dispose]() {
     this.stmt.finalize()
   }
 }

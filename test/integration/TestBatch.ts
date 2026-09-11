@@ -3,6 +3,11 @@ import {type Database, eq} from '#/index.ts'
 import {Node} from './schema.ts'
 
 export function testBatch(db: Database, test: DefineTest) {
+  test('empty batch', async () => {
+    const results = await db.batch([])
+    test.equal(results, [])
+  })
+
   test('batch', async () => {
     await db.create(Node)
     try {

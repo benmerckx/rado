@@ -79,19 +79,14 @@ export class Database<Meta extends QueryMeta = Either>
 
   get<Result extends Array<unknown>>(
     input: HasQuery<Result>
-  ): Deliver<Meta, Result[number]>
-  get<Result>(input: HasSql<Result>): Deliver<Meta, Result>
+  ): Deliver<Meta, Result[number] | null>
+  get<Result>(input: HasSql<Result>): Deliver<Meta, Result | null>
   get(input: HasSql | HasQuery) {
-    const emitter = this.dialect.emit(input)
-    return this.driver.prepare(emitter.sql).get(emitter.bind())
+    return this[internalResolver].get(input)
   }
 
   all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {
-    const emitter = this.dialect.emit(input)
-    return this.driver.prepare(emitter.sql).all(emitter.bind()) as Deliver<
-      Meta,
-      Array<Result>
-    >
+    return this[internalResolver].all(input) as Deliver<Meta, Array<Result>>
   }
 
   migrate(...tables: Array<Table>): Deliver<Meta, void> {
@@ -128,20 +123,9 @@ export class Database<Meta extends QueryMeta = Either>
         : query.run(this)
     }
 
-    const emitter = this.dialect.emit(input)
-    const statement = this.driver.prepare(emitter.sql, {isSelection: true})
-    try {
-      const result = statement.all(emitter.bind())
-      if (result instanceof Promise)
-        return result
-          .then(rows => [rows])
-          .finally(statement.free.bind(statement))
-      statement.free()
-      return [result]
-    } catch (error) {
-      statement.free()
-      throw error
-    }
+    const result = this[internalResolver].all(input, {isSelection: true})
+    if (result instanceof Promise) return result.then(rows => [rows])
+    return [result]
   }
 
   refreshMaterializedView(view: HasTarget): Deliver<Meta, void> {

@@ -3,6 +3,41 @@ import {eq, sql, type Database} from '#/index.ts'
 import {Node} from './schema.ts'
 
 export function testPreparedQuery(db: Database, test: DefineTest) {
+  test('prepared query methods and reuse', async () => {
+    await db.create(Node)
+    try {
+      {
+        await using select = db
+          .select()
+          .from(Node)
+          .where(eq(Node.textField, sql.placeholder('text')))
+          .prepare<{text: string}>('prepared-methods')
+        await using insert = db
+          .insert(Node)
+          .values({textField: sql.placeholder('text'), bool: true})
+          .prepare<{text: string}>('prepared-run')
+
+        test.equal((await insert.run({text: 'hello'})).affectedRows, 1)
+        test.equal((await insert.run({text: 'world'})).affectedRows, 1)
+
+        test.equal(await select.get({text: 'hello'}), {
+          id: 1,
+          textField: 'hello',
+          bool: true
+        })
+        test.equal(await select.get({text: 'missing'}), null)
+        test.equal(await select.all({text: 'world'}), [
+          {id: 2, textField: 'world', bool: true}
+        ])
+        test.equal(await select.all({text: 'hello'}), [
+          {id: 1, textField: 'hello', bool: true}
+        ])
+      }
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
   test('prepared queries', async () => {
     try {
       await db.create(Node)

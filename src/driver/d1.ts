@@ -47,7 +47,6 @@ class PreparedStatement implements AsyncStatement {
     return []
   }
 
-  free() {}
 }
 
 export class D1Driver implements AsyncDriver {

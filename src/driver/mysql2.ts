@@ -77,7 +77,6 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res[0] as Array<Array<unknown>>)
   }
 
-  free() {}
 }
 
 export class Mysql2Driver implements AsyncDriver {

@@ -95,38 +95,29 @@ export abstract class SingleQuery<
   abstract [internalQuery]: Sql
 
   constructor(data: QueryData<Meta>) {
-    super(() => this.#exec(undefined))
+    super(() => this.#exec())
     this[internalData] = data
   }
 
-  #exec(method: 'all' | 'get' | 'run' | undefined, db?: HasResolver) {
+  #resolver(db?: HasResolver) {
     const data = getData(this)
     const resolver = db ? getResolver(db) : data.resolver
     if (!resolver) throw new Error('Query has no resolver')
-    const isSelection = hasSelection(this)
-    const isFirst = data.first
-    const prepared = resolver.prepare(this, '')
-    const resultType =
-      method ?? (isSelection ? (isFirst ? 'get' : 'all') : 'run')
-    try {
-      const result = prepared[resultType]()
-      if (result instanceof Promise)
-        return result
-          .then(res => res ?? null)
-          .finally(prepared.free.bind(prepared))
-      prepared.free()
-      return result ?? null
-    } catch (error) {
-      prepared.free()
-      throw error
-    }
+    return resolver
+  }
+
+  #exec(db?: HasResolver) {
+    const data = getData(this)
+    const resolver = this.#resolver(db)
+    if (!hasSelection(this)) return resolver.run(this)
+    return data.first ? resolver.get(this) : resolver.all(this)
   }
 
   all<Result extends Array<unknown>>(
     this: SingleQuery<Result, Meta>,
     db?: HasResolver
   ): Deliver<Meta, Result> {
-    return this.#exec('all', db) as Deliver<Meta, Result>
+    return this.#resolver(db).all(this) as Deliver<Meta, Result>
   }
 
   get<Result extends Array<unknown>>(
@@ -135,11 +126,11 @@ export abstract class SingleQuery<
   ): Deliver<Meta, Result[number] | null>
   get(db?: HasResolver): Deliver<Meta, Result | null>
   get(db?: HasResolver) {
-    return this.#exec('get', db) as Deliver<Meta, Result | null>
+    return this.#resolver(db).get(this) as Deliver<Meta, Result | null>
   }
 
   run(db?: HasResolver): Deliver<Meta, MutationResult<Meta>> {
-    return this.#exec('run', db) as Deliver<Meta, MutationResult<Meta>>
+    return this.#resolver(db).run(this) as Deliver<Meta, MutationResult<Meta>>
   }
 
   async execute(
@@ -153,7 +144,7 @@ export abstract class SingleQuery<
     try {
       return (await prepared.execute(inputs)) as Result
     } finally {
-      prepared.free()
+      await prepared[Symbol.asyncDispose]()
     }
   }
 
@@ -197,12 +188,13 @@ export interface PreparedQuery<
     this: PreparedQuery<Result, Inputs, Meta>,
     inputs?: Inputs
   ): Deliver<Meta, Result>
-  get(inputs?: Inputs): Deliver<Meta, Result>
   get<Result extends Array<unknown>>(
     this: PreparedQuery<Result, Inputs, Meta>,
     inputs?: Inputs
   ): Deliver<Meta, Result[number] | null>
+  get(inputs?: Inputs): Deliver<Meta, Result | null>
   run(inputs?: Inputs): Deliver<Meta, MutationResult<Meta>>
   execute(inputs?: Inputs): Promise<Result>
-  free(): void
+  [Symbol.dispose](): void
+  [Symbol.asyncDispose](): Promise<void>
 }

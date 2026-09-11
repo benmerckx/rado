@@ -478,7 +478,7 @@ suite(import.meta, test => {
       const preparedRows = prepared.all({name: 'Ada'})
       Expect<Equal<typeof preparedRows, Array<{id: number; name: string}>>>()
       const preparedRow = prepared.get({name: 'Ada'})
-      Expect<Equal<typeof preparedRow, Array<{id: number; name: string}>>>()
+      Expect<Equal<typeof preparedRow, {id: number; name: string} | null>>()
       const preparedRun = prepared.run({name: 'Ada'})
       Expect<Equal<typeof preparedRun, SqliteMutationResult>>()
       Expect<
@@ -578,7 +578,7 @@ suite(import.meta, test => {
       const eitherDb: Database<Either> = undefined!
 
       const syncRow = syncDb.get(sql<{id: number; name: string}>`select 1`)
-      Expect<Equal<typeof syncRow, {id: number; name: string}>>()
+      Expect<Equal<typeof syncRow, {id: number; name: string} | null>>()
 
       const asyncRows = asyncDb.all(sql<{id: number}>`select 1`)
       Expect<Equal<typeof asyncRows, Promise<Array<{id: number}>>>>()

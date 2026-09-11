@@ -40,7 +40,6 @@ class PreparedStatement implements AsyncStatement {
     return result.rows as any
   }
 
-  free() {}
 }
 
 export class LibSQLClient implements AsyncDriver {

@@ -40,7 +40,6 @@ class PreparedStatement implements SyncStatement {
     return []
   }
 
-  free() {}
 }
 
 class BetterSqlite3Driver implements SyncDriver {

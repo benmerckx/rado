@@ -21,6 +21,18 @@ export function testDirectQuery(db: Database, test: DefineTest) {
     test.equal(missing, null)
   })
 
+  test('database all returns an empty array for missing rows', async () => {
+    const missing = await db.all(
+      sql<{value: string}>`select 1 as value where 1 = 0`
+    )
+    test.equal(missing, [])
+  })
+
+  test('database run executes raw SQL', async () => {
+    const result = await db.run(sql`select 1`)
+    test.equal(result, undefined)
+  })
+
   test('database execute preserves raw and query results', async () => {
     const [rawRows] = await db.execute(
       sql<{value: string}>`select ${'raw'} as value`

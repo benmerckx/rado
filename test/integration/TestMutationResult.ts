@@ -41,6 +41,15 @@ export function testMutationResult(db: Database, test: DefineTest) {
       } else {
         test.equal('changedRows' in remove, false)
       }
+
+      const missingUpdate = await db
+        .update(Node)
+        .set({textField: 'missing'})
+        .where(eq(Node.id, -1))
+      test.equal(missingUpdate.affectedRows, 0)
+
+      const missingRemove = await db.delete(Node).where(eq(Node.id, -1))
+      test.equal(missingRemove.affectedRows, 0)
     } finally {
       await db.drop(Node)
     }

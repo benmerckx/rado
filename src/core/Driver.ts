@@ -32,7 +32,8 @@ export interface SyncStatement {
   run(params: Array<unknown>): MutationResultBase
   get(params: Array<unknown>): object | null
   values(params: Array<unknown>): Array<Array<unknown>>
-  free(): void
+  [Symbol.dispose]?(): void
+  [Symbol.asyncDispose]?: never
 }
 export interface AsyncDriver extends DriverSpecs {
   close(): Promise<void>
@@ -49,5 +50,6 @@ export interface AsyncStatement {
   run(params: Array<unknown>): Promise<MutationResultBase>
   get(params: Array<unknown>): Promise<object | null>
   values(params: Array<unknown>): Promise<Array<Array<unknown>>>
-  free(): void
+  [Symbol.asyncDispose]?(): Promise<void>
+  [Symbol.dispose]?: never
 }

@@ -42,7 +42,7 @@ class PreparedStatement implements SyncStatement {
     return Array.from(this.iterateValues(params))
   }
 
-  free() {
+  [Symbol.dispose]() {
     this.stmt.free()
   }
 }

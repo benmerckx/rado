@@ -61,7 +61,6 @@ class PreparedStatement implements SyncStatement {
     }
   }
 
-  free() {}
 }
 
 class NodeSqliteDriver implements SyncDriver {
