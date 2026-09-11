@@ -41,7 +41,7 @@ test('database frees direct statements after success and failure', () => {
   const db = new SyncDatabase(driver, sqliteDialect, undefined!)
 
   const Scratch = temporaryTable('Scratch', {id: integer()})
-  test.throws(() => db.migrate(Scratch), 'Temporary tables cannot be migrated')
+  test.throws(() => db.migrate(Scratch), /Temporary tables cannot be migrated/)
 
   test.equal(db.get(sql`select 1`), null)
   test.equal(db.all(sql`select 1`), [])
