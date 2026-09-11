@@ -45,7 +45,7 @@ class PreparedStatement implements SyncStatement {
   }
 
   get(params: Array<unknown>) {
-    return this.stmt.get(...params)
+    return this.stmt.get(...params) ?? null
   }
 
   values(params: Array<unknown>) {
