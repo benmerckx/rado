@@ -135,7 +135,14 @@ export function updateQuery(query: UpdateQuery): Sql {
         expr = mapToColumn(columnApi, value)
       }
       const fieldName = name ?? key
-      return [sql`${sql.identifier(fieldName)} = ${expr}`]
+      const field = sql.identifier(fieldName)
+      const assignment = from
+        ? sql.universal({
+            mysql: sql`${sql.identifier(tableApi.aliased)}.${field}`,
+            default: field
+          })
+        : field
+      return [sql`${assignment} = ${expr}`]
     }
   )
   if (assignments.length === 0) throw new Error('No values to set')

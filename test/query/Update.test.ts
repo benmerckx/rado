@@ -75,7 +75,7 @@ suite(import.meta, test => {
     )
     test.equal(
       mysqlDialect.inline(build(new MysqlQueryBuilder())),
-      'update `Target` join `Source` set `value` = `Source`.`value` where `Target`.`id` = `Source`.`id`'
+      'update `Target` join `Source` set `Target`.`value` = `Source`.`value` where `Target`.`id` = `Source`.`id`'
     )
     test.equal(
       postgresDialect.inline(
