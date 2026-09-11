@@ -51,4 +51,53 @@ export function testUpdate(db: Database, test: DefineTest) {
       await db.drop(UserT)
     }
   })
+
+  test('update from and correlated scalar subquery', async () => {
+    const Source = table('update_source', {
+      id: integer().primaryKey().notNull(),
+      value: integer().notNull()
+    })
+    const Target = table('update_target', {
+      id: integer().primaryKey().notNull(),
+      sourceId: integer('source_id').notNull(),
+      value: integer().notNull()
+    })
+
+    await db.create(Source, Target)
+    try {
+      await db.insert(Source).values([
+        {id: 1, value: 10},
+        {id: 2, value: 20}
+      ])
+      await db.insert(Target).values([
+        {id: 1, sourceId: 2, value: 0},
+        {id: 2, sourceId: 1, value: 0}
+      ])
+
+      await db
+        .update(Target)
+        .set({value: Source.value})
+        .from(Source)
+        .where(eq(Target.sourceId, Source.id))
+
+      test.equal(
+        await db.select(Target.value).from(Target).orderBy(Target.id),
+        [20, 10]
+      )
+
+      const correlated = db
+        .select(Source.value)
+        .from(Source)
+        .where(eq(Source.id, Target.id))
+        .limit(1)
+      await db.update(Target).set({value: correlated})
+
+      test.equal(
+        await db.select(Target.value).from(Target).orderBy(Target.id),
+        [10, 20]
+      )
+    } finally {
+      await db.drop(Target, Source)
+    }
+  })
 }

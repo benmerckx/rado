@@ -41,6 +41,18 @@ export class Sql<Value = unknown> implements HasSql<Value> {
     return res
   }
 
+  asScalar<T = Value>(selection?: unknown): Sql<T> {
+    const scalar = sql<T>`(${this})`
+    if (!selection || typeof selection !== 'object') return scalar
+    if (hasSql(selection)) return scalar.mapWith(getSql(selection as HasSql<T>))
+    const values = Object.values(selection)
+    if (values.length !== 1) return scalar
+    const first = values[0]
+    return first && typeof first === 'object' && hasSql(first)
+      ? scalar.mapWith(getSql(first as HasSql<T>))
+      : scalar
+  }
+
   inlineFields(withTableName: boolean): Sql<Value> {
     return new Sql(emitter => emitter.inlineFields(this, withTableName))
   }

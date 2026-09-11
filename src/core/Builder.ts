@@ -82,10 +82,11 @@ class BuilderBase<Meta extends QueryMeta> {
 
   $query<Returning extends SelectionInput>(
     select: SelectionQuery<Returning>
-  ): SingleQuery<SelectionRow<Returning>, Meta>
+  ): SingleQuery<SelectionRow<Returning>, Meta> &
+    HasSql<SelectionRow<Returning>>
   $query<const From extends FromGuard>(
     from: FromQuery<From>
-  ): SingleQuery<FromRow<From>, Meta>
+  ): SingleQuery<FromRow<From>, Meta> & HasSql<FromRow<From>>
   $query<Returning extends SelectionInput, Definition extends TableDefinition>(
     insert: InsertQuery<Returning, Definition>
   ): SingleQuery<SelectionRow<Returning>, Meta>

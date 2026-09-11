@@ -76,19 +76,6 @@ function isUnionQuery(query: UnionSegmentQuery): query is UnionQuery {
   return Array.isArray((query as UnionQuery).select)
 }
 
-function mapScalarSelection(query: Sql, selected: SelectionInput): Sql {
-  if (hasSql(selected)) return query.mapWith(getSql(selected))
-  if (selected && typeof selected === 'object') {
-    const values = Object.values(selected)
-    if (values.length === 1) {
-      const first = values[0]
-      if (first && typeof first === 'object' && hasSql(first))
-        return query.mapWith(getSql(first))
-    }
-  }
-  return query
-}
-
 export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<SelectionRow<Input>, Meta>
   implements HasQuery<SelectionRow<Input>>
@@ -110,16 +97,15 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
-    return mapScalarSelection(
-      sql`(${getQuery(this)})`,
-      getSelection(this).input
-    ) as Sql<SelectionRow<Input>>
+    return getQuery(this).asScalar(getSelection(this).input) as Sql<
+      SelectionRow<Input>
+    >
   }
 }
 
 export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   extends SingleQuery<Array<SelectionRow<Input>>, Meta>
-  implements HasSelection
+  implements HasSelection, HasSql<SelectionRow<Input>>
 {
   readonly [internalData]: QueryData<Meta>;
   abstract [internalSelection]: Selection
@@ -129,15 +115,18 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
     this[internalData] = data
   }
 
+  get [internalSql](): Sql<SelectionRow<Input>> {
+    return getQuery(this).asScalar(getSelection(this).input) as Sql<
+      SelectionRow<Input>
+    >
+  }
+
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {
     const selected = getSelection(this)
     const fields = selected.makeVirtual<Input>(alias)
     return Object.assign(<any>{}, fields, {
       [internalSelection]: selection(fields),
-      [internalSql]: mapScalarSelection(
-        sql`(${getQuery(this)})`,
-        selected.input
-      ),
+      [internalSql]: getQuery(this).asScalar(selected.input),
       [internalTarget]: sql`(${getQuery(this)}) as ${sql.identifier(
         alias
       )}`.inlineFields(true)
@@ -429,10 +418,6 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
     return selectQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
   }
-
-  get [internalSql](): Sql<SelectionRow<Input>> {
-    return sql`(${getQuery(this)})`
-  }
 }
 
 export type SubQuery<Input, Name extends string = string> = RetypeSubQueryInput<
@@ -451,8 +436,10 @@ type RetypeSubQueryInput<Input, TableName extends string> =
         }>
       : Input
 
-export interface SelectBase<Input, Meta extends QueryMeta = QueryMeta>
-  extends UnionBase<StripFieldMeta<Input>, Meta>, HasSql<SelectionRow<Input>> {
+export interface SelectBase<
+  Input,
+  Meta extends QueryMeta = QueryMeta
+> extends UnionBase<StripFieldMeta<Input>, Meta> {
   for(
     keyword: (typeof forKeywords)[number],
     config?: {
@@ -487,8 +474,10 @@ export interface WithoutSelection<Meta extends QueryMeta> {
   ): SelectionFromTargets<Input, Meta, string>
 }
 
-export interface WithSelection<Input, Meta extends QueryMeta>
-  extends SelectBase<Input, Meta>, HasSql<SelectionRow<Input>> {
+export interface WithSelection<
+  Input,
+  Meta extends QueryMeta
+> extends SelectBase<Input, Meta> {
   from<Definition extends TableDefinition, Name extends string>(
     from: Table<Definition, Name>,
     config?: IndexHintConfigFor<Meta>
@@ -892,7 +881,7 @@ function formatTarget(target: HasTarget, indexHints?: IndexHintConfig): Sql {
   return sql.join([formattedTarget, formatIndexHints(indexHints)])
 }
 
-function formatFrom(
+export function formatFrom(
   from: SelectQuery['from'],
   baseConfig?: IndexHintConfig
 ): Sql {

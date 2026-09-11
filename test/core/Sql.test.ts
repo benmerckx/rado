@@ -24,6 +24,10 @@ suite(import.meta, test => {
     test.equal(emit(sql.inline(1)), '1')
   })
 
+  test('scalar', () => {
+    test.equal(emit(sql`select 1`.asScalar()), '(select 1)')
+  })
+
   test('unknown values', () => {
     test.equal(emit(sql`${1}`), '1')
     test.equal(emit(sql`${null}`), 'null')

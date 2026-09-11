@@ -37,6 +37,38 @@ await db.update(User).set({email: null}).where(eq(User.id, 1))
 Columns declared with [`$onUpdate`](../schema/tables.md#onupdatefn--onupdatefnfn)
 are refreshed automatically on every update.
 
+## Updating from another table
+
+Use `from` when update values or conditions refer to another table:
+
+```ts
+await db
+  .update(User)
+  .set({cityId: City.id})
+  .from(City)
+  .where(eq(User.cityName, City.name))
+```
+
+PostgreSQL and SQLite emit `update ... set ... from ...`; MySQL emits its
+equivalent multiple-table `update ... join ... set ...` form.
+
+## Scalar subqueries
+
+Queries selecting exactly one column can be used directly as parenthesized SQL
+expressions. This also works for
+correlated subqueries:
+
+```ts
+const latestTitle = db
+  .select(Post.title)
+  .from(Post)
+  .where(eq(Post.userId, User.id))
+  .orderBy(desc(Post.id))
+  .limit(1)
+
+await db.update(User).set({latestPostTitle: latestTitle})
+```
+
 ## Returning updated rows (PostgreSQL/SQLite)
 
 ```ts

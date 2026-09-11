@@ -4,6 +4,7 @@ import {
   type HasQuery,
   type HasSql,
   getData,
+  getSql,
   getTable,
   internalData,
   internalQuery,
@@ -20,7 +21,8 @@ import {type Selection, type SelectionInput, selection} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields, TableUpdate} from '../Table.ts'
 import {formatCTE} from './CTE.ts'
-import type {UpdateQuery} from './Query.ts'
+import type {FromGuard, UpdateQuery} from './Query.ts'
+import {formatFrom} from './Select.ts'
 import {formatModifiers} from './Shared.ts'
 
 export class Update<
@@ -74,6 +76,10 @@ export class UpdateTable<
     return new UpdateTable<Definition, Meta>({...data, set})
   }
 
+  from(from: FromGuard): UpdateTable<Definition, Meta> {
+    return new UpdateTable<Definition, Meta>({...getData(this), from})
+  }
+
   where(
     ...where: Array<HasSql<boolean> | undefined>
   ): UpdateTable<Definition, Meta> {
@@ -99,8 +105,21 @@ export class UpdateTable<
   }
 }
 
+export function formatUpdateFrom(
+  target: HasSql,
+  set: HasSql,
+  from?: FromGuard
+): Sql {
+  if (!from) return sql`update ${target} set ${set}`
+  const source = formatFrom(from)
+  return sql.universal({
+    mysql: sql`update ${target} join ${source} set ${set}`,
+    default: sql`update ${target} set ${set} from ${source}`
+  })
+}
+
 export function updateQuery(query: UpdateQuery): Sql {
-  const {update: table, set: values, where, returning} = query
+  const {update: table, set: values, from, where, returning} = query
   const tableApi = getTable(table)
   if (!values) throw new Error('Update values are required')
   const assignments = Object.entries(tableApi.columns).flatMap(
@@ -121,16 +140,19 @@ export function updateQuery(query: UpdateQuery): Sql {
   )
   if (assignments.length === 0) throw new Error('No values to set')
   const set = sql.join(assignments, sql`, `)
-  return sql
-    .query(
-      formatCTE(query),
-      {
-        update: tableApi.identifier(),
-        set,
-        where,
-        returning: returning && selection(returning)
-      },
-      formatModifiers(query)
-    )
-    .inlineFields(false)
+  const target = tableApi.target()
+  const selected = returning && getSql(selection(returning))
+  const returningSelection =
+    selected && from
+      ? sql.universal({
+          postgres: selected,
+          default: selected.inlineFields(false)
+        })
+      : selected?.inlineFields(false)
+  return sql.query(
+    formatCTE(query),
+    formatUpdateFrom(target, set, from),
+    {where, returning: returningSelection},
+    formatModifiers(query)
+  )
 }

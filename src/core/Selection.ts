@@ -105,9 +105,9 @@ function firstTargetName(input: SelectionInput): string | undefined {
   }
 }
 
-export class Selection<Input extends SelectionInput = SelectionInput>
-  implements HasSql
-{
+export class Selection<
+  Input extends SelectionInput = SelectionInput
+> implements HasSql {
   mapRow: (ctx: MapRowContext) => unknown
 
   constructor(
