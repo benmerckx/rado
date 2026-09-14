@@ -9,6 +9,7 @@ import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
+import {executeBatch} from './batch.ts'
 
 interface Client {
   close(): void
@@ -61,6 +62,7 @@ class PreparedStatement implements SyncStatement {
     }
   }
 
+  free() {}
 }
 
 class NodeSqliteDriver implements SyncDriver {
@@ -88,13 +90,7 @@ class NodeSqliteDriver implements SyncDriver {
   }
 
   batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
-    return this.transaction(
-      tx =>
-        queries.map(({sql, params, isSelection}) =>
-          tx.prepare(sql, {isSelection}).values(params)
-        ),
-      {}
-    )
+    return this.transaction(tx => executeBatch(tx, queries), {})
   }
 
   transaction<T>(

@@ -10,6 +10,7 @@ import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
+import {executeBatch} from './batch.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
@@ -41,7 +42,7 @@ class PreparedStatement implements SyncStatement {
     return this.stmt.values(...params)
   }
 
-  [Symbol.dispose]() {
+  free() {
     this.stmt.finalize()
   }
 }
@@ -71,11 +72,7 @@ class BunSqliteDriver implements SyncDriver {
   }
 
   batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
-    return this.transaction(tx => {
-      return queries.map(({sql, params, isSelection}) =>
-        tx.prepare(sql, {isSelection}).values(params)
-      )
-    }, {})
+    return this.transaction(tx => executeBatch(tx, queries), {})
   }
 
   transaction<T>(

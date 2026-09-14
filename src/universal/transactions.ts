@@ -1,6 +1,32 @@
 import type {Transaction} from '../core/Database.ts'
 import type {Deliver, QueryMeta} from '../core/MetaData.ts'
 
+export function run<Yield, Result>(
+  iterator: Generator<Yield, Result>,
+  resolve: (value: Yield) => unknown
+): Result | Promise<Result> {
+  function advance(
+    result: IteratorResult<Yield, Result>
+  ): Result | Promise<Result> {
+    if (result.done) return result.value
+    let resolved: unknown
+    try {
+      resolved = resolve(result.value)
+    } catch (error) {
+      return fail(error)
+    }
+    if (resolved instanceof Promise) return resolved.then(next, fail)
+    return next(resolved)
+  }
+  function next(value?: unknown) {
+    return advance(iterator.next(value))
+  }
+  function fail(error: unknown) {
+    return advance(iterator.throw(error))
+  }
+  return next()
+}
+
 type Part<Meta extends QueryMeta> =
   | Promise<unknown>
   | ((tx: Transaction<Meta>) => unknown)
@@ -15,29 +41,14 @@ export interface TxGenerator<Meta extends QueryMeta, Result> {
 export function txGenerator<Result = void, Meta extends QueryMeta = QueryMeta>(
   create: Create<Meta, Result>
 ): TxGenerator<Meta, Result> {
-  function run(tx: Transaction<Meta>): Deliver<Meta, Result> {
-    const iter = create(tx)
-    const next = (inner?: any) => {
-      if (inner instanceof Promise)
-        return inner
-          .then(iter.next.bind(iter))
-          .catch(iter.throw.bind(iter))
-          .then(handle)
-      try {
-        return handle(iter.next(inner))
-      } catch (err) {
-        return handle(iter.throw(err))
-      }
-    }
-    const handle = ({done, value}: IteratorResult<Part<Meta>>): any => {
-      if (done) return value
-      return next(typeof value === 'function' ? tx.transaction(value) : value)
-    }
-    return next()
+  function execute(tx: Transaction<Meta>): Deliver<Meta, Result> {
+    return run(create(tx), value =>
+      typeof value === 'function' ? tx.transaction(value) : value
+    ) as Deliver<Meta, Result>
   }
-  return Object.assign(run, {
+  return Object.assign(execute, {
     *[Symbol.iterator](): Generator<Part<Meta>> {
-      return yield run
+      return yield execute
     }
   })
 }

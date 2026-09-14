@@ -9,7 +9,7 @@ support it, reusing the database's prepared statement.
 ```ts
 import {eq, sql} from 'rado'
 
-await using userByName = db
+using userByName = db
   .select()
   .from(User)
   .where(eq(User.name, sql.placeholder('name')))
@@ -32,9 +32,8 @@ await userByName.run({name: 'Ada'}) // void
 await userByName.execute({name: 'Ada'})
 ```
 
-Prepared queries implement `Symbol.dispose` and `Symbol.asyncDispose`, so a
-`using` or `await using` declaration releases the underlying statement when it
-leaves scope.
+Prepared queries implement `Symbol.dispose`, so a `using` declaration releases
+the underlying statement when it leaves scope.
 
 Missing an input? You get an error naming the missing placeholder rather than
 a silent `null`.

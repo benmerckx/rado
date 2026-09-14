@@ -1,6 +1,6 @@
+import {Batch, type RowMapper} from './Batch.ts'
 import type {Dialect} from './Dialect.ts'
 import {
-  type BatchedQuery,
   type Driver,
   type DriverSpecs,
   type PrepareOptions,
@@ -105,58 +105,14 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   ): Result | Promise<Result> {
     try {
       const result = run()
-      if (result instanceof Promise) {
-        return result.finally(
-          () =>
-            statement[Symbol.asyncDispose]?.() ?? statement[Symbol.dispose]?.()
-        ) as Promise<Result>
-      }
+      if (result instanceof Promise)
+        return result.finally(() => statement.free()) as Promise<Result>
+      statement.free()
       return result
-    } finally {
-      statement[Symbol.dispose]?.()
+    } catch (error) {
+      statement.free()
+      throw error
     }
-  }
-}
-
-type RowMapper = ((ctx: MapRowContext) => unknown) | undefined
-
-interface QueryWithMapRow extends BatchedQuery {
-  mapRow: RowMapper
-}
-
-export class Batch<Meta extends QueryMeta> {
-  declare private brand: [Meta]
-  #driver: Driver
-  #queries: Array<QueryWithMapRow>
-
-  constructor(driver: Driver, queries: Array<QueryWithMapRow>) {
-    this.#driver = driver
-    this.#queries = queries
-  }
-
-  #transform = (results: Array<Array<unknown>>) => {
-    const ctx: MapRowContext = {
-      values: undefined!,
-      index: 0,
-      specs: this.#driver
-    }
-    for (let i = 0; i < this.#queries.length; i++) {
-      const {mapRow} = this.#queries[i]
-      if (!mapRow) continue
-      const rows = results[i] as Array<Array<unknown>>
-      for (let j = 0; j < results[i].length; j++) {
-        ctx.values = rows[j]
-        ctx.index = 0
-        rows[j] = mapRow(ctx) as Array<unknown>
-      }
-    }
-    return results
-  }
-
-  execute(): Array<unknown> | Promise<Array<unknown>> {
-    const results = this.#driver.batch(this.#queries)
-    if (results instanceof Promise) return results.then(this.#transform)
-    return this.#transform(results)
   }
 }
 
@@ -222,13 +178,11 @@ export class PreparedStatement<Meta extends QueryMeta> {
     return this.all(inputs)
   }
 
-  [Symbol.dispose](): void {
-    this.#stmt[Symbol.dispose]?.()
+  free(): void {
+    this.#stmt.free()
   }
 
-  async [Symbol.asyncDispose](): Promise<void> {
-    const asyncDispose = this.#stmt[Symbol.asyncDispose]
-    if (asyncDispose) return asyncDispose.call(this.#stmt)
-    this.#stmt[Symbol.dispose]?.()
+  [Symbol.dispose](): void {
+    this.free()
   }
 }

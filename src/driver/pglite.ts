@@ -5,6 +5,7 @@ import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
+import {executeBatch} from './batch.ts'
 
 type Queryable = PGlite | Transaction
 
@@ -51,6 +52,7 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res.rows)
   }
 
+  free() {}
 }
 
 export class PGliteDriver implements AsyncDriver {
@@ -76,12 +78,7 @@ export class PGliteDriver implements AsyncDriver {
   }
 
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
-    const transact = async (tx: AsyncDriver) => {
-      const results = []
-      for (const {sql, params} of queries)
-        results.push(await tx.prepare(sql).values(params))
-      return results
-    }
+    const transact = (tx: AsyncDriver) => executeBatch(tx, queries)
     if (this.depth > 0) return transact(this)
     return this.transaction(transact, {})
   }

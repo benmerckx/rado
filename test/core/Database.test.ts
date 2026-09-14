@@ -27,7 +27,7 @@ test('database frees direct statements after success and failure', () => {
     },
     run: () => ({affectedRows: 0}),
     values: () => [],
-    [Symbol.dispose]: () => freeCount++
+    free: () => freeCount++
   })
   const driver: SyncDriver = {
     parsesJson: false,
@@ -67,7 +67,7 @@ test('database frees asynchronous direct statements after success and failure', 
     },
     run: async () => ({affectedRows: 0}),
     values: async () => [],
-    async [Symbol.asyncDispose]() {
+    free() {
       freeCount++
     }
   })

@@ -10,6 +10,7 @@ import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
+import {executeBatch} from './batch.ts'
 
 type Queryable = Client | Pool | PoolClient
 type AcquiredClient = {
@@ -94,6 +95,7 @@ class PreparedStatement implements AsyncStatement {
       .then(res => res.rows)
   }
 
+  free() {}
 }
 
 export class PgDriver implements AsyncDriver {
@@ -120,12 +122,7 @@ export class PgDriver implements AsyncDriver {
   }
 
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
-    return this.transaction(async tx => {
-      const results = []
-      for (const {sql, params} of queries)
-        results.push(await tx.prepare(sql).values(params))
-      return results
-    }, {})
+    return this.transaction(tx => executeBatch(tx, queries), {})
   }
 
   async transaction<T>(

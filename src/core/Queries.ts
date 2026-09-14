@@ -144,7 +144,7 @@ export abstract class SingleQuery<
     try {
       return (await prepared.execute(inputs)) as Result
     } finally {
-      await prepared[Symbol.asyncDispose]()
+      prepared[Symbol.dispose]()
     }
   }
 
@@ -198,5 +198,4 @@ export interface PreparedQuery<
   run(inputs?: Inputs): Deliver<Meta, MutationResult<Meta>>
   execute(inputs?: Inputs): Promise<Result>
   [Symbol.dispose](): void
-  [Symbol.asyncDispose](): Promise<void>
 }
