@@ -30,7 +30,7 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
     this.#options = options
   }
 
-  exec(sql: string) {
+  exec(sql: string): void | Promise<void> {
     return this.#timed(sql, [], () => this.#driver.exec(sql))
   }
 
