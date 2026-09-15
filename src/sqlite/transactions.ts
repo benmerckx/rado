@@ -36,7 +36,9 @@ export function execTransaction<T>(
   }
 
   function rollback(error: any): never {
-    driver.exec(depth > 0 ? `rollback to d${depth}` : 'rollback')
+    try {
+      driver.exec(depth > 0 ? `rollback to d${depth}` : 'rollback')
+    } catch {}
     throw error
   }
 }

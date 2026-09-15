@@ -98,7 +98,9 @@ export class PGliteDriver implements AsyncDriver {
       await this.exec(`release d${this.depth}`)
       return result
     } catch (error) {
-      await this.exec(`rollback to d${this.depth}`)
+      try {
+        await this.exec(`rollback to d${this.depth}`)
+      } catch {}
       throw error
     }
   }

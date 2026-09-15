@@ -89,9 +89,11 @@ export class LibSQLClient implements AsyncDriver {
       else await client.commit()
       return result
     } catch (error) {
-      if (this.depth > 0)
-        await client.execute(`rollback to savepoint d${this.depth}`)
-      else await client.rollback()
+      try {
+        if (this.depth > 0)
+          await client.execute(`rollback to savepoint d${this.depth}`)
+        else await client.rollback()
+      } catch {}
       throw error
     } finally {
       if (this.depth === 0) client.close()

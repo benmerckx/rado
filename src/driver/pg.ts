@@ -139,9 +139,11 @@ export class PgDriver implements AsyncDriver {
       )
       return result
     } catch (error) {
-      await client.query(
-        this.depth > 0 ? `rollback to savepoint d${this.depth}` : 'rollback'
-      )
+      try {
+        await client.query(
+          this.depth > 0 ? `rollback to savepoint d${this.depth}` : 'rollback'
+        )
+      } catch {}
       throw error
     } finally {
       release?.()
