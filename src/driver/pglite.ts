@@ -1,5 +1,5 @@
 import type {PGlite, Transaction} from '@electric-sql/pglite'
-import {Batch} from '#/core/Batch.ts'
+import {Batch} from '../core/Batch.ts'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'

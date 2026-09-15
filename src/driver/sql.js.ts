@@ -1,5 +1,5 @@
 import type {BindParams, Database as Client} from 'sql.js'
-import {Batch} from '#/core/Batch.ts'
+import {Batch} from '../core/Batch.ts'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'

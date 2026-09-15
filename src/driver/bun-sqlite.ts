@@ -1,5 +1,5 @@
 import type {Database as Client, Statement} from 'bun:sqlite'
-import {Batch} from '#/core/Batch.ts'
+import {Batch} from '../core/Batch.ts'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   BatchedQuery,

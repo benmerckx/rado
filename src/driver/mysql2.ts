@@ -4,7 +4,7 @@ import type {
   PoolConnection,
   Connection as PromiseConnection
 } from 'mysql2/promise'
-import {Batch} from '#/core/Batch.ts'
+import {Batch} from '../core/Batch.ts'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,

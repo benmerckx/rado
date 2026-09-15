@@ -1,5 +1,5 @@
 import type {Client, Pool, PoolClient} from 'pg'
-import {Batch} from '#/core/Batch.ts'
+import {Batch} from '../core/Batch.ts'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
