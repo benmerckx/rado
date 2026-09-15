@@ -1,6 +1,10 @@
 import type {Client, Pool, PoolClient} from 'pg'
 import {Batch} from '../core/Batch.ts'
-import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import {
+  AsyncDatabase,
+  type DatabaseOptions,
+  type TransactionOptions
+} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
@@ -151,10 +155,14 @@ export class PgDriver implements AsyncDriver {
   }
 }
 
-export function connect(client: PgCompatible): AsyncDatabase<'postgres'> {
+export function connect(
+  client: PgCompatible,
+  options?: DatabaseOptions
+): AsyncDatabase<'postgres'> {
   return new AsyncDatabase(
     new PgDriver(client as Queryable),
     postgresDialect,
-    postgresDiff
+    postgresDiff,
+    options
   )
 }

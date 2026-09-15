@@ -33,6 +33,15 @@ import {Resolver} from './Resolver.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
 
+export interface QueryLog {
+  sql: string
+  params: Array<unknown>
+}
+
+export interface DatabaseOptions {
+  logQuery?: (query: QueryLog, durationMs: number) => void
+}
+
 export class Database<Meta extends QueryMeta = Either>
   extends Builder<Meta>
   implements HasResolver<Meta>
@@ -40,15 +49,22 @@ export class Database<Meta extends QueryMeta = Either>
   driver: Driver
   dialect: Dialect
   diff: Diff
+  options: DatabaseOptions
   readonly [internalResolver]: Resolver<Meta>
 
-  constructor(driver: Driver, dialect: Dialect, diff: Diff) {
-    const resolver = new Resolver<Meta>(driver, dialect)
+  constructor(
+    driver: Driver,
+    dialect: Dialect,
+    diff: Diff,
+    options: DatabaseOptions = {}
+  ) {
+    const resolver = new Resolver<Meta>(driver, dialect, options)
     super({resolver})
     this[internalResolver] = resolver
     this.driver = driver
     this.dialect = dialect
     this.diff = diff
+    this.options = options
   }
 
   close(this: Database<Async>): Promise<void>
@@ -75,7 +91,7 @@ export class Database<Meta extends QueryMeta = Either>
 
   run(input: HasSql): Deliver<Meta, void> {
     const sql = this.dialect.inline(input)
-    return this.driver.exec(sql) as Deliver<Meta, void>
+    return this[internalResolver].exec(sql) as Deliver<Meta, void>
   }
 
   get<Result extends Array<unknown>>(
@@ -152,7 +168,12 @@ export class Database<Meta extends QueryMeta = Either>
   transaction(run: Function, options = {}) {
     return this.driver.transaction(
       inner => {
-        const tx = new Transaction<Meta>(inner, this.dialect, this.diff)
+        const tx = new Transaction<Meta>(
+          inner,
+          this.dialect,
+          this.diff,
+          this.options
+        )
         return run(tx)
       },
       {async: run.constructor.name === 'AsyncFunction', ...options}

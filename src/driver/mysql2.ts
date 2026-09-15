@@ -5,7 +5,11 @@ import type {
   Connection as PromiseConnection
 } from 'mysql2/promise'
 import {Batch} from '../core/Batch.ts'
-import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import {
+  AsyncDatabase,
+  type DatabaseOptions,
+  type TransactionOptions
+} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
@@ -153,11 +157,13 @@ function isPool(client: Queryable): client is Pool {
 }
 
 export function connect(
-  client: Queryable | Connection
+  client: Queryable | Connection,
+  options?: DatabaseOptions
 ): AsyncDatabase<'mysql'> {
   return new AsyncDatabase(
     new Mysql2Driver('promise' in client ? client.promise() : client),
     mysqlDialect,
-    mysqlDiff
+    mysqlDiff,
+    options
   )
 }

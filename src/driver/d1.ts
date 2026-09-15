@@ -1,4 +1,4 @@
-import {AsyncDatabase} from '../core/Database.ts'
+import {AsyncDatabase, type DatabaseOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
@@ -86,6 +86,14 @@ export class D1Driver implements AsyncDriver {
   }
 }
 
-export function connect(client: Client): AsyncDatabase<'sqlite'> {
-  return new AsyncDatabase(new D1Driver(client), sqliteDialect, sqliteDiff)
+export function connect(
+  client: Client,
+  options?: DatabaseOptions
+): AsyncDatabase<'sqlite'> {
+  return new AsyncDatabase(
+    new D1Driver(client),
+    sqliteDialect,
+    sqliteDiff,
+    options
+  )
 }

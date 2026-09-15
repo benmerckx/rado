@@ -38,6 +38,20 @@ Async drivers produce an `AsyncDatabase`, where queries must be awaited. The
 type system keeps track for you. `db.transaction` callbacks, `.all()`,
 `.get()` and friends are typed sync or async to match the driver.
 
+## Query timing
+
+Every driver accepts an optional `logQuery` callback as the second argument to
+`connect`. It runs after a query completes successfully and includes its bound
+parameters and duration in milliseconds.
+
+```ts
+const db = connect(client, {
+  logQuery({sql, params}, durationMs) {
+    console.log({sql, params, durationMs})
+  }
+})
+```
+
 ## PostgreSQL
 
 ### pg

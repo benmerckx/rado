@@ -1,7 +1,15 @@
 import type {BindParams, Database as Client} from 'sql.js'
 import {Batch} from '../core/Batch.ts'
-import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
+import {
+  type DatabaseOptions,
+  SyncDatabase,
+  type TransactionOptions
+} from '../core/Database.ts'
+import type {
+  BatchedQuery,
+  SyncDriver,
+  SyncStatement
+} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
@@ -87,6 +95,14 @@ class SqlJsDriver implements SyncDriver {
   }
 }
 
-export function connect(db: Client): SyncDatabase<'sqlite'> {
-  return new SyncDatabase(new SqlJsDriver(db), sqliteDialect, sqliteDiff)
+export function connect(
+  db: Client,
+  options?: DatabaseOptions
+): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(
+    new SqlJsDriver(db),
+    sqliteDialect,
+    sqliteDiff,
+    options
+  )
 }

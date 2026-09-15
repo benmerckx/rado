@@ -1,6 +1,10 @@
 import type {Database as Client, Statement} from 'better-sqlite3'
 import {Batch} from '../core/Batch.ts'
-import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import {
+  type DatabaseOptions,
+  SyncDatabase,
+  type TransactionOptions
+} from '../core/Database.ts'
 import type {
   BatchedQuery,
   PrepareOptions,
@@ -86,10 +90,14 @@ class BetterSqlite3Driver implements SyncDriver {
   }
 }
 
-export function connect(db: Client): SyncDatabase<'sqlite'> {
+export function connect(
+  db: Client,
+  options?: DatabaseOptions
+): SyncDatabase<'sqlite'> {
   return new SyncDatabase(
     new BetterSqlite3Driver(db),
     sqliteDialect,
-    sqliteDiff
+    sqliteDiff,
+    options
   )
 }

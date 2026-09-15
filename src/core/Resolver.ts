@@ -1,4 +1,5 @@
 import {Batch, type RowMapper} from './Batch.ts'
+import type {DatabaseOptions} from './Database.ts'
 import type {Dialect} from './Dialect.ts'
 import {
   type Driver,
@@ -21,10 +22,16 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   declare private brand: [Meta]
   #driver: Driver
   #dialect: Dialect
+  #options: DatabaseOptions
 
-  constructor(driver: Driver, dialect: Dialect) {
+  constructor(driver: Driver, dialect: Dialect, options: DatabaseOptions = {}) {
     this.#driver = driver
     this.#dialect = dialect
+    this.#options = options
+  }
+
+  exec(sql: string) {
+    return this.#timed(sql, [], () => this.#driver.exec(sql))
   }
 
   toSQL(query: HasQuery): {sql: string; params: Array<unknown>} {
@@ -63,7 +70,13 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
       isSelection,
       name
     })
-    return new PreparedStatement<Meta>(emitter, stmt, mapRow, this.#driver)
+    return new PreparedStatement<Meta>(
+      emitter,
+      stmt,
+      mapRow,
+      this.#driver,
+      this.#options
+    )
   }
 
   batch(queries: Array<HasSql | HasQuery>): Batch<Meta> {
@@ -88,7 +101,28 @@ export class Resolver<Meta extends QueryMeta = QueryMeta> {
   ): Result | Promise<Result> {
     const emitter = this.#dialect.emit(query)
     const statement = this.#driver.prepare(emitter.sql, options)
-    return this.#execute(statement, () => run(statement, emitter.bind()))
+    const params = emitter.bind()
+    return this.#execute(statement, () =>
+      this.#timed(emitter.sql, params, () => run(statement, params))
+    )
+  }
+
+  #timed<Result>(
+    sql: string,
+    params: Array<unknown>,
+    run: () => Result
+  ): Result {
+    const {logQuery} = this.#options
+    if (!logQuery) return run()
+    const startTime = performance.now()
+    const result = run()
+    if (result instanceof Promise)
+      return result.then(value => {
+        logQuery({sql, params}, performance.now() - startTime)
+        return value
+      }) as Result
+    logQuery({sql, params}, performance.now() - startTime)
+    return result
   }
 
   #executeQuery<Result>(
@@ -122,17 +156,20 @@ export class PreparedStatement<Meta extends QueryMeta> {
   #stmt: Statement
   #mapRow: RowMapper
   #specs: DriverSpecs
+  #options: DatabaseOptions
 
   constructor(
     emitter: Emitter,
     stmt: Statement,
     mapRow: RowMapper,
-    specs: DriverSpecs
+    specs: DriverSpecs,
+    options: DatabaseOptions
   ) {
     this.#emitter = emitter
     this.#stmt = stmt
     this.#mapRow = mapRow
     this.#specs = specs
+    this.#options = options
   }
 
   #transform = (rows: Array<Array<unknown>>) => {
@@ -153,7 +190,10 @@ export class PreparedStatement<Meta extends QueryMeta> {
   all(
     inputs?: Record<string, unknown>
   ): Array<unknown> | Promise<Array<unknown>> {
-    const rows = this.#stmt.values(this.#emitter.bind(inputs))
+    const params = this.#emitter.bind(inputs)
+    const rows = this.#timed(this.#emitter.sql, params, () =>
+      this.#stmt.values(params)
+    )
     if (rows instanceof Promise) return rows.then(this.#transform)
     return this.#transform(rows)
   }
@@ -165,14 +205,33 @@ export class PreparedStatement<Meta extends QueryMeta> {
   }
 
   run(inputs?: Record<string, unknown>): unknown {
-    return this.#stmt.run(this.#emitter.bind(inputs))
+    const params = this.#emitter.bind(inputs)
+    return this.#timed(this.#emitter.sql, params, () => this.#stmt.run(params))
+  }
+
+  #timed<Result>(
+    sql: string,
+    params: Array<unknown>,
+    run: () => Result
+  ): Result {
+    const {logQuery} = this.#options
+    if (!logQuery) return run()
+    const startTime = performance.now()
+    const result = run()
+    if (result instanceof Promise)
+      return result.then(value => {
+        logQuery({sql, params}, performance.now() - startTime)
+        return value
+      }) as Result
+    logQuery({sql, params}, performance.now() - startTime)
+    return result
   }
 
   async execute(
     inputs?: Record<string, unknown>
   ): Promise<unknown | MutationResult<Meta>> {
     if (!this.#mapRow)
-      return this.#stmt.run(this.#emitter.bind(inputs)) as
+      return this.run(inputs) as
         | MutationResult<Meta>
         | Promise<MutationResult<Meta>>
     return this.all(inputs)

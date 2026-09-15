@@ -1,5 +1,9 @@
 import type {Client, InValue, Transaction} from '@libsql/client'
-import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import {
+  AsyncDatabase,
+  type DatabaseOptions,
+  type TransactionOptions
+} from '../core/Database.ts'
 import type {
   AsyncDriver,
   AsyncStatement,
@@ -101,6 +105,14 @@ export class LibSQLClient implements AsyncDriver {
   }
 }
 
-export function connect(client: Client): AsyncDatabase<'sqlite'> {
-  return new AsyncDatabase(new LibSQLClient(client), sqliteDialect, sqliteDiff)
+export function connect(
+  client: Client,
+  options?: DatabaseOptions
+): AsyncDatabase<'sqlite'> {
+  return new AsyncDatabase(
+    new LibSQLClient(client),
+    sqliteDialect,
+    sqliteDiff,
+    options
+  )
 }

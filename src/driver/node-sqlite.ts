@@ -1,5 +1,9 @@
 import {Batch} from '../core/Batch.ts'
-import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import {
+  type DatabaseOptions,
+  SyncDatabase,
+  type TransactionOptions
+} from '../core/Database.ts'
 import type {
   BatchedQuery,
   PrepareOptions,
@@ -107,6 +111,14 @@ class NodeSqliteDriver implements SyncDriver {
   }
 }
 
-export function connect(db: Client): SyncDatabase<'sqlite'> {
-  return new SyncDatabase(new NodeSqliteDriver(db), sqliteDialect, sqliteDiff)
+export function connect(
+  db: Client,
+  options?: DatabaseOptions
+): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(
+    new NodeSqliteDriver(db),
+    sqliteDialect,
+    sqliteDiff,
+    options
+  )
 }

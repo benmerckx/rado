@@ -1,6 +1,10 @@
 import type {Database as Client, Statement} from 'bun:sqlite'
 import {Batch} from '../core/Batch.ts'
-import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
+import {
+  type DatabaseOptions,
+  SyncDatabase,
+  type TransactionOptions
+} from '../core/Database.ts'
 import type {
   BatchedQuery,
   PrepareOptions,
@@ -89,6 +93,14 @@ class BunSqliteDriver implements SyncDriver {
   }
 }
 
-export function connect(db: Client): SyncDatabase<'sqlite'> {
-  return new SyncDatabase(new BunSqliteDriver(db), sqliteDialect, sqliteDiff)
+export function connect(
+  db: Client,
+  options?: DatabaseOptions
+): SyncDatabase<'sqlite'> {
+  return new SyncDatabase(
+    new BunSqliteDriver(db),
+    sqliteDialect,
+    sqliteDiff,
+    options
+  )
 }

@@ -1,7 +1,15 @@
 import type {PGlite, Transaction} from '@electric-sql/pglite'
 import {Batch} from '../core/Batch.ts'
-import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
-import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
+import {
+  AsyncDatabase,
+  type DatabaseOptions,
+  type TransactionOptions
+} from '../core/Database.ts'
+import type {
+  AsyncDriver,
+  AsyncStatement,
+  BatchedQuery
+} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
 import {postgresDiff} from '../postgres/diff.ts'
@@ -106,6 +114,14 @@ export class PGliteDriver implements AsyncDriver {
   }
 }
 
-export function connect(db: PGlite): AsyncDatabase<'postgres'> {
-  return new AsyncDatabase(new PGliteDriver(db), postgresDialect, postgresDiff)
+export function connect(
+  db: PGlite,
+  options?: DatabaseOptions
+): AsyncDatabase<'postgres'> {
+  return new AsyncDatabase(
+    new PGliteDriver(db),
+    postgresDialect,
+    postgresDiff,
+    options
+  )
 }
