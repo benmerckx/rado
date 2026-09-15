@@ -1,4 +1,5 @@
 import type {Database as Client, Statement} from 'better-sqlite3'
+import {Batch} from '#/core/Batch.ts'
 import {SyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   BatchedQuery,
@@ -10,7 +11,6 @@ import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
-import {executeBatch} from './batch.ts'
 
 class PreparedStatement implements SyncStatement {
   constructor(
@@ -69,7 +69,7 @@ class BetterSqlite3Driver implements SyncDriver {
   }
 
   batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
-    return this.transaction(tx => executeBatch(tx, queries), {})
+    return this.transaction(tx => Batch.run(tx, queries), {})
   }
 
   transaction<T>(

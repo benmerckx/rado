@@ -4,6 +4,7 @@ import type {
   PoolConnection,
   Connection as PromiseConnection
 } from 'mysql2/promise'
+import {Batch} from '#/core/Batch.ts'
 import {AsyncDatabase, type TransactionOptions} from '../core/Database.ts'
 import type {
   AsyncDriver,
@@ -15,7 +16,6 @@ import type {MutationResultBase} from '../core/MetaData.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
 import {mysqlDiff} from '../mysql/diff.ts'
 import {setTransaction, startTransaction} from '../mysql/transactions.ts'
-import {executeBatch} from './batch.ts'
 
 type Queryable = PromiseConnection | Pool | PoolConnection
 
@@ -108,7 +108,7 @@ export class Mysql2Driver implements AsyncDriver {
   }
 
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
-    const transact = (tx: AsyncDriver) => executeBatch(tx, queries)
+    const transact = (tx: AsyncDriver) => Batch.run(tx, queries)
     if (this.depth > 0) return transact(this)
     return this.transaction(transact, {})
   }

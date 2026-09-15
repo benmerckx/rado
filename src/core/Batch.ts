@@ -1,4 +1,5 @@
-import type {BatchedQuery, Driver} from './Driver.ts'
+import {run, txGenerator} from '#/universal/transactions.ts'
+import type {AsyncDriver, BatchedQuery, Driver, SyncDriver} from './Driver.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
 
@@ -41,5 +42,35 @@ export class Batch<Meta extends QueryMeta> {
     const results = this.#driver.batch(this.#queries)
     if (results instanceof Promise) return results.then(this.#transform)
     return this.#transform(results)
+  }
+
+  /** @internal */
+  static run(
+    driver: SyncDriver,
+    queries: Array<BatchedQuery>
+  ): Array<Array<unknown>>
+  static run(
+    driver: AsyncDriver,
+    queries: Array<BatchedQuery>
+  ): Promise<Array<Array<unknown>>>
+  static run(
+    driver: Driver,
+    queries: Array<BatchedQuery>
+  ): Array<Array<unknown>> | Promise<Array<Array<unknown>>> {
+    return run(statements(), value => value)
+
+    function* statements(): Generator<Promise<Array<Array<unknown>>>> {
+      const results = []
+      for (const {sql, params, isSelection} of queries) {
+        const statement = driver.prepare(sql, {isSelection})
+        try {
+          const rows = statement.values(params)
+          results.push(rows instanceof Promise ? yield rows : rows)
+        } finally {
+          statement.free()
+        }
+      }
+      return results
+    }
   }
 }
