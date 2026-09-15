@@ -1,4 +1,4 @@
-import {run, txGenerator} from '#/universal/transactions.ts'
+import {run} from '../universal/transactions.ts'
 import type {AsyncDriver, BatchedQuery, Driver, SyncDriver} from './Driver.ts'
 import type {QueryMeta} from './MetaData.ts'
 import type {MapRowContext} from './Selection.ts'
