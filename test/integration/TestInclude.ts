@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {eq, include, table, type Database} from '#/index.ts'
+import {asc, eq, include, table, type Database} from '#/index.ts'
 import {id, integer, lastInsertId, text} from '#/universal.ts'
 
 export function testInclude(db: Database, test: DefineTest) {
@@ -139,5 +139,42 @@ export function testInclude(db: Database, test: DefineTest) {
       }
     })
     await db.drop(User, Post, UserRole)
+  })
+
+  test('include with duplicate field names', async () => {
+    const Author = table('Author', {
+      id: id(),
+      name: text().notNull()
+    })
+    const Book = table('Book', {
+      id: id(),
+      authorId: integer().notNull()
+    })
+    await db.create(Author, Book)
+    try {
+      await db.insert(Author).values([{name: 'a'}, {name: 'b'}])
+      await db.insert(Book).values([{authorId: 2}, {authorId: 2}])
+      const books = include(
+        db
+          .select({book: {id: Book.id}, author: {id: Author.id}})
+          .from(Book)
+          .innerJoin(Author, eq(Author.id, Book.authorId))
+          .orderBy(asc(Book.id))
+      )
+      const result = await db
+        .select({books})
+        .from(Author)
+        .where(eq(Author.id, 1))
+      test.equal(result, [
+        {
+          books: [
+            {book: {id: 1}, author: {id: 2}},
+            {book: {id: 2}, author: {id: 2}}
+          ]
+        }
+      ])
+    } finally {
+      await db.drop(Author, Book)
+    }
   })
 }

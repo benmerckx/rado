@@ -4,6 +4,7 @@ import {
   type HasSql,
   type HasTable,
   type HasTarget,
+  cached,
   getField,
   getSelection,
   getSql,
@@ -53,6 +54,11 @@ export interface MapRowContext {
 interface Column {
   targetName?: string
   result(ctx: MapRowContext): unknown
+}
+interface SelectedColumn {
+  input: SelectionInput
+  expr: Sql
+  name: string | undefined
 }
 class SqlColumn implements Column {
   constructor(
@@ -134,79 +140,57 @@ export class Selection<
     )
   }
 
+  #columns?: Array<SelectedColumn>
+  #aliases?: Map<Sql, string>
+
+  // Flattened selected expressions with their deduplicated output names
+  #selected(): Array<SelectedColumn> {
+    if (this.#columns) return this.#columns
+    const columns: Array<SelectedColumn> = []
+    const names = new Set<string>()
+    const collect = (input: SelectionInput, name?: string) => {
+      const expr = getSql(input as HasSql)
+      if (expr) {
+        let exprName = name ?? expr.alias
+        if (exprName) {
+          // The bun:sqlite driver cannot handle multiple columns by the same name
+          while (names.has(exprName)) exprName = `${exprName}_`
+          names.add(exprName)
+        }
+        columns.push({input, expr, name: exprName})
+        return
+      }
+      for (const [name, value] of Object.entries(input)) collect(value, name)
+    }
+    collect(this.input)
+    return (this.#columns = columns)
+  }
+
   fieldNames(): Array<string> {
-    return this.#fieldNames(this.input, new Set())
+    return this.#selected().map(column => {
+      if (!column.name) throw new Error('Missing field name')
+      return column.name
+    })
   }
 
   aliasOf(input: HasSql): string | undefined {
-    return this.#aliasOf(this.input, new Set(), getSql(input))
-  }
-
-  #aliasOf(
-    input: SelectionInput,
-    names: Set<string>,
-    target: Sql,
-    name?: string
-  ): string | undefined {
-    const expr = getSql(input as HasSql)
-    if (expr) {
-      let exprName = name ?? expr.alias
-      if (!exprName) return
-      while (names.has(exprName)) exprName = `${exprName}_`
-      names.add(exprName)
-      if (expr === target) return exprName
-      return
+    if (!this.#aliases) {
+      this.#aliases = new Map()
+      for (const {expr, name} of this.#selected())
+        if (name && !this.#aliases.has(expr)) this.#aliases.set(expr, name)
     }
-    for (const [name, value] of Object.entries(input)) {
-      const alias = this.#aliasOf(value, names, target, name)
-      if (alias) return alias
-    }
-  }
-
-  #fieldNames(
-    input: SelectionInput,
-    names: Set<string>,
-    name?: string
-  ): Array<string> {
-    const expr = getSql(input as HasSql)
-    if (expr) {
-      let exprName = name ?? expr.alias
-      if (!exprName) throw new Error('Missing field name')
-      while (names.has(exprName)) exprName = `${exprName}_`
-      return [exprName]
-    }
-    return Object.entries(input).flatMap(([name, value]) =>
-      this.#fieldNames(value, names, name)
-    )
-  }
-
-  #selectionToSql(
-    input: SelectionInput,
-    names: Set<string>,
-    name?: string
-  ): Array<Sql> {
-    const expr = getSql(input as HasSql)
-    if (expr) {
-      let exprName = name ?? expr.alias
-      if (exprName) {
-        // The bun:sqlite driver cannot handle multiple columns by the same name
-        while (names.has(exprName)) exprName = `${exprName}_`
-        names.add(exprName)
-        if (hasField(input)) {
-          const field = getField(input)
-          if (field.fieldName === exprName) return [expr]
-        }
-        return [sql`${expr.forSelection()} as ${sql.identifier(exprName)}`]
-      }
-      return [expr]
-    }
-    return Object.entries(input).flatMap(([name, value]) =>
-      this.#selectionToSql(value, names, name)
-    )
+    return this.#aliases.get(getSql(input))
   }
 
   get [internalSql](): Sql {
-    return sql.join(this.#selectionToSql(this.input, new Set()), sql`, `)
+    return cached(this, internalSql, () => {
+      const parts = this.#selected().map(({input, expr, name}) => {
+        if (!name) return expr
+        if (hasField(input) && getField(input).fieldName === name) return expr
+        return sql`${expr.forSelection()} as ${sql.identifier(name)}`
+      })
+      return sql.join(parts, sql`, `)
+    })
   }
 
   #collectTargetNames(input: SelectionInput, names: Set<string>) {

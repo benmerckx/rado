@@ -5,21 +5,26 @@ import {
   SyncDatabase,
   type TransactionOptions
 } from '../core/Database.ts'
-import type {
-  BatchedQuery,
-  SyncDriver,
-  SyncStatement
-} from '../core/Driver.ts'
+import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
+import {ReusedStatement, StatementCache} from '../sqlite/statements.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
 
-class PreparedStatement implements SyncStatement {
+type Statement = ReturnType<Client['prepare']>
+
+class PreparedStatement
+  extends ReusedStatement<Statement>
+  implements SyncStatement
+{
   constructor(
     private client: Client,
-    private stmt: ReturnType<Client['prepare']>
-  ) {}
+    statements: StatementCache<Statement>,
+    sql: string
+  ) {
+    super(statements, sql)
+  }
 
   *iterate<T>(params: Array<unknown>): IterableIterator<T> {
     this.stmt.bind(params as BindParams)
@@ -50,10 +55,6 @@ class PreparedStatement implements SyncStatement {
   values(params: Array<unknown>) {
     return Array.from(this.iterateValues(params))
   }
-
-  free() {
-    this.stmt.free()
-  }
 }
 
 class SqlJsDriver implements SyncDriver {
@@ -62,19 +63,25 @@ class SqlJsDriver implements SyncDriver {
 
   constructor(
     private client: Client,
-    private depth = 0
+    private depth = 0,
+    private statements = new StatementCache<Statement>(
+      sql => client.prepare(sql),
+      stmt => stmt.free()
+    )
   ) {}
 
   exec(query: string): void {
+    this.statements.invalidate(query)
     this.client.exec(query)
   }
 
   close() {
+    this.statements.clear()
     this.client.close()
   }
 
   prepare(sql: string) {
-    return new PreparedStatement(this.client, this.client.prepare(sql))
+    return new PreparedStatement(this.client, this.statements, sql)
   }
 
   batch(queries: Array<BatchedQuery>): Array<Array<unknown>> {
@@ -88,7 +95,7 @@ class SqlJsDriver implements SyncDriver {
     return execTransaction(
       this,
       this.depth,
-      depth => new SqlJsDriver(this.client, depth),
+      depth => new SqlJsDriver(this.client, depth, this.statements),
       run,
       options
     )

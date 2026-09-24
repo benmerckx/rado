@@ -1,5 +1,11 @@
 import type {DriverSpecs} from '../Driver.ts'
-import {type HasSql, getData, internalData, internalSql} from '../Internal.ts'
+import {
+  type HasSql,
+  cached,
+  getData,
+  internalData,
+  internalSql
+} from '../Internal.ts'
 import type {QueryMeta} from '../MetaData.ts'
 import type {QueryData} from '../Queries.ts'
 import type {SelectQuery} from '../query/Query.ts'
@@ -54,9 +60,11 @@ export class Include<
   }
 
   get [internalSql](): Sql<Result> {
-    return includeQuery(getData(this)).mapWith<Result>({
-      mapFromDriverValue: this.#mapFromDriverValue
-    })
+    return cached(this, internalSql, () =>
+      includeQuery(getData(this)).mapWith<Result>({
+        mapFromDriverValue: this.#mapFromDriverValue
+      })
+    )
   }
 }
 

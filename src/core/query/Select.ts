@@ -8,6 +8,7 @@ import {
   type HasSelection,
   type HasSql,
   type HasTarget,
+  cached,
   getData,
   getField,
   getQuery,
@@ -89,17 +90,26 @@ export class SelectFirst<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalSelection](): Selection {
-    return querySelection(getData(this))
+    return cached(this, internalSelection, () => querySelection(getData(this)))
   }
 
   get [internalQuery](): Sql<SelectionRow<Input>> {
-    return selectQuery(getData(this)) as Sql<SelectionRow<Input>>
+    return cached(
+      this,
+      internalQuery,
+      () => selectQuery(getData(this)) as Sql<SelectionRow<Input>>
+    )
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
-    return getQuery(this).asScalar(getSelection(this).input) as Sql<
-      SelectionRow<Input>
-    >
+    return cached(
+      this,
+      internalSql,
+      () =>
+        getQuery(this).asScalar(getSelection(this).input) as Sql<
+          SelectionRow<Input>
+        >
+    )
   }
 }
 
@@ -116,9 +126,14 @@ export abstract class UnionBase<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalSql](): Sql<SelectionRow<Input>> {
-    return getQuery(this).asScalar(getSelection(this).input) as Sql<
-      SelectionRow<Input>
-    >
+    return cached(
+      this,
+      internalSql,
+      () =>
+        getQuery(this).asScalar(getSelection(this).input) as Sql<
+          SelectionRow<Input>
+        >
+    )
   }
 
   as<Name extends string>(alias: Name): SubQuery<Input, Name> {
@@ -412,11 +427,15 @@ export class Select<Input, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalSelection](): Selection {
-    return querySelection(getData(this))
+    return cached(this, internalSelection, () => querySelection(getData(this)))
   }
 
   get [internalQuery](): Sql<Array<SelectionRow<Input>>> {
-    return selectQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+    return cached(
+      this,
+      internalQuery,
+      () => selectQuery(getData(this)) as Sql<Array<SelectionRow<Input>>>
+    )
   }
 }
 
@@ -779,7 +798,16 @@ function hasUnnamedDerivedSource(input: SelectionInput): boolean {
   )
 }
 
-export function querySelection({select, from}: SelectQuery): Selection {
+// Query data is never mutated, so the selection is derived and validated once
+const selections = new WeakMap<SelectQuery, Selection>()
+
+export function querySelection(query: SelectQuery): Selection {
+  let selected = selections.get(query)
+  if (!selected) selections.set(query, (selected = createSelection(query)))
+  return selected
+}
+
+function createSelection({select, from}: SelectQuery): Selection {
   if (select) {
     if (from) {
       const selectedTargets = new Set<string>()
@@ -940,14 +968,14 @@ export class Union<Result, Meta extends QueryMeta = QueryMeta>
   }
 
   get [internalQuery](): Sql {
-    return unionQuery(getData(this))
+    return cached(this, internalQuery, () => unionQuery(getData(this)))
   }
 
   get [internalSelection](): Selection {
     const {
       select: [first]
     } = getData(this)
-    return querySelection(first)
+    return cached(this, internalSelection, () => querySelection(first))
   }
 
   orderBy(...orderBy: Array<HasSql>): Union<Result, Meta> {

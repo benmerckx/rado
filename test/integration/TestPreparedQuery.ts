@@ -38,6 +38,45 @@ export function testPreparedQuery(db: Database, test: DefineTest) {
     }
   })
 
+  test('statements with the same sql are reused safely', async () => {
+    await db.create(Node)
+    try {
+      await db.insert(Node).values({textField: 'a', bool: true})
+      const typed = db
+        .select({id: Node.id, textField: Node.textField})
+        .from(Node)
+      const raw = sql.unsafe<{id: number; textField: string}>(typed.toSQL().sql)
+      const expected = [{id: 1, textField: 'a'}]
+      test.equal(await typed, expected)
+      const rows = await db.all(raw)
+      test.equal(
+        rows.map(row => ({...row})),
+        expected
+      )
+      test.equal(await typed, expected)
+
+      await using prepared = typed.prepare('reused')
+      const star = sql<Record<string, unknown>>`select * from ${Node}`
+      test.equal(Object.keys((await db.get(star))!), [
+        'id',
+        'textField',
+        'bool'
+      ])
+      await db.run(
+        sql`alter table ${Node} add column ${sql.identifier('extra')} integer`
+      )
+      test.equal(Object.keys((await db.get(star))!), [
+        'id',
+        'textField',
+        'bool',
+        'extra'
+      ])
+      test.equal(await prepared.all(), expected)
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
   test('prepared queries', async () => {
     try {
       await db.create(Node)

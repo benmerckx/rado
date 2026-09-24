@@ -14,13 +14,20 @@ import type {
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
+import {ReusedStatement, StatementCache} from '../sqlite/statements.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
 
-class PreparedStatement implements SyncStatement {
+class PreparedStatement
+  extends ReusedStatement<Statement<unknown>>
+  implements SyncStatement
+{
   constructor(
-    private stmt: Statement<unknown>,
+    statements: StatementCache<Statement<unknown>>,
+    sql: string,
     private isSelection: boolean
-  ) {}
+  ) {
+    super(statements, sql)
+  }
 
   all(params: Array<unknown>) {
     return <Array<object>>this.stmt.all(...params)
@@ -45,10 +52,6 @@ class PreparedStatement implements SyncStatement {
     }
     return this.stmt.values(...params)
   }
-
-  free() {
-    this.stmt.finalize()
-  }
 }
 
 class BunSqliteDriver implements SyncDriver {
@@ -57,20 +60,27 @@ class BunSqliteDriver implements SyncDriver {
 
   constructor(
     private client: Client,
-    private depth = 0
+    private depth = 0,
+    private statements = new StatementCache<Statement<unknown>>(
+      sql => client.prepare(sql),
+      stmt => stmt.finalize()
+    )
   ) {}
 
   exec(query: string): void {
+    this.statements.invalidate(query)
     this.client.exec(query)
   }
 
   close() {
+    this.statements.clear()
     this.client.close()
   }
 
   prepare(sql: string, options?: PrepareOptions) {
     return new PreparedStatement(
-      this.client.prepare(sql),
+      this.statements,
+      sql,
       options?.isSelection ?? false
     )
   }
@@ -86,7 +96,7 @@ class BunSqliteDriver implements SyncDriver {
     return execTransaction(
       this,
       this.depth,
-      depth => new BunSqliteDriver(this.client, depth),
+      depth => new BunSqliteDriver(this.client, depth, this.statements),
       run,
       options
     )

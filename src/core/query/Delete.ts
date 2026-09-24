@@ -3,6 +3,7 @@ import type {Input as UserInput} from '../expr/Input.ts'
 import {
   type HasQuery,
   type HasSql,
+  cached,
   getData,
   getTable,
   internalData,
@@ -40,7 +41,11 @@ export class Delete<
   }
 
   get [internalQuery](): Sql<MutationOutput<Returning, Meta>> {
-    return deleteQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
+    return cached(
+      this,
+      internalQuery,
+      () => deleteQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
+    )
   }
 
   limit(limit: UserInput<number>): Delete<Returning, Meta> {

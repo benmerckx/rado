@@ -3,6 +3,7 @@ import {type Input as UserInput, mapToColumn} from '../expr/Input.ts'
 import {
   type HasQuery,
   type HasSql,
+  cached,
   getData,
   getSql,
   getTable,
@@ -42,7 +43,11 @@ export class Update<
   }
 
   get [internalQuery](): Sql<MutationOutput<Returning, Meta>> {
-    return updateQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
+    return cached(
+      this,
+      internalQuery,
+      () => updateQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
+    )
   }
 
   limit(limit: UserInput<number>): Update<Returning, Meta> {

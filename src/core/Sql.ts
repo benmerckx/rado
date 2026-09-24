@@ -183,15 +183,17 @@ export namespace sql {
     items: Array<Sql | HasSql | undefined | false>,
     separator: Sql = sql` `
   ): Sql<T> {
-    const parts = items.filter(item => {
-      if (!item) return false
-      return !getSql(item).isEmpty
-    }) as Array<Sql | HasSql>
+    const parts: Array<Sql> = []
+    for (const item of items) {
+      if (!item) continue
+      const inner = getSql(item)
+      if (!inner.isEmpty) parts.push(inner)
+    }
     if (parts.length === 0) return empty()
     return new Sql(emitter => {
       for (let i = 0; i < parts.length; i++) {
         if (i > 0) separator.emit(emitter)
-        getSql(parts[i]).emit(emitter)
+        parts[i]!.emit(emitter)
       }
     })
   }

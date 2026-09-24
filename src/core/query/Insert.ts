@@ -1,6 +1,7 @@
 import {type Input as UserInput, input, mapToColumn} from '../expr/Input.ts'
 import {
   type HasQuery,
+  cached,
   getData,
   getTable,
   internalData,
@@ -53,7 +54,11 @@ export class Insert<
   }
 
   get [internalQuery](): Sql<MutationOutput<Returning, Meta>> {
-    return insertQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
+    return cached(
+      this,
+      internalQuery,
+      () => insertQuery(getData(this)) as Sql<MutationOutput<Returning, Meta>>
+    )
   }
 }
 

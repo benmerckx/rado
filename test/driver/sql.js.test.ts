@@ -6,7 +6,7 @@ const {'sql.js': connect} = await import('#/driver.ts')
 const {default: init} = await import('sql.js')
 const {Database} = await init()
 
-test('sql.js: batch statements are freed after success and failure', () => {
+test('sql.js: cached statements are freed on close', () => {
   const client = new Database()
   const prepare = client.prepare.bind(client)
   let freeCount = 0
@@ -29,7 +29,7 @@ test('sql.js: batch statements are freed after success and failure', () => {
     ]),
     [[], [[1]]]
   )
-  test.equal(freeCount, 2)
+  test.equal(freeCount, 0)
 
   test.throws(() =>
     isolated.driver.batch([
@@ -37,8 +37,17 @@ test('sql.js: batch statements are freed after success and failure', () => {
       {sql: 'insert into items values (?)', params: [1], isSelection: false}
     ])
   )
-  test.equal(freeCount, 4)
+  // Rolling back could undo schema changes, so cached statements are freed
+  test.equal(freeCount, 2)
+  test.equal(
+    isolated.driver.batch([
+      {sql: 'select id from items', params: [], isSelection: true}
+    ]),
+    [[[1]]]
+  )
+  test.equal(freeCount, 2)
   isolated.close()
+  test.equal(freeCount, 3)
 })
 
 const db = connect(new Database())

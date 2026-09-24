@@ -14,13 +14,20 @@ import type {
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
 import {sqliteDiff} from '../sqlite/diff.ts'
+import {ReusedStatement, StatementCache} from '../sqlite/statements.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
 
-class PreparedStatement implements SyncStatement {
+class PreparedStatement
+  extends ReusedStatement<Statement>
+  implements SyncStatement
+{
   constructor(
-    private stmt: Statement,
+    statements: StatementCache<Statement>,
+    sql: string,
     private isSelection: boolean
-  ) {}
+  ) {
+    super(statements, sql)
+  }
 
   all(params: Array<unknown>) {
     return <Array<object>>this.stmt.all(...params)
@@ -39,13 +46,17 @@ class PreparedStatement implements SyncStatement {
   }
 
   values(params: Array<unknown>) {
-    if (this.isSelection)
+    if (!this.isSelection) {
+      this.stmt.run(...params)
+      return []
+    }
+    // The statement is shared, so raw mode must not outlive this call
+    try {
       return this.stmt.raw(true).all(...params) as Array<Array<unknown>>
-    this.stmt.run(...params)
-    return []
+    } finally {
+      this.stmt.raw(false)
+    }
   }
-
-  free() {}
 }
 
 class BetterSqlite3Driver implements SyncDriver {
@@ -54,20 +65,27 @@ class BetterSqlite3Driver implements SyncDriver {
 
   constructor(
     private client: Client,
-    private depth = 0
+    private depth = 0,
+    private statements = new StatementCache<Statement>(
+      sql => client.prepare(sql),
+      () => {}
+    )
   ) {}
 
   exec(query: string): void {
+    this.statements.invalidate(query)
     this.client.exec(query)
   }
 
   close() {
+    this.statements.clear()
     this.client.close()
   }
 
   prepare(sql: string, options?: PrepareOptions) {
     return new PreparedStatement(
-      this.client.prepare(sql),
+      this.statements,
+      sql,
       options?.isSelection ?? false
     )
   }
@@ -83,7 +101,7 @@ class BetterSqlite3Driver implements SyncDriver {
     return execTransaction(
       this,
       this.depth,
-      depth => new BetterSqlite3Driver(this.client, depth),
+      depth => new BetterSqlite3Driver(this.client, depth, this.statements),
       run,
       options
     )

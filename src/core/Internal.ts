@@ -20,6 +20,17 @@ export const internalEnum: unique symbol = Symbol()
 export const internalCreate: unique symbol = Symbol()
 export const internalDrop: unique symbol = Symbol()
 
+// Builders are immutable, so an internal getter only needs to run once
+const caches = new Map<symbol, WeakMap<object, unknown>>()
+export function cached<T>(instance: object, key: symbol, create: () => T): T {
+  let cache = caches.get(key)
+  if (!cache) caches.set(key, (cache = new WeakMap()))
+  if (cache.has(instance)) return cache.get(instance) as T
+  const value = create()
+  cache.set(instance, value)
+  return value
+}
+
 export declare class HasData<Data> {
   get [internalData](): Data
 }
