@@ -31,7 +31,11 @@ export function execTransaction<T>(
   }
 
   function release(result: T): T {
-    driver.exec(depth > 0 ? `release d${depth}` : 'commit')
+    try {
+      driver.exec(depth > 0 ? `release d${depth}` : 'commit')
+    } catch (error) {
+      return rollback(error)
+    }
     return result
   }
 
