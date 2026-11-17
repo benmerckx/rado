@@ -915,9 +915,19 @@ function formatTarget(target: HasTarget, indexHints?: IndexHintConfig): Sql {
   return sql.join([formattedTarget, formatIndexHints(indexHints)])
 }
 
+export function scoped(
+  from: SelectQuery['from'],
+  where?: HasSql<boolean>
+): HasSql<boolean> | undefined {
+  const base = Array.isArray(from) ? from[0] : from
+  const scopeWhere = base && hasTable(base) && getTable(base).where
+  return scopeWhere ? and(scopeWhere, where) : where
+}
+
 export function formatFrom(
   from: SelectQuery['from'],
-  baseConfig?: IndexHintConfig
+  baseConfig?: IndexHintConfig,
+  predicates?: {where?: HasSql<boolean>}
 ): Sql {
   if (!from) throw new Error('No target defined')
   if (Array.isArray(from)) {
@@ -926,6 +936,9 @@ export function formatFrom(
         if (hasTarget(join)) return formatTarget(join, baseConfig)
         if (hasSql(join)) return getSql(join)
         const {target, op, on, config} = joinOp(join)
+        const joined = hasTable(target) && getTable(target).where
+        if (joined && predicates)
+          predicates.where = and(joined, predicates.where)
         return sql.query({
           [op]: hasTarget(target)
             ? formatTarget(target, config)
@@ -938,24 +951,6 @@ export function formatFrom(
   return hasTarget(from) ? formatTarget(from, baseConfig) : getSql(from)
 }
 
-// A scoped target narrows the query it is read in, wherever it is in from
-export function scoped(
-  from: SelectQuery['from'],
-  where?: HasSql<boolean>
-): HasSql<boolean> | undefined {
-  const scopes = [from]
-    .flat()
-    .map(entry => {
-      if (!entry) return
-      const target =
-        hasTarget(entry) || hasSql(entry) ? entry : joinOp(entry).target
-      return hasTable(target) ? getTable(target).where : undefined
-    })
-    .concat(where)
-    .filter(Boolean)
-  return scopes.length ? and(...scopes) : undefined
-}
-
 export function selectQuery(query: SelectQuery): Sql {
   const {from, where, groupBy, having, distinct, distinctOn} = query
   const prefix = distinctOn
@@ -964,13 +959,14 @@ export function selectQuery(query: SelectQuery): Sql {
   const selected = querySelection(query)
   const select = sql.join([prefix, selected])
 
+  const predicates = {where: scoped(from, where)}
   return sql.query(
     formatCTE(query),
     {
       select,
-      from: from && formatFrom(from, query),
+      from: from && formatFrom(from, query, predicates),
       for: query.for,
-      where: scoped(from, where),
+      where: predicates.where,
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having: typeof having === 'function' ? having(selected.input) : having
     },

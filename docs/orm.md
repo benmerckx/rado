@@ -395,8 +395,8 @@ always was.
 ### Aliases and self relations
 
 `relation.alias(target, parent)` is the same relation between two other names
-for its tables, in the order it was defined with. Keys, kind (`notNull`,
-`first`) and `of` come along. It is how a relation is used under an aliased
+for its tables, in the order it was defined with. Keys, kind (including `notNull`)
+and `of` come along. Apply `first()` after aliasing. It is how a relation is used under an aliased
 parent:
 
 ```ts
