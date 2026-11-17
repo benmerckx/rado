@@ -1,7 +1,5 @@
-import {txGenerator} from '../universal.ts'
 import {Builder} from './Builder.ts'
 import type {Dialect} from './Dialect.ts'
-import type {Diff} from './Diff.ts'
 import type {Driver} from './Driver.ts'
 import {count} from './expr/Aggregate.ts'
 import {
@@ -14,7 +12,6 @@ import {
   getCreate,
   getDrop,
   getResolver,
-  getTable,
   hasQuery,
   hasSelection,
   internalResolver
@@ -48,22 +45,15 @@ export class Database<Meta extends QueryMeta = Either>
 {
   driver: Driver
   dialect: Dialect
-  diff: Diff
   options: DatabaseOptions
   readonly [internalResolver]: Resolver<Meta>
 
-  constructor(
-    driver: Driver,
-    dialect: Dialect,
-    diff: Diff,
-    options: DatabaseOptions = {}
-  ) {
+  constructor(driver: Driver, dialect: Dialect, options: DatabaseOptions = {}) {
     const resolver = new Resolver<Meta>(driver, dialect, options)
     super({resolver})
     this[internalResolver] = resolver
     this.driver = driver
     this.dialect = dialect
-    this.diff = diff
     this.options = options
   }
 
@@ -104,26 +94,6 @@ export class Database<Meta extends QueryMeta = Either>
 
   all<Result>(input: HasSql<Result>): Deliver<Meta, Array<Result>> {
     return this[internalResolver].all(input) as Deliver<Meta, Array<Result>>
-  }
-
-  migrate(...tables: Array<Table>): Deliver<Meta, void> {
-    if (tables.some(table => getTable(table).temporary))
-      throw new Error('Temporary tables cannot be migrated')
-    if (this.dialect.runtime === 'mysql' && tables.length > 1) {
-      const run = async () => {
-        for (const table of tables) await this.migrate(table)
-      }
-      return run() as Deliver<Meta, void>
-    }
-    const computeDiff = this.diff
-    return this.transaction<void>(
-      txGenerator(function* (tx) {
-        for (const table of tables) {
-          const diff = yield* computeDiff(table)
-          if (diff.length > 0) yield* tx.batch(diff.map(sql.unsafe))
-        }
-      })
-    )
   }
 
   batch<Queries extends Array<HasSql | HasQuery>>(
@@ -168,12 +138,7 @@ export class Database<Meta extends QueryMeta = Either>
   transaction(run: Function, options = {}) {
     return this.driver.transaction(
       inner => {
-        const tx = new Transaction<Meta>(
-          inner,
-          this.dialect,
-          this.diff,
-          this.options
-        )
+        const tx = new Transaction<Meta>(inner, this.dialect, this.options)
         return run(tx)
       },
       {async: run.constructor.name === 'AsyncFunction', ...options}

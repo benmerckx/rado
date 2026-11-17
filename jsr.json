@@ -2,16 +2,13 @@
   "name": "@rado/rado",
   "version": "1.3.0",
   "publish": {
-    "include": [
-      "README.md",
-      "LICENSE",
-      "src"
-    ]
+    "include": ["README.md", "LICENSE", "src"]
   },
   "exports": {
     ".": "./src/index.ts",
     "./sqlite": "./src/sqlite.ts",
     "./mysql": "./src/mysql.ts",
-    "./postgres": "./src/postgres.ts"
+    "./postgres": "./src/postgres.ts",
+    "./push": "./src/push.ts"
   }
 }

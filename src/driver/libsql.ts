@@ -12,7 +12,6 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
-import {sqliteDiff} from '../sqlite/diff.ts'
 
 type Queryable = Client | Transaction
 
@@ -109,10 +108,5 @@ export function connect(
   client: Client,
   options?: DatabaseOptions
 ): AsyncDatabase<'sqlite'> {
-  return new AsyncDatabase(
-    new LibSQLClient(client),
-    sqliteDialect,
-    sqliteDiff,
-    options
-  )
+  return new AsyncDatabase(new LibSQLClient(client), sqliteDialect, options)
 }

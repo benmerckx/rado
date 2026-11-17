@@ -13,7 +13,6 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
-import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = Client | Pool | PoolClient
@@ -162,7 +161,6 @@ export function connect(
   return new AsyncDatabase(
     new PgDriver(client as Queryable),
     postgresDialect,
-    postgresDiff,
     options
   )
 }
