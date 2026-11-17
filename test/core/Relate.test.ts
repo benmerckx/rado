@@ -178,14 +178,6 @@ suite(import.meta, test => {
     test.equal(titles, [])
 
     const {posts} = User
-    const misplaced = builder.select({posts}).from(Post)
-    type Misplaced = Awaited<typeof misplaced>[number]
-    const outside: Misplaced['posts'] = 'needs BundleUser in from'
-    test.equal(outside, 'needs BundleUser in from')
-    const lost = builder.select(Post, {posts}).from(Post)
-    const needs: Awaited<typeof lost>[number]['posts'] =
-      'needs BundleUser in from'
-    test.equal(needs, 'needs BundleUser in from')
     const loaded = builder.select({posts, author: Post.author}).from(User)
     type Loaded = Awaited<typeof loaded>[number]
     const title: Loaded['posts'][number]['title'] = 'A'

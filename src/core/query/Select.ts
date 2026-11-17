@@ -1,7 +1,6 @@
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
-import type {Rooted} from '../expr/Relation.ts'
 import {Index} from '../Index.ts'
 import {
   type HasData,
@@ -634,7 +633,7 @@ interface SelectionFromTargets<
   Input,
   Meta extends QueryMeta,
   FromNames extends string = never
-> extends SelectBase<Rooted<Input, FromNames>, Meta> {
+> extends SelectBase<Input, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>,

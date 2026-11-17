@@ -214,10 +214,6 @@ suite(import.meta, test => {
     >()
     const nodes = builder.select().from(parent.of({parentId: 1}))
     Expect<Equal<Awaited<typeof nodes>[number]['parentId'], number | null>>()
-    const misplaced = builder.select({posts}).from(scope)
-    Expect<
-      Equal<Awaited<typeof misplaced>[number]['posts'], 'needs User in from'>
-    >()
     // @ts-expect-error a scope is read in from, where its rows are narrowed
     builder.select().from(User).innerJoin(scope, eq(Post.authorId, User.id))
     // @ts-expect-error also after a selection
@@ -341,8 +337,6 @@ suite(import.meta, test => {
     links.many(Tag, {label: PostTag.tagId})
     // @ts-expect-error the links are not written through the tags
     ;() => tags.of({id: 1})
-    // @ts-expect-error the way through hangs under a post
-    ;async () => (await builder.select({tags}).from(User))[0].tags[0].name
   })
 
   test('renamed columns', () => {
@@ -414,10 +408,6 @@ suite(import.meta, test => {
   })
 
   test('parent types', async () => {
-    const misplaced = builder.select({posts}).from(Post)
-    type Row = Awaited<typeof misplaced>[number]
-    const outside: Row['posts'] = 'needs User in from'
-    test.equal(outside, 'needs User in from')
     const joined = builder
       .select({posts})
       .from(Post)

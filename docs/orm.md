@@ -368,8 +368,6 @@ select "Tag"."id", "Tag"."name" from "PostTag"
   a type error. The condition is a `where`, so it means what it says only
   for the table the query starts from. With a right or full join after it,
   it filters the joined result, as a hand-written `where` would.
-- The parent check sees the target's name. A `{posts}` selected from
-  `posts.of(user)` reads as `'needs User in from'`.
 - There is no shorter form. `posts.of(user)` is not a query by itself, see
   "Scoped reads and count".
 
@@ -533,7 +531,7 @@ has the columns.
 `select(table, extras)` is `{...fields, ...extras}` built from the table's
 selection, shared by the builder and by `Relation.select`. Its type is the
 table's fields with the extras laid over them, the type a spread of a plain
-table has, so joins, nullability, subqueries and the parent check see
+table has, so joins, nullability, subqueries and nested selections see
 nothing new.
 
 ## Write design, and what changed from the proposal
@@ -712,20 +710,8 @@ its own selection may use.
 
 - Nested: `posts.select({posts})` is an error at the call, since a relation
   knows its own tables.
-- In a query: `from` cannot be an error, because the parent may be joined
-  afterwards (`.from(Post).innerJoin(User, ...)` is valid). `Select` already
-  tracked the joined names for left-join nullability, so the row type is
-  checked against those instead: a relation without its parent reads as the
-  string type `'needs User in from'`, and any use of the field fails to
-  compile with that message.
-- Cost: one line in `Select` (the base of `SelectionFromTargets`) and one
-  recursive type. Type instantiations for the whole repo including tests go
-  from 835k to 1,040k (+24%); check time moved from 0.22s to 0.23s. No
-  existing type test changed.
-- Not checked: relations defined by a condition (their parent is not
-  known), relations inside `exists(...)`, `count()` and `every()` (those are
-  plain `Sql<boolean>` or `Sql<number>`), and queries whose `from` is not a
-  named target.
+  Top-level queries must include the parent in their source or joins. Only
+  nested relation selections check the parent name.
 
 ## Field keys
 
@@ -847,8 +833,7 @@ A table and one record won: it is the spread, as an argument. The row is
 flat, an extra replaces a column of the same name, and the type is the one
 the spread of a plain table has, so nothing downstream needed to learn about
 it. Joins compose because nothing about `from` changed. Nested objects,
-`include()` and relations are ordinary values in the record, and a relation
-there goes through the parent check like any other.
+`include()` and relations are ordinary values in the record.
 
 It also fixes something the spread got wrong on main. A spread copies the
 table's internal keys along with its columns, so
@@ -980,10 +965,6 @@ relation or a condition, and it would make `Table.ts` know about relations.
 - **Aliases are explicit.** A self relation needs `alias()` for the table
   and `relation.alias()` for the way back. orm2 hid this at the cost of the
   rebinding machinery.
-- **The parent check is soft at the top.** A misplaced relation is an error
-  where its field is used, not where the query is written, and a function
-  that returns the rows untyped lets it through. Relations defined by a
-  condition, and relations inside `exists`, are not checked at all.
 - **Three ways to define a relation.** Keys to a table's fields, `many` on a
   relation, or a condition. Only the first can be written through or
   aliased.
@@ -1026,14 +1007,11 @@ relation or a condition, and it would make `Table.ts` know about relations.
    first argument? The runtime would be the same line; the types need an
    overload per kind of target.
 5. Should `returning` take `(table, extras)` too?
-6. The parent check costs 24% more type instantiations and reports at the
-   use of the field. Keep it, or drop the one line in `Select` and keep only
-   the nested check, which is free and reports at the call?
-7. Should `of` accept a refined relation and carry its filter into update
+6. Should `of` accept a refined relation and carry its filter into update
    and delete (ignoring it on insert)?
-8. Recursive self relations (a whole tree) are a recursive CTE, not a
+7. Recursive self relations (a whole tree) are a recursive CTE, not a
    relation. Leave to `withRecursive`?
-9. Should `exists` take the parent name along (`Sql<boolean>` has nowhere to
+8. Should `exists` take the parent name along (`Sql<boolean>` has nowhere to
    put it), so filters are checked too?
-10. Should a relation have a `one` as well as a `many`?
-    `relation.many(...).first()` covers it today.
+9. Should a relation have a `one` as well as a `many`?
+   `relation.many(...).first()` covers it today.
