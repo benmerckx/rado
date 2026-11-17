@@ -926,8 +926,7 @@ export function scoped(
 
 export function formatFrom(
   from: SelectQuery['from'],
-  baseConfig?: IndexHintConfig,
-  predicates?: {where?: HasSql<boolean>}
+  baseConfig?: IndexHintConfig
 ): Sql {
   if (!from) throw new Error('No target defined')
   if (Array.isArray(from)) {
@@ -936,14 +935,13 @@ export function formatFrom(
         if (hasTarget(join)) return formatTarget(join, baseConfig)
         if (hasSql(join)) return getSql(join)
         const {target, op, on, config} = joinOp(join)
-        const joined = hasTable(target) && getTable(target).where
-        if (joined && predicates)
-          predicates.where = and(joined, predicates.where)
+        // A joined scope narrows the join, so outer joins keep their rows
+        const scope = hasTable(target) && getTable(target).where
         return sql.query({
           [op]: hasTarget(target)
             ? formatTarget(target, config)
             : getSql(target),
-          on
+          on: scope ? and(scope, on) : on
         })
       })
     )
@@ -959,14 +957,13 @@ export function selectQuery(query: SelectQuery): Sql {
   const selected = querySelection(query)
   const select = sql.join([prefix, selected])
 
-  const predicates = {where: scoped(from, where)}
   return sql.query(
     formatCTE(query),
     {
       select,
-      from: from && formatFrom(from, query, predicates),
+      from: from && formatFrom(from, query),
       for: query.for,
-      where: predicates.where,
+      where: scoped(from, where),
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having: typeof having === 'function' ? having(selected.input) : having
     },

@@ -113,11 +113,10 @@ export class UpdateTable<
 export function formatUpdateFrom(
   target: HasSql,
   set: HasSql,
-  from?: FromGuard,
-  predicates?: {where?: HasSql<boolean>}
+  from?: FromGuard
 ): Sql {
   if (!from) return sql`update ${target} set ${set}`
-  const source = formatFrom(from, undefined, predicates)
+  const source = formatFrom(from)
   return sql.universal({
     mysql: sql`update ${target} join ${source} set ${set}`,
     default: sql`update ${target} set ${set} from ${source}`
@@ -162,14 +161,12 @@ export function updateQuery(query: UpdateQuery): Sql {
           default: selected.inlineFields(false)
         })
       : selected?.inlineFields(false)
-  const predicates = {where: scoped(from, where)}
+  const scope = scoped(from, where)
   return sql.query(
     formatCTE(query),
-    formatUpdateFrom(target, set, from, predicates),
+    formatUpdateFrom(target, set, from),
     {
-      where: tableApi.where
-        ? and(tableApi.where, predicates.where)
-        : predicates.where,
+      where: tableApi.where ? and(tableApi.where, scope) : scope,
       returning: returningSelection
     },
     formatModifiers(query)
