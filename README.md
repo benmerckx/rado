@@ -31,7 +31,7 @@ run on any of the supported databases. Read about the project's history in
   plain property access
 - **`include` instead of an ORM**: fetch related rows as nested arrays or
   objects inside the query builder, no relations setup required
-- **Auto-migrations**: diff your schema against the database and update it
+- **Schema push**: diff your schema against the database and update it
   anywhere, including the browser
 - **Zero dependencies, small bundle**: `rado` + the PostgreSQL utilities
   bundle to roughly 8.5 kB gzipped
@@ -99,7 +99,7 @@ The full documentation lives in [docs](docs/README.md). A map of the territory:
 | [The sql tag](docs/queries/sql.md)                                  | Raw SQL escape hatches, safely                                                                                                                                                            |
 | [Transactions & batch](docs/runtime/transactions-and-batch.md)      | Atomic operations, rollbacks, batching                                                                                                                                                    |
 | [Prepared statements](docs/runtime/prepared-statements.md)          | Placeholders, `prepare`, inspecting generated SQL                                                                                                                                         |
-| [Migrations](docs/runtime/migrations.md)                            | `db.create`, `db.migrate` and how diffing works                                                                                                                                           |
+| [Schema push](docs/runtime/push.md)                                 | `db.create`, `push` and how diffing works                                                                                                                                                 |
 | [Universal queries](docs/runtime/universal-queries.md)              | One query, three databases                                                                                                                                                                |
 | [Coming from Drizzle](docs/drizzle.md)                              | Side-by-side comparison and migration notes                                                                                                                                               |
 
@@ -209,15 +209,17 @@ const names = await db.select(User.name).from(User)
 
 More in [Universal queries](docs/runtime/universal-queries.md).
 
-### Auto-migrations
+### Schema push
 
 ```ts
+import {push} from 'rado/push'
+
 // Compares the defined schema to the actual database and applies the diff
-await db.migrate(User, Post)
+await push(db, User, Post)
 ```
 
 Works in Node.js, Bun, Deno and the browser. It is powerful and a little
-direct, so read [Migrations](docs/runtime/migrations.md) before pointing it at
+direct, so read [Schema push](docs/runtime/push.md) before pointing it at
 production.
 
 ## Coming from Drizzle?

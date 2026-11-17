@@ -82,8 +82,8 @@ const epochNow = sql.universal({
 })
 ```
 
-And since [migrations](migrations.md) run through the same dialect machinery,
-`db.migrate(User)` keeps any of the three databases in sync with the same
+And since [push](push.md) runs through the same dialect machinery,
+`push(db, User)` keeps any of the three databases in sync with the same
 schema definition.
 
 ## What to watch out for

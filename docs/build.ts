@@ -81,7 +81,7 @@ const nav: Array<NavGroup> = [
         href: 'runtime/transactions-and-batch.html'
       },
       {text: 'Prepared statements', href: 'runtime/prepared-statements.html'},
-      {text: 'Migrations', href: 'runtime/migrations.html'},
+      {text: 'Schema push', href: 'runtime/push.html'},
       {text: 'Universal queries', href: 'runtime/universal-queries.html'}
     ]
   },

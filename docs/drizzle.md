@@ -150,16 +150,17 @@ committing to a dialect at build time. See
 
 Drizzle ships drizzle-kit, a separate (closed-source, heavyweight) package
 that generates `.sql` migration files on disk. Rado builds in a single
-declarative method:
+declarative function:
 
 ```ts
-await db.migrate(User, Post)
+await push(db, User, Post)
 ```
 
-It diffs schema against database and applies changes on the spot, anywhere,
-including browsers and edge runtimes. Less ceremony, less control: for
-carefully reviewed production migrations you may still prefer a dedicated
-tool. See [Migrations](runtime/migrations.md).
+`push` from `rado/push` diffs schema against database and applies changes
+on the spot, anywhere, including browsers and edge runtimes. It refuses
+changes that lose data unless forced, and `push.plan` shows what would run.
+Less ceremony, less control: for carefully reviewed production migrations
+you may still prefer a dedicated tool. See [Schema push](runtime/push.md).
 
 ### Simpler types
 
@@ -173,7 +174,7 @@ without filling in a row of `any`s.
 
 - **The relational query API** (`db.query.*.findMany`): by design; use
   [Include](queries/include.md)
-- **drizzle-kit** style SQL-file migrations: use `db.migrate` or an external
+- **drizzle-kit** style SQL-file migrations: use `push` or an external
   migration tool
 - **Ecosystem**: Drizzle has integrations, studio tooling and a large
   community; rado is a focused query builder
