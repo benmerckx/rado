@@ -1,5 +1,5 @@
 import {suite} from '@alinea/suite'
-import {alias, eq, exists, many, one, table} from '#/index.ts'
+import {alias, eq, exists, many, one, table, view} from '#/index.ts'
 import {id, integer, text} from '#/universal.ts'
 import {builder, emit} from '../TestUtils.ts'
 
@@ -40,15 +40,27 @@ const Node = table('Node', {
   parentId: integer(),
   name: text().notNull()
 })
+const Account = table('Account', {
+  uid: id('account_id'),
+  label: text('account_label').notNull()
+})
+
+const Entry = table('Entry', {
+  id: id(),
+  owner: integer('owner_id').notNull(),
+  text: text().notNull()
+})
+
 const Parent = alias(Node, 'Parent')
 const Author = alias(User, 'Author')
 
-const posts = many(Post, User, {authorId: 'id'})
-const links = many(PostTag, Post, {postId: 'id'})
-const tags = many(Tag, links, {id: 'tagId'})
-const parent = one(Parent, Node, {id: 'parentId'})
+const posts = many(Post, {authorId: User.id})
+const links = many(PostTag, {postId: Post.id})
+const tags = links.many(Tag, {id: PostTag.tagId})
+const parent = one(Parent, {id: Node.parentId})
 const author = one(User, eq(User.id, Post.authorId))
-const items = many(Item, Order, {storeId: 'storeId', orderNumber: 'number'})
+const items = many(Item, {storeId: Order.storeId, orderNumber: Order.number})
+const entries = many(Entry, {owner: Account.uid})
 
 suite(import.meta, test => {
   test('many', () => {
@@ -108,7 +120,7 @@ suite(import.meta, test => {
     // @ts-expect-error the scope keeps the column types
     builder.insert(posts.of({id: 1})).values({title: 1})
     // @ts-expect-error text does not match an integer key
-    many(Post, User, {authorId: 'name'})
+    many(Post, {authorId: User.name})
     // @ts-expect-error a scope is not a table to select from
     builder.select().from(posts.of({id: 1}))
   })
@@ -149,13 +161,97 @@ suite(import.meta, test => {
     const query = builder.select({tags: tags.select(Tag.name)}).from(Post)
     test.equal(
       emit(query),
-      'select (select jsonb_agg(jsonb_build_array(_."name")) from (select "Tag"."name" from "Tag" inner join "PostTag" on "Tag"."id" = "PostTag"."tagId" where "PostTag"."postId" = "Post"."id") as _) as "tags" from "Post"'
+      'select (select jsonb_agg(jsonb_build_array(_."name")) from (select "Tag"."name" from "PostTag" inner join "Tag" on "Tag"."id" = "PostTag"."tagId" where "PostTag"."postId" = "Post"."id") as _) as "tags" from "Post"'
     )
-    const all = many(Tag, many(PostTag, posts, {postId: 'id'}), {id: 'tagId'})
+    const all = posts
+      .many(PostTag, {postId: Post.id})
+      .many(Tag, {id: PostTag.tagId})
     test.equal(
       emit(builder.select(all.count()).from(User)),
-      'select (select count(*) from "Tag" inner join "PostTag" on "Tag"."id" = "PostTag"."tagId" inner join "Post" on "PostTag"."postId" = "Post"."id" where "Post"."authorId" = "User"."id") from "User"'
+      'select (select count(*) from "Post" inner join "PostTag" on "PostTag"."postId" = "Post"."id" inner join "Tag" on "Tag"."id" = "PostTag"."tagId" where "Post"."authorId" = "User"."id") from "User"'
     )
+  })
+
+  test('through a filter', () => {
+    const recent = posts.where(eq(Post.title, 'A')).orderBy(Post.id).limit(1)
+    const query = recent.many(PostTag, {postId: Post.id}).select(PostTag.tagId)
+    test.equal(
+      emit(builder.select(query).from(User)),
+      'select (select jsonb_agg(jsonb_build_array(_."tagId")) from (select "PostTag"."tagId" from "Post" inner join "PostTag" on "PostTag"."postId" = "Post"."id" where ("Post"."authorId" = "User"."id" and "Post"."title" = "A")) as _) from "User"'
+    )
+    const first = links.many(Tag, {id: PostTag.tagId}).first()
+    type Row = Awaited<ReturnType<typeof load>>[number]
+    const load = () => builder.select(first.select(Tag.name)).from(Post)
+    const name: Row = null
+    test.equal(name, null)
+  })
+
+  test('through types', () => {
+    // @ts-expect-error users are not part of the links
+    links.many(Tag, {id: User.id})
+    // @ts-expect-error tags have no label
+    links.many(Tag, {label: PostTag.tagId})
+    // @ts-expect-error the links are not written through the tags
+    ;() => tags.of({id: 1})
+    // @ts-expect-error the way through hangs under a post
+    ;async () => (await builder.select({tags}).from(User))[0].tags[0].name
+  })
+
+  test('renamed columns', () => {
+    const account = {uid: 1, label: 'A'}
+    test.equal(
+      emit(builder.select(entries.select(Entry.text)).from(Account)),
+      'select (select jsonb_agg(jsonb_build_array(_."text")) from (select "Entry"."text" from "Entry" where "Entry"."owner_id" = "Account"."account_id") as _) from "Account"'
+    )
+    test.equal(
+      emit(builder.insert(entries.of({uid: 1})).values({text: 'A'})),
+      'insert into "Entry" ("id", "owner_id", "text") values (default, 1, "A")'
+    )
+    test.equal(
+      emit(builder.delete(entries.of(account))),
+      'delete from "Entry" where "Entry"."owner_id" = 1'
+    )
+    const Owner = alias(Account, 'Owner')
+    test.equal(
+      emit(builder.select(entries.alias(Entry, Owner).count()).from(Owner)),
+      'select (select count(*) from "Entry" where "Entry"."owner_id" = "Owner"."account_id") from "Account" as "Owner"'
+    )
+    // @ts-expect-error the row is keyed by property, not by column name
+    test.throws(() => entries.of({account_id: 1}))
+  })
+
+  test('key types', () => {
+    const sub = builder.select({id: User.id}).from(User).as('sub')
+    // @ts-expect-error a subquery field is not a table field
+    test.throws(() => many(Post, {authorId: sub.id}).of({id: 1}))
+    const Active = view('Active', {id: integer().notNull()}).as(
+      builder.select({id: User.id}).from(User)
+    )
+    // @ts-expect-error nor is a field of a view
+    many(Post, {authorId: Active.id})
+    const recent = builder.$with('recent').as(builder.select().from(User))
+    // @ts-expect-error or of a common table expression
+    many(Post, {authorId: recent.id})
+    // @ts-expect-error neither is an expression
+    many(Post, {authorId: eq(User.id, 1)})
+    // @ts-expect-error keys come from one parent
+    many(Item, {storeId: Order.storeId, orderNumber: User.id})
+    // @ts-expect-error a table is not its own parent without an alias
+    one(Node, {id: Node.parentId})
+    // @ts-expect-error posts have no author column
+    many(Post, {author: User.id})
+    // @ts-expect-error nor one next to a column they do have
+    many(Post, {authorId: User.id, author: User.id})
+    // @ts-expect-error the parent of an alias has the same keys
+    ;() => posts.alias(Post, Tag as any as typeof Order)
+    posts.alias(Post, alias(User, 'Writer'))
+    const written = many(Post, {authorId: Author.id})
+    test.equal(
+      emit(builder.update(written.of({id: 1})).set({title: 'B'})),
+      emit(builder.update(posts.of({id: 1})).set({title: 'B'}))
+    )
+    const loose: Array<{id: number}> = []
+    for (const user of loose) posts.of(user)
   })
 
   test('every', () => {
@@ -187,7 +283,7 @@ suite(import.meta, test => {
     // @ts-expect-error a relation is aliased with its own tables
     ;() => posts.alias(User, Post)
     // @ts-expect-error tag ids are numbers
-    many(Tag, links, {name: 'tagId'})
+    links.many(Tag, {name: PostTag.tagId})
   })
 
   test('exists and count', () => {

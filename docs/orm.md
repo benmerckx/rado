@@ -22,27 +22,32 @@ add one method: `relation.of(row)` is a target for the existing `insert`,
 
 ### Defining relations
 
-A relation is a target table, its parent, and the keys that tie them: an
-object from target column to the parent column it equals. Composite keys are
-more entries.
+A relation is a target table and the keys that tie it to its parent: an
+object from target column to the parent field it equals. The fields say which
+table the parent is. Composite keys are more entries.
 
 ```ts
 import {eq, many, one} from 'rado'
 
-const posts = many(Post, User, {authorId: 'id'})
-const author = one(User, Post, {id: 'authorId'}).notNull()
-const comments = many(Comment, Post, {postId: 'id'})
+const posts = many(Post, {authorId: User.id})
+const author = one(User, {id: Post.authorId}).notNull()
+const comments = many(Comment, {postId: Post.id})
 
 const published = posts.where(eq(Post.published, true))
 
-const items = many(OrderItem, Order, {
-  storeId: 'storeId',
-  orderNumber: 'number'
+const items = many(OrderItem, {
+  storeId: Order.storeId,
+  orderNumber: Order.number
 })
 ```
 
-Both sides are checked: keys must be columns of the target, values columns of
-the parent with a matching type. The read condition is derived (`eq` per
+Both sides are checked. Keys are columns of the target, autocompleted, and
+one that does not exist is an error. Values are fields of a table or of an
+`alias()`, all of the same one, with a type that matches the column. The
+errors name the reason: `'needs a table field'` for an expression or a field
+of a subquery, view or common table expression, `'needs one parent'` for
+fields of two tables, `'needs an alias'` for a field of the target itself,
+`'no column x'` for an unknown key. The read condition is derived (`eq` per
 pair).
 
 Anything keys can't express is a condition instead. Such a relation reads
@@ -73,10 +78,10 @@ export const Post = table('Post', {id: id(), authorId: integer(), ...})
 import * as t from './tables.ts'
 
 export const User = relate(t.User, {
-  posts: many(t.Post, t.User, {authorId: 'id'})
+  posts: many(t.Post, {authorId: t.User.id})
 })
 export const Post = relate(t.Post, {
-  author: one(t.User, t.Post, {id: 'authorId'}).notNull()
+  author: one(t.User, {id: t.Post.authorId}).notNull()
 })
 
 // app
@@ -119,7 +124,7 @@ await tx.insert(User.posts.of(user)).values({title: 'Hello'})
 
   ```ts
   const up = alias(t.Node, 'Parent')
-  const parent = one(up, t.Node, {id: 'parentId'})
+  const parent = one(up, {id: t.Node.parentId})
   export const Node = relate(t.Node, {parent})
   export const Parent = relate(up, {parent: parent.alias(t.Node, up)})
 
@@ -135,10 +140,10 @@ await tx.insert(User.posts.of(user)).values({title: 'Hello'})
 - Many-to-many is the link relation and the far side, both on the post:
 
   ```ts
-  const links = many(t.PostTag, t.Post, {postId: 'id'})
+  const links = many(t.PostTag, {postId: t.Post.id})
   export const Post = relate(t.Post, {
     links,
-    tags: many(t.Tag, links, {id: 'tagId'})
+    tags: links.many(t.Tag, {id: t.PostTag.tagId})
   })
   await tx.insert(Post.links.of(post)).values({tagId})
   ```
@@ -176,13 +181,14 @@ User.posts.select(Post, {author: Post.author})
 
 ### Through another relation
 
-The parent can be a relation instead of a table. The target is then joined to
-that relation's rows, and the result hangs under that relation's parent.
-Many-to-many is the link table as a relation, and the far side through it:
+A relation has a `many` of its own: from its rows, many of another table.
+The target is joined to that relation's rows, and the result hangs under that
+relation's parent. Many-to-many is the link table as a relation, and the far
+side through it:
 
 ```ts
-const links = many(PostTag, Post, {postId: 'id'})
-const tags = many(Tag, links, {id: 'tagId'})
+const links = many(PostTag, {postId: Post.id})
+const tags = links.many(Tag, {id: PostTag.tagId})
 ```
 
 `links` is an ordinary keyed relation, so it is also how tags are attached and
@@ -190,13 +196,17 @@ detached (see Writing). The same form reaches across any relation, and can be
 stacked:
 
 ```ts
-const replies = many(Comment, posts, {postId: 'id'}) // of a user
-const used = many(Tag, many(PostTag, posts, {postId: 'id'}), {id: 'tagId'})
+const replies = posts.many(Comment, {postId: Post.id}) // of a user
+const used = posts
+  .many(PostTag, {postId: Post.id})
+  .many(Tag, {id: PostTag.tagId})
 ```
 
-A filter on the relation passed in carries over; its order and limit do not.
-The joined tables are in scope, so `tags.select({name: Tag.name, at:
-PostTag.createdAt})` works.
+The key values are fields of the tables the relation already reads, any of
+them; a field of another table is a type error. A filter on the relation
+carries over; its selection, order and limit do not. The joined tables are in
+scope, so `tags.select({name: Tag.name, at: PostTag.createdAt})` works. The
+result is read-only: it has no `of` and no `alias`.
 
 ### Loading
 
@@ -265,7 +275,7 @@ also how a has-one is written: the key lives on the target, as with `many`.
 
 ```ts
 const latest = posts.orderBy(desc(Post.createdAt)).first()
-const profile = many(Profile, User, {userId: 'id'}).first()
+const profile = many(Profile, {userId: User.id}).first()
 ```
 
 ### Writing
@@ -292,6 +302,9 @@ delete from "Post" where ("Post"."authorId" = ? and "Post"."title" = ?)
   optional in the values type. Passing one anyway wins, like any default.
 - On update and delete the keys are and-ed with whatever `where` adds.
   `set({authorId: 2})` moves a row to another parent.
+- The row is read by property, the name the field has on its table. With
+  `uid: id('account_id')` and `many(Entry, {owner: Account.uid})` the scope
+  is `entries.of({uid: 1})`, whatever the columns are called.
 - `of` only needs the key columns, so `posts.of({id: 1})` is fine. That is
   the whole MySQL story: there is no `returning`, but the insert result has
   `insertId`.
@@ -331,7 +344,7 @@ refers to itself and to the level above, so the names can alternate.
 
 ```ts
 const Parent = alias(Node, 'Parent')
-const parent = one(Parent, Node, {id: 'parentId'})
+const parent = one(Parent, {id: Node.parentId})
 const up = parent.alias(Node, Parent)
 
 db.select({
@@ -344,8 +357,9 @@ db.select({
 // {name: string, parent: {name: string, parent: {...} | null} | null}
 ```
 
-Both tables must be aliases of the tables the relation was defined with, which
-the types check. Like `of`, `alias` exists on the relation as defined: a
+The target must be an alias of the table the relation was defined with, and
+the parent must have the key fields under the same names and types, which is
+what an alias of the parent has. The types check both. Like `of`, `alias` exists on the relation as defined: a
 refinement holds fields of the old names, and rewriting those is the magic
 this design avoids. Alias first, then refine.
 
@@ -379,9 +393,10 @@ Nothing happens at runtime beyond building query data: no proxies, no
 callable objects, no alias rewriting, no schema walking, no changes to the
 emitter, `Sql`, `Selection` or `Database`.
 
-A keyed relation remembers its target and keys. `alias` builds the condition
-again from those for two other tables; a relation given as parent contributes
-its `from` as an inner join and its `where`. `every` is
+A keyed relation remembers its target and its key fields. `alias` builds the
+condition again with the fields the new parent has under the same property
+names; a relation's `many` adds the target as an inner join to its `from` and
+keeps its `where`. `every` is
 `not(exists(this.where(not(...))))`.
 
 Writes are a scope: a copy of the target's `TableApi` where each key column
@@ -408,7 +423,12 @@ Bundle size (`bun run size`, minified `src/index.ts`):
 | orm3-gaps              | 42,799 | +1,577  | +543         |
 | orm3-bundle            | 42,919 | +1,697  | +596         |
 | orm3-flat              | 43,148 | +1,926  | +662         |
+| field keys             | 43,306 | +2,069  | +689         |
 | orm2 (vs its own base) | 50,971 | +11,643 |              |
+
+The first six rows were measured when each step was made (main is 41,237
+bytes today, the flat version 43,164). Field keys cost 142 bytes on top of
+that (32 gzipped).
 
 Writes cost 580 bytes on top of orm3 (252 gzipped). `alias`, relations as
 parent and `every` cost 259 on top of that (108 gzipped), after giving back
@@ -440,16 +460,15 @@ nothing new.
 The proposal was: key objects `many(Post, {authorId: User.id})`, a row-scoped
 target `posts.of(user)`, and a nested `create` built on it.
 
-**Key objects: yes, but name the parent.** With `{authorId: User.id}` the
-value is a `Field`, which knows its table name and its column name but not
-its property key, neither at runtime nor in its type. `of(user)` has to read
+**Key objects: first strings, now fields.** With `{authorId: User.id}` the
+value is a `Field`, which knew its table name and its column name but not its
+property key, neither at runtime nor in its type. `of(user)` has to read
 `user.id`, so it needs the property key: with a renamed column
-(`authorId: integer('author_id')`) the field only says `author_id`, and the
-parameter of `of` could not be typed beyond `object`. Naming the parent,
-`many(Post, User, {authorId: 'id'})`, fixes both: `of` takes
-`Pick<Row<User>, 'id'>`, and both sides of the object autocomplete and are
-checked against each other's column types. The argument order stays "target
-first", as in the condition form.
+(`authorId: integer('author_id')`) the field only said `author_id`, and the
+parameter of `of` could not be typed beyond `object`. The first version
+worked around that by naming the parent and its columns as strings,
+`many(Post, User, {authorId: 'id'})`. See "Field keys" for why and how that
+was undone.
 
 **`of(row)`: yes, as proposed.** It turned out smaller than expected because
 "fill this column" is what `$default` already does. Two refinements:
@@ -510,7 +529,7 @@ relation, so `insert` and `delete` on `links.of(post)` are those helpers.
 **Aliasing a relation.** The owner's idea was `parent.alias(Node, NodeAlias)`.
 That shape is what was built, as `alias(target, parent)`. What was weighed:
 
-- _Redefining_ (`one(Node, Parent, {id: 'parentId'})`) already worked and is
+- _Redefining_ (`one(Node, {id: Parent.parentId})`) already worked and is
   barely longer for one key. It repeats the keys, drops `notNull`/`first`,
   and nothing checks that the new tables are the same tables.
 - _One argument that swaps a self relation's names_ (`parent.under(Parent)`
@@ -518,7 +537,7 @@ That shape is what was built, as `alias(target, parent)`. What was weighed:
   know which fields the nested selection uses.
 - _Separate `from(parent)` and `as(target)`._ Two methods for one idea, and
   the self case needs both at once.
-- _No alias in the definition_ (`one(Node, Node, keys)` with generated
+- _No alias in the definition_ (`one(Node, keys)` from `Node` with generated
   names). Fields are bound to a name when the table is made, so this needs
   the field rewriting orm2 had.
 
@@ -562,6 +581,69 @@ its own selection may use.
   known), relations inside `exists(...)`, `count()` and `every()` (those are
   plain `Sql<boolean>` or `Sql<number>`), and queries whose `from` is not a
   named target.
+
+## Field keys
+
+Relations were first keyed by strings: `many(Post, User, {authorId: 'id'})`.
+The strings were checked and autocompleted, but they were the one place in
+rado where a column is not the `User.id` expression used everywhere else:
+no go to definition, no rename, a parent named twice in a self relation
+(`one(Parent, Node, ...)` next to `Node.parentId`), and a separate argument
+whose only job was to give the strings a table. They are now fields:
+`many(Post, {authorId: User.id})`.
+
+**What a field was missing.** Its property name. `Field` now has it: the
+runtime data has a `key`, set by `tableFields`, and the type has a third
+parameter, `Field<Value, Table, Key>`, set by `TableFields` and defaulting to
+`string`. Everything a relation needs follows from the key fields:
+
+- the parent's name, for `relate` and the parent check, is the field's table;
+- the read condition is `eq(target[key], field)`, the field itself;
+- `of(row)` reads `row[key]` and is typed `{[Key]: Value}` per key field;
+- `alias(target, parent)` takes `parent[key]`, and asks the parent for a
+  field of that name and type.
+
+**Where fields come from.** Only `tableFields` sets the key, so tables and
+`alias()` have it. Fields of subqueries, common table expressions and views
+built from a query are typed `Field<Value, Name>` without one, and are
+rejected as key values with `'needs a table field'`. A view declared with
+columns has keys at runtime, but its fields carry no table name in their
+type, so it is rejected the same way; a view could not be a parent before
+either. JSON columns are `JsonExpr`, not fields, and cannot be keys. At
+runtime a field without a key still reads, and `of` and `alias` throw
+`Not a table field`.
+
+**Cost.** The third parameter alone adds 5,236 type instantiations to the
+repo with its tests (1,107,054 to 1,112,290, +0.5%). With the new key types
+and their tests it is 1,126,866 (+1.8%). Check time did not move (0.25s to
+0.27s per run, before and after). No call site outside `Field.ts`,
+`Table.ts` and `Relation.ts` changed, since the parameter has a default. A
+brand only on table fields (`Field<V, T> & Keyed<K>`) was the lighter
+alternative held in reserve; at this cost it was not needed, and an
+intersection would have made every table field print worse in errors.
+
+**Through relations.** The parent of `tags` is the `links` relation, and a
+field cannot say which relation it came through. Two shapes were weighed:
+
+- _A third argument_, `many(Tag, {id: PostTag.tagId}, links)`. One function,
+  but the two-argument form gets a third overload, the route comes last
+  although it is read first, and the unusual case shapes the common one.
+- _A method_, `links.many(Tag, {id: PostTag.tagId})`. Chosen. It reads in
+  the order the rows are reached, stacks without nesting
+  (`posts.many(PostTag, ...).many(Tag, ...)`), and leaves `many(target,
+keys)` with one meaning. The relation's type already lists the tables it
+  reads, so the key values are checked against exactly those.
+
+The target is now joined after the tables of the relation it goes through
+(`from "PostTag" inner join "Tag"`), not before. That lets a key refer to
+any table on the way, where the old order only allowed the nearest one.
+
+**What got stricter.** A key that is not a column of the target is an error;
+it used to pass. So is a field of the target's own table
+(`one(Node, {id: Node.parentId})`), which compiled to a condition on one row.
+
+**What got looser.** `alias` checks the parent by its key fields, not by its
+whole definition: any table with those fields under those names is accepted.
 
 ## Bundling
 
@@ -674,7 +756,7 @@ relation or a condition, and it would make `Table.ts` know about relations.
 | Filter by relation  | `exists` by hand        | `some`/`every`/`none`  | `exists`, `not`, `every`              |
 | Count               | `extras` with sql       | `_count`               | `count()`                             |
 | Self relation       | `relationName`          | relation name          | `alias`, two names for any depth      |
-| Many-to-many        | two hops, or `through`  | implicit or explicit   | `many(Tag, links, keys)`              |
+| Many-to-many        | two hops, or `through`  | implicit or explicit   | `links.many(Tag, keys)`               |
 | Link / unlink       | write the link table    | `connect`/`disconnect` | `insert`/`delete` on `links.of(row)`  |
 | Scoped writes       | no                      | nested writes          | `of(row)`                             |
 | Nested create       | no                      | yes                    | no, one line per level                |
@@ -754,11 +836,13 @@ relation or a condition, and it would make `Table.ts` know about relations.
   where its field is used, not where the query is written, and a function
   that returns the rows untyped lets it through. Relations defined by a
   condition, and relations inside `exists`, are not checked at all.
-- **Three ways to define a relation.** Keys under a table, keys under a
+- **Three ways to define a relation.** Keys to a table's fields, `many` on a
   relation, or a condition. Only the first can be written through or
   aliased.
-- **Keys are strings.** `{authorId: 'id'}` is checked and autocompleted, but
-  it is not the `Post.authorId` expression used everywhere else.
+- **A field carries its property name.** One more type parameter on `Field`
+  and one more value per field, for relations only. See "Field keys".
+- **Key errors are strings.** A wrong key value fails with a message like
+  `'needs a table field'`, reported under "No overload matches this call".
 - **A scope is a snapshot of one row's keys.** It is built per call
   (a `TableApi` copy and a column copy per key). Cheap, but not free, and
   queries through it are not prepared once and reused across parents.
@@ -797,5 +881,5 @@ relation or a condition, and it would make `Table.ts` know about relations.
    relation. Leave to `withRecursive`?
 9. Should `exists` take the parent name along (`Sql<boolean>` has nowhere to
    put it), so filters are checked too?
-10. Should `one` accept a relation as parent as well? `many(...).first()`
-    covers it today.
+10. Should a relation have a `one` as well as a `many`?
+    `relation.many(...).first()` covers it today.

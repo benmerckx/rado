@@ -7,9 +7,10 @@ import {
   type HasTarget,
   cached,
   getData,
+  getField,
   getSelection,
   getTable,
-  hasTable,
+  hasSql,
   internalColumns,
   internalQuery,
   internalTable
@@ -33,6 +34,7 @@ import {
 } from '../Table.ts'
 import {count} from './Aggregate.ts'
 import {and, eq, exists, not} from './Conditions.ts'
+import type {Field} from './Field.ts'
 import {Include, type IncludeQuery} from './Include.ts'
 import {type Input as UserInput, mapToColumn} from './Input.ts'
 
@@ -49,14 +51,58 @@ type Narrowed<Kind extends RelationKind> = Kind extends 'many' ? 'many' : 'one'
 
 type Value<C> = C extends Column<infer V> ? NonNullable<V> : never
 
-// Target columns mapped to the parent columns they are equal to
+// Target columns mapped to the fields they are equal to
 export type RelationKeys<
   Target extends TableDefinition,
-  Parent extends TableDefinition
+  Root extends string = string
 > = {
-  readonly [K in keyof Target]?: {
-    [P in keyof Parent]: Value<Parent[P]> extends Value<Target[K]> ? P : never
-  }[keyof Parent]
+  readonly [K in keyof Target]?: Field<Value<Target[K]> | null, Root>
+}
+
+type RootOf<Keys> =
+  Keys[keyof Keys] extends Field<unknown, infer Root> ? Root : never
+
+type Single<Root, All = Root> = Root extends unknown
+  ? [All] extends [Root]
+    ? Root
+    : never
+  : never
+
+// Reads as the reason when a key is not one a relation can use
+type Checked<Keys, Target extends TableDefinition, Name extends string> = {
+  [K in keyof Keys]: K extends keyof Target
+    ? Keys[K] extends Field<unknown, infer Root, infer Key>
+      ? string extends Root | Key
+        ? 'needs a table field'
+        : [Root] extends [Single<RootOf<Keys>>]
+          ? [Name] extends [Root]
+            ? 'needs an alias'
+            : Keys[K]
+          : 'needs one parent'
+      : never
+    : `no column ${K & string}`
+}
+
+type Known<Keys, Target extends TableDefinition> = {
+  [K in keyof Keys]: K extends keyof Target
+    ? Keys[K]
+    : `no column ${K & string}`
+}
+
+type KeyName<F> =
+  F extends Field<unknown, string, infer Key extends string> ? Key : never
+type KeyValue<F> = F extends Field<infer V> ? V : never
+
+type ParentRow<Keys> = {
+  [K in keyof Keys as KeyName<Keys[K]>]: KeyValue<Keys[K]>
+}
+
+type ParentFields<Keys, Root extends string> = {
+  [K in keyof Keys as KeyName<Keys[K]>]: Field<
+    KeyValue<Keys[K]>,
+    Root,
+    KeyName<Keys[K]>
+  >
 }
 
 type Filled<Definition extends TableDefinition, Key> = {
@@ -81,7 +127,7 @@ export type Rooted<Input, Names extends string> =
         ? {[K in keyof Input]: Rooted<Input[K], Names>}
         : Input
 
-type Keys = Record<string, string>
+type Keys = Record<string, Field>
 
 interface LinkData {
   link: {target: Table; keys: Keys}
@@ -153,34 +199,33 @@ export class Relation<
 
   alias<
     Definition extends TableDefinition,
-    From extends TableDefinition,
     Keys,
     Name extends string,
     Root extends string
   >(
-    this: Relation<Input, Kind, Parent, Target, [Definition, From, Keys]>,
+    this: Relation<Input, Kind, Parent, Target, [Definition, Keys]>,
     target: Table<Definition, Name>,
-    parent: Table<From, Root>
-  ): Relation<
-    Table<Definition, Name>,
-    Kind,
-    Root,
-    Name,
-    [Definition, From, Keys]
-  > {
+    parent: HasTable<TableDefinition, Root> & ParentFields<Keys, Root>
+  ): Relation<Table<Definition, Name>, Kind, Root, Name, [Definition, Keys]> {
     const data = getData(this) as IncludeQuery & LinkData
-    return keyed(data, target, parent, data.link.keys)
+    const fields = parent as Record<string, Field>
+    const keys = Object.entries(data.link.keys).map(([to, field]) => [
+      to,
+      fields[keyOf(field)]
+    ])
+    return keyed(data, target, Object.fromEntries(keys))
   }
 
-  of<Definition extends TableDefinition, From extends TableDefinition, Keys>(
-    this: Relation<Input, Kind, Parent, Target, [Definition, From, Keys]>,
-    row: Pick<TableRow<From>, Keys[keyof Keys] & keyof From>
+  of<Definition extends TableDefinition, Keys>(
+    this: Relation<Input, Kind, Parent, Target, [Definition, Keys]>,
+    row: ParentRow<Keys>
   ): Scope<Filled<Definition, keyof Keys>> {
     const {target, keys} = (getData(this) as IncludeQuery & LinkData).link
     const api = getTable(target)
     const columns = {...api.columns}
     const where = []
-    for (const [to, from] of Object.entries(keys)) {
+    for (const [to, field] of Object.entries(keys)) {
+      const from = keyOf(field)
       const data = getData(api.columns[to])
       const value = (row as Record<string, unknown>)[from]
       // A missing key would widen an update or delete to every row
@@ -197,6 +242,25 @@ export class Relation<
     }
   }
 
+  many<
+    Definition extends TableDefinition,
+    Name extends string,
+    Keys extends RelationKeys<Definition, Target>
+  >(
+    target: Table<Definition, Name>,
+    keys: Keys & Known<Keys, Definition>
+  ): Relation<Table<Definition, Name>, 'many', Parent, Target | Name> {
+    const {from, where} = getData(this)
+    const select = getSelection(target).input
+    const join = {innerJoin: target, on: match(target, keys as Keys)}
+    return new Relation(<any>{
+      select,
+      from: [from!, join].flat(),
+      where,
+      first: false
+    })
+  }
+
   every(where: HasSql<boolean>): Sql<boolean> {
     return not(exists(this.where(not(where))))
   }
@@ -211,21 +275,26 @@ export class Relation<
   }
 }
 
-function match(target: any, parent: any, keys: Keys): Sql<boolean> {
+function keyOf(field: Field): string {
+  const {key} = getField(field)
+  if (!key) throw new Error('Not a table field')
+  return key
+}
+
+function match(target: any, keys: object): Sql<boolean> {
   return and(
-    ...Object.entries(keys).map(([to, from]) => eq(target[to], parent[from]))
+    ...Object.entries(keys).map(([to, field]) => eq(target[to], field))
   )
 }
 
 function keyed(
   data: {first: boolean},
   from: Table,
-  parent: object,
   keys: Keys
 ): Relation<any, any, any, any, any> {
   // Selecting the fields instead of the table keeps joined tables out of rows
   const select = getSelection(from).input
-  const where = match(from, parent, keys)
+  const where = match(from, keys)
   const link = {target: from, keys}
   return new Relation(<any>{...data, select, from, where, link})
 }
@@ -235,15 +304,10 @@ function relation(
   target: Table,
   on: Array<any>
 ): Relation<any, any, any, any, any> {
-  const [parent, keys] = on
-  if (parent && hasTable(parent)) return keyed({first}, target, parent, keys)
+  const [keys] = on
+  if (keys && !hasSql(keys)) return keyed({first}, target, keys)
   const select = getSelection(target).input
-  if (!(parent instanceof Relation))
-    return new Relation({select, from: target, where: and(...on), first})
-  const {from, where} = getData(parent)
-  const [via, ...joins] = [from!].flat() as Array<any>
-  const join = {innerJoin: via, on: match(target, via, keys)}
-  return new Relation({select, from: [target, join, ...joins], where, first})
+  return new Relation({select, from: target, where: and(...on), first})
 }
 
 type Named<Base> =
@@ -268,62 +332,43 @@ type Keyed<
   Kind extends RelationKind,
   Definition extends TableDefinition,
   Name extends string,
-  Parent extends TableDefinition,
-  Root extends string,
   Keys
 > = Relation<
   Table<Definition, Name>,
   Kind,
-  Root,
+  Single<RootOf<Keys>>,
   Name,
-  [Definition, Parent, Keys]
+  [Definition, Keys]
 >
 
-export function many<
-  Definition extends TableDefinition,
-  Name extends string,
-  Parent extends TableDefinition,
-  Root extends string,
-  const Keys extends RelationKeys<Definition, Parent>
->(
-  target: Table<Definition, Name>,
-  parent: Table<Parent, Root>,
-  keys: Keys
-): Keyed<'many', Definition, Name, Parent, Root, Keys>
-export function many<
-  Definition extends TableDefinition,
-  Name extends string,
-  Via extends TableDefinition,
-  Root extends string,
-  Names extends string
->(
-  target: Table<Definition, Name>,
-  through: Relation<Table<Via>, RelationKind, Root, Names, unknown>,
-  keys: RelationKeys<Definition, Via>
-): Relation<Table<Definition, Name>, 'many', Root, Names | Name>
 export function many<Definition extends TableDefinition, Name extends string>(
   target: Table<Definition, Name>,
   ...on: Array<HasSql<boolean>>
 ): Relation<Table<Definition, Name>, 'many', never, Name>
+export function many<
+  Definition extends TableDefinition,
+  Name extends string,
+  Keys extends RelationKeys<Definition>
+>(
+  target: Table<Definition, Name>,
+  keys: Keys & Checked<Keys, Definition, Name>
+): Keyed<'many', Definition, Name, Keys>
 export function many(target: Table, ...on: Array<unknown>) {
   return relation(false, target, on)
 }
 
-export function one<
-  Definition extends TableDefinition,
-  Name extends string,
-  Parent extends TableDefinition,
-  Root extends string,
-  const Keys extends RelationKeys<Definition, Parent>
->(
-  target: Table<Definition, Name>,
-  parent: Table<Parent, Root>,
-  keys: Keys
-): Keyed<'one', Definition, Name, Parent, Root, Keys>
 export function one<Definition extends TableDefinition, Name extends string>(
   target: Table<Definition, Name>,
   ...on: Array<HasSql<boolean>>
 ): Relation<Table<Definition, Name>, 'one', never, Name>
+export function one<
+  Definition extends TableDefinition,
+  Name extends string,
+  Keys extends RelationKeys<Definition>
+>(
+  target: Table<Definition, Name>,
+  keys: Keys & Checked<Keys, Definition, Name>
+): Keyed<'one', Definition, Name, Keys>
 export function one(target: Table, ...on: Array<unknown>) {
   return relation(true, target, on)
 }

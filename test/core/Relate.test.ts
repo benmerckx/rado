@@ -38,7 +38,7 @@ suite(import.meta, test => {
     )
     test.equal(
       emit(builder.select(Post.tags.select(Tag.name)).from(Post)),
-      'select (select jsonb_agg(jsonb_build_array(_."name")) from (select "BundleTag"."name" from "BundleTag" inner join "BundlePostTag" on "BundleTag"."id" = "BundlePostTag"."tagId" where "BundlePostTag"."postId" = "BundlePost"."id") as _) from "BundlePost"'
+      'select (select jsonb_agg(jsonb_build_array(_."name")) from (select "BundleTag"."name" from "BundlePostTag" inner join "BundleTag" on "BundleTag"."id" = "BundlePostTag"."tagId" where "BundlePostTag"."postId" = "BundlePost"."id") as _) from "BundlePost"'
     )
   })
 
@@ -207,7 +207,7 @@ suite(import.meta, test => {
     // @ts-expect-error name is taken by a column
     relate(tables.Tag, {name: many(Post, eq(Post.id, Tag.id))})
     const Rel = table('Rel', {id: id(), rel: text(), userId: integer()})
-    const users = many(User, Rel, {id: 'userId'})
+    const users = many(User, {id: Rel.userId})
     test.equal(relate(Rel, {users}).rel, Rel.rel)
     const twice = relate(relate(Rel, {users}), {again: users})
     test.equal(twice.users, twice.again)

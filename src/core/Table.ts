@@ -171,7 +171,7 @@ export function tableFields(
               value === null ? null : decode(value, specs)
           }
         : columnApi
-      const field = new Field(targetName, givenName ?? name, source)
+      const field = new Field(targetName, givenName ?? name, source, name)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })
@@ -216,8 +216,8 @@ export type TableFields<
           [infer Nullable extends boolean, boolean]
         >
       ? [Nullable] extends [false]
-        ? Field<T, TableName>
-        : Field<T | null, TableName>
+        ? Field<T, TableName, K & string>
+        : Field<T | null, TableName, K & string>
       : never
 }
 

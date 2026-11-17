@@ -42,11 +42,25 @@ const Node = table('RelNode', {
 })
 const Parent = alias(Node, 'Parent')
 
-const posts = many(Post, User, {authorId: 'id'})
-const author = one(User, Post, {id: 'authorId'}).notNull()
-const links = many(PostTag, Post, {postId: 'id'})
-const tags = many(Tag, links, {id: 'tagId'}).orderBy(Tag.id)
-const parent = one(Parent, Node, {id: 'parentId'})
+const posts = many(Post, {authorId: User.id})
+const author = one(User, {id: Post.authorId}).notNull()
+const links = many(PostTag, {postId: Post.id})
+const tags = links.many(Tag, {id: PostTag.tagId}).orderBy(Tag.id)
+const parent = one(Parent, {id: Node.parentId})
+
+const Account = table('RelAccount', {
+  uid: id('account_id'),
+  label: text('account_label').notNull()
+})
+
+const Entry = table('RelEntry', {
+  id: id(),
+  owner: integer('owner_id').notNull(),
+  text: text().notNull()
+})
+
+const entries = many(Entry, {owner: Account.uid})
+const owner = one(Account, {uid: Entry.owner}).notNull()
 
 const tables = [User, Post, Tag, PostTag, Node]
 
@@ -241,9 +255,9 @@ export function testRelations(db: Database, test: DefineTest) {
         {title: 'A', tags: ['sql', 'ts']},
         {title: 'B', tags: ['ts']}
       ])
-      const used = many(Tag, many(PostTag, posts, {postId: 'id'}), {
-        id: 'tagId'
-      })
+      const used = posts
+        .many(PostTag, {postId: Post.id})
+        .many(Tag, {id: PostTag.tagId})
       const users = await db
         .select({name: User.name, tags: used.count()})
         .from(User)
@@ -267,6 +281,36 @@ export function testRelations(db: Database, test: DefineTest) {
       test.equal(done, ['Bob'])
     } finally {
       await db.drop(...tables)
+    }
+  })
+
+  test('renamed keys', async () => {
+    await db.create(Account, Entry)
+    try {
+      await db.insert(Account).values([{label: 'A'}, {label: 'B'}])
+      const account = (await db.select().from(Account).get())!
+      await db.insert(entries.of(account)).values([{text: 'a'}, {text: 'b'}])
+      await db.insert(entries.of({uid: 2})).values({text: 'c'})
+      await db.delete(entries.of(account)).where(eq(Entry.text, 'a'))
+      const entry = (await db.select().from(Entry).orderBy(Entry.id).get())!
+      test.equal(entry, {id: 2, owner: 1, text: 'b'})
+      await db.update(owner.of(entry)).set({label: 'Z'})
+      const accounts = await db
+        .select({
+          label: Account.label,
+          entries: entries.select({
+            text: Entry.text,
+            of: owner.select(Account.label)
+          })
+        })
+        .from(Account)
+        .orderBy(Account.uid)
+      test.equal(accounts, [
+        {label: 'Z', entries: [{text: 'b', of: 'Z'}]},
+        {label: 'B', entries: [{text: 'c', of: 'B'}]}
+      ])
+    } finally {
+      await db.drop(Account, Entry)
     }
   })
 
