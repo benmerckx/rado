@@ -4,6 +4,13 @@ import type {Selection} from '../Selection.ts'
 import {type Sql, sql} from '../Sql.ts'
 import type {ResultModifiers} from './Query.ts'
 
+// Sqlite and mysql only accept an offset after a limit
+const noLimit = sql.universal({
+  sqlite: sql`-1`,
+  mysql: sql`18446744073709551615`,
+  postgres: sql`all`
+})
+
 export function formatModifiers(
   modifiers: ResultModifiers,
   selected?: Selection
@@ -25,7 +32,10 @@ export function formatModifiers(
         }),
         sql`, `
       ),
-    limit: normalizedLimit !== undefined && input(normalizedLimit),
+    limit:
+      normalizedLimit !== undefined
+        ? input(normalizedLimit)
+        : offset !== undefined && noLimit,
     offset: offset !== undefined && input(offset)
   })
 }

@@ -2,6 +2,7 @@ import {collectEnumQuery} from '../postgres/enum.ts'
 import {type Column, type JsonColumn, formatColumn} from './Column.ts'
 import type {ForeignKeyConstraint, UniqueConstraint} from './Constraint.ts'
 import {PrimaryKeyConstraint} from './Constraint.ts'
+import type {DriverSpecs} from './Driver.ts'
 import {Field} from './expr/Field.ts'
 import type {Input} from './expr/Input.ts'
 import {type JsonExpr, jsonExpr} from './expr/Json.ts'
@@ -159,7 +160,16 @@ export function tableFields(
     entries(columns).map(([name, column]) => {
       const columnApi = getData(column)
       const {name: givenName} = columnApi
-      const field = new Field(targetName, givenName ?? name, columnApi)
+      const {mapFromDriverValue: decode} = columnApi
+      // Column decoders expect a value, a NULL in the database stays null
+      const source = decode
+        ? {
+            ...columnApi,
+            mapFromDriverValue: (value: unknown, specs: DriverSpecs) =>
+              value === null ? null : decode(value, specs)
+          }
+        : columnApi
+      const field = new Field(targetName, givenName ?? name, source)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })

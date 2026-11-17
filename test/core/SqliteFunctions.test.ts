@@ -1,7 +1,7 @@
 import {suite} from '@alinea/suite'
 import {table} from '#/index.ts'
 import {integer} from '#/sqlite/columns.ts'
-import {bm25, cast} from '#/sqlite/functions.ts'
+import {bm25, cast, printf} from '#/sqlite/functions.ts'
 import {emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
@@ -15,5 +15,9 @@ suite(import.meta, test => {
 
   test('cast', () => {
     test.equal(emit(cast(123, 'text')), 'cast(123 as "text")')
+  })
+
+  test('printf', () => {
+    test.equal(emit(printf('%d', 1)), 'printf("%d", 1)')
   })
 })

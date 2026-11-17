@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, eq, sql} from '#/index.ts'
+import {type Database, asc, eq, sql} from '#/index.ts'
 import {concat} from '#/universal.ts'
 import {Node} from './schema.ts'
 
@@ -24,6 +24,28 @@ export function testBasic(db: Database, test: DefineTest) {
       test.equal(await textField.get(), 'test')
       const abc = await db.select(concat('a', 'b', 'c')).get()
       test.equal(abc, 'abc')
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
+  test('null boolean', async () => {
+    try {
+      await db.create(Node)
+      await db.insert(Node).values({textField: 'a', bool: null})
+      test.equal(await db.select(Node.bool).from(Node), [null])
+    } finally {
+      await db.drop(Node)
+    }
+  })
+
+  test('offset without limit', async () => {
+    try {
+      await db.create(Node)
+      await db.insert(Node).values([{textField: 'a'}, {textField: 'b'}])
+      const rest = db.select(Node.textField).from(Node).orderBy(asc(Node.id))
+      test.equal(await rest.offset(1), ['b'])
+      test.equal(await rest.limit(-1).offset(1), ['b'])
     } finally {
       await db.drop(Node)
     }
