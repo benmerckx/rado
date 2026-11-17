@@ -94,7 +94,7 @@ export function deleteQuery(query: DeleteQuery): Sql {
     formatCTE(query),
     {
       deleteFrom: table.target(),
-      where,
+      where: table.where ? and(table.where, where) : where,
       returning: returning && selection(returning)
     },
     formatModifiers(query)

@@ -157,8 +157,7 @@ No relations file, no separate query API. Declare the relationship inline:
 import {eq, include} from 'rado'
 
 const usersWithPosts = await db
-  .select({
-    ...User,
+  .select(User, {
     posts: include(db.select().from(Post).where(eq(Post.authorId, User.id)))
   })
   .from(User)

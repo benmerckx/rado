@@ -38,13 +38,16 @@ import type {
 import {Select} from './query/Select.ts'
 import {Update, UpdateTable} from './query/Update.ts'
 import {
+  type Extend,
   StarSelection,
+  extend,
   selection,
   type SelectionInput,
+  type SelectionRecord,
   type SelectionRow
 } from './Selection.ts'
 import {Sql} from './Sql.ts'
-import type {Table, TableDefinition} from './Table.ts'
+import type {Scope, Table, TableDefinition} from './Table.ts'
 import {virtualTarget} from './Virtual.ts'
 
 function aliasSql(input: HasSql, name: string): Sql {
@@ -108,10 +111,18 @@ class BuilderBase<Meta extends QueryMeta> {
   select<Input extends SelectionInput>(
     select: Input
   ): WithSelection<Input, Meta>
-  select(select?: SelectionInput): any {
+  select<
+    Definition extends TableDefinition,
+    Name extends string,
+    Extra extends SelectionRecord
+  >(
+    table: Table<Definition, Name>,
+    extra: Extra
+  ): WithSelection<Extend<Definition, Name, Extra>, Meta>
+  select(select?: SelectionInput, extra?: SelectionRecord): any {
     return new Select<unknown, Meta>({
       ...getData(this),
-      select: select!
+      select: extend(select!, extra)
     })
   }
 
@@ -119,10 +130,18 @@ class BuilderBase<Meta extends QueryMeta> {
   selectDistinct<Input extends SelectionInput>(
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinct(select?: SelectionInput): any {
+  selectDistinct<
+    Definition extends TableDefinition,
+    Name extends string,
+    Extra extends SelectionRecord
+  >(
+    table: Table<Definition, Name>,
+    extra: Extra
+  ): WithSelection<Extend<Definition, Name, Extra>, Meta>
+  selectDistinct(select?: SelectionInput, extra?: SelectionRecord): any {
     return new Select({
       ...getData(this),
-      select: select!,
+      select: extend(select!, extra),
       distinct: true
     })
   }
@@ -136,30 +155,43 @@ class BuilderBase<Meta extends QueryMeta> {
     columns: Array<HasSql>,
     selection: Input
   ): WithSelection<Input, Meta>
-  selectDistinctOn(columns: any, select?: any): any {
+  selectDistinctOn<
+    Definition extends TableDefinition,
+    Name extends string,
+    Extra extends SelectionRecord
+  >(
+    this: BuilderBase<IsPostgres>,
+    columns: Array<HasSql>,
+    table: Table<Definition, Name>,
+    extra: Extra
+  ): WithSelection<Extend<Definition, Name, Extra>, Meta>
+  selectDistinctOn(columns: any, select?: any, extra?: any): any {
     return new Select({
       ...getData(this),
-      select: select!,
+      select: extend(select!, extra),
       distinctOn: columns
     })
   }
 
   update<Definition extends TableDefinition>(
-    table: Table<Definition>
+    table: Table<Definition> | Scope<Definition>
   ): UpdateTable<Definition, Meta> {
-    return new UpdateTable<Definition, Meta>({...getData(this), update: table})
+    const update = table as Table<Definition>
+    return new UpdateTable<Definition, Meta>({...getData(this), update})
   }
 
   insert<Definition extends TableDefinition>(
-    into: Table<Definition>
+    into: Table<Definition> | Scope<Definition>
   ): InsertInto<Definition, Meta> {
-    return new InsertInto<Definition, Meta>({...getData(this), insert: into})
+    const insert = into as Table<Definition>
+    return new InsertInto<Definition, Meta>({...getData(this), insert})
   }
 
   delete<Definition extends TableDefinition>(
-    from: Table<Definition>
+    from: Table<Definition> | Scope<Definition>
   ): DeleteFrom<Definition, Meta> {
-    return new DeleteFrom<Definition, Meta>({...getData(this), delete: from})
+    const table = from as Table<Definition>
+    return new DeleteFrom<Definition, Meta>({...getData(this), delete: table})
   }
 }
 

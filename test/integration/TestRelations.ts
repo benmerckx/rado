@@ -1,0 +1,307 @@
+import type {DefineTest} from '@alinea/suite'
+import type {IsMysql, IsPostgres} from '#/core/MetaData.ts'
+import {
+  alias,
+  desc,
+  eq,
+  exists,
+  many,
+  not,
+  one,
+  table,
+  type Database
+} from '#/index.ts'
+import {boolean, id, integer, text} from '#/universal.ts'
+
+const User = table('RelUser', {
+  id: id(),
+  name: text().notNull()
+})
+
+const Post = table('RelPost', {
+  id: id(),
+  authorId: integer().notNull(),
+  title: text().notNull(),
+  published: boolean().notNull()
+})
+
+const Tag = table('RelTag', {
+  id: id(),
+  name: text().notNull()
+})
+
+const PostTag = table('RelPostTag', {
+  postId: integer().notNull(),
+  tagId: integer().notNull()
+})
+
+const Node = table('RelNode', {
+  id: id(),
+  parentId: integer(),
+  name: text().notNull()
+})
+const Parent = alias(Node, 'Parent')
+
+const posts = many(Post, User, {authorId: 'id'})
+const author = one(User, Post, {id: 'authorId'}).notNull()
+const links = many(PostTag, Post, {postId: 'id'})
+const tags = many(Tag, links, {id: 'tagId'}).orderBy(Tag.id)
+const parent = one(Parent, Node, {id: 'parentId'})
+
+const tables = [User, Post, Tag, PostTag, Node]
+
+export function testRelations(db: Database, test: DefineTest) {
+  async function seed() {
+    await db.create(...tables)
+    await db.insert(User).values([{name: 'Ada'}, {name: 'Bob'}])
+    await db.insert(Post).values([
+      {authorId: 1, title: 'A', published: true},
+      {authorId: 1, title: 'B', published: false}
+    ])
+    await db.insert(Tag).values([{name: 'sql'}, {name: 'ts'}])
+    await db.insert(PostTag).values([
+      {postId: 1, tagId: 1},
+      {postId: 1, tagId: 2}
+    ])
+    await db.insert(Node).values([{name: 'root'}, {name: 'leaf', parentId: 1}])
+  }
+
+  test('relations', async () => {
+    await seed()
+    try {
+      const users = await db.select({...User, posts}).from(User)
+      test.equal(users, [
+        {
+          id: 1,
+          name: 'Ada',
+          posts: [
+            {id: 1, authorId: 1, title: 'A', published: true},
+            {id: 2, authorId: 1, title: 'B', published: false}
+          ]
+        },
+        {id: 2, name: 'Bob', posts: []}
+      ])
+
+      const post = await db
+        .select({title: Post.title, author})
+        .from(Post)
+        .where(eq(Post.id, 1))
+        .get()
+      const name: string = post!.author.name
+      test.equal(name, 'Ada')
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('refined and nested relations', async () => {
+    await seed()
+    try {
+      const latest = posts
+        .select({title: Post.title, author: author.select(User.name), tags})
+        .where(eq(Post.published, true))
+        .orderBy(desc(Post.title))
+        .limit(1)
+      const user = await db
+        .select({name: User.name, latest})
+        .from(User)
+        .where(eq(User.id, 1))
+        .get()
+      test.equal(user, {
+        name: 'Ada',
+        latest: [
+          {
+            title: 'A',
+            author: 'Ada',
+            tags: [
+              {id: 1, name: 'sql'},
+              {id: 2, name: 'ts'}
+            ]
+          }
+        ]
+      })
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('relation filters and counts', async () => {
+    await seed()
+    try {
+      const drafts = posts.where(eq(Post.published, false))
+      const withDrafts = await db
+        .select(User.name)
+        .from(User)
+        .where(exists(drafts))
+      test.equal(withDrafts, ['Ada'])
+      const idle = await db
+        .select(User.name)
+        .from(User)
+        .where(not(exists(posts)))
+      test.equal(idle, ['Bob'])
+      const counts = await db
+        .select({name: User.name, total: posts.count()})
+        .from(User)
+        .orderBy(User.id)
+      test.equal(counts, [
+        {name: 'Ada', total: 2},
+        {name: 'Bob', total: 0}
+      ])
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('first of many', async () => {
+    await seed()
+    try {
+      const latest = posts.select(Post.title).orderBy(desc(Post.id)).first()
+      const users = await db
+        .select({name: User.name, latest})
+        .from(User)
+        .orderBy(User.id)
+      test.equal(users, [
+        {name: 'Ada', latest: 'B'},
+        {name: 'Bob', latest: null}
+      ])
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('scoped writes', async () => {
+    await db.create(...tables)
+    try {
+      const row = {name: 'Ada'}
+      // MySQL has no returning, the generated key is all a scope needs
+      const ada =
+        db.dialect.runtime === 'mysql'
+          ? {
+              id: (await (<Database<IsMysql>>db).insert(User).values(row))
+                .insertId
+            }
+          : (await (<Database<IsPostgres>>db)
+              .insert(User)
+              .values(row)
+              .returning()
+              .get())!
+      await db.insert(User).values({name: 'Bob'})
+      await db.insert(posts.of(ada)).values([
+        {title: 'A', published: true},
+        {title: 'B', published: false}
+      ])
+      await db.insert(posts.of({id: 2})).values({title: 'C', published: false})
+
+      const updated = await db.update(posts.of(ada)).set({published: true})
+      test.equal(updated.affectedRows, 2)
+      await db.delete(posts.of(ada)).where(eq(Post.title, 'A'))
+      const first = await db.select().from(Post).orderBy(Post.id)
+      test.equal(first, [
+        {id: 2, authorId: 1, title: 'B', published: true},
+        {id: 3, authorId: 2, title: 'C', published: false}
+      ])
+
+      if (db.dialect.runtime !== 'mysql') {
+        const moved = await (<Database<IsPostgres>>db)
+          .update(posts.of(ada))
+          .set({authorId: 2})
+          .returning()
+        test.equal(moved, [{id: 2, authorId: 2, title: 'B', published: true}])
+        await db
+          .update(posts.of({id: 2}))
+          .set({authorId: 1})
+          .where(eq(Post.id, 2))
+      }
+
+      await db.update(author.of(first[1])).set({name: 'Bobby'})
+      await db.delete(posts.of(ada))
+      const users = await db
+        .select({name: User.name, total: posts.count()})
+        .from(User)
+        .orderBy(User.id)
+      test.equal(users, [
+        {name: 'Ada', total: 0},
+        {name: 'Bobby', total: 1}
+      ])
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('through relation', async () => {
+    await seed()
+    try {
+      await db.insert(links.of({id: 2})).values([{tagId: 1}, {tagId: 2}])
+      await db.delete(links.of({id: 2})).where(eq(PostTag.tagId, 1))
+      const tagged = await db
+        .select({title: Post.title, tags: tags.select(Tag.name)})
+        .from(Post)
+        .orderBy(Post.id)
+      test.equal(tagged, [
+        {title: 'A', tags: ['sql', 'ts']},
+        {title: 'B', tags: ['ts']}
+      ])
+      const used = many(Tag, many(PostTag, posts, {postId: 'id'}), {
+        id: 'tagId'
+      })
+      const users = await db
+        .select({name: User.name, tags: used.count()})
+        .from(User)
+        .orderBy(User.id)
+      test.equal(users, [
+        {name: 'Ada', tags: 3},
+        {name: 'Bob', tags: 0}
+      ])
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('every', async () => {
+    await seed()
+    try {
+      const done = await db
+        .select(User.name)
+        .from(User)
+        .where(posts.every(Post.published))
+      test.equal(done, ['Bob'])
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+
+  test('self relation', async () => {
+    await seed()
+    try {
+      await db.insert(Node).values({name: 'twig', parentId: 2})
+      const up = parent.alias(Node, Parent)
+      const nodes = await db
+        .select({
+          name: Node.name,
+          parent: parent.select({
+            name: Parent.name,
+            parent: up.select({
+              name: Node.name,
+              parent: parent.select(Parent.name)
+            })
+          })
+        })
+        .from(Node)
+        .orderBy(Node.id)
+      test.equal(nodes, [
+        {name: 'root', parent: null},
+        {name: 'leaf', parent: {name: 'root', parent: null}},
+        {
+          name: 'twig',
+          parent: {name: 'leaf', parent: {name: 'root', parent: null}}
+        }
+      ])
+
+      await db.delete(parent.of({parentId: 2}))
+      await db.delete(Parent).where(eq(Parent.name, 'twig'))
+      test.equal(await db.select(Node.name).from(Node), ['root'])
+    } finally {
+      await db.drop(...tables)
+    }
+  })
+}

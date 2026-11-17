@@ -164,7 +164,10 @@ export function updateQuery(query: UpdateQuery): Sql {
   return sql.query(
     formatCTE(query),
     formatUpdateFrom(target, set, from),
-    {where, returning: returningSelection},
+    {
+      where: tableApi.where ? and(tableApi.where, where) : where,
+      returning: returningSelection
+    },
     formatModifiers(query)
   )
 }

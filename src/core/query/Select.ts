@@ -1,6 +1,7 @@
 import {and} from '../expr/Conditions.ts'
 import type {Field, StripFieldMeta} from '../expr/Field.ts'
 import type {Input as UserInput} from '../expr/Input.ts'
+import type {Rooted} from '../expr/Relation.ts'
 import {Index} from '../Index.ts'
 import {
   type HasData,
@@ -449,11 +450,13 @@ export type SubQuery<Input, Name extends string = string> = RetypeSubQueryInput<
 type RetypeSubQueryInput<Input, TableName extends string> =
   Input extends HasSql<infer Value>
     ? Field<Value, TableName>
-    : Input extends SelectionRecord
-      ? Expand<{
-          [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
-        }>
-      : Input
+    : Input extends Table<infer Definition>
+      ? RetypeSubQueryInput<TableFields<Definition>, TableName>
+      : Input extends SelectionRecord
+        ? Expand<{
+            [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
+          }>
+        : Input
 
 export interface SelectBase<
   Input,
@@ -631,7 +634,7 @@ interface SelectionFromTargets<
   Input,
   Meta extends QueryMeta,
   FromNames extends string = never
-> extends SelectBase<Input, Meta> {
+> extends SelectBase<Rooted<Input, FromNames>, Meta> {
   leftJoin<Definition extends TableDefinition, Name extends string>(
     right: Table<Definition, Name>,
     on: HasSql<boolean>,

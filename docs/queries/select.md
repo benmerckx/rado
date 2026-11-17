@@ -46,15 +46,23 @@ const rows = await db
 // Array<{id: number, contact: {name: string, email: string | null}}>
 ```
 
-Spreading a table is useful for "everything plus":
+For "everything plus", pass the table and the fields to add:
 
 ```ts
 const rows = await db
-  .select({...User, postCount: count(Post.id)})
+  .select(User, {postCount: count(Post.id)})
   .from(User)
   .leftJoin(Post, eq(Post.authorId, User.id))
   .groupBy(User.id)
+// Array<{id: number, name: string, email: string | null, postCount: number}>
 ```
+
+The second argument is a selection like any other: expressions, nested
+objects, includes. A field named like a column replaces it. `selectDistinct`
+and `selectDistinctOn` take the same pair.
+
+Prefer this over spreading the table (`{...User, postCount}`). A spread
+copies everything on the table object, not only its columns.
 
 ### A single expression
 
