@@ -86,6 +86,8 @@ type Checked<Keys, Target extends TableDefinition, Name extends string> = {
     : `no column ${K & string}`
 }
 
+type NonEmpty<Keys> = keyof Keys extends never ? never : unknown
+
 type Known<Keys, Target extends TableDefinition> = {
   [K in keyof Keys]: K extends keyof Target
     ? Keys[K]
@@ -180,11 +182,15 @@ export class Relation<
     return this.#with({orderBy})
   }
 
-  limit(limit: UserInput<number>): Relation<Input, Kind, Parent, Target> {
+  limit(
+    limit: UserInput<number>
+  ): Relation<Input, Narrowed<Kind>, Parent, Target> {
     return this.#with({limit})
   }
 
-  offset(offset: UserInput<number>): Relation<Input, Kind, Parent, Target> {
+  offset(
+    offset: UserInput<number>
+  ): Relation<Input, Narrowed<Kind>, Parent, Target> {
     return this.#with({offset})
   }
 
@@ -196,7 +202,7 @@ export class Relation<
 
   first(
     this: Relation<Input, 'many', Parent, Target, Link>
-  ): Relation<Input, 'one', Parent, Target, Link> {
+  ): Relation<Input, 'one', Parent, Target> {
     return this.#with({first: true, limit: 1} as Partial<SelectQuery>)
   }
 
@@ -208,7 +214,9 @@ export class Relation<
   >(
     this: Relation<Input, Kind, Parent, Target, [Definition, Keys]>,
     target: Table<Definition, Name>,
-    parent: HasTable<TableDefinition, Root> & ParentFields<Keys, Root>
+    parent: HasTable<TableDefinition, Root> &
+      ParentFields<Keys, Root> &
+      ([Name] extends [Root] ? never : unknown)
   ): Relation<Table<Definition, Name>, Kind, Root, Name, [Definition, Keys]> {
     const data = getData(this) as IncludeQuery & LinkData
     const fields = parent as Record<string, Field>
@@ -252,8 +260,9 @@ export class Relation<
     Name extends string,
     Keys extends RelationKeys<Definition, Target>
   >(
-    target: Table<Definition, Name>,
-    keys: Keys & Known<Keys, Definition>
+    target: Table<Definition, Name> &
+      ([Name] extends [Target | Parent] ? never : unknown),
+    keys: Keys & NonEmpty<Keys> & Known<Keys, Definition>
   ): Relation<Table<Definition, Name>, 'many', Parent, Target | Name> {
     const {from, where} = getData(this)
     const select = getSelection(target).input
@@ -271,7 +280,8 @@ export class Relation<
   }
 
   count(): Sql<number> {
-    const query = {...getData(this), select: count(), orderBy: undefined}
+    const {from, where} = getData(this)
+    const query = {from, where, select: count()}
     return sql<number>`(${selectQuery(query)})`.mapWith(Number)
   }
 
@@ -287,9 +297,9 @@ function keyOf(field: Field): string {
 }
 
 function match(target: any, keys: object): Sql<boolean> {
-  return and(
-    ...Object.entries(keys).map(([to, field]) => eq(target[to], field))
-  )
+  const entries = Object.entries(keys)
+  if (!entries.length) throw new Error('Empty relation keys')
+  return and(...entries.map(([to, field]) => eq(target[to], field)))
 }
 
 function keyed(
@@ -356,7 +366,7 @@ export function many<
   Keys extends RelationKeys<Definition>
 >(
   target: Table<Definition, Name>,
-  keys: Keys & Checked<Keys, Definition, Name>
+  keys: Keys & NonEmpty<Keys> & Checked<Keys, Definition, Name>
 ): Keyed<'many', Definition, Name, Keys>
 export function many(target: Table, ...on: Array<unknown>) {
   return relation(false, target, on)
@@ -372,7 +382,7 @@ export function one<
   Keys extends RelationKeys<Definition>
 >(
   target: Table<Definition, Name>,
-  keys: Keys & Checked<Keys, Definition, Name>
+  keys: Keys & NonEmpty<Keys> & Checked<Keys, Definition, Name>
 ): Keyed<'one', Definition, Name, Keys>
 export function one(target: Table, ...on: Array<unknown>) {
   return relation(true, target, on)

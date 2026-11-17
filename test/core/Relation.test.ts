@@ -83,6 +83,33 @@ const items = many(Item, {storeId: Order.storeId, orderNumber: Order.number})
 const entries = many(Entry, {owner: Account.uid})
 
 suite(import.meta, test => {
+  test('keyed relations need keys', () => {
+    // @ts-expect-error an empty map would match every row
+    test.throws(() => many(Post, {}))
+    // @ts-expect-error an empty map would join every row
+    test.throws(() => links.many(Tag, {}))
+  })
+
+  test('relation refinements', () => {
+    const limited = author.notNull().limit(0)
+    const shifted = author.notNull().offset(1)
+    const query = builder.select({limited, shifted}).from(Post)
+    type Row = Awaited<typeof query>[number]
+    Expect<Equal<null extends Row['limited'] ? true : false, true>>()
+    Expect<Equal<null extends Row['shifted'] ? true : false, true>>()
+    const total = posts.orderBy(Post.id).limit(0).offset(1).count()
+    test.equal(
+      emit(builder.select(total).from(User)),
+      emit(builder.select(posts.count()).from(User))
+    )
+    // @ts-expect-error first narrows the writable relation
+    posts.first().of({id: 1})
+    // @ts-expect-error the target would shadow its parent
+    parent.alias(Node, Node)
+    // @ts-expect-error the source already contains this target
+    tags.many(PostTag, {tagId: Tag.id})
+  })
+
   test('many', () => {
     const query = builder.select({posts: posts.select(Post.title)}).from(User)
     test.equal(
