@@ -10,10 +10,13 @@ import {
   getField,
   getSelection,
   getTable,
+  getTarget,
   hasSql,
   internalColumns,
   internalQuery,
-  internalTable
+  internalSelection,
+  internalTable,
+  internalTarget
 } from '../Internal.ts'
 import type {SelectQuery} from '../query/Query.ts'
 import {selectQuery} from '../query/Select.ts'
@@ -219,7 +222,7 @@ export class Relation<
   of<Definition extends TableDefinition, Keys>(
     this: Relation<Input, Kind, Parent, Target, [Definition, Keys]>,
     row: ParentRow<Keys>
-  ): Scope<Filled<Definition, keyof Keys>> {
+  ): Scope<Filled<Definition, keyof Keys>, Target> {
     const {target, keys} = (getData(this) as IncludeQuery & LinkData).link
     const api = getTable(target)
     const columns = {...api.columns}
@@ -238,8 +241,10 @@ export class Relation<
     return {
       // The fields are what a bare returning() selects
       ...(getSelection(target).input as object),
-      [internalTable]: Object.assign(new TableApi<any>(), scoped)
-    }
+      [internalTable]: Object.assign(new TableApi<any, any>(), scoped),
+      [internalTarget]: getTarget(target),
+      [internalSelection]: getSelection(target)
+    } as Scope<any, any>
   }
 
   many<

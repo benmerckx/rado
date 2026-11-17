@@ -43,7 +43,7 @@ class TableData {
   temporary?: boolean
   columns!: TableDefinition
   config?: () => TableConfigResult
-  // Set on scoped targets, narrows every update and delete
+  // Set on scoped targets, narrows every select, update and delete
   where?: HasSql<boolean>
 }
 
@@ -200,9 +200,12 @@ export type Table<
   HasCreate &
   HasDrop
 
-// A write target only: it lacks the target `from` asks for
-export interface Scope<Definition extends TableDefinition = TableDefinition> {
-  readonly [internalTable]: TableApi<Definition>
+// A table narrowed to some rows: `from` takes it, a join does not
+export interface Scope<
+  Definition extends TableDefinition = TableDefinition,
+  Name extends string = string
+> {
+  readonly [internalTable]: TableApi<Definition, Name>
 }
 
 export type TableFields<

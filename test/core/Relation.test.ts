@@ -1,5 +1,19 @@
 import {suite} from '@alinea/suite'
-import {alias, eq, exists, many, one, table, view} from '#/index.ts'
+import type {Async, Sync} from '#/core/MetaData.ts'
+import {
+  type Database,
+  alias,
+  count,
+  eq,
+  exists,
+  inArray,
+  include,
+  internalResolver,
+  many,
+  one,
+  table,
+  view
+} from '#/index.ts'
 import {id, integer, text} from '#/universal.ts'
 import {builder, emit} from '../TestUtils.ts'
 
@@ -53,6 +67,12 @@ const Entry = table('Entry', {
 
 const Parent = alias(Node, 'Parent')
 const Author = alias(User, 'Author')
+
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false
+const Expect = <T extends true>() => {}
 
 const posts = many(Post, {authorId: User.id})
 const links = many(PostTag, {postId: Post.id})
@@ -110,6 +130,136 @@ suite(import.meta, test => {
     test.throws(() => posts.of({} as {id: number}))
   })
 
+  test('scoped read', () => {
+    const scope = posts.of({id: 1})
+    test.equal(
+      emit(builder.select().from(scope)),
+      'select "Post"."id", "Post"."authorId", "Post"."title" from "Post" where "Post"."authorId" = 1'
+    )
+    test.equal(
+      emit(builder.select(Post.title).from(scope).where(eq(Post.title, 'A'))),
+      'select "Post"."title" from "Post" where ("Post"."authorId" = 1 and "Post"."title" = "A")'
+    )
+    test.equal(
+      emit(
+        builder
+          .select(Tag.name)
+          .from(links.of({id: 2}))
+          .innerJoin(Tag, eq(Tag.id, PostTag.tagId))
+      ),
+      'select "Tag"."name" from "PostTag" inner join "Tag" on "Tag"."id" = "PostTag"."tagId" where "PostTag"."postId" = 2'
+    )
+    test.equal(
+      emit(builder.select(Item.sku).from(items.of({storeId: 1, number: 2}))),
+      'select "Item"."sku" from "Item" where ("Item"."storeId" = 1 and "Item"."orderNumber" = 2)'
+    )
+  })
+
+  test('a scope is never dropped', () => {
+    const scope = posts.of({id: 1})
+    const read = builder.select(Post.id).from(scope)
+    const sub = read.as('sub')
+    const mine = builder.$with('mine').as(read)
+    const db = {[internalResolver]: undefined} as unknown as Database
+    const queries = [
+      read.where(eq(Post.title, 'A')).where(eq(Post.title, 'B')),
+      read.leftJoin(User, eq(User.id, Post.authorId)),
+      read.groupBy(Post.id).orderBy(Post.id).limit(1).offset(1),
+      read.union(read),
+      builder.select().from(sub),
+      builder.select().from(User).innerJoin(sub, eq(sub, User.id)),
+      builder.select().from(User).where(inArray(User.id, read)),
+      builder.select().from(User).where(exists(read)),
+      builder.select({post: include.one(read)}).from(User),
+      builder.with(mine).select().from(mine),
+      count(db, scope, eq(Post.title, 'A')),
+      builder.selectDistinct(Post.id).from(scope),
+      builder.$query({select: Post.id, from: scope as any}),
+      builder
+        .select()
+        .from(User)
+        .leftJoin(scope as any, eq(Post.id, User.id)),
+      builder
+        .update(User)
+        .set({name: 'A'})
+        .from(scope as any)
+    ]
+    for (const query of queries)
+      test.ok(emit(query).includes('"Post"."authorId" = 1'))
+    test.equal(emit(read.union(read)).split('"authorId" = 1').length, 3)
+  })
+
+  test('scoped read types', () => {
+    const scope = posts.of({id: 1})
+    const plain = builder.select().from(Post)
+    const rows = builder.select().from(scope)
+    Expect<Equal<Awaited<typeof rows>, Awaited<typeof plain>>>()
+    Expect<
+      Equal<
+        Awaited<typeof rows>,
+        Array<{id: number; authorId: number; title: string}>
+      >
+    >()
+    const titles = builder.select(Post.title).from(scope)
+    Expect<Equal<Awaited<typeof titles>, Array<string>>>()
+    const joined = builder
+      .select()
+      .from(scope)
+      .leftJoin(User, eq(User.id, Post.authorId))
+    Expect<
+      Equal<
+        Awaited<typeof joined>[number]['User'],
+        {id: number; name: string} | null
+      >
+    >()
+    const nodes = builder.select().from(parent.of({parentId: 1}))
+    Expect<Equal<Awaited<typeof nodes>[number]['parentId'], number | null>>()
+    const misplaced = builder.select({posts}).from(scope)
+    Expect<
+      Equal<Awaited<typeof misplaced>[number]['posts'], 'needs User in from'>
+    >()
+    // @ts-expect-error a scope is read in from, where its rows are narrowed
+    builder.select().from(User).innerJoin(scope, eq(Post.authorId, User.id))
+    // @ts-expect-error also after a selection
+    builder.select(User.id).from(User).leftJoin(scope, eq(Post.id, User.id))
+    // @ts-expect-error a scope is not a table to alias
+    ;() => alias(scope, 'Mine')
+    // @ts-expect-error a relation through another has no scope to read
+    ;() => builder.select().from(tags.of({id: 1}))
+  })
+
+  test('count', () => {
+    const db = {[internalResolver]: undefined} as unknown as Database<Sync>
+    const later = db as unknown as Database<Async>
+    test.equal(emit(count()), 'count(*)')
+    test.equal(emit(count(Post.id)), 'count("Post"."id")')
+    test.equal(emit(count(db, Post)), 'select count(*) from "Post"')
+    test.equal(
+      emit(count(db, Post, eq(Post.title, 'A'), eq(Post.id, 1))),
+      'select count(*) from "Post" where ("Post"."title" = "A" and "Post"."id" = 1)'
+    )
+    test.equal(
+      emit(count(db, posts.of({id: 1}), eq(Post.title, 'A'))),
+      'select count(*) from "Post" where ("Post"."authorId" = 1 and "Post"."title" = "A")'
+    )
+    test.equal(
+      emit(builder.select({total: count(db, Post)}).from(User)),
+      'select (select count(*) from "Post") as "total" from "User"'
+    )
+    ;() => {
+      const total = count(db, Post)
+      Expect<Equal<Awaited<typeof total>, number>>()
+      const now = total.get()
+      Expect<Equal<typeof now, number | null>>()
+      const soon = count(later, posts.of({id: 1})).get()
+      Expect<Equal<typeof soon, Promise<number | null>>>()
+      // @ts-expect-error a condition is a boolean
+      count(db, Post, Post.title)
+      // @ts-expect-error a database comes with a target
+      count(db)
+    }
+  })
+
   test('write types', () => {
     // @ts-expect-error a condition does not say which column to fill
     test.throws(() => author.of({authorId: 1}))
@@ -121,8 +271,6 @@ suite(import.meta, test => {
     builder.insert(posts.of({id: 1})).values({title: 1})
     // @ts-expect-error text does not match an integer key
     many(Post, {authorId: User.name})
-    // @ts-expect-error a scope is not a table to select from
-    builder.select().from(posts.of({id: 1}))
   })
 
   test('alias', () => {

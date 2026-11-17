@@ -20,8 +20,17 @@ const [withEmail] = await db.select(count(User.email)).from(User)
 const [authors] = await db.select(countDistinct(Post.authorId)).from(Post)
 ```
 
-`count` returns a `number`. For the common "count with a filter" case there's
-also the shortcut `db.$count(Table, condition?)`.
+`count` returns a `number`. Given a database it is the whole query, with any
+conditions after the table:
+
+```ts
+const total = await count(db, User)
+const active = await count(db, User, eq(User.active, true))
+```
+
+It is a query like any other: awaitable, `.get()` on a synchronous database,
+and usable in a batch, a transaction (`count(tx, User)`) or as a subquery.
+`db.$count(Table, condition?)` is the same thing as a method.
 
 ## `sum` and `avg`
 

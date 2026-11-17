@@ -23,7 +23,7 @@ import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields, TableUpdate} from '../Table.ts'
 import {formatCTE} from './CTE.ts'
 import type {FromGuard, UpdateQuery} from './Query.ts'
-import {formatFrom} from './Select.ts'
+import {formatFrom, scoped} from './Select.ts'
 import {formatModifiers} from './Shared.ts'
 
 export class Update<
@@ -165,7 +165,7 @@ export function updateQuery(query: UpdateQuery): Sql {
     formatCTE(query),
     formatUpdateFrom(target, set, from),
     {
-      where: tableApi.where ? and(tableApi.where, where) : where,
+      where: scoped([table, from].flat() as FromGuard, where),
       returning: returningSelection
     },
     formatModifiers(query)

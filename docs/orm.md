@@ -1,8 +1,8 @@
 # ORM design (orm3)
 
-Status: design and prototype of reads, scoped writes, the gaps that were
-left against Drizzle and Prisma (see "Gaps closed") and bundling relations
-with their table, flat (see "Bundling"). Code lives in
+Status: design and prototype of reads, scoped writes and reads, the gaps
+that were left against Drizzle and Prisma (see "Gaps closed") and bundling
+relations with their table, flat (see "Bundling"). Code lives in
 `src/core/expr/Relation.ts`, tests in `test/integration/TestRelations.ts`,
 `test/integration/TestBundle.ts`, `test/core/Relation.test.ts` and
 `test/core/Relate.test.ts`.
@@ -14,9 +14,9 @@ schema, is an expression you drop into any selection, and can be refined with
 the same verbs as a select. There is no model, no registry, no `db.find` and
 no query-config language: the query builder stays the only way to query.
 
-The whole ORM is two functions, `many` and `one`, and one small class. Writes
-add one method: `relation.of(row)` is a target for the existing `insert`,
-`update` and `delete`.
+The whole ORM is two functions, `many` and `one`, and one small class. One
+method covers a single parent: `relation.of(row)` is a target for the
+existing `insert`, `update`, `delete` and `from`.
 
 ## API
 
@@ -206,7 +206,8 @@ The key values are fields of the tables the relation already reads, any of
 them; a field of another table is a type error. A filter on the relation
 carries over; its selection, order and limit do not. The joined tables are in
 scope, so `tags.select({name: Tag.name, at: PostTag.createdAt})` works. The
-result is read-only: it has no `of` and no `alias`.
+result is read-only: it has no `of` and no `alias`. The tags of one post are
+a join on the link scope (see "Reading one parent's rows").
 
 ### Loading
 
@@ -326,6 +327,73 @@ delete from "Post" where ("Post"."authorId" = ? and "Post"."title" = ?)
   await tx.delete(links.of(post)).where(inArray(PostTag.tagId, tagIds))
   ```
 
+### Reading one parent's rows
+
+The same scope is a `from`. The rows are the target table's rows, typed as
+with `from(Post)`, and the scope's condition is part of every query that
+reads it:
+
+```ts
+const mine = await db.select().from(posts.of(user))
+// Array<{id: number, authorId: number, title: string, ...}>
+
+const titles = await db
+  .select(Post.title)
+  .from(posts.of(user))
+  .where(eq(Post.published, true))
+  .orderBy(Post.title)
+
+const tags = await db
+  .select(Tag)
+  .from(links.of(post))
+  .innerJoin(Tag, eq(Tag.id, PostTag.tagId))
+```
+
+```sql
+select "Post"."id", ... from "Post" where "Post"."authorId" = ?
+select "Post"."title" from "Post"
+  where ("Post"."authorId" = ? and "Post"."published" = ?)
+select "Tag"."id", "Tag"."name" from "PostTag"
+  inner join "Tag" on "Tag"."id" = "PostTag"."tagId"
+  where "PostTag"."postId" = ?
+```
+
+- Fields are the table's own (`Post.title`). The scope is only the place to
+  read from.
+- The condition is and-ed in front of the query's `where` when the SQL is
+  written, not when `from` is called. Calling `where` again, joining,
+  `.as()`, `get()`, a union, a subquery, `include()`, a common table
+  expression and a prepared query all keep it.
+- A scope goes in `from`, not in a join: `innerJoin(posts.of(user), ...)` is
+  a type error. The condition is a `where`, so it means what it says only
+  for the table the query starts from. With a right or full join after it,
+  it filters the joined result, as a hand-written `where` would.
+- The parent check sees the target's name. A `{posts}` selected from
+  `posts.of(user)` reads as `'needs User in from'`.
+- There is no shorter form. `posts.of(user)` is not a query by itself, see
+  "Scoped reads and count".
+
+### Counting rows
+
+`count` with a database is the whole query. Conditions follow the target,
+and a scope is a target:
+
+```ts
+const users = await count(db, User)
+const active = await count(db, User, eq(User.active, true))
+const drafts = await count(db, posts.of(user), eq(Post.published, false))
+```
+
+```sql
+select count(*) from "Post"
+  where ("Post"."authorId" = ? and "Post"."published" = ?)
+```
+
+It returns the query, not the number: await it, call `.get()` on a
+synchronous database, `yield*` it in a universal transaction, or put it in a
+batch or a selection. Without a database `count()` is the aggregate it
+always was.
+
 ### Aliases and self relations
 
 `relation.alias(target, parent)` is the same relation between two other names
@@ -404,12 +472,23 @@ has a `$default` returning the parent's value, plus a `where`. Insert needed
 no change at all, because it already asks columns for their defaults. Outside
 `Relation.ts` the change is about ten lines:
 
-- `TableApi` has an optional `where`; `updateQuery` and `deleteQuery` and it
-  with their own.
-- `insert`, `update` and `delete` on the builder accept `Table | Scope`.
-  `Scope` is only the internal table a mutation reads. It has no target, so
-  `select().from(posts.of(user))` is a type error instead of a silently
-  unscoped read.
+- `TableApi` has an optional `where`; `selectQuery`, `updateQuery` and
+  `deleteQuery` and it with their own.
+- `insert`, `update`, `delete` and `from` on the builder accept
+  `Table | Scope`. In its type a `Scope` is only the internal table, with the
+  table's name. That is enough for `from` and too little for a join, `alias`,
+  `create` or a selection.
+
+A scope used to be a write target only: `select().from(posts.of(user))` was
+a type error, because `from` did not look at the table's `where` and would
+have read every row. The rule could go once the read path did look.
+`selectQuery` is the one function that writes a select, for the builder,
+`get()`, subqueries, unions, `include()`, relations, common table
+expressions and prepared queries alike. It now ands the `where` of every
+table in `from`, joined ones included, with the query's own. The condition
+lives on the target and not in the query's `where`, so `where()`, which
+replaces the query's condition, can't drop it, and neither can anything
+that copies the query. An `update ... from` does the same.
 
 There is no planner, no dialect check and no extra query.
 
@@ -424,11 +503,13 @@ Bundle size (`bun run size`, minified `src/index.ts`):
 | orm3-bundle            | 42,919 | +1,697  | +596         |
 | orm3-flat              | 43,148 | +1,926  | +662         |
 | field keys             | 43,306 | +2,069  | +689         |
+| scoped reads, count    | 43,575 | +2,338  | +793         |
 | orm2 (vs its own base) | 50,971 | +11,643 |              |
 
 The first six rows were measured when each step was made (main is 41,237
 bytes today, the flat version 43,164). Field keys cost 142 bytes on top of
-that (32 gzipped).
+that (32 gzipped). Scoped reads and the standalone `count` cost 269 on top
+of field keys (104 gzipped), after `$count` became a call to `count`.
 
 Writes cost 580 bytes on top of orm3 (252 gzipped). `alias`, relations as
 parent and `every` cost 259 on top of that (108 gzipped), after giving back
@@ -523,6 +604,70 @@ await tx.insert(comments.of(post)).values([{body: 'First'}])
 Also still out: replacing children (`set`), insert-vs-update inference, and
 `connect`/`disconnect` helpers. The link table of a many-to-many is a plain
 relation, so `insert` and `delete` on `links.of(post)` are those helpers.
+
+## Scoped reads and count
+
+orm and orm2 had `db.find`, `db.first`, `db.count` and `db.load(relation,
+key)`. `find` and `first` stay out: they are a second way to write a select.
+Nothing goes on `Database`, where it can't be tree-shaken. Two things they
+did were still missing.
+
+**The rows of one parent.** With a `user` in hand, its posts were
+`db.select().from(Post).where(eq(Post.authorId, user.id))`, the relation's
+keys again by hand. `from(posts.of(user))` is the scope that writes already
+had, see "Reading one parent's rows" and "Implementation".
+
+**A query of its own, not built.** `posts.of(user)` could be awaitable, or
+have `all()` and `get()`. A rado query needs a resolver, and a relation is
+defined next to the schema, without one. So the database has to be passed:
+`posts.of(user).all(db)`, which `SingleQuery` supports today. Weighed
+against `db.select().from(posts.of(user))`:
+
+- It saves `select().from()` and nothing else, and it is a second way to
+  write a select, the reason `find` was dropped.
+- It stops at the first refinement. A filter, an order, a limit or a
+  selection each need the builder, or the five methods of a relation
+  mirrored once more on the scope.
+- Awaitable is worse: a scope is also a write target that gets passed
+  around, and a thenable returned from an async function is run by the
+  `await`, without a database.
+- The database moves to the end of the line, where it is easy to miss in a
+  transaction (`all(db)` instead of `all(tx)`). `tx.select()` says it first.
+
+The one read that is worth a shortcut is the count, and that has one.
+
+**Through relations: not readable through `of`.** `tags.of(post)` would be
+two tables, `PostTag` joined to `Tag`, where a scope is one table with a
+condition. It needs a second kind of target, `select()` on it would return
+`{PostTag, Tag}` rows unless it also carried a selection, and `tags.of` was
+already left out of writes because it reads as writing tags. The join says
+the same in one line and uses the scope that exists:
+`db.select(Tag).from(links.of(post)).innerJoin(Tag, eq(Tag.id,
+PostTag.tagId))`.
+
+**`count(db, target, ...where)`.** Weighed:
+
+- _A new name_ (`countOf`, `total`). A second word for counting, to be
+  found next to `count` and `$count`.
+- _A method on the scope or the table_ (`posts.of(user).count(db)`). Tables
+  have no methods, and `User.posts.count()` is already the correlated
+  count.
+- _The aggregate with a database in front._ Chosen. `count()` and
+  `count(Post.id)` are unchanged, and no expression is a database, so the
+  first argument tells them apart. Both forms are a `number` expression: the
+  second is `(select count(*) from ...)` when it is put in a selection.
+
+It returns the query (`SelectFirst<Sql<number>, Meta>`), which is what
+`db.$count` returned, and `$count` now calls it. A number or a promise of
+one, depending on the database, was the alternative; it can't be batched,
+prepared or `yield*`-ed, and rado has no other function that runs on call.
+On a synchronous database `.get()` is typed `number | null`, like every
+`get()`. The database is the first argument because it is what tells the
+two forms apart.
+
+`count` lives in `Aggregate.ts` and imports `SelectFirst`. The builder
+already imports `Select.ts`, so nothing new reaches a bundle that has a
+database.
 
 ## Gaps closed
 
@@ -759,6 +904,7 @@ relation or a condition, and it would make `Table.ts` know about relations.
 | Many-to-many        | two hops, or `through`  | implicit or explicit   | `links.many(Tag, keys)`               |
 | Link / unlink       | write the link table    | `connect`/`disconnect` | `insert`/`delete` on `links.of(row)`  |
 | Scoped writes       | no                      | nested writes          | `of(row)`                             |
+| Rows of one parent  | `where` by hand         | fluent `.posts()`      | `from(relation.of(row))`              |
 | Nested create       | no                      | yes                    | no, one line per level                |
 | Replace children    | no                      | `set`                  | no                                    |
 | Wrong parent        | not possible (`with`)   | not possible           | type error on use                     |
@@ -801,7 +947,9 @@ relation or a condition, and it would make `Table.ts` know about relations.
   and the condition form remains for everything else.
 - **`db.find` / `db.first` / `db.count` / `db.load`.** They duplicate
   `db.select()...`, `.get()` and `count()`, and put ORM code on `Database`
-  where it can't be tree-shaken.
+  where it can't be tree-shaken. What `load` and `count` were for is now
+  `from(relation.of(row))` and the standalone `count(db, target)`, see
+  "Scoped reads and count".
 - **`some` / `none` / `is` / `isNot`.** `exists` and `not` cover them.
   `every` was added later, see "Gaps closed".
 - **`innerJoin` on a relation.** It existed for many-to-many only, and left
@@ -843,6 +991,12 @@ relation or a condition, and it would make `Table.ts` know about relations.
   and one more value per field, for relations only. See "Field keys".
 - **Key errors are strings.** A wrong key value fails with a message like
   `'needs a table field'`, reported under "No overload matches this call".
+- **A scope is read in `from` only.** Its condition is a `where`. Under a
+  join that keeps unmatched rows of the other side (right, full) it filters
+  those out too. A scope as the joined table is a type error rather than a
+  guess between `on` and `where`.
+- **`count` has two meanings.** An expression without a database, a query
+  with one. The types never confuse them, a reader might for a moment.
 - **A scope is a snapshot of one row's keys.** It is built per call
   (a `TableApi` copy and a column copy per key). Cheap, but not free, and
   queries through it are not prepared once and reused across parents.

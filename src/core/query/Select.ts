@@ -40,7 +40,7 @@ import {
   selection
 } from '../Selection.ts'
 import {Sql, sql} from '../Sql.ts'
-import type {Table, TableDefinition, TableFields} from '../Table.ts'
+import type {Scope, Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import type {VirtualTarget} from '../Virtual.ts'
 import {formatCTE} from './CTE.ts'
@@ -481,7 +481,7 @@ export interface SelectBase<
 
 export interface WithoutSelection<Meta extends QueryMeta> {
   from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>,
+    from: Table<Definition, Name> | Scope<Definition, Name>,
     config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     TableFields<Definition>,
@@ -501,7 +501,7 @@ export interface WithSelection<
   Meta extends QueryMeta
 > extends SelectBase<Input, Meta> {
   from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>,
+    from: Table<Definition, Name> | Scope<Definition, Name>,
     config?: IndexHintConfigFor<Meta>
   ): SelectionFromTargets<Input, Meta, Name>
   from<SubInput, Name extends string>(
@@ -939,6 +939,24 @@ export function formatFrom(
   return hasTarget(from) ? formatTarget(from, baseConfig) : getSql(from)
 }
 
+// A scoped target narrows the query it is read in, wherever it is in from
+export function scoped(
+  from: SelectQuery['from'],
+  where?: HasSql<boolean>
+): HasSql<boolean> | undefined {
+  const scopes = [from]
+    .flat()
+    .map(entry => {
+      if (!entry) return
+      const target =
+        hasTarget(entry) || hasSql(entry) ? entry : joinOp(entry).target
+      return hasTable(target) ? getTable(target).where : undefined
+    })
+    .concat(where)
+    .filter(Boolean)
+  return scopes.length ? and(...scopes) : undefined
+}
+
 export function selectQuery(query: SelectQuery): Sql {
   const {from, where, groupBy, having, distinct, distinctOn} = query
   const prefix = distinctOn
@@ -953,7 +971,7 @@ export function selectQuery(query: SelectQuery): Sql {
       select,
       from: from && formatFrom(from, query),
       for: query.for,
-      where,
+      where: scoped(from, where),
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having: typeof having === 'function' ? having(selected.input) : having
     },
