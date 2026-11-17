@@ -1,4 +1,5 @@
 import {suite} from '@alinea/suite'
+import {getData} from '#/index.ts'
 import {pgEnum, pgSchema} from '#/postgres.ts'
 import * as pg from '#/postgres/columns.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
@@ -216,6 +217,7 @@ test('pg column unique and array helpers', () => {
   const uniqueColumn = pg.integer().unique('uniq_test', {nulls: 'not distinct'})
   test.equal(columnSql(uniqueColumn), 'integer unique nulls not distinct')
   test.equal(columnSql(pg.integer().unique()), 'integer unique')
+  test.equal(getData(pg.text('my_text').unique()).name, 'my_text')
 
   const arraySized = pg.integer().array(3)
   test.equal(columnSql(arraySized!), 'integer[3]')
