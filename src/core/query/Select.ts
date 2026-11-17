@@ -32,7 +32,7 @@ import {type QueryData, SingleQuery} from '../Queries.ts'
 import {
   type IsNullable,
   type MakeNullable,
-  type Selection,
+  Selection,
   type SelectionInput,
   type SelectionRecord,
   type SelectionRow,
@@ -826,10 +826,14 @@ function createSelection({select, from}: SelectQuery): Selection {
       const [, ...joins] = from
       return applyJoins(selected, joins)
     }
-    if (!from || !Array.isArray(from))
-      return selection(select as SelectionInput)
+    // An explicit table, or a spread of one, selects its own columns only,
+    // joins must not expand it to every joined table
+    const selected = hasTable(select)
+      ? new Selection(select as SelectionInput)
+      : selection(select as SelectionInput)
+    if (!from || !Array.isArray(from)) return selected
     const [, ...joins] = from
-    return applyJoins(selection(select as SelectionInput), joins)
+    return applyJoins(selected, joins)
   }
 
   if (!from) throw new Error('No selection defined')

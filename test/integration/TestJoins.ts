@@ -1,5 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
-import {eq, type Database} from '#/index.ts'
+import {alias, count, eq, type Database} from '#/index.ts'
 import {lastInsertId} from '#/universal.ts'
 import {Post, User} from './schema.ts'
 
@@ -62,6 +62,40 @@ export function testJoins(db: Database, test: DefineTest) {
       ])
     } finally {
       await db.drop(User, Post)
+    }
+  })
+
+  test('selected table stays itself after a join', async () => {
+    try {
+      await db.create(User, Post)
+      await db.insert(User).values({name: 'Bob'})
+      const id = (await db.select(User.id).from(User).get())!
+      await db.insert(Post).values({userId: id, title: 'Post 1'})
+      const users = await db
+        .select(User)
+        .from(User)
+        .leftJoin(Post, eq(Post.userId, User.id))
+      test.equal(users, [{id, name: 'Bob'}])
+      const totals = await db
+        .select({...User, total: count(Post.id)})
+        .from(User)
+        .leftJoin(Post, eq(Post.userId, User.id))
+        .groupBy(User.id, User.name)
+      test.equal(totals, [{id, name: 'Bob', total: 1}])
+    } finally {
+      await db.drop(User, Post)
+    }
+  })
+
+  test('delete through an alias', async () => {
+    try {
+      await db.create(User)
+      await db.insert(User).values([{name: 'Bob'}, {name: 'Mario'}])
+      const Author = alias(User, 'Author')
+      await db.delete(Author).where(eq(Author.name, 'Bob'))
+      test.equal(await db.select(User.name).from(User), ['Mario'])
+    } finally {
+      await db.drop(User)
     }
   })
 }
