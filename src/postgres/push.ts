@@ -55,7 +55,17 @@ export function* inspect(
   name: string,
   schema: string
 ): Gen<TableInfo | undefined> {
-  const relation = sql`(select c.oid from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relname = ${name} and n.nspname = ${schema} and c.relkind in ('r', 'p'))`
+  const found: {oid: unknown} | null = yield tx.get(sql`
+    select c.oid from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where c.relname = ${name} and n.nspname = ${schema}
+      and c.relkind in ('r', 'p')
+  `)
+  if (!found) return undefined
+  const relation = sql`${sql.inline(String(found.oid))}::oid`
+  // Objects outside the search path are printed with their schema
+  const local = (text: string) =>
+    text.replaceAll(`"${schema}".`, '').replaceAll(`${schema}.`, '')
   const rows: Array<ColumnRow> = yield tx.all(sql`
     select a.attname as name,
       pg_catalog.format_type(a.atttypid, a.atttypmod) as type,
@@ -67,13 +77,12 @@ export function* inspect(
     where a.attrelid = ${relation} and a.attnum > 0 and not a.attisdropped
     order by a.attnum
   `)
-  if (rows.length === 0) return undefined
   const columns: Record<string, ColumnInfo> = {}
   for (const row of rows)
     columns[row.name] = {
-      type: row.type,
+      type: local(row.type),
       notNull: Boolean(row.notNull),
-      default: row.default,
+      default: row.default && local(row.default),
       extra: row.identity ?? ''
     }
   const constraints: Record<string, string> = {}
