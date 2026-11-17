@@ -18,6 +18,6 @@ suite(import.meta, test => {
   })
 
   test('printf', () => {
-    test.equal(emit(printf('%d', 1)), 'printf("%d", 1)')
+    test.equal(emit(printf('%d', Node.id)), 'printf("%d", "Node"."id")')
   })
 })
