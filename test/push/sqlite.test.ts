@@ -759,6 +759,31 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('push refuses a table a temporary table shadows', async () => {
+    const Logs = table('logs', {id: integer()})
+    await fresh('logs')
+    await run('drop table if exists temp.logs')
+    await run('create table main.logs (id integer, notes text)')
+    await run('create temp table logs (id integer, notes text)')
+    await run(`insert into main.logs values (1, 'main')`)
+    await run(`insert into temp.logs values (2, 'temp')`)
+    try {
+      test.equal(
+        failure(() => push(db, Logs, {force: true})),
+        'Cannot push "logs", a temporary "logs" shadows it'
+      )
+      test.equal(all('select id, notes from main.logs'), [
+        {id: 1, notes: 'main'}
+      ])
+      test.equal(all('select id, notes from temp.logs'), [
+        {id: 2, notes: 'temp'}
+      ])
+    } finally {
+      await run('drop table if exists temp.logs')
+      await fresh('logs')
+    }
+  })
+
   test('rebuild refuses to change rowids to a new primary key', async () => {
     const Keyed = table('keyed', {id: integer().primaryKey(), v: text()})
     await fresh('keyed')

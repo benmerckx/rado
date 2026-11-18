@@ -44,6 +44,16 @@ function* plan(
   api: TableApi,
   options: PushOptions
 ): Gen<Array<Step>> {
+  // Unqualified names resolve to temp first, so a temporary object named
+  // like the table, its indexes or a view would be changed instead
+  const name = sql.inline(api.name)
+  const [shadowed]: Array<{name: string}> = yield tx.all(
+    sql`select name from temp.sqlite_master where name = ${name} or name in (select name from main.sqlite_master where tbl_name = ${name} or type = 'view')`
+  )
+  if (shadowed)
+    throw new Error(
+      `Cannot push "${api.name}", a temporary "${shadowed.name}" shadows it`
+    )
   const before = yield* inspect(tx, api.name)
   if (!before) return api.create().map(sql => ({sql}))
   const renamed = renameSteps(api, before, options).map(pair =>

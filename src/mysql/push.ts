@@ -17,7 +17,8 @@ import {
   parseType,
   ranks,
   renameSteps,
-  shadow
+  shadow,
+  within
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
@@ -25,7 +26,7 @@ import {inspect} from './inspect.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
-const {entries, fromEntries} = Object
+const {entries, fromEntries, values} = Object
 const capacity: Record<string, number> = {
   tinytext: 255,
   text: 65535,
@@ -82,6 +83,13 @@ function* plan(
   const schema = api.schemaName ?? home
   const before = yield* inspect(tx, api.name, schema)
   if (!before) return [{sql: create(api)}]
+  // The catalog shows the permanent table, statements reach a temporary one
+  // of the same name on this connection
+  const [shown]: Array<Record<string, string>> = yield tx.all(
+    sql`show create table ${api.identifier()}`
+  )
+  if (/^create temporary/i.test(values(shown)[1]))
+    throw new Error(`Cannot push "${api.name}", a temporary table shadows it`)
   const renamed = fromEntries(renameSteps(api, before, options))
   const live = Object.keys(renamed).length
     ? (yield* inspect(tx, api.name, schema, renamed))!
@@ -205,7 +213,9 @@ const runner: Runner = function* (db, apply, dry) {
   } catch {
     throw new Error('Cannot push inside a MySQL transaction')
   }
-  return yield* apply(db, !dry)
+  // A transaction holds one connection for every statement, DDL still
+  // commits as it goes
+  return yield* within(db, tx => apply(tx, !dry), false)
 }
 
 // Refused before anything is created, MySQL would silently build a different

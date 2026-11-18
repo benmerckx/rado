@@ -853,6 +853,32 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
+  test('push refuses a table a temporary table shadows', async () => {
+    const Logs = table('logs_t', {id: int()})
+    await run('drop temporary table if exists logs_t')
+    await run('drop table if exists logs_t')
+    await run('create table logs_t (id int, notes text)')
+    await run(`insert into logs_t values (1, 'main')`)
+    await run('create temporary table logs_t (id int, notes text)')
+    await run(`insert into logs_t values (2, 'temp')`)
+    try {
+      test.equal(
+        await fails(() => push(db, Logs, {force: true})),
+        'Cannot push "logs_t", a temporary table shadows it'
+      )
+      test.equal(await all('select id, notes from logs_t'), [
+        {id: 2, notes: 'temp'}
+      ])
+      await run('drop temporary table logs_t')
+      test.equal(await all('select id, notes from logs_t'), [
+        {id: 1, notes: 'main'}
+      ])
+    } finally {
+      await run('drop temporary table if exists logs_t')
+      await run('drop table if exists logs_t')
+    }
+  })
+
   test('push refuses text types that are too small', async () => {
     const T = table('narrow_t', {v: tinytext()})
     await run('drop table if exists narrow_t')

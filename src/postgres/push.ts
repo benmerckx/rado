@@ -1,6 +1,7 @@
 import type {Database} from '../core/Database.ts'
 import {getData} from '../core/Internal.ts'
 import {
+  type Changes,
   type Gen,
   type Push,
   type PushOptions,
@@ -12,6 +13,7 @@ import {
   differ,
   foreignKey,
   foreignKeyChanges,
+  foreignKeys,
   grows,
   parseType,
   ranks,
@@ -61,7 +63,20 @@ function* plan(
   const {found}: {found: unknown} = yield tx.get(
     sql`select to_regclass(format('%I.%I', ${schema}::text, ${api.name}::text)) as found`
   )
-  if (!found) return api.create().map(sql => ({sql}))
+  // A new table gets its foreign keys afterwards, with qualified references
+  // a temporary table can't shadow
+  if (!found)
+    return [
+      ...shadow(api, api.name, api.schemaName)
+        .create()
+        .map(sql => ({sql})),
+      ...foreignKeys(api).map(fk => ({
+        sql: sql`alter table ${target} add ${foreignKey({
+          ...fk,
+          schema: fk.schema ?? home
+        })}`
+      }))
+    ]
   // Keeps writers out until the transaction ends, so the data checks hold,
   // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
@@ -99,7 +114,7 @@ function* plan(
     return [
       ...enums,
       ...renamed,
-      ...(yield* changes(sp, api, schema, live, desired, home))
+      ...(yield* changes(sp, api, schema, target, live, desired, home, options))
     ]
   })
 }
@@ -108,12 +123,13 @@ function* changes(
   tx: Database,
   api: TableApi,
   schema: string,
+  // The resolved table, a temporary table of the same name can't shadow it
+  target: Sql,
   live: TableInfo,
   desired: TableInfo,
-  home: string
+  home: string,
+  options: PushOptions
 ): Gen<Array<Step>> {
-  // The resolved table, a temporary table of the same name can't shadow it
-  const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
   const data = columns(api)
   const bare = shadow(api, api.name, api.schemaName, true)
   const alter = (change: Sql, risk?: string): Step => ({
@@ -132,14 +148,20 @@ function* changes(
     )
   }
   const fks = foreignKeyChanges(api, live, home)
-  const {dropped, added, changed, risks, nulls} = yield* compare(
-    tx,
-    target,
-    api.name,
-    live,
-    desired,
-    widens
-  )
+  // Rows a policy hides would pass the data checks, so the checks run with
+  // row security off, which fails instead of hiding them
+  if (!options.force) yield tx.run(sql`set local row_security = off`)
+  let changes: Changes
+  try {
+    changes = yield* compare(tx, target, api.name, live, desired, widens)
+  } catch (error) {
+    if (!/row-level security/.test(String(error))) throw error
+    throw new Error(
+      `Push can't check the rows of "${api.name}" behind row level security, pass force`,
+      {cause: error}
+    )
+  }
+  const {dropped, added, changed, risks, nulls} = changes
   const defs = new Set(values(desired.constraints))
   const liveDefs = new Set(values(live.constraints))
   const indexes = api.indexes()
@@ -166,6 +188,9 @@ function* changes(
     const to = desired.columns[name]
     const id = sql.identifier(name)
     const column = sql`alter column ${id}`
+    const kind = sql.unsafe(to.extra === 'a' ? 'always' : 'by default')
+    // An identity goes first, it holds the column not null
+    if (from.extra && !to.extra) steps.push(alter(sql`${column} drop identity`))
     const retype = from.type !== to.type
     // Postgres casts the old default along with the column, so it goes first
     const cleared = retype && from.default !== null
@@ -176,11 +201,7 @@ function* changes(
         alter(sql`${column} type ${type} using ${id}::${type}`, risks[name])
       )
     }
-    if (
-      to.default !== null
-        ? cleared || from.default !== to.default
-        : !cleared && from.default !== null
-    )
+    if (to.default !== (cleared ? null : from.default))
       steps.push(
         alter(
           to.default === null
@@ -206,15 +227,12 @@ function* changes(
         )
       )
     }
-    if (from.extra !== to.extra) {
-      const kind = sql.unsafe(to.extra === 'a' ? 'always' : 'by default')
+    if (to.extra && from.extra !== to.extra) {
       steps.push(
         alter(
-          !to.extra
-            ? sql`${column} drop identity`
-            : from.extra
-              ? sql`${column} set generated ${kind}`
-              : sql`${column} add generated ${kind} as identity`
+          from.extra
+            ? sql`${column} set generated ${kind}`
+            : sql`${column} add generated ${kind} as identity`
         )
       )
       // A new identity starts at 1, it continues above the rows it has
@@ -233,7 +251,9 @@ function* changes(
       .map(([name, def]) =>
         alter(sql`add constraint ${sql.identifier(name)} ${sql.unsafe(def)}`)
       ),
-    ...fks.added.map(fk => alter(sql`add ${foreignKey(fk)}`)),
+    ...fks.added.map(fk =>
+      alter(sql`add ${foreignKey({...fk, schema: fk.schema ?? home})}`)
+    ),
     ...differ(desired.indexes, live.indexes).map(name => ({
       sql: getData(indexes[name]).toSql(api.name, name, false, schema)
     }))
