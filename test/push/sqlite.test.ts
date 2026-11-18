@@ -784,6 +784,54 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('a descending integer primary key is not the rowid', async () => {
+    const Desc = table('desc_k', {
+      id: integer().primaryKey(),
+      v: text().unique()
+    })
+    await fresh('desc_k')
+    await run('create table desc_k (id integer primary key desc, v text)')
+    await run(`insert into desc_k (rowid, id, v) values (42, 1, 'a')`)
+    try {
+      test.equal(
+        failure(() => push(db, Desc))?.startsWith(
+          'Push would change the rowids of "desc_k" to "id"'
+        ),
+        true
+      )
+      test.equal(all('select _rowid_ as rowid, id from desc_k'), [
+        {rowid: 42, id: 1}
+      ])
+    } finally {
+      await fresh('desc_k')
+    }
+  })
+
+  test('push compares temporary names without case', async () => {
+    const Mixed = table('mixed', {id: integer()})
+    await fresh('mixed')
+    await run('drop table if exists temp.MIXED')
+    await run('create table main.mixed (id integer, payload text)')
+    await run('create temp table MIXED (id integer, payload text)')
+    await run(`insert into main.mixed values (1, 'main')`)
+    await run(`insert into temp.MIXED values (2, 'temp')`)
+    try {
+      test.equal(
+        failure(() => push(db, Mixed, {force: true})),
+        'Cannot push "mixed", a temporary "MIXED" shadows it'
+      )
+      test.equal(all('select id, payload from main.mixed'), [
+        {id: 1, payload: 'main'}
+      ])
+      test.equal(all('select id, payload from temp.mixed'), [
+        {id: 2, payload: 'temp'}
+      ])
+    } finally {
+      await run('drop table if exists temp.MIXED')
+      await fresh('mixed')
+    }
+  })
+
   test('rebuild refuses to change rowids to a new primary key', async () => {
     const Keyed = table('keyed', {id: integer().primaryKey(), v: text()})
     await fresh('keyed')

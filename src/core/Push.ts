@@ -478,7 +478,7 @@ export function* compare(
       sql`${sql.identifier(source(name))} is ${sql.unsafe(nulls ? '' : 'not ')}null`
     )
   const loses = function* (name: string) {
-    return unchecked || ((yield* hasRows()) && (yield* has(name, false)))
+    return unchecked || (yield* has(name, false))
   }
   const note = unchecked ? ` (${unchecked})` : ''
   for (const name of added)
@@ -489,8 +489,8 @@ export function* compare(
       (yield* hasRows())
     )
       throw new Error(
-          `Cannot add not null column "${name}" without a default to "${table}"`
-        )
+        `Cannot add not null column "${name}" without a default to "${table}"`
+      )
   for (const name of dropped)
     if (yield* loses(name))
       risks[name] = `drop column "${name}"${note || ' with data'}`
@@ -504,12 +504,7 @@ export function* compare(
     )
       risks[name] =
         `change column "${name}" from ${from.type} to ${to.type}${note}`
-    if (
-      to.notNull &&
-      !from.notNull &&
-      (yield* hasRows()) &&
-      (yield* has(name, true))
-    )
+    if (to.notNull && !from.notNull && (yield* has(name, true)))
       nulls[name] = `make column "${name}" not null over null values`
   }
   return {hasRows, dropped, added, changed, risks, nulls}

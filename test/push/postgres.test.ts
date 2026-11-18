@@ -1105,6 +1105,32 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
+  test('push indexes a new table, not a temporary one', async () => {
+    const Users = table('dup_users', {email: text()}, t => ({
+      dup_users_email: uniqueIndex().on(t.email)
+    }))
+    await run('drop table if exists pg_temp.dup_users')
+    await run('drop table if exists public.dup_users')
+    await run('create temporary table dup_users (email text)')
+    try {
+      await push(db, Users)
+      await run(`insert into public.dup_users values ('a')`)
+      const error = await Promise.resolve()
+        .then(() => run(`insert into public.dup_users values ('a')`))
+        .then(
+          () => '',
+          error => error.message
+        )
+      test.equal(error.includes('duplicate key'), true)
+      test.equal(await all('select email from public.dup_users'), [
+        {email: 'a'}
+      ])
+    } finally {
+      await run('drop table if exists pg_temp.dup_users')
+      await run('drop table if exists public.dup_users')
+    }
+  })
+
   test('push leaves an existing rado_push schema alone', async () => {
     const T = table('fk_child', {parent: integer(), extra: text()})
     await reset()

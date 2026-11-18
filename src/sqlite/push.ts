@@ -48,7 +48,7 @@ function* plan(
   // like the table, its indexes or a view would be changed instead
   const name = sql.inline(api.name)
   const [shadowed]: Array<{name: string}> = yield tx.all(
-    sql`select name from temp.sqlite_master where name = ${name} or name in (select name from main.sqlite_master where tbl_name = ${name} or type = 'view')`
+    sql`select name from temp.sqlite_master where name = ${name} collate nocase or name collate nocase in (select name from main.sqlite_master where tbl_name = ${name} collate nocase or type = 'view')`
   )
   if (shadowed)
     throw new Error(
@@ -96,8 +96,7 @@ function* changes(
     const column = desired.columns[name]
     return (
       !(column.notNull && column.default === null) &&
-      !(rows && column.default && !constant.test(column.default)) &&
-      !fks.added.some(fk => fk.columns.includes(name) && column.default)
+      !(rows && column.default && !constant.test(column.default))
     )
   }
   if (
@@ -165,8 +164,6 @@ function* recreate(
         )
       : null
   const copied = keys(desired.columns).filter(name => live.columns[name])
-  if (!rowid && copied.length === 0)
-    throw new Error(`Cannot rebuild "${api.name}" without a column to copy`)
   // Rowids are copied so they keep their values, through a name no column
   // shadows on either side, unless a copied column becomes the rowid
   const free = (info: TableInfo) =>

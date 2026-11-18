@@ -129,10 +129,13 @@ export function* inspect(
     sql`select wr from pragma_table_list where schema = 'main' and name = ${sql.inline(name)}`
   )
   // The column that is the rowid, an empty string if it is hidden, false
-  // for a table without rowid
+  // for a table without rowid. A primary key with an index of its own, as
+  // integer primary key desc has, isn't the rowid
   const rowid = wr
     ? false
-    : primary.length === 1 && columns[primary[0]].type === 'integer'
+    : primary.length === 1 &&
+        columns[primary[0]].type === 'integer' &&
+        !list.some(index => index.origin === 'pk')
       ? primary[0]
       : ''
   return {

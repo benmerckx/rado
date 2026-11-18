@@ -67,7 +67,7 @@ function* plan(
   // a temporary table can't shadow
   if (!found)
     return [
-      ...shadow(api, api.name, api.schemaName)
+      ...shadow(api, api.name, schema)
         .create()
         .map(sql => ({sql})),
       ...foreignKeys(api).map(fk => ({
