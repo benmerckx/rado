@@ -6,12 +6,20 @@ const {values} = Object
 
 export const prefix = '__rado_'
 
+// Lowercases and strips quotes outside string literals, which stay intact
 function normalize(text: string): string {
   return text
-    .toLowerCase()
-    .replace(/["`[\]]/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/ ?([(),=<>]) ?/g, '$1')
+    .split(/('(?:[^']|'')*')/)
+    .map((part, i) =>
+      i % 2
+        ? part
+        : part
+            .toLowerCase()
+            .replace(/["`[\]]/g, '')
+            .replace(/\s+/g, ' ')
+            .replace(/ ?([(),=<>]) ?/g, '$1')
+    )
+    .join('')
 }
 
 interface PragmaColumn {
@@ -55,7 +63,8 @@ export function schema(tx: Database, where: Sql): unknown {
 
 export function* inspect(
   tx: Database,
-  name: string
+  name: string,
+  copy = false
 ): Gen<TableInfo | undefined> {
   const rows: Array<PragmaColumn> = yield pragma(tx, 'pragma_table_info', name)
   if (rows.length === 0) return undefined
@@ -94,7 +103,7 @@ export function* inspect(
       constraints[index.name] = `unique (${info.map(column => column.name)})`
     } else if (index.origin === 'c') {
       const text = normalize(master.find(row => row.name === index.name)!.sql!)
-      indexes[index.name.replace(prefix, '')] =
+      indexes[copy ? index.name.slice(prefix.length) : index.name] =
         (index.unique ? 'unique ' : '') + text.slice(text.indexOf('('))
     }
   }

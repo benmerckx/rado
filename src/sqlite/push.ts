@@ -14,7 +14,7 @@ import {
   foreignKeyChanges,
   renameSteps,
   scratch,
-  transaction
+  within
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
@@ -24,6 +24,18 @@ export type {PushInput, PushOptions} from '../core/Push.ts'
 
 const {entries, keys, values} = Object
 const constant = /^(null|true|false|[-+\d.e]+|x?'([^']|'')*')$/i
+
+// https://www.sqlite.org/datatype3.html#determination_of_column_affinity
+function affinity(type: string): string {
+  if (type.includes('int')) return 'integer'
+  if (/char|clob|text/.test(type)) return 'text'
+  if (!type || type.includes('blob')) return 'blob'
+  if (/real|floa|doub/.test(type)) return 'real'
+  return 'numeric'
+}
+
+// Values are copied as they are, so only a change of affinity can alter them
+const widens = (from: string, to: string) => affinity(from) === affinity(to)
 
 function* plan(
   tx: Database,
@@ -41,7 +53,7 @@ function* plan(
     yield sp.run(api.createTable(copy))
     for (const [name, index] of entries(api.indexes()))
       yield sp.run(getData(index).toSql(copy, prefix + name, false))
-    const desired = (yield* inspect(sp, copy))!
+    const desired = (yield* inspect(sp, copy, true))!
     return [...renamed, ...(yield* changes(sp, api, live, desired))]
   })
 }
@@ -60,7 +72,8 @@ function* changes(
     target,
     api.name,
     live,
-    desired
+    desired,
+    widens
   )
   const sorted = (info: TableInfo) => values(info.constraints).toSorted().join()
   // What alter table add column accepts
@@ -92,14 +105,15 @@ function* changes(
     ...differ(live.indexes, desired.indexes).map(name => ({
       sql: sql`drop index ${sql.identifier(name)}`
     })),
-    ...dropped.map(name => ({
-      sql: sql`alter table ${target} drop column ${sql.identifier(name)}`,
-      risk: risks[name]
-    })),
+    // Added first, a table can't lose its last column
     ...added.map(name => ({
       sql: sql`alter table ${target} add column ${api.columnDefinition(
         data[name].key
       )}`
+    })),
+    ...dropped.map(name => ({
+      sql: sql`alter table ${target} drop column ${sql.identifier(name)}`,
+      risk: risks[name]
     })),
     ...differ(desired.indexes, live.indexes).map(name => ({
       sql: getData(indexes[name]).toSql(api.name, name, false)
@@ -116,43 +130,63 @@ function* recreate(
   risk?: string
 ): Gen<Array<Step>> {
   const target = api.identifier()
+  const name = sql.inline(api.name)
   const temp = sql.identifier(prefix + api.name)
   const data = columns(api)
-  // Triggers go with the table, views are recreated since they may use it
+  const [table]: Array<SchemaRow> = yield schema(
+    tx,
+    sql`type = 'table' and name = ${name}`
+  )
+  const rowid = !/without\s+rowid/i.test(table.sql!)
+  // Dropping the table drops its triggers, views are dropped as well since
+  // they may use it, and with them their instead of triggers
   const kept: Array<SchemaRow> = yield schema(
     tx,
-    sql`type = 'view' or type = 'trigger' and tbl_name = ${sql.inline(api.name)}`
+    sql`type = 'view' or type = 'trigger' and (tbl_name = ${name} or tbl_name in (select name from sqlite_master where type = 'view'))`
   )
-  const views = kept.filter(row => row.type === 'view')
+  const autoIncrement = (info: TableInfo) =>
+    values(info.columns).some(column => column.extra)
+  const sequence: {seq: number} | null =
+    autoIncrement(live) && autoIncrement(desired)
+      ? yield tx.get(sql`select seq from sqlite_sequence where name = ${name}`)
+      : null
   const copied = keys(desired.columns).filter(name => live.columns[name])
-  const selection = copied.map(name => {
-    const from = live.columns[name]
+  if (!rowid && copied.length === 0)
+    throw new Error(`Cannot rebuild "${api.name}" without a column to copy`)
+  // Rowids are copied so they keep their values
+  const names = [...(rowid ? ['rowid'] : []), ...copied]
+  const selection = names.map(name => {
     const to = desired.columns[name]
-    let value: Sql = sql.identifier(name)
-    if (from.type !== to.type && to.type)
-      value = sql`cast(${value} as ${sql.unsafe(to.type)})`
-    const fallback = data[name].defaultValue
-    if (to.notNull && !from.notNull && fallback)
-      value = sql`coalesce(${value}, ${fallback})`.inlineValues()
-    return value
+    const fallback = data[name]?.defaultValue
+    const value = sql.identifier(name)
+    return to?.notNull && !live.columns[name].notNull && fallback
+      ? sql`coalesce(${value}, ${fallback})`.inlineValues()
+      : value
   })
-  const list = sql.join(copied.map(sql.identifier), sql`, `)
   return [
-    ...views.map(view => ({sql: sql`drop view ${sql.identifier(view.name)}`})),
+    ...kept
+      .filter(row => row.type === 'view')
+      .map(view => ({sql: sql`drop view ${sql.identifier(view.name)}`})),
     {sql: api.createTable(prefix + api.name)},
-    ...(copied.length > 0
-      ? [
-          {
-            sql: sql`insert into ${temp} (${list}) select ${sql.join(
-              selection,
-              sql`, `
-            )} from ${target}`
-          }
-        ]
-      : []),
+    {
+      sql: sql`insert into ${temp} (${sql.join(
+        names.map(sql.identifier),
+        sql`, `
+      )}) select ${sql.join(selection, sql`, `)} from ${target}`
+    },
     // The old table goes with any data the copy leaves out
     {sql: sql`drop table ${target}`, risk, rebuild: true},
     {sql: sql`alter table ${temp} rename to ${sql.identifier(api.name)}`},
+    ...(sequence
+      ? [
+          {sql: sql`delete from sqlite_sequence where name = ${name}`},
+          {
+            sql: sql`insert into sqlite_sequence (name, seq) values (${name}, ${sql.inline(
+              sequence.seq
+            )})`
+          }
+        ]
+      : []),
     ...api.createIndexes().map(sql => ({sql})),
     ...kept.map(row => ({sql: sql.unsafe(row.sql!)}))
   ]
@@ -164,26 +198,33 @@ function* enforced(db: Database): Gen<boolean> {
 }
 
 // The foreign_keys pragma is a no-op inside a transaction, so it is turned
-// off around it and the keys are checked before commit
-const runner: Runner = function* (db, apply) {
-  if (!(yield* enforced(db))) return yield transaction(db, apply)
-  yield db.run(sql`pragma foreign_keys = off`)
+// off around it and the keys are checked before commit. An immediate
+// transaction keeps writers out between the data checks and the changes.
+const runner: Runner = function* (db, apply, dry) {
+  const on = yield* enforced(db)
+  if (on) yield db.run(sql`pragma foreign_keys = off`)
   try {
-    yield transaction(db, function* (tx) {
-      const locked = yield* enforced(tx)
-      yield* apply(tx, steps => {
-        if (locked && steps.some(step => step.rebuild))
-          throw new Error('Cannot rebuild with foreign keys enforced')
-      })
-      const violations: Array<unknown> = yield tx.all(
-        sql`pragma foreign_key_check`
-      )
-      if (violations.length > 0)
-        throw new Error('Push would violate foreign key constraints')
-    })
+    return yield* within(
+      db,
+      function* (tx) {
+        const locked = on && (yield* enforced(tx))
+        const result = yield* apply(tx, true, steps => {
+          if (locked && steps.some(step => step.rebuild))
+            throw new Error('Cannot rebuild with foreign keys enforced')
+        })
+        const violations: Array<unknown> = on
+          ? yield tx.all(sql`pragma foreign_key_check`)
+          : []
+        if (violations.length > 0)
+          throw new Error('Push would violate foreign key constraints')
+        return result
+      },
+      dry,
+      {behavior: 'immediate'}
+    )
   } finally {
-    yield db.run(sql`pragma foreign_keys = on`)
+    if (on) yield db.run(sql`pragma foreign_keys = on`)
   }
 }
 
-export const push: Push = createPush('sqlite', plan, runner)
+export const push: Push<'sqlite'> = createPush('sqlite', plan, runner)

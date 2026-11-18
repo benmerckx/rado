@@ -12,6 +12,9 @@ import {
   differ,
   foreignKey,
   foreignKeyChanges,
+  grows,
+  parseType,
+  ranks,
   renameSteps,
   scratch,
   shadow
@@ -23,19 +26,31 @@ import {inspect} from './inspect.ts'
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
 const {entries, values} = Object
-const scratchSchema = 'rado_push'
+
+function widens(from: string, to: string): boolean {
+  const a = parseType(from).base
+  return (
+    grows(from, to) ||
+    ranks('smallint integer bigint', a, parseType(to).base) ||
+    (/^(character|text)/.test(a) &&
+      (to === 'text' || to === 'character varying'))
+  )
+}
 
 function* plan(
   tx: Database,
   api: TableApi,
   options: PushOptions
 ): Gen<Array<Step>> {
-  const schema: string =
-    api.schemaName ??
-    ((yield tx.get(sql`select current_schema() as name`)) as {name: string})
-      .name
+  const {home}: {home: string} = yield tx.get(
+    sql`select current_schema() as home`
+  )
+  const schema = api.schemaName ?? home
+  const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
   const before = yield* inspect(tx, api.name, schema)
   if (!before) return api.create().map(sql => ({sql}))
+  // Keeps writers out until the transaction ends, so the data checks hold
+  yield tx.run(sql`lock table ${target} in share row exclusive mode`)
   const renamed = renameSteps(api, before, options).map(([, , step]) => step)
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
@@ -53,6 +68,8 @@ function* plan(
       const {path}: {path: string} = yield inner.get(
         sql`select current_setting('search_path') as path`
       )
+      // A fresh name, so an existing schema is never touched
+      const scratchSchema = `rado_push_${Math.random().toString(36).slice(2)}`
       const scratch = sql.identifier(scratchSchema)
       yield inner.run(sql`create schema ${scratch}`)
       yield inner.run(
@@ -62,11 +79,10 @@ function* plan(
         yield inner.run(query)
       return (yield* inspect(inner, api.name, scratchSchema))!
     })
-    const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
     return [
       ...enums,
       ...renamed,
-      ...(yield* changes(sp, api, target, live, desired))
+      ...(yield* changes(sp, api, target, live, desired, home))
     ]
   })
 }
@@ -76,7 +92,8 @@ function* changes(
   api: TableApi,
   qualified: Sql,
   live: TableInfo,
-  desired: TableInfo
+  desired: TableInfo,
+  home: string
 ): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -85,13 +102,14 @@ function* changes(
     sql: sql`alter table ${target} ${change}`,
     risk
   })
-  const fks = foreignKeyChanges(api, live)
+  const fks = foreignKeyChanges(api, live, home)
   const {dropped, added, changed, risks, nulls} = yield* compare(
     tx,
     qualified,
     api.name,
     live,
-    desired
+    desired,
+    widens
   )
   const defs = new Set(values(desired.constraints))
   const liveDefs = new Set(values(live.constraints))
@@ -173,9 +191,9 @@ function* changes(
       ),
     ...fks.added.map(fk => alter(sql`add ${foreignKey(fk)}`)),
     ...differ(desired.indexes, live.indexes).map(name => ({
-      sql: getData(indexes[name]).toSql(api.name, name, false)
+      sql: getData(indexes[name]).toSql(api.name, name, false, api.schemaName)
     }))
   ]
 }
 
-export const push: Push = createPush('postgres', plan)
+export const push: Push<'postgres'> = createPush('postgres', plan)

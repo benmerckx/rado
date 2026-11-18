@@ -1,4 +1,5 @@
 import type {DefineTest} from '@alinea/suite'
+import type {Async} from '#/core/MetaData.ts'
 import {
   type Database,
   type Table,
@@ -70,6 +71,29 @@ const TableC = table(
     }
   }
 )
+
+// A postgres database can't be passed to the sqlite entry
+export function typed(db: Database<Async<'postgres'>>): void {
+  // @ts-expect-error
+  void sqlitePush(db)
+  void postgresPush(db)
+  void push(db)
+}
+
+const RenamedParent = table('push_parent', {pid: integer().primaryKey()})
+const RenamedChild = table('push_child', {
+  id: integer().primaryKey(),
+  parent: integer().references(RenamedParent.pid)
+})
+
+const CycleA = table('push_cycle_a', {
+  id: integer().primaryKey(),
+  b: integer().references((): any => CycleB.id)
+})
+const CycleB = table('push_cycle_b', {
+  id: integer().primaryKey(),
+  a: integer().references(CycleA.id)
+})
 
 const UserA = table('push_user', {
   id: id(),
@@ -357,14 +381,16 @@ export function testPush(db: Database, test: DefineTest) {
       await db.insert(Narrow).values({v: 'abc'})
       await push(db, Wide)
       test.equal(await push.plan(db, Wide), [])
-      await rejects(
-        test,
-        async () => {
-          await push(db, Narrow)
-        },
-        'Push would change column "v"'
-      )
-      await push(db, Narrow, {force: true})
+      // Sqlite doesn't enforce lengths, so nothing can be lost there
+      if (db.dialect.runtime !== 'sqlite')
+        await rejects(
+          test,
+          async () => {
+            await push(db, Narrow)
+          },
+          'Push would change column "v"'
+        )
+      await push(db, Narrow, {force: db.dialect.runtime !== 'sqlite'})
       test.equal(await db.select(Narrow.v).from(Narrow), ['abc'])
     } finally {
       await clean(Wide)
@@ -463,10 +489,49 @@ export function testPush(db: Database, test: DefineTest) {
     await rejects(
       test,
       async () => {
-        await other(db, UserA)
+        await other(db as any, UserA)
       },
       `Expected a ${expected} database`
     )
+  })
+
+  test('push plans later tables against earlier changes', async () => {
+    if (db.dialect.runtime === 'mysql') return
+    const Parent = table('push_parent', {id: integer().primaryKey()})
+    const Child = table('push_child', {
+      id: integer().primaryKey(),
+      parent: integer().references(Parent.id)
+    })
+    await clean(RenamedChild, RenamedParent)
+    try {
+      await push(db, Parent, Child)
+      const rename = {rename: {'push_parent.id': 'pid'}}
+      // Renaming the column also renames the reference, so only the
+      // rename runs
+      const plan = await push.plan(db, RenamedParent, RenamedChild, rename)
+      test.equal(plan.length, 1)
+      await push(db, RenamedParent, RenamedChild, rename)
+      test.equal(await push.plan(db, RenamedParent, RenamedChild), [])
+      await db.insert(RenamedParent).values({pid: 1})
+      await db.insert(RenamedChild).values({id: 1, parent: 1})
+      test.equal(await db.select(RenamedChild.parent).from(RenamedChild), [1])
+    } finally {
+      await clean(RenamedChild, RenamedParent)
+    }
+  })
+
+  test('push rejects a foreign key cycle', async () => {
+    await clean(CycleA, CycleB)
+    await rejects(
+      test,
+      async () => {
+        await push(db, CycleA, CycleB)
+      },
+      'Foreign keys form a cycle between'
+    )
+    await rejects(test, async () => {
+      await db.select().from(CycleA)
+    })
   })
 
   test('push rejects temporary tables', async () => {

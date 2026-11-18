@@ -14,7 +14,7 @@ export interface Case {
 }
 
 export interface Dialect {
-  push: Push
+  push: Push<any>
   inspect(db: Database, table: Table): Gen<TableInfo | undefined>
   drop(name: string): string
 }

@@ -9,7 +9,7 @@ export type {PushInput, PushOptions} from './core/Push.ts'
 // For universal databases whose dialect is picked at runtime, this bundles
 // all three planners, a dialect entry such as rado/sqlite/push bundles one
 const pushes = {sqlite, mysql, postgres}
-const pick = (db: Database) => pushes[db.dialect.runtime]
+const pick = (db: Database) => pushes[db.dialect.runtime] as Push<any>
 
 export const push: Push = Object.assign(
   (db: Database, ...input: PushInput) => pick(db)(db, ...input),

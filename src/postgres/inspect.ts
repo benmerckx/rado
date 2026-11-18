@@ -1,5 +1,11 @@
 import type {Database} from '../core/Database.ts'
-import type {ColumnInfo, ForeignKeyInfo, Gen, TableInfo} from '../core/Push.ts'
+import {
+  type ColumnInfo,
+  type ForeignKeyInfo,
+  type Gen,
+  type TableInfo,
+  scratch
+} from '../core/Push.ts'
 import {sql} from '../core/Sql.ts'
 
 const {values} = Object
@@ -23,6 +29,7 @@ interface ColumnRow {
 interface ForeignKeyRow {
   name: string
   column: string
+  schema: string
   table: string
   reference: string
   onUpdate: string
@@ -32,7 +39,25 @@ interface ForeignKeyRow {
 type Named = Array<{name: string; def: string}>
 
 // Queries are kept compact, template whitespace survives minification
+// Read with the table's schema first in the search path, so names in types
+// and defaults print the same for the live table and its scratch copy
 export function* inspect(
+  tx: Database,
+  name: string,
+  schema: string
+): Gen<TableInfo | undefined> {
+  return yield* scratch(tx, function* (sp) {
+    const {path}: {path: string} = yield sp.get(
+      sql`select current_setting('search_path') as path`
+    )
+    yield sp.run(
+      sql`set local search_path to ${sql.identifier(schema)}, ${sql.unsafe(path)}`
+    )
+    return yield* read(sp, name, schema)
+  })
+}
+
+function* read(
   tx: Database,
   name: string,
   schema: string
@@ -42,9 +67,6 @@ pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relname =
 ${name} and n.nspname = ${schema} and c.relkind in ('r', 'p')`)
   if (!found) return undefined
   const oid = sql`${sql.inline(String(found.oid))}::oid`
-  // Objects outside the search path are printed with their schema
-  const local = (text: string) =>
-    text.replaceAll(`"${schema}".`, '').replaceAll(`${schema}.`, '')
   const rows: Array<ColumnRow> = yield tx.all(sql`select a.attname as name,
 format_type(a.atttypid, a.atttypmod) as type, a.attnotnull as "notNull",
 pg_get_expr(d.adbin, d.adrelid) as default, a.attidentity::text as identity
@@ -54,9 +76,9 @@ a.attisdropped order by a.attnum`)
   const columns: Record<string, ColumnInfo> = {}
   for (const row of rows)
     columns[row.name] = {
-      type: local(row.type),
+      type: row.type,
       notNull: row.notNull,
-      default: row.default && local(row.default),
+      default: row.default,
       extra: row.identity
     }
   const constraints: Record<string, string> = {}
@@ -74,9 +96,11 @@ pg_constraint where conindid = x.indexrelid and conrelid = ${oid})`)
       (def.startsWith('CREATE UNIQUE') ? 'unique ' : '') +
       def.slice(def.indexOf(' USING '))
   const fkRows: Array<ForeignKeyRow> = yield tx.all(sql`select conname as
-name, a.attname as column, r.relname as table, ra.attname as reference,
+name, a.attname as column, rn.nspname as schema, r.relname as table,
+ra.attname as reference,
 confupdtype::text as "onUpdate", confdeltype::text as "onDelete" from
-pg_constraint join pg_class r on r.oid = confrelid cross join lateral
+pg_constraint join pg_class r on r.oid = confrelid join pg_namespace rn on
+rn.oid = r.relnamespace cross join lateral
 unnest(conkey, confkey) with ordinality as k(num, ref, pos) join pg_attribute
 a on a.attrelid = conrelid and a.attnum = k.num join pg_attribute ra on
 ra.attrelid = confrelid and ra.attnum = k.ref where conrelid = ${oid} and
@@ -86,6 +110,7 @@ contype = 'f' order by conname, k.pos`)
     const fk = (fks[row.name] ??= {
       name: row.name,
       columns: [],
+      schema: row.schema,
       table: row.table,
       references: [],
       onDelete: actions[row.onDelete],

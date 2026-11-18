@@ -12,9 +12,11 @@ import {
   differ,
   foreignKey,
   foreignKeyChanges,
+  grows,
+  parseType,
+  ranks,
   renameSteps,
-  shadow,
-  transaction
+  shadow
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
@@ -22,7 +24,25 @@ import {inspect} from './inspect.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
-const {entries, fromEntries, values} = Object
+const {fromEntries} = Object
+const capacity: Record<string, number> = {
+  tinytext: 255,
+  text: 65535,
+  mediumtext: 16777215,
+  longtext: 4294967295
+}
+
+// Text capacity is in bytes, a character takes up to four
+function widens(from: string, to: string): boolean {
+  const a = parseType(from)
+  const b = parseType(to).base
+  return (
+    grows(from, to) ||
+    ranks('tinyint smallint mediumint int bigint', a.base, b) ||
+    ranks('tinytext text mediumtext longtext', a.base, b) ||
+    (/char/.test(a.base) && a.args[0] * 4 <= capacity[b])
+  )
+}
 
 function* plan(
   tx: Database,
@@ -31,45 +51,44 @@ function* plan(
 ): Gen<Array<Step>> {
   const before = yield* inspect(tx, api.name)
   if (!before) return api.create().map(sql => ({sql}))
-  const renamed = renameSteps(api, before, options)
-  const live = renamed.length
-    ? (yield* inspect(
-        tx,
-        api.name,
-        fromEntries(renamed.map(([from, to]) => [from, to]))
-      ))!
+  const renamed = fromEntries(
+    renameSteps(api, before, options).map(([from, to]) => [from, to])
+  )
+  const live = Object.keys(renamed).length
+    ? (yield* inspect(tx, api.name, renamed))!
     : before
-  const copy = shadow(api, `__rado_${api.name}`)
-  const drop = sql`drop table if exists ${copy.identifier()}`
+  // DDL is not transactional: the desired table is created under a fresh
+  // name next to the real one and only what was created is dropped
+  const copy = shadow(api, `__rado_${Math.random().toString(36).slice(2, 12)}`)
+  let created = false
   let desired: TableInfo
-  yield tx.run(drop)
   try {
-    for (const query of copy.create()) yield tx.run(query)
+    for (const query of copy.create()) {
+      yield tx.run(query)
+      created = true
+    }
     desired = (yield* inspect(tx, copy.name))!
   } finally {
-    yield tx.run(drop)
+    if (created) yield tx.run(sql`drop table ${copy.identifier()}`)
   }
-  const original = fromEntries(renamed.map(([from, to]) => [to, from]))
-  return [
-    ...renamed.map(([, , step]) => step),
-    ...(yield* changes(tx, api, live, desired, original))
-  ]
+  return yield* changes(tx, api, live, desired, renamed)
 }
 
+// All changes go into one alter table, which MySQL applies atomically
 function* changes(
   tx: Database,
   api: TableApi,
   live: TableInfo,
   desired: TableInfo,
-  original: Record<string, string>
+  renamed: Record<string, string>
 ): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
   const bare = shadow(api, api.name, undefined, true)
-  const alter = (change: Sql, risk?: string): Step => ({
-    sql: sql`alter table ${target} ${change}`,
-    risk
-  })
+  const original = fromEntries(
+    Object.entries(renamed).map(([from, to]) => [to, from])
+  )
+  const source = (name: string) => original[name] ?? name
   const fks = foreignKeyChanges(api, live)
   const kept = live.foreignKeys.filter(fk => !fks.dropped.includes(fk))
   // MySQL adds an index for each foreign key that lacks one
@@ -84,63 +103,75 @@ function* changes(
     api.name,
     live,
     desired,
-    name => original[name] ?? name
+    widens,
+    source
   )
   const primary = desired.constraints.primary
   const pkChanged = live.constraints.primary !== primary
-  const steps: Array<Step> = [
-    ...fks.dropped.map(fk =>
-      alter(sql`drop foreign key ${sql.identifier(fk.name!)}`)
-    ),
+  const definition = (name: string) => bare.columnDefinition(data[name].key)
+  const fills: Array<Step> = []
+  let risk: string | undefined
+  const clauses: Array<Sql> = [
+    ...fks.dropped.map(fk => sql`drop foreign key ${sql.identifier(fk.name!)}`),
     ...differ(live.indexes, desired.indexes)
       .filter(name => !implicit.has(name))
-      .map(name => alter(sql`drop index ${sql.identifier(name)}`)),
-    ...(pkChanged && live.constraints.primary
-      ? [alter(sql`drop primary key`)]
-      : []),
-    ...dropped.map(name =>
-      alter(sql`drop column ${sql.identifier(name)}`, risks[name])
-    ),
-    ...added.map(name =>
-      alter(sql`add column ${bare.columnDefinition(data[name].key)}`)
-    )
+      .map(name => sql`drop index ${sql.identifier(name)}`),
+    ...(pkChanged && live.constraints.primary ? [sql`drop primary key`] : []),
+    ...dropped.map(name => {
+      risk ??= risks[name]
+      return sql`drop column ${sql.identifier(name)}`
+    }),
+    ...added.map(name => sql`add column ${definition(name)}`)
   ]
-  for (const name of changed) {
+  for (const name of Object.keys(desired.columns)) {
+    const from = source(name)
+    const change = changed.includes(name)
+    if (!change && from === name) continue
+    if (!change) {
+      clauses.push(
+        sql`rename column ${sql.identifier(from)} to ${sql.identifier(name)}`
+      )
+      continue
+    }
     const fallback = data[name].defaultValue
-    const column = sql.identifier(name)
     if (nulls[name] && fallback)
-      steps.push({
-        sql: sql`update ${target} set ${column} = (${fallback}) where ${column} is null`.inlineValues(),
+      fills.push({
+        sql: sql`update ${target} set ${sql.identifier(from)} = (${fallback}) where ${sql.identifier(from)} is null`.inlineValues(),
         risk: nulls[name]
       })
-    // Modify takes the whole definition, it resets what it leaves out
-    steps.push(
-      alter(
-        sql`modify column ${bare.columnDefinition(data[name].key)}`,
-        risks[name] ?? (fallback ? undefined : nulls[name])
-      )
-    )
+    risk ??= risks[name] ?? (fallback ? undefined : nulls[name])
+    // The whole definition is given, change resets what it leaves out
+    clauses.push(sql`change column ${sql.identifier(from)} ${definition(name)}`)
   }
-  return [
-    ...steps,
-    ...(pkChanged && primary ? [alter(sql.unsafe(`add ${primary}`))] : []),
+  clauses.push(
+    ...(pkChanged && primary ? [sql.unsafe(`add ${primary}`)] : []),
     ...differ(desired.indexes, live.indexes).map(name => {
       const def = desired.indexes[name]
       const unique = def.startsWith('unique ')
-      return alter(
-        sql`add ${sql.unsafe(unique ? 'unique ' : '')}index ${sql.identifier(
-          name
-        )} ${sql.unsafe(unique ? def.slice(7) : def)}`
-      )
+      return sql`add ${sql.unsafe(unique ? 'unique ' : '')}index ${sql.identifier(
+        name
+      )} ${sql.unsafe(unique ? def.slice(7) : def)}`
     }),
-    ...fks.added.map(fk => alter(sql`add ${foreignKey(fk)}`))
+    ...fks.added.map(fk => sql`add ${foreignKey(fk)}`)
+  )
+  if (clauses.length === 0) return fills
+  return [
+    ...fills,
+    {sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`, risk}
   ]
 }
 
-// MySQL commits implicitly after each DDL statement, so each table gets a
-// transaction of its own
-const runner: Runner = function* (db, apply) {
-  yield* apply(db)
+// DDL commits implicitly, which would commit a caller's transaction and a
+// dry run can't be rolled back, so it plans each table against the database
+// as it is
+const runner: Runner = function* (db, apply, dry) {
+  try {
+    // Fails while a transaction is open, else it only sets the default
+    yield db.run(sql`set transaction read write`)
+  } catch {
+    throw new Error('Cannot push inside a MySQL transaction')
+  }
+  return yield* apply(db, !dry)
 }
 
-export const push: Push = createPush('mysql', plan, runner)
+export const push: Push<'mysql'> = createPush('mysql', plan, runner)

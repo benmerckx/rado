@@ -2,10 +2,12 @@ import {suite} from '@alinea/suite'
 import {Column, column} from '#/core/Column.ts'
 import {
   type Database,
+  type SyncDatabase,
   foreignKey,
   getTable,
   index,
   primaryKey,
+  type Sql,
   sql,
   table,
   uniqueIndex
@@ -417,7 +419,15 @@ const cases: Record<string, Case> = {
   }
 }
 
-function testRebuild(db: Database) {
+function failure(run: () => unknown): string | undefined {
+  try {
+    run()
+  } catch (error) {
+    return (error as Error).message
+  }
+}
+
+function testRebuild(db: SyncDatabase<'sqlite'>) {
   const run = (query: string) => db.run(sql.unsafe(query))
   const Parent = table('parent', {
     id: integer().primaryKey(),
@@ -471,7 +481,11 @@ function testRebuild(db: Database) {
           error => error.message
         )
       test.equal(error, 'Push would violate foreign key constraints')
-      test.equal((await push.plan(db, Child)).length > 0, true)
+      test.equal(
+        failure(() => push.plan(db, Child)),
+        'Push would violate foreign key constraints'
+      )
+      test.equal(await db.$count(sql`child`), 1)
       test.equal(
         {...(await db.get(sql<object>`pragma foreign_keys`))},
         {foreign_keys: 1}
@@ -536,6 +550,133 @@ function testRebuild(db: Database) {
       test.equal(await push.plan(db, Parent, Child), [])
     } finally {
       await reset()
+    }
+  })
+
+  const fresh = async (...names: Array<string>) => {
+    await run('drop view if exists v')
+    for (const name of names) await run(`drop table if exists ${name}`)
+  }
+  const all = (query: string) =>
+    db.all(sql.unsafe(query) as Sql<object>).map(row => ({...row}))
+
+  test('rebuild without a common column keeps every row', async () => {
+    // The new primary key forces a rebuild that has no column to copy
+    const R = table('r', {b: integer().primaryKey()})
+    await fresh('r')
+    await run('create table r (a text)')
+    await run('insert into r values (null), (null)')
+    try {
+      await push(db, R)
+      test.equal(all('select b from r'), [{b: 1}, {b: 2}])
+      await fresh('r')
+      await run('create table r (a text)')
+      await run(`insert into r values ('kept')`)
+      test.equal(
+        failure(() => push(db, R))?.startsWith(
+          'Push would drop column "a" with data'
+        ),
+        true
+      )
+      test.equal(all('select a from r'), [{a: 'kept'}])
+    } finally {
+      await fresh('r')
+    }
+  })
+
+  test('rebuild keeps triggers on views', async () => {
+    await fresh('log', 'parent')
+    await run('create table log (message text)')
+    await run('create table parent (id integer primary key, code text)')
+    await run('create view v as select id, code from parent')
+    await run(
+      `create trigger v_insert instead of insert on v begin insert into log values ('via view'); end`
+    )
+    try {
+      await push(db, Parent)
+      await run('insert into v values (1, 2)')
+      test.equal(all('select message from log'), [{message: 'via view'}])
+    } finally {
+      await fresh('log', 'parent')
+    }
+  })
+
+  test('rebuild keeps rowids and the autoincrement counter', async () => {
+    const Counter = table('counter', {
+      id: integer().primaryKey({autoIncrement: true}),
+      v: integer()
+    })
+    const Plain = table('plain', {v: integer()})
+    await fresh('counter', 'plain')
+    await run(
+      'create table counter (id integer primary key autoincrement, v text)'
+    )
+    await run('insert into counter values (1, 1), (100, 2)')
+    await run('delete from counter where id = 100')
+    await run('create table plain (v text, w text)')
+    await run('insert into plain (rowid, v) values (5, 1), (9, 2)')
+    try {
+      await push(db, Counter, Plain, {force: true})
+      await db.insert(Counter).values({v: 3})
+      test.equal(all('select id from counter'), [{id: 1}, {id: 101}])
+      test.equal(all('select rowid as id, v from plain'), [
+        {id: 5, v: 1},
+        {id: 9, v: 2}
+      ])
+    } finally {
+      await fresh('counter', 'plain')
+    }
+  })
+
+  test('rebuild copies values as they are', async () => {
+    const Wide = table('wide', {v: custom('bigint'), w: text().notNull()})
+    await fresh('wide')
+    await run('create table wide (v integer, w text)')
+    await run(`insert into wide values ('abc', 'x')`)
+    try {
+      await push(db, Wide)
+      test.equal(all('select v, typeof(v) as type from wide'), [
+        {v: 'abc', type: 'text'}
+      ])
+    } finally {
+      await fresh('wide')
+    }
+  })
+
+  test('partial index keeps the case of its literals', async () => {
+    const Members = table('members', {code: integer(), s: text()}, t => ({
+      members_vip: uniqueIndex()
+        .on(t.code)
+        .where(sql`${t.s} = 'vip'`)
+    }))
+    await fresh('members')
+    await run('create table members (code integer, s text)')
+    await run(
+      `create unique index members_vip on members (code) where s = 'VIP'`
+    )
+    try {
+      await push(db, Members)
+      test.equal(push.plan(db, Members), [])
+      await run(`insert into members values (1, 'vip')`)
+      test.throws(() => run(`insert into members values (1, 'vip')`))
+    } finally {
+      await fresh('members')
+    }
+  })
+
+  test('live index names keep the scratch prefix', async () => {
+    const Prefixed = table('prefixed', {v: integer()}, t => ({
+      __rado_v: index().on(t.v)
+    }))
+    await fresh('prefixed')
+    try {
+      await push(db, Prefixed)
+      test.equal(push.plan(db, Prefixed), [])
+      test.equal(all(`select name from pragma_index_list('prefixed')`), [
+        {name: '__rado_v'}
+      ])
+    } finally {
+      await fresh('prefixed')
     }
   })
 }

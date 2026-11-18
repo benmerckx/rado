@@ -1,6 +1,13 @@
 import {suite} from '@alinea/suite'
 import {Column, column} from '#/core/Column.ts'
-import {type Index, type Table, getTable, sql} from '#/index.ts'
+import {
+  type AsyncDatabase,
+  type Index,
+  type Sql,
+  type Table,
+  getTable,
+  sql
+} from '#/index.ts'
 import {
   bigint,
   boolean,
@@ -14,6 +21,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  tinytext,
   unique,
   uniqueIndex,
   varchar
@@ -635,6 +643,102 @@ const cases: Record<string, Case> = {
   }
 }
 
+function testRegressions(db: AsyncDatabase<'mysql'>) {
+  const run = (query: string) => db.run(sql.unsafe(query))
+  const all = (query: string) => db.all(sql.unsafe(query) as Sql<object>)
+  const fails = (run: () => unknown) =>
+    Promise.resolve()
+      .then(run)
+      .then(
+        () => '',
+        error => String(error.message)
+      )
+
+  test('plan leaves a table named like the old scratch table', async () => {
+    const Victim = table('victim', {id: int(), extra: int()})
+    await run('drop table if exists victim, __rado_victim')
+    await run('create table victim (id int)')
+    await run('create table __rado_victim (sentinel int)')
+    await run('insert into __rado_victim values (42)')
+    try {
+      test.equal(await push.plan(db, Victim), [
+        'alter table `victim` add column `extra` integer'
+      ])
+      test.equal(await all('select sentinel from __rado_victim'), [
+        {sentinel: 42}
+      ])
+    } finally {
+      await run('drop table if exists victim, __rado_victim')
+    }
+  })
+
+  test('a failing push leaves the table as it was', async () => {
+    const T = table('atomic_t', {a: int(), b: int()}, t => ({
+      i: uniqueIndex().on(t.a)
+    }))
+    await run('drop table if exists atomic_t')
+    await run('create table atomic_t (a int, key i (a))')
+    await run('insert into atomic_t values (1), (1)')
+    try {
+      test.equal((await fails(() => push(db, T))).includes('Duplicate'), true)
+      test.equal(
+        await all(
+          `select index_name as name, non_unique as nonUnique from information_schema.statistics where table_schema = database() and table_name = 'atomic_t'`
+        ),
+        [{name: 'i', nonUnique: 1}]
+      )
+      test.equal(
+        await all(
+          `select column_name as name from information_schema.columns where table_schema = database() and table_name = 'atomic_t'`
+        ),
+        [{name: 'a'}]
+      )
+      test.equal(await all('select a from atomic_t'), [{a: 1}, {a: 1}])
+    } finally {
+      await run('drop table if exists atomic_t')
+    }
+  })
+
+  test('plan refuses inside a transaction', async () => {
+    const T = table('trx_t', {id: int(), extra: int()})
+    await run('drop table if exists trx_t')
+    await run('create table trx_t (id int)')
+    try {
+      const error = await fails(() =>
+        db.transaction(async tx => {
+          await tx.run(sql`insert into trx_t values (1)`)
+          const planned = await fails(() => push.plan(tx, T))
+          throw new Error(planned)
+        })
+      )
+      test.equal(error, 'Cannot push inside a MySQL transaction')
+      test.equal(await all('select id from trx_t'), [])
+    } finally {
+      await run('drop table if exists trx_t')
+    }
+  })
+
+  test('push refuses text types that are too small', async () => {
+    const T = table('narrow_t', {v: tinytext()})
+    await run('drop table if exists narrow_t')
+    await run('create table narrow_t (v varchar(1000))')
+    await run(`insert into narrow_t values (repeat('x', 300))`)
+    try {
+      test.equal(
+        (await fails(() => push(db, T))).startsWith(
+          'Push would change column "v" from varchar(1000) to tinytext'
+        ),
+        true
+      )
+      test.equal(await all('select length(v) as size from narrow_t'), [
+        {size: 300}
+      ])
+    } finally {
+      await run('drop table if exists narrow_t')
+    }
+  })
+}
+
 if (!isDeno && testMysql) {
   const {mysql2: connect} = await import('#/driver.ts')
   const {default: mysql2} = await import('mysql2')
@@ -652,6 +756,7 @@ if (!isDeno && testMysql) {
     },
     cases
   )
+  testRegressions(db)
   test('close', async () => {
     await db.close()
   })

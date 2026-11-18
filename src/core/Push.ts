@@ -1,9 +1,9 @@
 import {run} from '../universal/transactions.ts'
 import type {ColumnData, ReferenceOptions} from './Column.ts'
-import {type Database, Rollback} from './Database.ts'
+import {type Database, Rollback, type TransactionOptions} from './Database.ts'
 import type {FieldData} from './expr/Field.ts'
 import {getData, getTable, hasTable, internalData} from './Internal.ts'
-import type {Deliver, QueryMeta, Runtime} from './MetaData.ts'
+import type {Deliver, QueryDialect, QueryMeta, Runtime} from './MetaData.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table, TableApi, TableConfigResult} from './Table.ts'
 
@@ -16,12 +16,13 @@ export interface PushOptions {
 
 export type PushInput = Array<Table> | [...Array<Table>, PushOptions]
 
-export interface Push {
-  <Meta extends QueryMeta>(
+// A dialect entry only accepts a database of its dialect
+export interface Push<D extends QueryDialect = QueryDialect> {
+  <Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
     ...input: PushInput
   ): Deliver<Meta, void>
-  plan<Meta extends QueryMeta>(
+  plan<Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
     ...input: PushInput
   ): Deliver<Meta, Array<string>>
@@ -43,6 +44,7 @@ export interface ColumnInfo {
 export interface ForeignKeyInfo {
   name?: string
   columns: Array<string>
+  schema?: string
   table: string
   references: Array<string>
   onDelete: string
@@ -63,10 +65,16 @@ export interface Planner {
   (tx: Database, api: TableApi, options: PushOptions): Gen<Array<Step>>
 }
 
-type Apply = (tx: Database, check?: (steps: Array<Step>) => void) => Gen<void>
+// Plans each table and applies it when execute is set, so later tables are
+// planned against the result
+export type Apply = (
+  tx: Database,
+  execute: boolean,
+  check?: (steps: Array<Step>) => void
+) => Gen<Array<string>>
 
 export interface Runner {
-  (db: Database, apply: Apply): Gen<void>
+  (db: Database, apply: Apply, dry: boolean): Gen<Array<string>>
 }
 
 export function exec<T>(gen: Gen<T>): T | Promise<T> {
@@ -75,20 +83,26 @@ export function exec<T>(gen: Gen<T>): T | Promise<T> {
 
 export function transaction<T>(
   db: Database,
-  inner: (tx: Database) => Gen<T>
+  inner: (tx: Database) => Gen<T>,
+  options?: TransactionOptions['sqlite']
 ): unknown {
-  return db.transaction(tx => exec(inner(tx)))
+  return db.transaction(tx => exec(inner(tx)), options as never)
 }
 
-// Runs inside a savepoint that is always rolled back
+// Runs inside a transaction or savepoint that is always rolled back
 export function* scratch<T>(
   tx: Database,
-  inner: (sp: Database) => Gen<T>
+  inner: (sp: Database) => Gen<T>,
+  options?: TransactionOptions['sqlite']
 ): Gen<T> {
   try {
-    yield transaction(tx, function* (sp) {
-      throw new Rollback(yield* inner(sp))
-    })
+    yield transaction(
+      tx,
+      function* (sp) {
+        throw new Rollback(yield* inner(sp))
+      },
+      options
+    )
   } catch (error) {
     if (error instanceof Rollback) return error.data as T
     throw error
@@ -96,16 +110,26 @@ export function* scratch<T>(
   return undefined as never
 }
 
-const single: Runner = function* (db, apply) {
-  yield transaction(db, apply)
+// A dry run applies everything and rolls it back
+export function* within<T>(
+  db: Database,
+  inner: (tx: Database) => Gen<T>,
+  dry: boolean,
+  options?: TransactionOptions['sqlite']
+): Gen<T> {
+  if (dry) return yield* scratch(db, inner, options)
+  return (yield transaction(db, inner, options)) as T
 }
 
-export function createPush(
-  runtime: Runtime,
+const single: Runner = (db, apply, dry) =>
+  within(db, tx => apply(tx, true), dry)
+
+export function createPush<R extends Runtime>(
+  runtime: R,
   planner: Planner,
   runner = single
-): Push {
-  function prepare(db: Database, input: PushInput) {
+): Push<R> {
+  function go(db: Database, input: PushInput, dry: boolean) {
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
     const last = input.at(-1)
@@ -113,54 +137,64 @@ export function createPush(
     const tables = (input.filter(hasTable) as Array<Table>).map(getTable)
     for (const api of tables) {
       if (api.temporary) throw new Error('Temporary tables cannot be pushed')
-      renameSteps(api, {columns: {}} as TableInfo, options)
+      renames(api, options)
     }
-    return {tables: order(tables), options}
-  }
-  const push = (db: Database, ...input: PushInput) => {
-    const {tables, options} = prepare(db, input)
+    const ordered = order(tables)
     return exec(
-      runner(db, function* (tx, check) {
-        for (const api of tables) {
-          const steps = yield* planner(tx, api, options)
-          if (!options.force)
-            for (const step of steps)
-              if (step.risk)
-                throw new Error(
-                  `Push would ${step.risk}: ${db.dialect.inline(step.sql)}`
-                )
-          check?.(steps)
-          if (steps.length > 0)
-            yield tx.batch(steps.map(step => step.sql)).run()
-        }
-      })
+      runner(
+        db,
+        function* (tx, execute, check) {
+          const result: Array<string> = []
+          for (const api of ordered) {
+            const steps = yield* planner(tx, api, options)
+            const risky = !options.force && steps.find(step => step.risk)
+            if (risky && !dry)
+              throw new Error(
+                `Push would ${risky.risk}: ${db.dialect.inline(risky.sql)}`
+              )
+            check?.(steps)
+            result.push(...steps.map(step => db.dialect.inline(step.sql)))
+            // A refused table is left as is, as push would stop there
+            if (execute && !risky && steps.length > 0)
+              yield tx.batch(steps.map(step => step.sql)).run()
+          }
+          return result
+        },
+        dry
+      )
     )
   }
-  push.plan = (db: Database, ...input: PushInput) => {
-    const {tables, options} = prepare(db, input)
-    return transaction(db, function* (tx) {
-      const result: Array<string> = []
-      for (const api of tables)
-        for (const step of yield* planner(tx, api, options))
-          result.push(db.dialect.inline(step.sql))
-      return result
-    })
+  const push = (db: Database, ...input: PushInput) => {
+    const result = go(db, input, false)
+    if (result instanceof Promise) return result.then(() => {})
   }
-  return push as Push
+  push.plan = (db: Database, ...input: PushInput) => go(db, input, true)
+  return push as Push<R>
 }
+
+const key = (schema: string | undefined, name: string) =>
+  `${schema ?? ''}.${name}`
 
 // Referenced tables first, so foreign keys can be created
 function order(tables: Array<TableApi>): Array<TableApi> {
-  const byName = new Map(tables.map(api => [api.name, api]))
+  const byName = new Map(
+    tables.map(api => [key(api.schemaName, api.name), api])
+  )
   const result: Array<TableApi> = []
-  const seen = new Set<TableApi>()
+  const visiting = new Set<TableApi>()
   const visit = (api: TableApi) => {
-    if (seen.has(api)) return
-    seen.add(api)
+    if (result.includes(api)) return
+    visiting.add(api)
     for (const fk of foreignKeys(api)) {
-      const dependency = byName.get(fk.table)
-      if (dependency) visit(dependency)
+      const dependency = byName.get(key(fk.schema, fk.table))
+      if (!dependency || dependency === api) continue
+      if (visiting.has(dependency))
+        throw new Error(
+          `Foreign keys form a cycle between "${dependency.name}" and "${api.name}"`
+        )
+      visit(dependency)
     }
+    visiting.delete(api)
     result.push(api)
   }
   for (const api of tables) visit(api)
@@ -210,6 +244,7 @@ export function foreignKeys(api: TableApi): Array<ForeignKeyInfo> {
     result.push({
       name,
       columns,
+      schema: fields[0].schemaName,
       table: fields[0].targetName,
       references: fields.map(field => field.fieldName),
       onDelete: options.onDelete ?? 'no action',
@@ -233,35 +268,48 @@ export function foreignKeys(api: TableApi): Array<ForeignKeyInfo> {
 }
 
 export function signature(fk: ForeignKeyInfo): string {
-  return `(${fk.columns}) ${fk.table}(${fk.references}) ${fk.onDelete} ${fk.onUpdate}`
+  return `(${fk.columns}) ${key(fk.schema, fk.table)}(${fk.references}) ${fk.onDelete} ${fk.onUpdate}`
 }
 
-export function foreignKeyChanges(api: TableApi, live: TableInfo) {
+// Unqualified references resolve to the home schema
+export function foreignKeyChanges(
+  api: TableApi,
+  live: TableInfo,
+  home?: string
+): {dropped: Array<ForeignKeyInfo>; added: Array<ForeignKeyInfo>} {
+  const local = (fk: ForeignKeyInfo) =>
+    signature({...fk, schema: fk.schema === home ? undefined : fk.schema})
   const wanted = foreignKeys(api)
-  const current = new Set(live.foreignKeys.map(signature))
-  const kept = new Set(wanted.map(signature))
+  const current = new Set(live.foreignKeys.map(local))
+  const kept = new Set(wanted.map(local))
   return {
-    dropped: live.foreignKeys.filter(fk => !kept.has(signature(fk))),
-    added: wanted.filter(fk => !current.has(signature(fk)))
+    dropped: live.foreignKeys.filter(fk => !kept.has(local(fk))),
+    added: wanted.filter(fk => !current.has(local(fk)))
   }
 }
 
 export function foreignKey(fk: ForeignKeyInfo): Sql {
   const list = (names: Array<string>) =>
     sql.join(names.map(sql.identifier), sql`, `)
+  const table = sql.identifier(fk.table)
   return sql.join([
     fk.name && !fk.inline
       ? sql`constraint ${sql.identifier(fk.name)}`
       : undefined,
     sql`foreign key (${list(fk.columns)})`,
-    sql`references ${sql.identifier(fk.table)} (${list(fk.references)})`,
+    sql`references ${
+      fk.schema ? sql`${sql.identifier(fk.schema)}.${table}` : table
+    } (${list(fk.references)})`,
     fk.onDelete !== 'no action' && sql`on delete ${sql.unsafe(fk.onDelete)}`,
     fk.onUpdate !== 'no action' && sql`on update ${sql.unsafe(fk.onUpdate)}`
   ])
 }
 
 // Keys of a that b lacks or defines differently
-export function differ<T>(a: Record<string, T>, b: Record<string, T>) {
+export function differ<T>(
+  a: Record<string, T>,
+  b: Record<string, T>
+): Array<string> {
   return keys(a).filter(key => a[key] !== b[key])
 }
 
@@ -297,20 +345,28 @@ export function shadow(
   })
 }
 
-// Rename hints for this table that still apply to the live columns
+// Rename hints for this table, checked against the desired columns
+export function renames(
+  api: TableApi,
+  options: PushOptions
+): Array<[from: string, to: string]> {
+  const prefix = `${api.schemaName ? `${api.schemaName}.` : ''}${api.name}.`
+  const known = columns(api)
+  return entries(options.rename ?? {})
+    .filter(([from]) => from.startsWith(prefix))
+    .map(([from, to]) => {
+      if (!known[to]) throw new Error(`Unknown column "${to}" in rename`)
+      return [from.slice(prefix.length), to]
+    })
+}
+
+// Hints that still apply to the live columns, as from, to and the statement
 export function renameSteps(
   api: TableApi,
   live: TableInfo,
   options: PushOptions
 ): Array<[from: string, to: string, step: Step]> {
-  const prefix = `${api.schemaName ? `${api.schemaName}.` : ''}${api.name}.`
-  const known = columns(api)
-  return entries(options.rename ?? {})
-    .filter(([from]) => from.startsWith(prefix))
-    .map(([from, to]): [string, string] => {
-      if (!known[to]) throw new Error(`Unknown column "${to}" in rename`)
-      return [from.slice(prefix.length), to]
-    })
+  return renames(api, options)
     .filter(([from]) => live.columns[from])
     .map(([from, to]) => {
       if (live.columns[to])
@@ -327,33 +383,28 @@ export function renameSteps(
     })
 }
 
-const integers = [
-  'tinyint smallint mediumint int bigint',
-  'smallint integer bigint'
-].map(family => family.split(' '))
-const texts = 'char,character,varchar,character varying,text'.split(',')
-
-function parse(type: string) {
+export function parseType(type: string): {base: string; args: Array<number>} {
   const [, base, args] = type.match(/^([^(]*?)\s*(?:\((.*)\))?\s*$/)!
   return {base, args: args ? args.split(',').map(Number) : []}
 }
 
-// Whether every value of one type fits into another without loss
-export function widens(from: string, to: string): boolean {
-  const a = parse(from)
-  const b = parse(to)
-  if (a.base === b.base)
-    return (
-      b.args.length === 0 ||
+// Same type with arguments that are at least as large
+export function grows(from: string, to: string): boolean {
+  const a = parseType(from)
+  const b = parseType(to)
+  return (
+    a.base === b.base &&
+    (b.args.length === 0 ||
       (a.args.length === b.args.length &&
-        a.args.every((arg, i) => arg <= b.args[i]))
-    )
-  if (texts.includes(a.base) && b.base.endsWith('text') && !b.args.length)
-    return true
-  return integers.some(family => {
-    const i = family.indexOf(a.base)
-    return i > -1 && family.indexOf(b.base) > i
-  })
+        a.args.every((arg, i) => arg <= b.args[i])))
+  )
+}
+
+// Whether one is listed after the other in an ordered family
+export function ranks(family: string, from: string, to: string): boolean {
+  const list = family.split(' ')
+  const i = list.indexOf(from)
+  return i > -1 && list.indexOf(to) > i
 }
 
 export interface Changes {
@@ -372,6 +423,7 @@ export function* compare(
   table: string,
   live: TableInfo,
   desired: TableInfo,
+  widens: (from: string, to: string) => boolean,
   source = (name: string) => name
 ): Gen<Changes> {
   const hasRows = yield* exists(tx, target)

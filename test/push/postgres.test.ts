@@ -1,5 +1,5 @@
 import {suite} from '@alinea/suite'
-import {getTable, sql} from '#/index.ts'
+import {type AsyncDatabase, type Sql, getTable, sql} from '#/index.ts'
 import {
   bigint,
   boolean,
@@ -772,6 +772,146 @@ const cases: Record<string, Case> = {
   }
 }
 
+const review = pgSchema('review')
+
+function testRegressions(db: AsyncDatabase<'postgres'>) {
+  const run = (query: string) => db.run(sql.unsafe(query))
+  const all = (query: string) => db.all(sql.unsafe(query) as Sql<object>)
+  const reset = async () => {
+    await run('create schema if not exists review')
+    for (const name of [
+      'review.review_t',
+      'public.review_t',
+      'review.review_d',
+      'fk_child',
+      'review.fk_parent',
+      'public.fk_parent'
+    ])
+      await run(`drop table if exists ${name} cascade`)
+  }
+
+  test('push creates indexes in the table schema', async () => {
+    const T = review.table('review_t', {v: integer()}, t => ({
+      review_t_v: index().on(t.v)
+    }))
+    await reset()
+    await run('create table public.review_t (v int)')
+    await run('create table review.review_t (v int)')
+    try {
+      await push(db, T)
+      test.equal(
+        await all(
+          `select schemaname as schema from pg_indexes where indexname = 'review_t_v'`
+        ),
+        [{schema: 'review'}]
+      )
+      test.equal(await push.plan(db, T), [])
+    } finally {
+      await reset()
+    }
+  })
+
+  test('push keeps foreign keys to tables in other schemas apart', async () => {
+    const PublicParent = table('fk_parent', {id: integer().primaryKey()})
+    const ReviewParent = review.table('fk_parent', {id: integer().primaryKey()})
+    const Child = table('fk_child', {
+      parent: integer().references(ReviewParent.id)
+    })
+    await reset()
+    await run('create table public.fk_parent (id int primary key)')
+    await run('create table review.fk_parent (id int primary key)')
+    await run('create table fk_child (parent int references public.fk_parent)')
+    try {
+      await push(db, Child, PublicParent, ReviewParent)
+      test.equal(
+        await all(
+          `select confrelid::regclass::text as target from pg_constraint where conrelid = 'fk_child'::regclass and contype = 'f'`
+        ),
+        [{target: 'review.fk_parent'}]
+      )
+      test.equal(await push.plan(db, PublicParent, ReviewParent, Child), [])
+    } finally {
+      await reset()
+    }
+  })
+
+  test('push keeps literal defaults that look qualified', async () => {
+    const D = review.table('review_d', {
+      id: integer(),
+      s: text().default('review.hello')
+    })
+    await reset()
+    try {
+      await push(db, D)
+      test.equal(await push.plan(db, D), [])
+      await run('insert into review.review_d (id) values (1)')
+      test.equal(await all('select s from review.review_d'), [
+        {s: 'review.hello'}
+      ])
+    } finally {
+      await reset()
+    }
+  })
+
+  test('push leaves an existing rado_push schema alone', async () => {
+    const T = table('fk_child', {parent: integer(), extra: text()})
+    await reset()
+    await run('create schema if not exists rado_push')
+    await run('create table if not exists rado_push.keep (v int)')
+    await run('insert into rado_push.keep values (1)')
+    await run('create table fk_child (parent int)')
+    try {
+      await push(db, T)
+      test.equal(await push.plan(db, T), [])
+      test.equal(await all('select v from rado_push.keep'), [{v: 1}])
+    } finally {
+      await run('drop schema rado_push cascade')
+      await reset()
+    }
+  })
+}
+
+// A writer that holds rows the push would drop must finish before the push
+// checks for data
+function testLock(
+  db: AsyncDatabase<'postgres'>,
+  connect: () => Promise<{
+    query(text: string): Promise<unknown>
+    end(): Promise<void>
+  }>
+) {
+  test('push waits for writers before checking data', async () => {
+    const L = table('lock_t', {id: integer()})
+    await db.run(sql`drop table if exists lock_t`)
+    await db.run(sql`create table lock_t (id int, v text)`)
+    await db.run(sql`insert into lock_t values (1, null)`)
+    const other = await connect()
+    try {
+      await other.query('begin')
+      await other.query(`insert into lock_t values (2, 'x')`)
+      const pushing = Promise.resolve()
+        .then(() => push(db, L))
+        .then(
+          () => '',
+          error => error.message
+        )
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await other.query('commit')
+      test.equal(
+        (await pushing).startsWith('Push would drop column "v" with data'),
+        true
+      )
+      test.equal(
+        await db.all(sql<object>`select v from lock_t where v is not null`),
+        [{v: 'x'}]
+      )
+    } finally {
+      await other.end()
+      await db.run(sql`drop table if exists lock_t`)
+    }
+  })
+}
+
 if (!isDeno) {
   const db = testPostgres
     ? await (async () => {
@@ -782,7 +922,16 @@ if (!isDeno) {
             'postgres://postgres:postgres@localhost:5432/postgres'
         })
         await client.connect()
-        return connect(client)
+        const db = connect(client)
+        testLock(db, async () => {
+          const other = new pg.Client({
+            connectionString:
+              'postgres://postgres:postgres@localhost:5432/postgres'
+          })
+          await other.connect()
+          return other
+        })
+        return db
       })()
     : await (async () => {
         const {'@electric-sql/pglite': connect} = await import('#/driver.ts')
@@ -806,6 +955,7 @@ if (!isDeno) {
     },
     cases
   )
+  testRegressions(db)
   test('close', async () => {
     await db.close()
   })
