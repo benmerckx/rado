@@ -1,75 +1,167 @@
+import {own} from '../core/Catalog.ts'
 import type {Database} from '../core/Database.ts'
-import type {Gen} from '../core/Push.ts'
-import {sql} from '../core/Sql.ts'
+import {and, eq, inArray, isNotNull} from '../core/expr/Conditions.ts'
+import {schema as define} from '../core/Schema.ts'
+import {type Sql, sql} from '../core/Sql.ts'
+import type {Table} from '../core/Table.ts'
+import type {Gen} from '../core/Transaction.ts'
+import {int, text} from './columns.ts'
 
-export type Row = Record<string, any>
+const system = define('information_schema')
 
-export const quote = (name: string) => `\`${name.replaceAll('`', '``')}\``
+const scope = {table_schema: text().notNull(), table_name: text().notNull()}
+
+export const Tables = system.table('tables', {
+  ...scope,
+  table_type: text().notNull()
+})
+
+export const Columns = system.table('columns', {
+  ...scope,
+  column_name: text().notNull(),
+  column_type: text().notNull(),
+  is_nullable: text().notNull(),
+  column_default: text(),
+  extra: text().notNull(),
+  generation_expression: text(),
+  ordinal_position: int().notNull()
+})
+
+export const Statistics = system.table('statistics', {
+  ...scope,
+  index_name: text().notNull(),
+  column_name: text(),
+  non_unique: int().notNull(),
+  collation: text(),
+  sub_part: int(),
+  expression: text(),
+  index_type: text().notNull(),
+  seq_in_index: int().notNull()
+})
+
+export const Usage = system.table('key_column_usage', {
+  ...scope,
+  constraint_schema: text().notNull(),
+  constraint_name: text().notNull(),
+  column_name: text().notNull(),
+  ordinal_position: int().notNull(),
+  // Nullable, but only read for foreign keys, where they are set
+  referenced_table_schema: text().notNull(),
+  referenced_table_name: text().notNull(),
+  referenced_column_name: text().notNull()
+})
+
+export const Rules = system.table('referential_constraints', {
+  constraint_schema: text().notNull(),
+  constraint_name: text().notNull(),
+  table_name: text().notNull(),
+  update_rule: text().notNull(),
+  delete_rule: text().notNull()
+})
+
+export const Views = system.table('views', {
+  ...scope,
+  view_definition: text().notNull()
+})
+
+export function* home(tx: Database): Gen<string> {
+  const [name] = yield* tx.select(sql<string>`database()`)
+  return name
+}
 
 // A key part as an index definition writes it
-export function part(row: Row, column: string = row.column): string {
-  return (
-    (row.expression
-      ? `(${row.expression})`
-      : quote(column) + (row.sub_part ? `(${row.sub_part})` : '')) +
-    (row.collation === 'D' ? ' desc' : '')
-  )
+export function part(key: Key, column = key.column ?? ''): Sql {
+  const desc = key.collation === 'D' && sql`desc`
+  if (key.expression)
+    return sql.join([sql`(${sql.unsafe(key.expression)})`, desc])
+  const length = key.subPart ? sql`(${sql.inline(key.subPart)})` : sql``
+  return sql.join([sql`${sql.identifier(column)}${length}`, desc])
 }
 
-// The catalog rows of a table, as mysql reports them
-export interface Rows {
+function* query(tx: Database, schema: string, names?: Array<string>) {
+  const where = (table: Table<typeof scope>) =>
+    and(
+      eq(table.table_schema, schema),
+      names && inArray(table.table_name, names)
+    )
+  const tables = yield* tx
+    .select(Tables.table_name)
+    .from(Tables)
+    .where(where(Tables), eq(Tables.table_type, 'BASE TABLE'))
+    .orderBy(Tables.table_name)
+  const columns = yield* tx
+    .select({
+      table: Columns.table_name,
+      name: Columns.column_name,
+      type: Columns.column_type,
+      notNull: eq(Columns.is_nullable, 'NO'),
+      value: Columns.column_default,
+      extra: Columns.extra,
+      generated: Columns.generation_expression
+    })
+    .from(Columns)
+    .where(where(Columns))
+    .orderBy(Columns.ordinal_position)
+  const keys = yield* tx
+    .select({
+      table: Statistics.table_name,
+      name: Statistics.index_name,
+      column: Statistics.column_name,
+      unique: eq(Statistics.non_unique, 0),
+      collation: Statistics.collation,
+      subPart: Statistics.sub_part,
+      expression: Statistics.expression,
+      kind: Statistics.index_type
+    })
+    .from(Statistics)
+    .where(where(Statistics))
+    .orderBy(Statistics.index_name, Statistics.seq_in_index)
+  const foreignKeys = yield* tx
+    .select({
+      table: Usage.table_name,
+      name: Usage.constraint_name,
+      column: Usage.column_name,
+      schema: Usage.referenced_table_schema,
+      target: Usage.referenced_table_name,
+      reference: Usage.referenced_column_name,
+      onUpdate: Rules.update_rule,
+      onDelete: Rules.delete_rule
+    })
+    .from(Usage)
+    .innerJoin(
+      Rules,
+      and(
+        eq(Rules.constraint_schema, Usage.constraint_schema),
+        eq(Rules.constraint_name, Usage.constraint_name),
+        eq(Rules.table_name, Usage.table_name)
+      )
+    )
+    .where(where(Usage), isNotNull(Usage.referenced_table_name))
+    .orderBy(Usage.constraint_name, Usage.ordinal_position)
+  return {tables, columns, keys, foreignKeys}
+}
+
+type Rows = ReturnType<typeof query> extends Gen<infer T> ? T : never
+export type Key = Rows['keys'][number]
+
+export interface Entry {
   name: string
-  columns: Array<Row>
-  keys: Array<Row>
-  fks: Array<Row>
+  columns: Rows['columns']
+  keys: Array<Key>
+  foreignKeys: Rows['foreignKeys']
 }
 
-// One query per kind of object, for every table at once. Queries are kept
-// compact, template whitespace survives minification
+// One query per kind of object, for every table at once
 export function* catalog(
   tx: Database,
   schema: string,
   names?: Array<string>
-): Gen<Array<Rows>> {
-  const where = (k = '') =>
-    sql.join([
-      sql`${sql.unsafe(k)}table_schema = ${schema}`,
-      names &&
-        sql`and ${sql.unsafe(k)}table_name in (${sql.join(
-          names.map(sql.inline),
-          sql`, `
-        )})`
-    ])
-  const tables: Array<Row> = yield tx.all(sql`select table_name as name from
-information_schema.tables where ${where()} and table_type = 'BASE TABLE' order
-by table_name`)
-  const columns: Array<Row> = yield tx.all(sql`select table_name as tbl,
-column_name as name, column_type as type, is_nullable as nullable,
-column_default as value, extra as extra, generation_expression as expr
-from information_schema.columns where
-${where()} order by ordinal_position`)
-  const keys: Array<Row> = yield tx.all(sql`select table_name as tbl,
-index_name as name, column_name as \`column\`, non_unique as non_unique,
-collation as collation, sub_part as sub_part, expression as expression, index_type as kind from
-information_schema.statistics where ${where()} order by index_name,
-seq_in_index`)
-  const fks: Array<Row> = yield tx.all(sql`select k.table_name as tbl,
-k.constraint_name as name, k.column_name as \`column\`,
-k.referenced_table_schema as ref_schema, k.referenced_table_name as
-ref_table, k.referenced_column_name as ref_column, r.update_rule as
-on_update, r.delete_rule as on_delete from information_schema.key_column_usage
-k join information_schema.referential_constraints r on r.constraint_schema =
-k.constraint_schema and r.constraint_name = k.constraint_name and r.table_name
-= k.table_name where ${where(
-    'k.'
-  )} and k.referenced_table_name is not null order by k.constraint_name,
-k.ordinal_position`)
-  const own = (rows: Array<Row>, name: string) =>
-    rows.filter(row => row.tbl === name)
-  return tables.map(({name}) => ({
+): Gen<Array<Entry>> {
+  const rows = yield* query(tx, schema, names)
+  return rows.tables.map(name => ({
     name,
-    columns: own(columns, name),
-    keys: own(keys, name),
-    fks: own(fks, name)
+    columns: own(rows.columns, name),
+    keys: own(rows.keys, name),
+    foreignKeys: own(rows.foreignKeys, name)
   }))
 }

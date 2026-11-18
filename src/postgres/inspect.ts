@@ -1,106 +1,161 @@
+import {call} from '../core/Call.ts'
+import {references} from '../core/Catalog.ts'
 import type {Database} from '../core/Database.ts'
+import {and, eq, inArray} from '../core/expr/Conditions.ts'
 import {
   type Action,
-  type Constraint,
+  type ConstraintInfo,
   type Inspect,
-  type Schema,
-  type Table,
+  type SchemaInfo,
+  type TableInfo,
   createInspect
 } from '../core/Inspect.ts'
-import {type Gen, scratch} from '../core/Push.ts'
 import {sql} from '../core/Sql.ts'
-import {type Row, catalog, prepend, relations} from './catalog.ts'
-import {actions} from './info.ts'
+import {alias, table} from '../core/Table.ts'
+import {type Gen, scratch} from '../core/Transaction.ts'
+import {
+  Attribute,
+  Class,
+  Constraint,
+  type Entry,
+  Index,
+  Owner,
+  Space,
+  Views,
+  catalog,
+  home,
+  prepend,
+  scope
+} from './catalog.ts'
+import {integer} from './columns.ts'
+import {actions} from './shape.ts'
 
 export type * from '../core/Inspect.ts'
 
-function* read(tx: Database, given?: string): Gen<Schema> {
-  const schema: string =
-    given ?? ((yield tx.get(sql`select current_schema() as name`)) as Row).name
-  const rows = yield* catalog(tx, schema)
-  // Key and index columns, push doesn't read them
-  const [keyColumns, indexColumns] = yield* scratch(tx, function* (sp): Gen<
-    Array<Map<string, Array<Row>>>
-  > {
-    yield* prepend(sp, schema)
-    const rels = relations(schema)
-    const keys: Array<Row> = yield sp.all(sql`select c.conname as name,
-a.attname as col from pg_constraint c cross join unnest(c.conkey) with
-ordinality k(n, i) join pg_attribute a on a.attrelid = c.conrelid and
-a.attnum = k.n where c.conrelid in (${rels}) and c.contype in ('p', 'u')
-order by c.conname, k.i`)
-    const indexes: Array<Row> = yield sp.all(sql`select i.relname as name,
-coalesce(a.attname, pg_get_indexdef(x.indexrelid, k.n, true)) as col from
-pg_index x join pg_class i on i.oid = x.indexrelid cross join
-generate_series(1, x.indnkeyatts) k(n) left join pg_attribute a on
-a.attrelid = x.indrelid and a.attnum = x.indkey[k.n - 1] where x.indrelid in
-(${rels}) order by i.relname, k.n`)
-    const named = (rows: Array<Row>) =>
-      Map.groupBy(rows, (row: Row) => row.name)
-    return [named(keys), named(indexes)]
-  })
-  const cols = (map: Map<string, Array<Row>>, name: string) =>
-    map.get(name)!.map(row => row.col)
-  const action = (code: string) => actions[code].toUpperCase() as Action
-  const tables = rows.map((table): Table => {
-    const constraint = (row: Row): Constraint => ({
-      name: row.name,
-      columns: cols(keyColumns, row.name),
-      definition: row.def
+const Series = table('generate_series', {k: integer().notNull()})
+
+// Key and index columns, push doesn't read them
+function* parts(tx: Database, schema: string) {
+  yield* prepend(tx, schema)
+  const where = scope(schema)
+  const space = eq(Space.oid, Owner.relnamespace)
+  const Key = alias(Constraint, 'c')
+  const Column = alias(Attribute, 'a')
+  const keys = yield* tx
+    .select({name: Key.conname, column: Column.attname})
+    .from(Key)
+    .innerJoin(Owner, eq(Owner.oid, Key.conrelid))
+    .innerJoin(Space, space)
+    .innerJoin(
+      Column,
+      and(
+        eq(Column.attrelid, Key.conrelid),
+        sql<boolean>`${Column.attnum} = any(${Key.conkey})`
+      )
+    )
+    .where(where, inArray(Key.contype, ['p', 'u']))
+    .orderBy(Key.conname, sql`array_position(${Key.conkey}, ${Column.attnum})`)
+  const Entry = alias(Index, 'x')
+  const Named = alias(Class, 'i')
+  const k = call(Series, 'k', sql.inline(1), Entry.indnkeyatts)
+  const indexes = yield* tx
+    .select({
+      name: Named.relname,
+      column: sql<string>`coalesce(
+        ${Column.attname},
+        pg_get_indexdef(${Entry.indexrelid}, ${k.k}, true)
+      )`
     })
-    const primary = table.keys.find(row => row.type === 'p')
-    const fks = Map.groupBy(table.fks, (row: Row) => row.name)
-    return {
-      schema,
-      name: table.name,
-      // A generated column's expression is stored as its default
-      columns: table.columns.map(row => ({
-        name: row.name,
-        type: row.type,
-        notNull: row.notNull,
-        default: row.generated ? null : row.default,
-        autoIncrement:
-          Boolean(row.identity) || Boolean(row.default?.startsWith('nextval(')),
-        ...(row.generated ? {generated: row.default} : {})
-      })),
-      ...(primary ? {primaryKey: constraint(primary)} : {}),
-      uniques: table.keys.filter(row => row.type === 'u').map(constraint),
-      indexes: table.indexes.map(row => {
-        const where = row.def.match(/ WHERE (.*)$/)?.[1]
-        return {
-          name: row.name,
-          unique: row.unique,
-          columns: cols(indexColumns, row.name),
-          ...(where ? {where} : {}),
-          definition: row.def
-        }
-      }),
-      foreignKeys: [...fks].map(([name, rows]) => ({
-        name,
-        columns: rows.map(row => row.column),
-        schema: rows[0].schema,
-        table: rows[0].table,
-        references: rows.map(row => row.reference),
-        onDelete: action(rows[0].onDelete),
-        onUpdate: action(rows[0].onUpdate)
-      }))
-    }
+    .from(Entry)
+    .innerJoin(Owner, eq(Owner.oid, Entry.indrelid))
+    .innerJoin(Space, space)
+    .innerJoin(Named, eq(Named.oid, Entry.indexrelid))
+    .crossJoin(k)
+    .leftJoin(
+      Column,
+      and(
+        eq(Column.attrelid, Entry.indrelid),
+        sql<boolean>`${Column.attnum} = ${Entry.indkey}[${k.k} - 1]`
+      )
+    )
+    .where(where)
+    .orderBy(Named.relname, k.k)
+  const names = (rows: Array<{name: string; column: string}>) =>
+    Map.groupBy(rows, row => row.name)
+  return {keys: names(keys), indexes: names(indexes)}
+}
+
+type Parts = ReturnType<typeof parts> extends Gen<infer T> ? T : never
+
+function info(schema: string, entry: Entry, parts: Parts): TableInfo {
+  const columns = (map: Map<string, Array<{column: string}>>, name: string) =>
+    map.get(name)!.map(row => row.column)
+  const action = (code: string) => actions[code].toUpperCase() as Action
+  const constraint = (key: Entry['keys'][number]): ConstraintInfo => ({
+    name: key.name,
+    columns: columns(parts.keys, key.name),
+    definition: key.definition
   })
-  const views: Array<Row> = yield tx.all(
-    sql`select viewname as name, format('create view %I.%I as%s', schemaname, viewname, definition) as definition from pg_views where schemaname = ${schema} order by viewname`
-  )
+  const primary = entry.keys.find(key => key.primary)
   return {
-    tables,
-    views: views.map(row => ({
-      schema,
-      name: row.name,
-      definition: row.definition
+    schema,
+    name: entry.name,
+    // A generated column's expression is stored as its default
+    columns: entry.columns.map(column => ({
+      name: column.name,
+      type: column.type,
+      notNull: column.notNull,
+      default: column.generated ? null : column.default,
+      autoIncrement:
+        Boolean(column.identity) ||
+        Boolean(column.default?.startsWith('nextval(')),
+      ...(column.generated ? {generated: column.default!} : {})
+    })),
+    ...(primary && {primaryKey: constraint(primary)}),
+    uniques: entry.keys.filter(key => !key.primary).map(constraint),
+    indexes: entry.indexes.map(index => {
+      const where = index.definition.match(/ WHERE (.*)$/)?.[1]
+      return {
+        name: index.name,
+        unique: index.unique,
+        columns: columns(parts.indexes, index.name),
+        ...(where ? {where} : {}),
+        definition: index.definition
+      }
+    }),
+    foreignKeys: references(entry.foreignKeys).map(key => ({
+      ...key,
+      schema: key.schema!,
+      onDelete: action(key.onDelete),
+      onUpdate: action(key.onUpdate)
     }))
   }
 }
 
-export const inspect: Inspect<'postgres'> = createInspect(
-  'postgres',
-  read,
-  true
-)
+// Reads in a savepoint, as the search path is set for it
+function read(db: Database, given?: string): Gen<SchemaInfo> {
+  return scratch(db, function* (tx) {
+    const schema = given ?? (yield* home(tx))
+    const entries = yield* catalog(tx, schema)
+    const keys = yield* scratch(tx, inner => parts(inner, schema))
+    const views = yield* tx
+      .select({
+        name: Views.viewname,
+        definition: sql<string>`format(
+          'create view %I.%I as%s',
+          ${Views.schemaname},
+          ${Views.viewname},
+          ${Views.definition}
+        )`
+      })
+      .from(Views)
+      .where(eq(Views.schemaname, schema))
+      .orderBy(Views.viewname)
+    return {
+      tables: entries.map(entry => info(schema, entry, keys)),
+      views: views.map(view => ({schema, ...view}))
+    }
+  })
+}
+
+export const inspect: Inspect<'postgres'> = createInspect('postgres', read)

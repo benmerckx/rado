@@ -44,22 +44,22 @@ for comparison: a type reads `character varying(20)` on PostgreSQL and
 `varchar(20)` on MySQL, a default `'x'::text` on PostgreSQL.
 
 ```ts
-interface Schema {
-  tables: Array<Table>
-  views: Array<View>
+interface SchemaInfo {
+  tables: Array<TableInfo>
+  views: Array<ViewInfo>
 }
 
-interface Table {
+interface TableInfo {
   schema: string
   name: string
-  columns: Array<Column>
-  primaryKey?: Constraint
-  uniques: Array<Constraint>
-  indexes: Array<Index>
-  foreignKeys: Array<ForeignKey>
+  columns: Array<ColumnInfo>
+  primaryKey?: ConstraintInfo
+  uniques: Array<ConstraintInfo>
+  indexes: Array<IndexInfo>
+  foreignKeys: Array<ForeignKeyInfo>
 }
 
-interface Column {
+interface ColumnInfo {
   name: string
   type: string // as the database prints it
   notNull: boolean
@@ -69,13 +69,13 @@ interface Column {
   onUpdate?: string // the expression set on update, on MySQL
 }
 
-interface Constraint {
+interface ConstraintInfo {
   name?: string
   columns: Array<string>
   definition?: string // as the database prints it, on PostgreSQL
 }
 
-interface Index {
+interface IndexInfo {
   name: string
   unique: boolean
   columns: Array<string> // column names, or expression text
@@ -83,7 +83,7 @@ interface Index {
   definition: string // the full create statement
 }
 
-interface ForeignKey {
+interface ForeignKeyInfo {
   name?: string
   columns: Array<string>
   schema: string
@@ -95,7 +95,7 @@ interface ForeignKey {
 
 type Action = 'NO ACTION' | 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'SET DEFAULT'
 
-interface View {
+interface ViewInfo {
   schema: string
   name: string
   definition: string // the full create view statement

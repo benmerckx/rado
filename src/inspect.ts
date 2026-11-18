@@ -11,4 +11,4 @@ export type * from './core/Inspect.ts'
 const inspects = {sqlite, mysql, postgres}
 
 export const inspect: Inspect = ((db: Database, options?: InspectOptions) =>
-  (inspects[db.dialect.runtime] as Inspect<any>)(db, options)) as Inspect
+  (inspects[db.dialect.runtime] as Inspect)(db, options)) as Inspect

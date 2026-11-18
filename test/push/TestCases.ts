@@ -1,6 +1,8 @@
 import type {DefineTest} from '@alinea/suite'
-import {exec, type Gen, signature, type TableInfo} from '#/core/Push.ts'
+import {signature} from '#/core/ForeignKey.ts'
 import type {Push, PushOptions} from '#/core/Push.ts'
+import type {Shape} from '#/core/Shape.ts'
+import {exec, type Gen} from '#/core/Transaction.ts'
 import {type Database, type Table, getTable, sql} from '#/index.ts'
 
 export interface Case {
@@ -17,20 +19,20 @@ export interface Case {
 
 export interface Dialect {
   push: Push<any>
-  inspect(db: Database, table: Table): Gen<TableInfo | undefined>
+  shape(db: Database, table: Table): Gen<Shape | undefined>
   drop(name: string): string
 }
 
 const byKey = (a: [string, unknown], b: [string, unknown]) =>
   a[0] < b[0] ? -1 : 1
 
-function normalize(info: TableInfo | undefined) {
-  if (!info) return undefined
+function normalize(shape: Shape | undefined) {
+  if (!shape) return undefined
   return {
-    columns: Object.entries(info.columns).toSorted(byKey),
-    constraints: Object.values(info.constraints).toSorted(),
-    indexes: Object.entries(info.indexes).toSorted(byKey),
-    foreignKeys: info.foreignKeys.map(signature).toSorted()
+    columns: Object.entries(shape.columns).toSorted(byKey),
+    constraints: Object.values(shape.constraints).toSorted(),
+    indexes: Object.entries(shape.indexes).toSorted(byKey),
+    foreignKeys: shape.foreignKeys.map(signature).toSorted()
   }
 }
 
@@ -64,7 +66,7 @@ export function testCases(
   const read = async (tables: Array<Table>) => {
     const result = []
     for (const table of tables)
-      result.push(normalize(await exec(dialect.inspect(db, table))))
+      result.push(normalize(await exec(dialect.shape(db, table))))
     return result
   }
   // A column written as "from:to" is read as "from" before the push

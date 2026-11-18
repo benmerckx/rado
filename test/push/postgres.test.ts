@@ -23,8 +23,8 @@ import {
   uuid,
   varchar
 } from '#/postgres.ts'
-import {info as inspect} from '#/postgres/info.ts'
 import {push} from '#/postgres/push.ts'
+import {shape} from '#/postgres/shape.ts'
 import {isDeno, testPostgres} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -1362,9 +1362,9 @@ if (!isDeno) {
     test,
     {
       push,
-      inspect: (db, table) => {
+      shape: (db, table) => {
         const api = getTable(table)
-        return inspect(db, api.name, api.schemaName ?? 'public')
+        return shape(db, api.name, api.schemaName ?? 'public')
       },
       drop: name =>
         `drop table if exists ${name

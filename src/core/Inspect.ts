@@ -1,23 +1,23 @@
 import type {Database} from './Database.ts'
 import type {Deliver, QueryDialect, QueryMeta, Runtime} from './MetaData.ts'
-import {exec, type Gen, within} from './Push.ts'
+import {exec, type Gen} from './Transaction.ts'
 
-export interface Schema {
-  tables: Array<Table>
-  views: Array<View>
+export interface SchemaInfo {
+  tables: Array<TableInfo>
+  views: Array<ViewInfo>
 }
 
-export interface Table {
+export interface TableInfo {
   schema: string
   name: string
-  columns: Array<Column>
-  primaryKey?: Constraint
-  uniques: Array<Constraint>
-  indexes: Array<Index>
-  foreignKeys: Array<ForeignKey>
+  columns: Array<ColumnInfo>
+  primaryKey?: ConstraintInfo
+  uniques: Array<ConstraintInfo>
+  indexes: Array<IndexInfo>
+  foreignKeys: Array<ForeignKeyInfo>
 }
 
-export interface Column {
+export interface ColumnInfo {
   name: string
   // As the database prints it
   type: string
@@ -32,14 +32,14 @@ export interface Column {
   onUpdate?: string
 }
 
-export interface Constraint {
+export interface ConstraintInfo {
   name?: string
   columns: Array<string>
   // The constraint as the database prints it, where it does
   definition?: string
 }
 
-export interface Index {
+export interface IndexInfo {
   name: string
   unique: boolean
   // Column names, or expression text
@@ -56,7 +56,7 @@ export type Action =
   | 'SET NULL'
   | 'SET DEFAULT'
 
-export interface ForeignKey {
+export interface ForeignKeyInfo {
   name?: string
   columns: Array<string>
   schema: string
@@ -66,7 +66,7 @@ export interface ForeignKey {
   onUpdate: Action
 }
 
-export interface View {
+export interface ViewInfo {
   schema: string
   name: string
   // The full create statement
@@ -82,19 +82,16 @@ export interface Inspect<D extends QueryDialect = QueryDialect> {
   <Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
     options?: InspectOptions
-  ): Deliver<Meta, Schema>
+  ): Deliver<Meta, SchemaInfo>
 }
 
 export function createInspect<R extends Runtime>(
   runtime: R,
-  read: (tx: Database, schema?: string) => Gen<Schema>,
-  // Postgres reads in a savepoint, so it needs a transaction
-  transact = false
+  read: (db: Database, schema?: string) => Gen<SchemaInfo>
 ): Inspect<R> {
   return ((db: Database, options: InspectOptions = {}) => {
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
-    const run = (tx: Database) => read(tx, options.schema)
-    return exec(transact ? within(db, run, true) : run(db))
+    return exec(read(db, options.schema))
   }) as Inspect<R>
 }

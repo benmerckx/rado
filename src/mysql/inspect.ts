@@ -1,14 +1,16 @@
+import {references} from '../core/Catalog.ts'
 import type {Database} from '../core/Database.ts'
+import {eq} from '../core/expr/Conditions.ts'
 import {
   type Action,
   type Inspect,
-  type Schema,
-  type Table,
+  type SchemaInfo,
+  type TableInfo,
   createInspect
 } from '../core/Inspect.ts'
-import type {Gen} from '../core/Push.ts'
 import {sql} from '../core/Sql.ts'
-import {type Row, catalog, part, quote} from './catalog.ts'
+import type {Gen} from '../core/Transaction.ts'
+import {type Entry, Views, catalog, home, part} from './catalog.ts'
 
 export type * from '../core/Inspect.ts'
 
@@ -19,10 +21,14 @@ function unescape(text: string): string {
 
 // Literal defaults are stored as their value, expressions as text: bit and
 // hex literals and numbers of non-string types read as they are
-function literal({value, type, extra}: Row): string | null {
+function literal({
+  value,
+  type,
+  extra
+}: Entry['columns'][number]): string | null {
+  if (value === null) return null
   if (/default_generated/i.test(extra)) return unescape(value)
   if (
-    value === null ||
     /^(b'|0x)/i.test(value) ||
     (!/char|text|blob|binary|enum|set|json/i.test(type) &&
       /^-?[\d.]+(e[-+]?\d+)?$/i.test(value))
@@ -37,82 +43,84 @@ function onUpdate(extra: string): {onUpdate?: string} {
   return value ? {onUpdate: value} : {}
 }
 
-function* read(tx: Database, given?: string): Gen<Schema> {
-  const schema: string =
-    given ?? ((yield tx.get(sql`select database() as name`)) as Row).name
-  const rows = yield* catalog(tx, schema)
-  const tables = rows.map((table): Table => {
-    const keys = [
-      ...Map.groupBy(
-        table.keys.map(row =>
-          row.expression ? {...row, expression: unescape(row.expression)} : row
-        ),
-        (row: Row) => row.name
-      )
-    ]
-    const primary = keys.find(([name]) => name === 'PRIMARY')
-    const fks = Map.groupBy(table.fks, (row: Row) => row.name)
-    return {
-      schema,
-      name: table.name,
-      columns: table.columns.map(row => ({
-        name: row.name,
-        type: row.type,
-        notNull: row.nullable === 'NO',
-        default: literal(row),
-        autoIncrement: /auto_increment/i.test(row.extra),
-        ...(row.expr ? {generated: unescape(row.expr)} : {}),
-        ...onUpdate(row.extra)
-      })),
-      ...(primary
-        ? {
-            primaryKey: {
-              name: 'PRIMARY',
-              columns: primary[1].map(row => row.column)
-            }
-          }
-        : {}),
-      // MySQL makes no difference between unique constraints and unique
-      // indexes, both are listed as indexes
-      uniques: [],
-      indexes: keys
-        .filter(([name]) => name !== 'PRIMARY')
-        .map(([name, rows]) => {
-          const unique = Number(rows[0].non_unique) === 0
-          // Fulltext and spatial indexes can't be recreated as plain ones
-          const kind = /^(fulltext|spatial)$/i.test(rows[0].kind)
-            ? `${rows[0].kind.toLowerCase()} `
-            : ''
-          const parts = rows.map(row => part(row))
-          return {
-            name,
-            unique,
-            columns: rows.map(row => row.expression ?? row.column),
-            definition: `create ${unique ? 'unique ' : kind}index ${quote(
-              name
-            )} on ${quote(table.name)} (${parts.join(', ')})`
-          }
-        }),
-      foreignKeys: [...fks].map(([name, rows]) => ({
-        name,
-        columns: rows.map(row => row.column),
-        schema: rows[0].ref_schema,
-        table: rows[0].ref_table,
-        references: rows.map(row => row.ref_column),
-        onDelete: rows[0].on_delete as Action,
-        onUpdate: rows[0].on_update as Action
-      }))
-    }
-  })
-  const views: Array<Row> = yield tx.all(
-    sql`select table_name as name, view_definition as definition from information_schema.views where table_schema = ${schema} order by table_name`
+function table(tx: Database, schema: string, entry: Entry): TableInfo {
+  const keys = Map.groupBy(
+    entry.keys.map(key =>
+      key.expression ? {...key, expression: unescape(key.expression)} : key
+    ),
+    key => key.name
   )
+  const primary = keys.get('PRIMARY')
+  keys.delete('PRIMARY')
   return {
-    tables,
-    views: views.map(row => ({
+    schema,
+    name: entry.name,
+    columns: entry.columns.map(column => ({
+      name: column.name,
+      type: column.type,
+      notNull: column.notNull,
+      default: literal(column),
+      autoIncrement: /auto_increment/i.test(column.extra),
+      ...(column.generated ? {generated: unescape(column.generated)} : {}),
+      ...onUpdate(column.extra)
+    })),
+    ...(primary && {
+      primaryKey: {
+        name: 'PRIMARY',
+        columns: primary.map(key => key.column ?? '')
+      }
+    }),
+    // MySQL makes no difference between unique constraints and unique
+    // indexes, both are listed as indexes
+    uniques: [],
+    indexes: [...keys].map(([name, parts]) => {
+      const [{unique, kind}] = parts
+      // Fulltext and spatial indexes can't be recreated as plain ones
+      const special = /^(fulltext|spatial)$/i.test(kind)
+      const definition = sql.join([
+        sql`create`,
+        unique ? sql`unique` : special && sql.unsafe(kind.toLowerCase()),
+        sql`index ${sql.identifier(name)}`,
+        sql`on ${sql.identifier(entry.name)}`,
+        sql`(${sql.join(
+          parts.map(key => part(key)),
+          sql`, `
+        )})`
+      ])
+      return {
+        name,
+        unique,
+        columns: parts.map(key => key.expression ?? key.column ?? ''),
+        definition: tx.dialect.inline(definition)
+      }
+    }),
+    foreignKeys: references(entry.foreignKeys).map(key => ({
+      ...key,
+      schema: key.schema ?? schema,
+      onDelete: key.onDelete as Action,
+      onUpdate: key.onUpdate as Action
+    }))
+  }
+}
+
+function* read(tx: Database, given?: string): Gen<SchemaInfo> {
+  const schema = given ?? (yield* home(tx))
+  const entries = yield* catalog(tx, schema)
+  const views = yield* tx
+    .select({name: Views.table_name, definition: Views.view_definition})
+    .from(Views)
+    .where(eq(Views.table_schema, schema))
+    .orderBy(Views.table_name)
+  return {
+    tables: entries.map(entry => table(tx, schema, entry)),
+    views: views.map(view => ({
       schema,
-      name: row.name,
-      definition: `create view ${quote(row.name)} as ${row.definition}`
+      name: view.name,
+      definition: tx.dialect.inline(
+        sql`create view ${sql.identifier(view.name)} as ${sql.unsafe(
+          view.definition
+        )}`
+      )
     }))
   }
 }

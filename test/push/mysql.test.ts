@@ -27,8 +27,8 @@ import {
   uniqueIndex,
   varchar
 } from '#/mysql.ts'
-import {info as inspect} from '#/mysql/info.ts'
 import {push} from '#/mysql/push.ts'
+import {shape} from '#/mysql/shape.ts'
 import {isDeno, testMysql} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -1031,12 +1031,8 @@ if (!isDeno && testMysql) {
     test,
     {
       push,
-      inspect: (db, table) =>
-        inspect(
-          db,
-          getTable(table).name,
-          getTable(table).schemaName ?? 'mysql'
-        ),
+      shape: (db, table) =>
+        shape(db, getTable(table).name, getTable(table).schemaName ?? 'mysql'),
       drop: name => `drop table if exists \`${name}\``
     },
     cases

@@ -13,8 +13,8 @@ import {
   uniqueIndex
 } from '#/index.ts'
 import {integer, numeric, text} from '#/sqlite.ts'
-import {info as inspect} from '#/sqlite/info.ts'
 import {push} from '#/sqlite/push.ts'
+import {shape} from '#/sqlite/shape.ts'
 import {isBun, isNode} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -1008,8 +1008,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
 
 const dialect = {
   push,
-  inspect: (db: Database, t: Parameters<typeof getTable>[0]) =>
-    inspect(db, getTable(t).name),
+  shape: (db: Database, t: Parameters<typeof getTable>[0]) =>
+    shape(db, getTable(t).name),
   drop: (name: string) => `drop table if exists "${name}"`
 }
 

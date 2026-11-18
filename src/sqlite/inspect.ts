@@ -1,14 +1,15 @@
+import {references} from '../core/Catalog.ts'
 import type {Database} from '../core/Database.ts'
+import {eq} from '../core/expr/Conditions.ts'
 import {
-  type ForeignKey,
+  type Action,
   type Inspect,
-  type Schema,
-  type Table,
+  type SchemaInfo,
+  type TableInfo,
   createInspect
 } from '../core/Inspect.ts'
-import type {Gen} from '../core/Push.ts'
-import {sql} from '../core/Sql.ts'
-import {type Row, catalog} from './catalog.ts'
+import type {Gen} from '../core/Transaction.ts'
+import {type Entry, Master, catalog} from './catalog.ts'
 
 export type * from '../core/Inspect.ts'
 
@@ -54,72 +55,76 @@ function generation(table: string, name: string): string | undefined {
   return at < 0 ? undefined : split(definition!.slice(at)).list[0]
 }
 
-function* read(tx: Database, schema = 'main'): Gen<Schema> {
-  const rows = yield* catalog(tx, schema)
-  const tables = rows.map((table): Table => {
-    const groups = Map.groupBy(table.keys, (key: Row) => key.name)
-    const keys = [...groups].map(([name, rows]) => ({
+function info(schema: string, entry: Entry): TableInfo {
+  const keys = [...Map.groupBy(entry.keys, key => key.name)].map(
+    ([name, parts]) => ({
       name,
-      origin: rows[0].origin,
-      unique: Boolean(rows[0].unique),
-      columns: rows.map(row => row.col)
-    }))
-    const {primary, increments} = table
-    const fks = Map.groupBy(table.fks, (fk: Row) => fk.id)
-    return {
-      schema,
-      name: table.name,
-      // Hidden columns are generated ones, virtual tables aren't listed
-      columns: table.columns.map(row => {
-        const generated =
-          row.hidden && generation(table.sql[table.name], row.name)
+      origin: parts[0].origin,
+      unique: parts[0].unique,
+      columns: parts.map(part => part.column)
+    })
+  )
+  const {primary, increments} = entry
+  const create = entry.sql[entry.name]
+  return {
+    schema,
+    name: entry.name,
+    // Hidden columns are generated ones, virtual tables aren't listed
+    columns: entry.columns.map(column => {
+      const generated = column.hidden && generation(create, column.name)
+      return {
+        name: column.name,
+        type: column.type,
+        notNull: column.notNull,
+        default: column.value,
+        autoIncrement: increments && primary[0] === column.name,
+        ...(generated ? {generated} : {})
+      }
+    }),
+    ...(primary.length ? {primaryKey: {columns: primary}} : {}),
+    uniques: keys
+      .filter(key => key.origin === 'u')
+      .map(({columns}) => ({columns: columns.map(column => column ?? '')})),
+    indexes: keys
+      .filter(key => key.origin === 'c')
+      .map(({name, unique, columns}) => {
+        const definition = entry.sql[name]
+        const {list, rest} = split(definition)
+        const where = rest.match(/^\s*where\s+([\s\S]*)$/i)?.[1]
         return {
-          name: row.name,
-          type: row.type,
-          notNull: Boolean(row.notnull),
-          default: row.dflt_value,
-          autoIncrement: increments && primary[0] === row.name,
-          ...(generated ? {generated} : {})
+          name,
+          unique,
+          columns: columns.map((column, i) => column ?? list[i]),
+          ...(where ? {where} : {}),
+          definition
         }
       }),
-      ...(primary.length ? {primaryKey: {columns: primary}} : {}),
-      uniques: keys
-        .filter(key => key.origin === 'u')
-        .map(({columns}) => ({columns})),
-      indexes: keys
-        .filter(key => key.origin === 'c')
-        .map(({name, unique, columns}) => {
-          const definition = table.sql[name]
-          const {list, rest} = split(definition)
-          const where = rest.match(/^\s*where\s+([\s\S]*)$/i)?.[1]
-          return {
-            name,
-            unique,
-            columns: columns.map((column, i) => column ?? list[i]),
-            ...(where ? {where} : {}),
-            definition
-          }
-        }),
-      foreignKeys: [...fks.values()].map(
-        (rows): ForeignKey => ({
-          columns: rows.map(row => row.from),
-          schema,
-          table: rows[0].table,
-          references: rows.map(row => row.to ?? ''),
-          onDelete: rows[0].on_delete,
-          onUpdate: rows[0].on_update
-        })
-      )
-    }
-  })
-  const views: Array<Row> = yield tx.all(
-    sql`select name, sql from ${sql.identifier(
-      schema
-    )}.sqlite_master where type = 'view' order by rowid`
-  )
+    foreignKeys: references(entry.foreignKeys).map(key => ({
+      columns: key.columns,
+      schema,
+      table: key.table,
+      references: key.references,
+      onDelete: key.onDelete as Action,
+      onUpdate: key.onUpdate as Action
+    }))
+  }
+}
+
+function* read(tx: Database, schema = 'main'): Gen<SchemaInfo> {
+  const entries = yield* catalog(tx, schema)
+  const master = Master(schema, 'm')
+  const views = yield* tx
+    .select({name: master.name, definition: master.sql})
+    .from(master)
+    .where(eq(master.type, 'view'))
+    .orderBy(master.rowid)
   return {
-    tables,
-    views: views.map(row => ({schema, name: row.name, definition: row.sql}))
+    tables: entries.map(entry => info(schema, entry)),
+    views: views.map(view => ({
+      schema,
+      name: view.name,
+      definition: view.definition ?? ''
+    }))
   }
 }
 
