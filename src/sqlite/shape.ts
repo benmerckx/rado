@@ -4,8 +4,6 @@ import type {ColumnShape, Shape} from '../core/Shape.ts'
 import type {Gen} from '../core/Transaction.ts'
 import {catalog} from './catalog.ts'
 
-const {fromEntries} = Object
-
 export const prefix = '__rado_'
 
 // Lowercases and strips quotes outside string literals, which stay intact
@@ -34,7 +32,7 @@ export function* shape(
   if (!table) return undefined
   const {primary} = table
   // Generated columns stay out, push can't define them
-  const columns = fromEntries(
+  const columns = Object.fromEntries(
     table.columns
       .filter(column => !column.hidden)
       .map((column): [string, ColumnShape] => {

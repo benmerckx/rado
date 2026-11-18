@@ -4,8 +4,6 @@ import type {ColumnShape, Shape} from '../core/Shape.ts'
 import type {Gen} from '../core/Transaction.ts'
 import {catalog, part} from './catalog.ts'
 
-const {fromEntries} = Object
-
 // The table in the form push compares, with renamed columns under their
 // new names
 export function* shape(
@@ -17,7 +15,7 @@ export function* shape(
   const [table] = yield* catalog(tx, schema, [name])
   if (!table) return undefined
   const as = (column: string) => renamed[column] ?? column
-  const columns = fromEntries(
+  const columns = Object.fromEntries(
     table.columns.map((column): [string, ColumnShape] => [
       as(column.name),
       {

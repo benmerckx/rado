@@ -6,8 +6,6 @@ import type {ForeignKeyShape, Shape} from './Shape.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {TableApi, TableConfigResult} from './Table.ts'
 
-const {entries, fromEntries} = Object
-
 export const key = (schema: string | undefined, name: string): string =>
   `${schema ?? ''}.${name}`
 
@@ -15,8 +13,8 @@ export const key = (schema: string | undefined, name: string): string =>
 export function columns(
   api: TableApi
 ): Record<string, ColumnData & {key: string}> {
-  return fromEntries(
-    entries(api.columns).map(([key, column]) => {
+  return Object.fromEntries(
+    Object.entries(api.columns).map(([key, column]) => {
       const data = getData(column)
       return [data.name ?? key, {...data, key}]
     })
@@ -28,7 +26,7 @@ export function configEntries(
 ): Array<[string | undefined, unknown]> {
   if (!config) return []
   if (Array.isArray(config)) return config.map(value => [undefined, value])
-  return entries(config)
+  return Object.entries(config)
 }
 
 export function isForeignKey(value: unknown): value is ForeignKeyConstraint {
@@ -56,7 +54,7 @@ export function foreignKeys(api: TableApi): Array<ForeignKeyShape> {
       onUpdate: options.onUpdate ?? 'no action',
       inline
     })
-  for (const [name, data] of entries(columns(api)))
+  for (const [name, data] of Object.entries(columns(api)))
     if (data.references)
       add([name], [data.references()], data.referenceOptions, name, true)
   for (const [key, value] of configEntries(api.config?.()))

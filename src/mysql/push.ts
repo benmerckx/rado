@@ -23,7 +23,6 @@ import {shape} from './shape.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
-const {entries, fromEntries, keys, values} = Object
 const capacity: Record<string, number> = {
   tinytext: 255,
   text: 65535,
@@ -53,7 +52,7 @@ function widens(from: string, to: string): boolean {
 
 // One create table with its indexes, so a failing index leaves no table
 function create(api: TableApi): Sql {
-  const keys = entries(api.indexes()).map(([name, index]) => {
+  const keys = Object.entries(api.indexes()).map(([name, index]) => {
     const {unique, fields, order, using} = getData(index)
     return sql.join([
       unique && sql`unique`,
@@ -107,10 +106,10 @@ function* plan(
   const [shown] = yield* result(
     tx.all(sql<Record<string, string>>`show create table ${api.identifier()}`)
   )
-  if (/^create temporary/i.test(values(shown)[1]))
+  if (/^create temporary/i.test(Object.values(shown)[1]))
     throw new Error(`Cannot push "${api.name}", a temporary table shadows it`)
-  const renamed = fromEntries(renameSteps(api, before, options))
-  const live = keys(renamed).length
+  const renamed = Object.fromEntries(renameSteps(api, before, options))
+  const live = Object.keys(renamed).length
     ? (yield* shape(tx, api.name, schema, renamed))!
     : before
   const desired = yield* copy(tx, api, schema)
@@ -164,7 +163,9 @@ function* changes({
   const target = api.identifier()
   const data = columns(api)
   const bare = shadow(api, api.name, undefined, true)
-  const original = fromEntries(entries(renamed).map(([from, to]) => [to, from]))
+  const original = Object.fromEntries(
+    Object.entries(renamed).map(([from, to]) => [to, from])
+  )
   const source = (name: string) => original[name] ?? name
   const references = foreignKeyChanges(api, live, home)
   const kept = live.foreignKeys.filter(key => !references.dropped.includes(key))
@@ -238,7 +239,7 @@ function* changes({
       : []),
     ...dropped.map(name => sql`drop column ${sql.identifier(name)}`),
     ...added.map(name => sql`add column ${definition(name)}`),
-    ...keys(desired.columns).flatMap(alter),
+    ...Object.keys(desired.columns).flatMap(alter),
     ...(primaryChanged && primary ? [sql`add ${sql.unsafe(primary)}`] : []),
     ...differ(desired.indexes, live.indexes).map(index),
     ...references.added.map(key => sql`add ${foreignKey(key)}`)
@@ -295,7 +296,7 @@ const runner: Runner = function* (db, apply, dry) {
 // Refused before anything is created, MySQL would silently build a different
 // index
 function validate(api: TableApi): void {
-  for (const [name, index] of entries(api.indexes())) {
+  for (const [name, index] of Object.entries(api.indexes())) {
     const data = getData(index)
     const option = (['where', 'nulls', 'concurrently', 'only'] as const).find(
       key => data[key]

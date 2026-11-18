@@ -7,8 +7,6 @@ import {type Sql, sql} from './Sql.ts'
 import type {Table, TableApi, TableConfigResult} from './Table.ts'
 import {exec, type Gen, within} from './Transaction.ts'
 
-const {assign, create, entries, fromEntries, getPrototypeOf, keys} = Object
-
 export interface PushOptions {
   force?: boolean
   rename?: Record<string, string>
@@ -80,7 +78,7 @@ export function createPush<R extends Runtime>(
       validate?.(api)
       renames(api, options)
     }
-    for (const from of keys(options.rename ?? {}))
+    for (const from of Object.keys(options.rename ?? {}))
       if (!tables.some(api => from.startsWith(prefix(api))))
         throw new Error(`Rename "${from}" is not a column of a pushed table`)
     const ordered = order(tables)
@@ -148,7 +146,7 @@ export function differ<T>(
   a: Record<string, T>,
   b: Record<string, T>
 ): Array<string> {
-  return keys(a).filter(key => a[key] !== b[key])
+  return Object.keys(a).filter(key => a[key] !== b[key])
 }
 
 // A copy of the table without foreign keys, so it can be created on its own,
@@ -162,13 +160,13 @@ export function shadow(
   const strip = bare ? {primary: false, isUnique: false} : {}
   const config = api.config
   const keep = (value: unknown) => !isForeignKey(value)
-  return assign(create(getPrototypeOf(api)), {
+  return Object.assign(Object.create(Object.getPrototypeOf(api)), {
     ...api,
     name,
     alias: undefined,
     schemaName,
-    columns: fromEntries(
-      entries(api.columns).map(([key, column]) => [
+    columns: Object.fromEntries(
+      Object.entries(api.columns).map(([key, column]) => [
         key,
         {[internalData]: {...getData(column), ...strip, references: undefined}}
       ])
@@ -178,7 +176,9 @@ export function shadow(
       ((): TableConfigResult => {
         const result = config()
         if (Array.isArray(result)) return result.filter(keep)
-        return fromEntries(entries(result).filter(([, value]) => keep(value)))
+        return Object.fromEntries(
+          Object.entries(result).filter(([, value]) => keep(value))
+        )
       })
   })
 }
@@ -193,7 +193,7 @@ export function renames(
 ): Array<[from: string, to: string]> {
   const start = prefix(api)
   const known = columns(api)
-  return entries(options.rename ?? {})
+  return Object.entries(options.rename ?? {})
     .filter(([from]) => from.startsWith(start))
     .map(([from, to]) => {
       if (!known[to]) throw new Error(`Unknown column "${to}" in rename`)

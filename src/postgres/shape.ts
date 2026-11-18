@@ -4,8 +4,6 @@ import type {Shape} from '../core/Shape.ts'
 import type {Gen} from '../core/Transaction.ts'
 import {catalog} from './catalog.ts'
 
-const {fromEntries} = Object
-
 export const actions: Record<string, string> = {
   a: 'no action',
   r: 'restrict',
@@ -22,7 +20,7 @@ export function* shape(
 ): Gen<Shape | undefined> {
   const [table] = yield* catalog(tx, schema, [name])
   if (!table) return undefined
-  const columns = fromEntries(
+  const columns = Object.fromEntries(
     table.columns.map(column => [
       column.name,
       {
@@ -33,10 +31,10 @@ export function* shape(
       }
     ])
   )
-  const constraints = fromEntries(
+  const constraints = Object.fromEntries(
     table.keys.map(key => [key.name, key.definition])
   )
-  const indexes = fromEntries(
+  const indexes = Object.fromEntries(
     table.indexes.map(({name, unique, definition}) => [
       name,
       (unique ? 'unique ' : '') +

@@ -39,7 +39,6 @@ const Violations = table('pragma_foreign_key_check', {
   fkid: integer().notNull()
 })
 
-const {entries, keys, values} = Object
 const constant = /^(null|true|false|[-+\d.e]+|x?'([^']|'')*')$/i
 
 // https://www.sqlite.org/datatype3.html#determination_of_column_affinity
@@ -89,7 +88,7 @@ function* plan(
     // Sqlite accepts foreign keys to missing tables, the copy keeps them
     const copy = prefix + api.name
     yield inner.run(api.createTable(copy))
-    for (const [name, index] of entries(api.indexes()))
+    for (const [name, index] of Object.entries(api.indexes()))
       yield inner.run(getData(index).toSql(copy, prefix + name, false))
     const desired = (yield* shape(inner, copy, true))!
     return [...renamed, ...(yield* changes(inner, api, live, desired))]
@@ -113,7 +112,8 @@ function* changes(
     desired,
     widens
   })
-  const sorted = (shape: Shape) => values(shape.constraints).toSorted().join()
+  const sorted = (shape: Shape) =>
+    Object.values(shape.constraints).toSorted().join()
   // Alter table can't add a not null column without a default, nor a
   // non-constant default to a table with rows
   const varying = added.some(name => {
@@ -141,7 +141,7 @@ function* changes(
       live,
       desired,
       hasRows,
-      risk: values({...risks, ...nulls})[0]
+      risk: Object.values({...risks, ...nulls})[0]
     })
   const indexes = api.indexes()
   const definition = (name: string) => api.columnDefinition(data[name].key)
@@ -197,7 +197,7 @@ function* recreate({
   const triggers = yield* objects('trigger')
   const views = yield* objects('view')
   const increments = (shape: Shape) =>
-    values(shape.columns).some(column => column.extra)
+    Object.values(shape.columns).some(column => column.extra)
   // Read as text, a counter can be larger than a JavaScript number holds
   const [sequence] =
     increments(live) && increments(desired)
@@ -206,12 +206,13 @@ function* recreate({
           .from(Sequence)
           .where(eq(Sequence.name, api.name))
       : []
-  const copied = keys(desired.columns).filter(name => live.columns[name])
+  const copied = Object.keys(desired.columns).filter(name => live.columns[name])
   // Rowids are copied so they keep their values, through a name no column
   // shadows on either side, unless a copied column becomes the rowid
   const free = (shape: Shape) =>
     ['rowid', '_rowid_', 'oid'].find(
-      alias => !keys(shape.columns).some(name => name.toLowerCase() === alias)
+      alias =>
+        !Object.keys(shape.columns).some(name => name.toLowerCase() === alias)
     )
   const from = free(live)
   const into = free(desired)
@@ -301,7 +302,7 @@ function* enforced(db: Database): Gen<boolean> {
 function* violations(tx: Database, failure: string): Gen<Array<string>> {
   try {
     const rows = yield* tx.select(Violations).from(Violations)
-    return rows.map(row => values(row).join())
+    return rows.map(row => Object.values(row).join())
   } catch (error) {
     throw new Error(`${failure}: ${(error as Error).message}`, {cause: error})
   }

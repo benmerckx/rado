@@ -4,8 +4,6 @@ import type {Shape} from './Shape.ts'
 import {type Sql, sql} from './Sql.ts'
 import {type Gen, result} from './Transaction.ts'
 
-const {keys} = Object
-
 export function* exists(
   tx: Database,
   target: Sql,
@@ -57,9 +55,9 @@ export function* compare({
   }
   const before = live.columns
   const after = desired.columns
-  const dropped = keys(before).filter(name => !after[name])
-  const added = keys(after).filter(name => !before[name])
-  const changed = keys(after).filter(
+  const dropped = Object.keys(before).filter(name => !after[name])
+  const added = Object.keys(after).filter(name => !before[name])
+  const changed = Object.keys(after).filter(
     name =>
       before[name] &&
       (['type', 'notNull', 'default', 'extra'] as const).some(

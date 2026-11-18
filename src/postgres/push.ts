@@ -28,8 +28,6 @@ import {shape} from './shape.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
-const {entries, values} = Object
-
 // Arguments a type has when they are left out, unlimited where unbounded
 function fill(base: string): Array<number> {
   if (/^(character varying|bit varying)$/.test(base)) return [Infinity]
@@ -228,12 +226,12 @@ function* changes({
     desired,
     widens
   })
-  const wanted = new Set(values(desired.constraints))
-  const present = new Set(values(live.constraints))
+  const wanted = new Set(Object.values(desired.constraints))
+  const present = new Set(Object.values(live.constraints))
   const indexes = api.indexes()
   const gone = [
     ...differ(live.indexes, desired.indexes),
-    ...entries(live.constraints)
+    ...Object.entries(live.constraints)
       .filter(([, definition]) => !wanted.has(definition))
       .map(([name]) => name)
   ]
@@ -358,7 +356,7 @@ function* changes({
   }
   return [
     ...steps,
-    ...entries(desired.constraints)
+    ...Object.entries(desired.constraints)
       .filter(([, definition]) => !present.has(definition))
       .map(([name, definition]) =>
         alter(
