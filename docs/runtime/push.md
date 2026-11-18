@@ -64,8 +64,10 @@ a second push. Temporary tables can't be pushed.
 
 `push` lives in its own modules, so apps that never push don't ship the code
 that reads and compares schemas, and apps that do only ship their dialect.
-Because it's plain JavaScript talking to your driver, it works everywhere rado
-works: Node.js, Bun, Deno, Cloudflare Workers and the browser (PGlite/sql.js).
+Because it's plain JavaScript talking to your driver, it runs on Node.js, Bun,
+Deno and in the browser (PGlite/sql.js). Push needs a driver with
+transactions: on Cloudflare D1, which has none, it fails with
+`Push needs a driver with transactions` before touching the connection.
 
 ### Transactions
 
@@ -77,8 +79,9 @@ an `immediate` transaction. Readers are not blocked.
 
 MySQL commits implicitly after every DDL statement, so there:
 
-- each table's changes, renames included, go into one `alter table`, which
-  MySQL applies atomically: a failure, such as a new unique index over
+- a new table is created with its indexes in one `create table`, and an
+  existing table's changes, renames included, go into one `alter table`.
+  MySQL applies each atomically: a failure, such as a new unique index over
   duplicates, leaves that table as it was
 - tables are pushed one at a time, so a failure leaves the tables before it
   pushed
@@ -93,7 +96,8 @@ MySQL commits implicitly after every DDL statement, so there:
 ## Dry run
 
 `push.plan` takes the same arguments and returns the statements push would
-run, without running them:
+run, without keeping any change. On SQLite and PostgreSQL it does run them,
+inside a transaction it always rolls back:
 
 ```ts
 const statements = await push.plan(db, User, Post)
@@ -104,10 +108,13 @@ An empty array means the database already matches. On SQLite and PostgreSQL
 the plan applies each table in a transaction that is rolled back, so later
 tables are planned against the earlier changes, exactly as push would run
 them. A table push would refuse is left unapplied, and a statement that fails
-fails the plan, as it would fail the push.
+fails the plan, as it would fail the push. A rollback doesn't return values
+drawn from an existing sequence, so on PostgreSQL a table whose changes would
+draw one, a new column with a `nextval` default for example, is planned but
+not applied. The plan takes the same locks as push while it runs.
 
-MySQL can't roll back DDL, so there each table is planned against the database
-as it is. When one table's change affects another, renaming a column other
+MySQL can't roll back DDL, so there nothing is applied and each table is
+planned against the database as it is. When one table's change affects another, renaming a column other
 tables reference for example, push may run fewer statements than the plan
 shows. Planning creates a scratch table under a fresh name to read the desired
 schema back, and drops only that table.
@@ -178,16 +185,19 @@ column's type, nullability or default, or its constraints. For those, push
 rebuilds the table following
 [the procedure SQLite recommends](https://www.sqlite.org/lang_altertable.html#otheralter):
 
-1. turn `foreign_keys` off, since it can't change inside a transaction
+1. turn `foreign_keys` off if it was on, since it can't change inside a
+   transaction
 2. create the new table, copy the rows over with their rowids, then drop the
    old table and rename the new one. Values are copied as they are, the new
    column's affinity converts what it can without loss. An `autoincrement`
-   counter keeps its high-water mark
+   counter keeps its high-water mark. If columns named `rowid`, `_rowid_` and
+   `oid` hide the rowid, the rebuild is refused
 3. recreate the table's indexes and triggers, and every view along with the
    triggers on views, since a view may use the table
-4. run `pragma foreign_key_check` and roll back if any rows now violate a
-   foreign key
-5. turn `foreign_keys` back on
+4. run `pragma foreign_key_check` on the pushed tables and roll back if any
+   rows violate a foreign key. This runs on every push, also when keys aren't
+   enforced, so a push never adds a key its rows break
+5. turn `foreign_keys` back on if it was on
 
 If you call push inside your own transaction with `foreign_keys` on, it
 can't turn them off, so a rebuild fails with an error instead.
