@@ -89,28 +89,32 @@ function* changes(
     desired,
     widens
   )
-  const rows = yield* hasRows()
   const sorted = (info: TableInfo) => values(info.constraints).toSorted().join()
-  // What alter table add column accepts
-  const addable = (name: string) => {
-    const column = desired.columns[name]
-    return (
-      !(column.notNull && column.default === null) &&
-      !(rows && column.default && !constant.test(column.default))
-    )
-  }
+  // Alter table can't add a not null column without a default, nor a
+  // non-constant default to a table with rows
+  const varying = added.some(name => {
+    const value = desired.columns[name].default
+    return value && !constant.test(value)
+  })
+  const addable =
+    !added.some(name => {
+      const column = desired.columns[name]
+      return column.notNull && column.default === null
+    }) && !(varying && (yield* hasRows()))
   if (
+    live.rowid !== desired.rowid ||
     changed.length > 0 ||
     fks.dropped.length > 0 ||
     sorted(live) !== sorted(desired) ||
     fks.added.some(fk => !fk.inline || !added.includes(fk.columns[0])) ||
-    !added.every(addable)
+    !addable
   )
     return yield* recreate(
       tx,
       api,
       live,
       desired,
+      hasRows,
       values({...risks, ...nulls})[0]
     )
 
@@ -141,6 +145,7 @@ function* recreate(
   api: TableApi,
   live: TableInfo,
   desired: TableInfo,
+  hasRows: () => Gen<boolean>,
   risk?: string
 ): Gen<Array<Step>> {
   const target = api.identifier()
@@ -189,6 +194,9 @@ function* recreate(
     risk ??= `change the rowids of "${api.name}" to "${alias}"`
   const ids = rowid && !promoted
   const names = [...(ids ? [into!] : []), ...copied]
+  // Without a rowid or a column in common, there is nothing to copy rows by
+  if (names.length === 0 && (yield* hasRows()))
+    throw new Error(`Cannot rebuild "${api.name}", no column of its rows stays`)
   const selection = [...(ids ? [from!] : []), ...copied].map(name => {
     const to = desired.columns[name]
     const fallback = data[name]?.defaultValue
@@ -202,12 +210,16 @@ function* recreate(
       .filter(row => row.type === 'view')
       .map(view => ({sql: sql`drop view ${sql.identifier(view.name)}`})),
     {sql: api.createTable(prefix + api.name)},
-    {
-      sql: sql`insert into ${temp} (${sql.join(
-        names.map(sql.identifier),
-        sql`, `
-      )}) select ${sql.join(selection, sql`, `)} from ${target}`
-    },
+    ...(names.length > 0
+      ? [
+          {
+            sql: sql`insert into ${temp} (${sql.join(
+              names.map(sql.identifier),
+              sql`, `
+            )}) select ${sql.join(selection, sql`, `)} from ${target}`
+          }
+        ]
+      : []),
     // The old table goes with any data the copy leaves out
     {sql: sql`drop table ${target}`, risk, rebuild: true},
     {sql: sql`alter table ${temp} rename to ${sql.identifier(api.name)}`},

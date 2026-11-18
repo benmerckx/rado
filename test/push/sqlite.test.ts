@@ -785,10 +785,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
   })
 
   test('a descending integer primary key is not the rowid', async () => {
-    const Desc = table('desc_k', {
-      id: integer().primaryKey(),
-      v: text().unique()
-    })
+    // The primary key becoming the rowid is the only difference
+    const Desc = table('desc_k', {id: integer().primaryKey(), v: text()})
     await fresh('desc_k')
     await run('create table desc_k (id integer primary key desc, v text)')
     await run(`insert into desc_k (rowid, id, v) values (42, 1, 'a')`)
@@ -802,8 +800,41 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       test.equal(all('select _rowid_ as rowid, id from desc_k'), [
         {rowid: 42, id: 1}
       ])
+      await push(db, Desc, {force: true})
+      test.equal(push.plan(db, Desc), [])
+      await run(`insert into desc_k (v) values ('b')`)
+      test.equal(all('select id, v from desc_k order by id'), [
+        {id: 1, v: 'a'},
+        {id: 2, v: 'b'}
+      ])
     } finally {
       await fresh('desc_k')
+    }
+  })
+
+  test('rebuild of a table without rowid and no column to keep', async () => {
+    const Replaced = table('replaced', {c: integer().primaryKey()})
+    await fresh('replaced')
+    await run(
+      'create table replaced (a text primary key, b text) without rowid'
+    )
+    try {
+      await push(db, Replaced)
+      test.equal(push.plan(db, Replaced), [])
+      await run('insert into replaced (c) values (null)')
+      test.equal(all('select c from replaced'), [{c: 1}])
+      await fresh('replaced')
+      await run(
+        'create table replaced (a text primary key, b text) without rowid'
+      )
+      await run(`insert into replaced values ('x', 'y')`)
+      test.equal(
+        failure(() => push(db, Replaced, {force: true})),
+        'Cannot rebuild "replaced", no column of its rows stays'
+      )
+      test.equal(all('select a, b from replaced'), [{a: 'x', b: 'y'}])
+    } finally {
+      await fresh('replaced')
     }
   })
 

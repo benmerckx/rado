@@ -222,8 +222,8 @@ const runner: Runner = function* (db, apply, dry) {
 // index
 function validate(api: TableApi): void {
   for (const [name, index] of entries(api.indexes())) {
-    const data = getData(index) as unknown as Record<string, unknown>
-    const option = ['where', 'nulls', 'concurrently', 'only'].find(
+    const data = getData(index)
+    const option = (['where', 'nulls', 'concurrently', 'only'] as const).find(
       key => data[key]
     )
     if (option)
