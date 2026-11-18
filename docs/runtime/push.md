@@ -75,7 +75,20 @@ On SQLite and PostgreSQL everything runs inside one transaction: either the
 schema ends up matching, or nothing changed. Writers are kept out while push
 checks for data and applies the changes, so a row written in between can't be
 lost: PostgreSQL locks each table in `share row exclusive` mode, SQLite starts
-an `immediate` transaction. Readers are not blocked.
+an `immediate` transaction. Readers can still read while push checks, but
+PostgreSQL's `alter table` takes an `access exclusive` lock, which blocks
+readers of that table until the push commits.
+
+On PostgreSQL the data checks run with `row_security = off`, so rows a
+row-level security policy hides can't slip past them: if a policy would
+filter the table, push refuses with an error, and `force` skips the checks.
+
+Push refuses a table that a temporary object of the same name shadows, since
+its statements would reach the temporary one: a temporary table on SQLite and
+MySQL, or on SQLite a temporary index or view named like one push would
+change. On PostgreSQL every statement names the table's schema, and foreign
+keys name the referenced table's schema too, so a temporary table can't take
+their place.
 
 MySQL commits implicitly after every DDL statement, so there:
 
@@ -126,6 +139,10 @@ another, renaming a column other
 tables reference for example, push may run fewer statements than the plan
 shows. Planning creates a scratch table under a fresh name to read the desired
 schema back, and drops only that table.
+
+To read the desired schema back on PostgreSQL, both push and `push.plan`
+create a scratch schema under a fresh name, inside a savepoint they roll back. The role pushing
+therefore needs the `create` privilege on the database.
 
 ## Data loss
 
