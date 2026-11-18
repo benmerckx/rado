@@ -897,6 +897,34 @@ if (!isDeno && testMysql) {
     cases
   )
   testRegressions(db)
+  const logged: Array<string> = []
+  const logging = connect(
+    mysql2.createConnection('mysql://root:mysql@localhost:3306/mysql'),
+    {logQuery: query => logged.push(query.sql)}
+  )
+  test('push drops and narrows without reading rows', async () => {
+    const Dropped = table('lazy_t', {id: int(), w: varchar({length: 20})})
+    const Narrowed = table('lazy_t', {id: int(), w: varchar({length: 5})})
+    await logging.run(sql`drop table if exists lazy_t`)
+    await logging.run(sql`create table lazy_t (id int, v int, w varchar(20))`)
+    await logging.run(sql`insert into lazy_t values (1, 2, 'abc')`)
+    try {
+      for (const desired of [Dropped, Narrowed]) {
+        logged.length = 0
+        await push(logging, desired, {force: true})
+        test.equal(
+          logged.filter(query => /select 1 as found from `lazy_t`/.test(query)),
+          []
+        )
+      }
+      test.equal(await logging.all(sql<object>`select * from lazy_t`), [
+        {id: 1, w: 'abc'}
+      ])
+    } finally {
+      await logging.run(sql`drop table if exists lazy_t`)
+      await logging.close()
+    }
+  })
   test('close', async () => {
     await db.close()
   })

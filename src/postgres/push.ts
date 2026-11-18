@@ -15,6 +15,7 @@ import {
   grows,
   parseType,
   ranks,
+  renameColumn,
   renameSteps,
   scratch,
   shadow
@@ -37,11 +38,12 @@ function fill(base: string): Array<number> {
 }
 
 function widens(from: string, to: string): boolean {
-  const a = parseType(from).base
+  const a = parseType(from)
+  const b = parseType(to)
   return (
-    grows(from, to, fill) ||
-    ranks('smallint integer bigint', a, parseType(to).base) ||
-    (/^(character|text)/.test(a) &&
+    grows(a, b, fill) ||
+    ranks('smallint integer bigint', a.base, b.base) ||
+    (/^(character|text)/.test(a.base) &&
       (to === 'text' || to === 'character varying'))
   )
 }
@@ -64,11 +66,9 @@ function* plan(
   // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
   const before = (yield* inspect(tx, api.name, schema))!
-  const renamed = renameSteps(api, before, options).map(([from, to]) => ({
-    sql: sql`alter table ${api.identifier()} rename column ${sql.identifier(
-      from
-    )} to ${sql.identifier(to)}`
-  }))
+  const renamed = renameSteps(api, before, options).map(pair =>
+    renameColumn(target, pair)
+  )
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
     const live =
@@ -99,7 +99,7 @@ function* plan(
     return [
       ...enums,
       ...renamed,
-      ...(yield* changes(sp, api, target, live, desired, home))
+      ...(yield* changes(sp, api, schema, live, desired, home))
     ]
   })
 }
@@ -107,12 +107,13 @@ function* plan(
 function* changes(
   tx: Database,
   api: TableApi,
-  qualified: Sql,
+  schema: string,
   live: TableInfo,
   desired: TableInfo,
   home: string
 ): Gen<Array<Step>> {
-  const target = api.identifier()
+  // The resolved table, a temporary table of the same name can't shadow it
+  const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
   const data = columns(api)
   const bare = shadow(api, api.name, api.schemaName, true)
   const alter = (change: Sql, risk?: string): Step => ({
@@ -133,7 +134,7 @@ function* changes(
   const fks = foreignKeyChanges(api, live, home)
   const {dropped, added, changed, risks, nulls} = yield* compare(
     tx,
-    qualified,
+    target,
     api.name,
     live,
     desired,
@@ -144,10 +145,7 @@ function* changes(
   const indexes = api.indexes()
   const steps: Array<Step> = [
     ...differ(live.indexes, desired.indexes).map(name => ({
-      sql: sql`drop index ${sql.join(
-        [api.schemaName!, name].filter(Boolean).map(sql.identifier),
-        sql`.`
-      )}`
+      sql: sql`drop index ${sql.identifier(schema)}.${sql.identifier(name)}`
     })),
     ...fks.dropped.map(fk =>
       alter(sql`drop constraint ${sql.identifier(fk.name!)}`)
@@ -166,17 +164,23 @@ function* changes(
   for (const name of changed) {
     const from = live.columns[name]
     const to = desired.columns[name]
-    const column = sql`alter column ${sql.identifier(name)}`
-    if (from.type !== to.type) {
+    const id = sql.identifier(name)
+    const column = sql`alter column ${id}`
+    const retype = from.type !== to.type
+    // Postgres casts the old default along with the column, so it goes first
+    const cleared = retype && from.default !== null
+    if (cleared) steps.push(alter(sql`${column} drop default`))
+    if (retype) {
       const type = sql.unsafe(to.type)
       steps.push(
-        alter(
-          sql`${column} type ${type} using ${sql.identifier(name)}::${type}`,
-          risks[name]
-        )
+        alter(sql`${column} type ${type} using ${id}::${type}`, risks[name])
       )
     }
-    if (from.default !== to.default)
+    if (
+      to.default !== null
+        ? cleared || from.default !== to.default
+        : !cleared && from.default !== null
+    )
       steps.push(
         alter(
           to.default === null
@@ -184,6 +188,24 @@ function* changes(
             : sql`${column} set default ${sql.unsafe(to.default)}`
         )
       )
+    // Not null comes before an identity, which requires it
+    if (from.notNull !== to.notNull) {
+      const fallback = data[name].defaultValue
+      const risk = nulls[name]
+      if (risk && fallback)
+        steps.push({
+          sql: sql`update ${target} set ${id} = (${fallback}) where ${id} is null`.inlineValues(),
+          risk,
+          // An update can fire triggers
+          effect: true
+        })
+      steps.push(
+        alter(
+          sql`${column} ${sql.unsafe(to.notNull ? 'set' : 'drop')} not null`,
+          fallback ? undefined : risk
+        )
+      )
+    }
     if (from.extra !== to.extra) {
       const kind = sql.unsafe(to.extra === 'a' ? 'always' : 'by default')
       steps.push(
@@ -199,28 +221,10 @@ function* changes(
       if (!from.extra)
         steps.push({
           sql: sql`select setval(pg_get_serial_sequence(${sql.inline(
-            tx.dialect.inline(qualified)
-          )}, ${sql.inline(name)}), coalesce(max(${sql.identifier(
-            name
-          )}), 0) + 1, false) from ${target}`
+            tx.dialect.inline(target)
+          )}, ${sql.inline(name)}), greatest(coalesce(max(${id}), 0) + 1, 1), false) from ${target}`
         })
     }
-    if (from.notNull === to.notNull) continue
-    const fallback = data[name].defaultValue
-    const risk = nulls[name]
-    if (risk && fallback)
-      steps.push({
-        sql: sql`update ${target} set ${sql.identifier(name)} = (${fallback}) where ${sql.identifier(name)} is null`.inlineValues(),
-        risk,
-        // An update can fire triggers
-        effect: true
-      })
-    steps.push(
-      alter(
-        sql`${column} ${sql.unsafe(to.notNull ? 'set' : 'drop')} not null`,
-        fallback ? undefined : risk
-      )
-    )
   }
   return [
     ...steps,
@@ -231,7 +235,7 @@ function* changes(
       ),
     ...fks.added.map(fk => alter(sql`add ${foreignKey(fk)}`)),
     ...differ(desired.indexes, live.indexes).map(name => ({
-      sql: getData(indexes[name]).toSql(api.name, name, false, api.schemaName)
+      sql: getData(indexes[name]).toSql(api.name, name, false, schema)
     }))
   ]
 }

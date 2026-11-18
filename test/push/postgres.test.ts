@@ -953,6 +953,70 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
+  test('push alters the resolved table, not a temporary one', async () => {
+    const T = table('shadow_t', {id: integer()})
+    await run('drop table if exists pg_temp.shadow_t')
+    await run('drop table if exists public.shadow_t')
+    await run('create table public.shadow_t (id int, notes text)')
+    await run('create temporary table shadow_t (id int, notes text)')
+    await run(`insert into pg_temp.shadow_t values (1, 'keep')`)
+    try {
+      await push(db, T)
+      test.equal(
+        await all(
+          `select column_name as name from information_schema.columns where table_schema = 'public' and table_name = 'shadow_t' order by ordinal_position`
+        ),
+        [{name: 'id'}]
+      )
+      test.equal(await all('select id, notes from pg_temp.shadow_t'), [
+        {id: 1, notes: 'keep'}
+      ])
+    } finally {
+      await run('drop table if exists pg_temp.shadow_t')
+      await run('drop table if exists public.shadow_t')
+    }
+  })
+
+  test('push changes the type of a column with a default', async () => {
+    const T = table('retype_t', {n: integer().default(1)})
+    await run('drop table if exists retype_t')
+    await run(`create table retype_t (n text default '1')`)
+    await run(`insert into retype_t values ('2')`)
+    try {
+      await push(db, T, {force: true})
+      await run('insert into retype_t default values')
+      test.equal(await all('select n from retype_t order by n'), [
+        {n: 1},
+        {n: 2}
+      ])
+      test.equal(await push.plan(db, T), [])
+    } finally {
+      await run('drop table if exists retype_t')
+    }
+  })
+
+  test('push promotes a nullable column to an identity', async () => {
+    const T = table('ident_t', {id: integer().generatedByDefaultAsIdentity()})
+    for (const [rows, next] of [
+      ['(1), (2)', 3],
+      ['(-1)', 1]
+    ] as const) {
+      await run('drop table if exists ident_t')
+      await run('create table ident_t (id int)')
+      await run(`insert into ident_t values ${rows}`)
+      try {
+        await push(db, T)
+        await run('insert into ident_t default values')
+        test.equal(
+          await all('select max(id) as id from ident_t where id > 0'),
+          [{id: next}]
+        )
+      } finally {
+        await run('drop table if exists ident_t')
+      }
+    }
+  })
+
   test('push leaves an existing rado_push schema alone', async () => {
     const T = table('fk_child', {parent: integer(), extra: text()})
     await reset()

@@ -13,6 +13,7 @@ import {
   differ,
   exists,
   foreignKeyChanges,
+  renameColumn,
   renameSteps,
   scratch,
   within
@@ -45,11 +46,9 @@ function* plan(
 ): Gen<Array<Step>> {
   const before = yield* inspect(tx, api.name)
   if (!before) return api.create().map(sql => ({sql}))
-  const renamed = renameSteps(api, before, options).map(([from, to]) => ({
-    sql: sql`alter table ${api.identifier()} rename column ${sql.identifier(
-      from
-    )} to ${sql.identifier(to)}`
-  }))
+  const renamed = renameSteps(api, before, options).map(pair =>
+    renameColumn(api.identifier(), pair)
+  )
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
     const live = renamed.length > 0 ? (yield* inspect(sp, api.name))! : before
@@ -80,13 +79,14 @@ function* changes(
     desired,
     widens
   )
+  const rows = yield* hasRows()
   const sorted = (info: TableInfo) => values(info.constraints).toSorted().join()
   // What alter table add column accepts
   const addable = (name: string) => {
     const column = desired.columns[name]
     return (
       !(column.notNull && column.default === null) &&
-      !(hasRows && column.default && !constant.test(column.default)) &&
+      !(rows && column.default && !constant.test(column.default)) &&
       !fks.added.some(fk => fk.columns.includes(name) && column.default)
     )
   }

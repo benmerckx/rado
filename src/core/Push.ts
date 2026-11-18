@@ -375,6 +375,14 @@ export function renames(
     })
 }
 
+export function renameColumn(target: Sql, [from, to]: [string, string]): Step {
+  return {
+    sql: sql`alter table ${target} rename column ${sql.identifier(
+      from
+    )} to ${sql.identifier(to)}`
+  }
+}
+
 // Hints that still apply to the live columns, as from and to
 export function renameSteps(
   api: TableApi,
@@ -388,10 +396,12 @@ export function renameSteps(
   })
 }
 
-export function parseType(type: string): {
+export interface ParsedType {
   base: string
   args: Array<number>
-} {
+}
+
+export function parseType(type: string): ParsedType {
   const [, name, args, rest] = type.match(/^([^(]*)(?:\(([^)]*)\))?(.*)$/)!
   return {
     base: [name.trim(), rest.trim()].filter(Boolean).join(' '),
@@ -402,12 +412,10 @@ export function parseType(type: string): {
 // Same type with arguments at least as large, where fill gives the
 // arguments a type has when they are left out
 export function grows(
-  from: string,
-  to: string,
+  a: ParsedType,
+  b: ParsedType,
   fill: (base: string) => Array<number>
 ): boolean {
-  const a = parseType(from)
-  const b = parseType(to)
   const x = a.args.length ? a.args : fill(a.base)
   const y = b.args.length ? b.args : fill(b.base)
   if (a.base !== b.base || x.length !== y.length) return false
@@ -425,7 +433,8 @@ export function ranks(family: string, from: string, to: string): boolean {
 }
 
 export interface Changes {
-  hasRows: boolean
+  // Whether the target holds rows, only queried when asked
+  hasRows: () => Gen<boolean>
   dropped: Array<string>
   added: Array<string>
   changed: Array<string>
@@ -445,7 +454,10 @@ export function* compare(
   // Why rows can't be checked, drops and narrowing then always count
   unchecked?: string
 ): Gen<Changes> {
-  const hasRows = yield* exists(tx, target)
+  let found: boolean | undefined
+  const hasRows = function* () {
+    return (found ??= yield* exists(tx, target))
+  }
   const a = live.columns
   const b = desired.columns
   const dropped = keys(a).filter(name => !b[name])
@@ -466,13 +478,17 @@ export function* compare(
       sql`${sql.identifier(source(name))} is ${sql.unsafe(nulls ? '' : 'not ')}null`
     )
   const loses = function* (name: string) {
-    return unchecked || (hasRows && (yield* has(name, false)))
+    return unchecked || ((yield* hasRows()) && (yield* has(name, false)))
   }
   const note = unchecked ? ` (${unchecked})` : ''
-  if (hasRows)
-    for (const name of added)
-      if (b[name].notNull && b[name].default === null && !b[name].extra)
-        throw new Error(
+  for (const name of added)
+    if (
+      b[name].notNull &&
+      b[name].default === null &&
+      !b[name].extra &&
+      (yield* hasRows())
+    )
+      throw new Error(
           `Cannot add not null column "${name}" without a default to "${table}"`
         )
   for (const name of dropped)
@@ -488,7 +504,12 @@ export function* compare(
     )
       risks[name] =
         `change column "${name}" from ${from.type} to ${to.type}${note}`
-    if (hasRows && to.notNull && !from.notNull && (yield* has(name, true)))
+    if (
+      to.notNull &&
+      !from.notNull &&
+      (yield* hasRows()) &&
+      (yield* has(name, true))
+    )
       nulls[name] = `make column "${name}" not null over null values`
   }
   return {hasRows, dropped, added, changed, risks, nulls}

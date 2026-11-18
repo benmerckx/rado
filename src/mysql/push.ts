@@ -44,12 +44,12 @@ function fill(base: string): Array<number> {
 // Text capacity is in bytes, a character takes up to four
 function widens(from: string, to: string): boolean {
   const a = parseType(from)
-  const b = parseType(to).base
+  const b = parseType(to)
   return (
-    grows(from, to, fill) ||
-    ranks('tinyint smallint mediumint int bigint', a.base, b) ||
-    ranks('tinytext text mediumtext longtext', a.base, b) ||
-    (/char/.test(a.base) && a.args[0] * 4 <= capacity[b])
+    grows(a, b, fill) ||
+    ranks('tinyint smallint mediumint int bigint', a.base, b.base) ||
+    ranks('tinytext text mediumtext longtext', a.base, b.base) ||
+    (/char/.test(a.base) && a.args[0] * 4 <= capacity[b.base])
   )
 }
 
