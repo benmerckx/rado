@@ -54,7 +54,7 @@ interface Table {
   name: string
   columns: Array<Column>
   primaryKey?: Constraint
-  uniques: Array<Constraint & {name: string}>
+  uniques: Array<Constraint>
   indexes: Array<Index>
   foreignKeys: Array<ForeignKey>
 }
@@ -65,6 +65,7 @@ interface Column {
   notNull: boolean
   default: string | null // sql expression text
   autoIncrement: boolean // autoincrement, auto_increment, serial or identity
+  generated?: string // the expression of a generated column
 }
 
 interface Constraint {
@@ -87,28 +88,35 @@ interface ForeignKey {
   schema: string
   table: string
   references: Array<string>
-  onDelete: string // for example CASCADE or NO ACTION
-  onUpdate: string
+  onDelete: Action
+  onUpdate: Action
 }
+
+type Action = 'NO ACTION' | 'RESTRICT' | 'CASCADE' | 'SET NULL' | 'SET DEFAULT'
 
 interface View {
   schema: string
   name: string
-  definition: string
+  definition: string // the full create view statement
 }
 ```
+
+A generated column has its expression in `generated` and no `default`.
+Definitions of indexes and views are full create statements.
 
 Differences between the databases:
 
 - SQLite doesn't keep the names of primary keys, unique constraints and
-  foreign keys, so those come without one, and uniques are named after the
-  index SQLite made for them. A foreign key that names no columns references
-  the primary key, its `references` then hold empty strings
-- MySQL makes no difference between a unique constraint and a unique index:
-  both are listed in `indexes`, and `uniques` stays empty. Its index
-  `definition` is put together from the catalog, MySQL doesn't keep the
-  statement. A literal default is quoted into SQL text, an expression default
-  is shown as MySQL stores it
+  foreign keys, so those come without one. A foreign key that names no columns
+  references the primary key, its `references` then hold empty strings.
+  Hidden columns of virtual tables are left out
+- MySQL treats a unique constraint and a unique index as the same thing, a
+  unique key, so every unique key is listed in `indexes` and `uniques` stays
+  empty. MySQL doesn't keep index statements, so an index `definition` is put
+  together from the catalog, starting with `fulltext` or `spatial` for those
+  kinds. A literal default is quoted into SQL text, except numbers on numeric
+  columns and bit or hex literals; an expression default is shown as MySQL
+  stores it
 - PostgreSQL reads with the schema first in the search path, so names in that
   schema print without it
 

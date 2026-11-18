@@ -1,7 +1,9 @@
 import type {DefineTest} from '@alinea/suite'
-import {type Database, sql} from '#/index.ts'
+import {type Database, sql, table} from '#/index.ts'
 import {inspect} from '#/inspect.ts'
 import {inspect as sqliteInspect} from '#/sqlite/inspect.ts'
+import {push as sqlitePush} from '#/sqlite/push.ts'
+import {integer} from '#/universal.ts'
 
 const fixture = {
   sqlite: [
@@ -60,7 +62,10 @@ export function testInspect(db: Database, test: DefineTest) {
           ? owner.indexes.find(index => index.unique)!
           : owner.uniques[0]
       test.equal(unique.columns, ['email'])
-      if (runtime !== 'sqlite') test.equal(unique.name, 'insp_owner_email')
+      test.equal(
+        unique.name,
+        runtime === 'sqlite' ? undefined : 'insp_owner_email'
+      )
       const column = (name: string) =>
         item.columns.find(column => column.name === name)!
       test.equal(column('id').autoIncrement, true)
@@ -86,6 +91,7 @@ export function testInspect(db: Database, test: DefineTest) {
         test.equal(partial.where?.includes('score'), true)
       }
       const view = schema.views.find(view => view.name === 'insp_view')!
+      test.equal(/^create view/i.test(view.definition), true)
       test.equal(view.definition.includes('insp_item'), true)
       if (runtime === 'postgres') {
         const ref = item.foreignKeys.find(fk => fk.table === 'insp_ref')!
@@ -101,6 +107,89 @@ export function testInspect(db: Database, test: DefineTest) {
       }
     } finally {
       await reset()
+    }
+  })
+
+  test('inspect reads odd identifiers', async () => {
+    const statements = {
+      sqlite: [
+        'create table "insp(odd, t" ("a b" int, "c)d" int, primary key ("a b", "c)d"))',
+        'create index "insp(i" on "insp(odd, t" ("a b" desc, lower("c)d") desc) where "a b" > 0'
+      ],
+      postgres: [
+        'create table "insp(odd, t" ("a, b" int, "c)d" int, "userId" int, primary key ("a, b", "c)d"))',
+        'create index "insp(i" on "insp(odd, t" ("userId", lower("c)d"::text))'
+      ],
+      mysql: [
+        'create table `insp(odd, t` (`a, b` int, `c)d` int, body text, primary key (`a, b`, `c)d`), fulltext index `insp(i` (body))'
+      ]
+    }
+    const drop = [
+      'drop table if exists "insp(odd, t"'.replaceAll(
+        '"',
+        runtime === 'mysql' ? '`' : '"'
+      )
+    ]
+    await run(drop)
+    await run(statements[runtime])
+    try {
+      const {tables} = await inspect(db)
+      const odd = tables.find(table => table.name === 'insp(odd, t')!
+      const index = odd.indexes.find(index => index.name === 'insp(i')!
+      if (runtime === 'sqlite') {
+        test.equal(odd.primaryKey?.columns, ['a b', 'c)d'])
+        test.equal(index.columns, ['a b', 'lower("c)d")'])
+        test.equal(index.where, '"a b" > 0')
+      } else if (runtime === 'postgres') {
+        test.equal(odd.primaryKey?.columns, ['a, b', 'c)d'])
+        test.equal(index.columns, ['userId', 'lower("c)d"::text)'])
+      } else {
+        test.equal(odd.primaryKey?.columns, ['a, b', 'c)d'])
+        test.equal(index.definition.startsWith('create fulltext index'), true)
+      }
+    } finally {
+      await run(drop)
+    }
+  })
+
+  test('inspect reads indexes of a shadowed name', async () => {
+    if (runtime !== 'sqlite') return
+    await run([
+      'create table insp_shadow (a int, b int)',
+      'create index insp_shadow_ix on insp_shadow (a)',
+      'create temp table insp_temp (a int, b int)',
+      'create index temp.insp_shadow_ix on insp_temp (b)'
+    ])
+    try {
+      const {tables} = await inspect(db)
+      const table = tables.find(table => table.name === 'insp_shadow')!
+      test.equal(table.indexes[0].columns, ['a'])
+    } finally {
+      await run(['drop table temp.insp_temp', 'drop table insp_shadow'])
+    }
+  })
+
+  test('inspect reads generated columns', async () => {
+    const drop = ['drop table if exists insp_gen']
+    await run(drop)
+    await run([
+      `create table insp_gen (a ${runtime === 'sqlite' ? 'integer' : 'int'}, b int generated always as (a * 2) stored)`
+    ])
+    try {
+      const {tables} = await inspect(db)
+      const [a, b] = tables.find(table => table.name === 'insp_gen')!.columns
+      test.equal([a.name, a.generated], ['a', undefined])
+      test.equal(b.name, 'b')
+      test.equal(b.default, null)
+      test.equal(/a\W*\*\W*2/.test(b.generated ?? ''), true)
+      // Push still leaves generated columns out on sqlite
+      if (runtime === 'sqlite' && db.driver.supportsTransactions)
+        test.equal(
+          await sqlitePush.plan(db as any, table('insp_gen', {a: integer()})),
+          []
+        )
+    } finally {
+      await run(drop)
     }
   })
 

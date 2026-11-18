@@ -12,7 +12,7 @@ export interface Table {
   name: string
   columns: Array<Column>
   primaryKey?: Constraint
-  uniques: Array<Constraint & {name: string}>
+  uniques: Array<Constraint>
   indexes: Array<Index>
   foreignKeys: Array<ForeignKey>
 }
@@ -26,6 +26,8 @@ export interface Column {
   default: string | null
   // Autoincrement, auto_increment, serial or identity
   autoIncrement: boolean
+  // The expression of a generated column
+  generated?: string
 }
 
 export interface Constraint {
@@ -45,19 +47,27 @@ export interface Index {
   definition: string
 }
 
+export type Action =
+  | 'NO ACTION'
+  | 'RESTRICT'
+  | 'CASCADE'
+  | 'SET NULL'
+  | 'SET DEFAULT'
+
 export interface ForeignKey {
   name?: string
   columns: Array<string>
   schema: string
   table: string
   references: Array<string>
-  onDelete: string
-  onUpdate: string
+  onDelete: Action
+  onUpdate: Action
 }
 
 export interface View {
   schema: string
   name: string
+  // The full create statement
   definition: string
 }
 

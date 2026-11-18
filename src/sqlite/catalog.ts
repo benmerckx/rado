@@ -8,7 +8,11 @@ export type Row = Record<string, any>
 export interface Rows {
   name: string
   wr: number
+  // Generated columns are among them, with a hidden flag
   columns: Array<Row>
+  primary: Array<string>
+  // Whether the primary key is autoincrement
+  increments: boolean
   keys: Array<Row>
   fks: Array<Row>
   // Create statements by name, of the table and its indexes
@@ -34,13 +38,14 @@ export function* catalog(
   const tables: Array<Row> = yield select('t.wr', '', ' order by t.name')
   const columns: Array<Row> = yield select(
     'x.*',
-    ', pragma_table_info(t.name, t.schema) x'
+    ', pragma_table_xinfo(t.name, t.schema) x'
   )
-  // libsql's sqlite 3.45 returns nothing when the schema is passed on
-  // twice, without it the index is looked up by name
+  // libsql's sqlite 3.45 returns nothing when the schema column is passed
+  // on twice, a literal works. Without one, an index by the same name in
+  // temp or main is read instead
   const keys: Array<Row> = yield select(
     'l.name, l."unique", l.origin, i.name as col',
-    ', pragma_index_list(t.name, t.schema) l, pragma_index_info(l.name) i',
+    `, pragma_index_list(t.name, t.schema) l, pragma_index_info(l.name, '${schema.replaceAll("'", "''")}') i`,
     ' order by l.seq, i.seqno'
   )
   const fks: Array<Row> = yield select(
@@ -58,6 +63,14 @@ export function* catalog(
     name: tbl,
     wr,
     columns: own(columns, tbl),
+    primary: own(columns, tbl)
+      .filter(row => row.pk > 0)
+      .toSorted((a, b) => a.pk - b.pk)
+      .map(row => row.name),
+    // String literals are left out, a default can contain any word
+    increments: /\bautoincrement\b/i.test(
+      text[tbl].replace(/'([^']|'')*'/g, '')
+    ),
     keys: own(keys, tbl),
     fks: own(fks, tbl),
     sql: text

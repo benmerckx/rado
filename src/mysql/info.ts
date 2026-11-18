@@ -1,10 +1,8 @@
 import type {Database} from '../core/Database.ts'
 import type {ColumnInfo, ForeignKeyInfo, Gen, TableInfo} from '../core/Push.ts'
-import {catalog} from './catalog.ts'
+import {catalog, part} from './catalog.ts'
 
 const {entries, values} = Object
-
-export const quote = (name: string) => `\`${name.replaceAll('`', '``')}\``
 
 // The table in the form push compares, with renamed columns under their
 // new names
@@ -30,12 +28,7 @@ export function* info(
     (keys[row.name] ??= {
       unique: Number(row.non_unique) === 0,
       columns: []
-    }).columns.push(
-      (row.expression
-        ? `(${row.expression})`
-        : quote(as(row.column)) + (row.sub_part ? `(${row.sub_part})` : '')) +
-        (row.collation === 'D' ? ' desc' : '')
-    )
+    }).columns.push(part(row, as(row.column)))
   const constraints: Record<string, string> = {}
   const indexes: Record<string, string> = {}
   for (const [key, {unique, columns}] of entries(keys))

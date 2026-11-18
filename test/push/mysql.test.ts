@@ -964,6 +964,24 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
+  test('inspect reads literal defaults as sql', async () => {
+    const {inspect} = await import('#/mysql/inspect.ts')
+    await run('drop table if exists defaults_t')
+    await run(
+      `create table defaults_t (flags bit(3) default b'101', n int default 5, d decimal(5, 2) default 1.50, s varchar(10) default '5', q varchar(10) default 'it''s', bin varbinary(4) default 0x01)`
+    )
+    try {
+      const {tables} = await inspect(db)
+      const columns = tables.find(table => table.name === 'defaults_t')!.columns
+      test.equal(
+        columns.map(column => column.default),
+        ["b'101'", '5', '1.50', "'5'", "'it''s'", '0x01']
+      )
+    } finally {
+      await run('drop table if exists defaults_t')
+    }
+  })
+
   test('push refuses text types that are too small', async () => {
     const T = table('narrow_t', {v: tinytext()})
     await run('drop table if exists narrow_t')

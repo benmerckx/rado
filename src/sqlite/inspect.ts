@@ -13,27 +13,45 @@ import {type Row, catalog} from './catalog.ts'
 export type * from '../core/Inspect.ts'
 
 // The column list of an index and the text after it, split on top level
-// commas outside quotes
+// commas outside quotes. Quoted names before the list can hold parentheses
 function split(text: string): {list: Array<string>; rest: string} {
   const list: Array<string> = []
-  let depth = 0
+  let depth = -1
   let quote = ''
-  let start = text.indexOf('(') + 1
-  for (let i = start; i < text.length; i++) {
+  let start = 0
+  for (let i = 0; i < text.length; i++) {
     const char = text[i]
     if (quote) {
       if (char === quote) quote = ''
     } else if (`'"\`[`.includes(char)) quote = char === '[' ? ']' : char
-    else if (char === '(') depth++
-    else if (char === ',' && !depth) {
-      list.push(text.slice(start, i).trim())
+    else if (char === '(') {
+      if (!++depth) start = i + 1
+    } else if (char === ')' && depth) depth--
+    else if (!depth && (char === ',' || char === ')')) {
+      // Sort order is left out, as pragma_index_info leaves it out of names
+      list.push(
+        text
+          .slice(start, i)
+          .trim()
+          .replace(/\s+(asc|desc)$/i, '')
+      )
       start = i + 1
-    } else if (char === ')' && !depth--) {
-      list.push(text.slice(start, i).trim())
-      return {list, rest: text.slice(i + 1)}
+      if (char === ')') return {list, rest: text.slice(i + 1)}
     }
   }
   return {list, rest: ''}
+}
+
+// The expression of a generated column, from the table's create statement
+function generation(table: string, name: string): string | undefined {
+  const lower = name.toLowerCase()
+  const definition = split(table).list.find(part =>
+    [lower, `"${lower}"`, `\`${lower}\``, `[${lower}]`].some(head =>
+      part.toLowerCase().startsWith(`${head} `)
+    )
+  )
+  const at = definition?.search(/\bas\s*\(/i) ?? -1
+  return at < 0 ? undefined : split(definition!.slice(at)).list[0]
 }
 
 function* read(tx: Database, schema = 'main'): Gen<Schema> {
@@ -46,28 +64,30 @@ function* read(tx: Database, schema = 'main'): Gen<Schema> {
       unique: Boolean(rows[0].unique),
       columns: rows.map(row => row.col)
     }))
-    const primary = table.columns
-      .filter(row => row.pk > 0)
-      .toSorted((a, b) => a.pk - b.pk)
-      .map(row => row.name)
-    const increments = /\bautoincrement\b/i.test(
-      table.sql[table.name].replace(/'([^']|'')*'/g, '')
-    )
+    const {primary, increments} = table
     const fks = Map.groupBy(table.fks, (fk: Row) => fk.id)
     return {
       schema,
       name: table.name,
-      columns: table.columns.map(row => ({
-        name: row.name,
-        type: row.type,
-        notNull: Boolean(row.notnull),
-        default: row.dflt_value,
-        autoIncrement: increments && primary[0] === row.name
-      })),
+      // Hidden columns of virtual tables stay out, generated ones don't
+      columns: table.columns
+        .filter(row => row.hidden !== 1)
+        .map(row => {
+          const generated =
+            row.hidden > 1 ? generation(table.sql[table.name], row.name) : ''
+          return {
+            name: row.name,
+            type: row.type,
+            notNull: Boolean(row.notnull),
+            default: row.dflt_value,
+            autoIncrement: increments && primary[0] === row.name,
+            ...(generated ? {generated} : {})
+          }
+        }),
       ...(primary.length ? {primaryKey: {columns: primary}} : {}),
       uniques: keys
         .filter(key => key.origin === 'u')
-        .map(({name, columns}) => ({name, columns})),
+        .map(({columns}) => ({columns})),
       indexes: keys
         .filter(key => key.origin === 'c')
         .map(({name, unique, columns}) => {

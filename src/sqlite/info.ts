@@ -30,22 +30,16 @@ export function* info(
 ): Gen<TableInfo | undefined> {
   const [table] = yield* catalog(tx, 'main', [name])
   if (!table) return undefined
-  const primary = table.columns
-    .filter(row => row.pk > 0)
-    .toSorted((a, b) => a.pk - b.pk)
-    .map(row => row.name)
-  // String literals are left out, a default can contain any word
-  const autoIncrement = /\bautoincrement\b/i.test(
-    table.sql[name].replace(/'([^']|'')*'/g, '')
-  )
+  const {primary} = table
   const columns: Record<string, ColumnInfo> = {}
-  for (const row of table.columns) {
+  // Generated columns stay out, push can't define them
+  for (const row of table.columns.filter(row => !row.hidden)) {
     const value = row.dflt_value?.trim() ?? null
     columns[row.name] = {
       type: normalize(row.type),
       notNull: Boolean(row.notnull),
       default: value && (value.includes("'") ? value : value.toLowerCase()),
-      extra: autoIncrement && primary[0] === row.name ? 'autoincrement' : ''
+      extra: table.increments && primary[0] === row.name ? 'autoincrement' : ''
     }
   }
   const constraints: Record<string, string> = {}
