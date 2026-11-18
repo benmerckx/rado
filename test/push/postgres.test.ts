@@ -1194,6 +1194,55 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
+  test('serial promotion leaves another sequence alone', async () => {
+    const Promoted = table('a_b', {id: serial().primaryKey()})
+    const fails = (run: () => unknown) =>
+      Promise.resolve()
+        .then(run)
+        .then(
+          () => '',
+          error => String(error.message)
+        )
+    await run('drop table if exists a, a_b')
+    await run('create table a (b_id serial)')
+    await run('insert into a default values')
+    await run('create table a_b (id integer primary key)')
+    await run('insert into a_b values (10)')
+    try {
+      test.equal((await fails(() => push.plan(db, Promoted))) !== '', true)
+      test.equal((await fails(() => push(db, Promoted))) !== '', true)
+      await run('insert into a default values')
+      test.equal(await all('select b_id from a order by b_id'), [
+        {b_id: 1},
+        {b_id: 2}
+      ])
+    } finally {
+      await run('drop table if exists a, a_b')
+    }
+  })
+
+  test('push turns a serial into an identity', async () => {
+    const T = table('serial_t', {
+      id: integer().generatedByDefaultAsIdentity().primaryKey()
+    })
+    await run('drop table if exists serial_t')
+    await run('create table serial_t (id serial primary key)')
+    await run('insert into serial_t default values')
+    await run('insert into serial_t default values')
+    try {
+      await push(db, T)
+      await run('insert into serial_t default values')
+      test.equal(await all('select id from serial_t order by id'), [
+        {id: 1},
+        {id: 2},
+        {id: 3}
+      ])
+      test.equal(await push.plan(db, T), [])
+    } finally {
+      await run('drop table if exists serial_t')
+    }
+  })
+
   test('push leaves an existing rado_push schema alone', async () => {
     const T = table('fk_child', {parent: integer(), extra: text()})
     await reset()

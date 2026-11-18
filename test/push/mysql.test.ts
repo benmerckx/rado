@@ -915,6 +915,55 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
+  test('push changes a key column another pushed table references', async () => {
+    const Wide = table('ref_users', {id: bigint().primaryKey()})
+    const WidePosts = table('ref_posts', {uid: bigint().references(Wide.id)})
+    const Counted = table('ref_users', {
+      id: int().autoincrement().primaryKey()
+    })
+    const CountedPosts = table('ref_posts', {
+      uid: int().references(Counted.id)
+    })
+    const describe = () =>
+      all(
+        `select table_name as tbl, column_type as type, extra as extra from information_schema.columns where table_schema = database() and table_name in ('ref_users', 'ref_posts') order by table_name`
+      )
+    const target = () =>
+      all(
+        `select referenced_column_name as col from information_schema.key_column_usage where table_schema = database() and table_name = 'ref_posts' and referenced_table_name = 'ref_users'`
+      )
+    const reset = async () => {
+      await run('drop table if exists ref_posts, ref_users')
+      await run('create table ref_users (id int primary key)')
+      await run(
+        'create table ref_posts (uid int, foreign key (uid) references ref_users (id))'
+      )
+      await run('insert into ref_users values (1)')
+      await run('insert into ref_posts values (1)')
+    }
+    try {
+      await reset()
+      await push(db, Wide, WidePosts)
+      test.equal(await describe(), [
+        {tbl: 'ref_posts', type: 'bigint', extra: ''},
+        {tbl: 'ref_users', type: 'bigint', extra: ''}
+      ])
+      test.equal(await target(), [{col: 'id'}])
+      test.equal(await push.plan(db, Wide, WidePosts), [])
+      await reset()
+      await push(db, Counted, CountedPosts)
+      await run('insert into ref_users values ()')
+      test.equal(await all('select id from ref_users order by id'), [
+        {id: 1},
+        {id: 2}
+      ])
+      test.equal(await target(), [{col: 'id'}])
+      test.equal(await all('select uid from ref_posts'), [{uid: 1}])
+    } finally {
+      await run('drop table if exists ref_posts, ref_users')
+    }
+  })
+
   test('push refuses text types that are too small', async () => {
     const T = table('narrow_t', {v: tinytext()})
     await run('drop table if exists narrow_t')

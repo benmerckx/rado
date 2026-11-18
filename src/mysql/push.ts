@@ -205,16 +205,20 @@ function* changes(
     ...(pkChanged ? [live.constraints.primary] : []),
     ...differ(live.indexes, desired.indexes).map(name => live.indexes[name])
   ].map(def => def?.replace(/^[^(]*\(|\)$|`/g, ''))
-  const dependents: Array<Record<string, string>> = yield tx.all(sql`select
+  const dependents: Array<Record<string, string>> =
+    gone.length || changed.length
+      ? yield tx.all(sql`select
 constraint_name as name, table_schema as db, table_name as tbl,
 group_concat(referenced_column_name order by ordinal_position) as cols from
 information_schema.key_column_usage where referenced_table_schema = ${schema}
 and referenced_table_name = ${api.name} and not (table_schema = ${schema} and
 table_name = ${api.name}) group by constraint_name, table_schema, table_name`)
+      : []
   const drops = dependents
     .filter(
       fk =>
-        gone.includes(fk.cols) &&
+        (gone.includes(fk.cols) ||
+          changed.some(name => fk.cols.split(',').includes(source(name)))) &&
         tables.some(
           other => other.name === fk.tbl && (other.schemaName ?? home) === fk.db
         )

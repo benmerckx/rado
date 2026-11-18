@@ -135,9 +135,11 @@ triggers. Later tables are then planned against that table as it was.
 
 MySQL can't roll back DDL, so there nothing is applied and each table is
 planned against the database as it is. When one table's change affects
-another, renaming a column other
-tables reference for example, push may run fewer statements than the plan
-shows. Planning creates a scratch table under a fresh name to read the desired
+another, renaming a column other tables reference for example, push may run
+fewer statements than the plan shows. Likewise, when a pushed table changes a
+key another pushed table's foreign key uses, its plan drops that foreign key
+first; the other table's plan, read before the drop, may then drop it again or
+not show it being added back. Push itself re-adds it. Planning creates a scratch table under a fresh name to read the desired
 schema back, and drops only that table.
 
 To read the desired schema back on PostgreSQL, both push and `push.plan`

@@ -171,46 +171,44 @@ function* changes(
   const defs = new Set(values(desired.constraints))
   const liveDefs = new Set(values(live.constraints))
   const indexes = api.indexes()
-  const keys = new Set([
+  const gone = [
     ...differ(live.indexes, desired.indexes),
     ...entries(live.constraints)
       .filter(([, def]) => !defs.has(def))
       .map(([name]) => name)
-  ])
-  // Foreign keys of other pushed tables that use a key that goes are
-  // dropped first, the other table's own plan adds what it wants
-  const dependents: Array<Record<string, string>> = yield tx.all(sql`select
-c.conname as name, n.nspname as schema, r.relname as table, i.relname as key
-from pg_constraint c join pg_class r on r.oid = c.conrelid join pg_namespace n
-on n.oid = r.relnamespace join pg_class i on i.oid = c.conindid where
-c.contype = 'f' and c.conrelid <> c.confrelid and c.confrelid = ${sql.inline(
-    tx.dialect.inline(target)
-  )}::regclass`)
+  ]
+  // Foreign keys of other pushed tables on a key that goes are dropped
+  // first, the other table's own plan adds them back
+  const dependents: Array<Record<string, string>> = gone.length
+    ? yield tx.all(sql`select n.nspname as schema, r.relname as table,
+i.relname as key, format('alter table %I.%I drop constraint %I', n.nspname,
+r.relname, c.conname) as sql from pg_constraint c join pg_class r on r.oid =
+c.conrelid join pg_namespace n on n.oid = r.relnamespace join pg_class i on
+i.oid = c.conindid where c.contype = 'f' and c.conrelid <> c.confrelid and
+c.confrelid = ${sql.inline(tx.dialect.inline(target))}::regclass`)
+    : []
   const steps: Array<Step> = [
     ...dependents
       .filter(
         fk =>
-          keys.has(fk.key) &&
+          gone.includes(fk.key) &&
           tables.some(
             other =>
               other.name === fk.table &&
               (other.schemaName ?? home) === fk.schema
           )
       )
-      .map(fk => ({
-        sql: sql`alter table ${sql.identifier(fk.schema)}.${sql.identifier(
-          fk.table
-        )} drop constraint ${sql.identifier(fk.name)}`
-      })),
-    ...differ(live.indexes, desired.indexes).map(name => ({
-      sql: sql`drop index ${sql.identifier(schema)}.${sql.identifier(name)}`
-    })),
+      .map(fk => ({sql: sql.unsafe(fk.sql)})),
     ...fks.dropped.map(fk =>
       alter(sql`drop constraint ${sql.identifier(fk.name!)}`)
     ),
-    ...entries(live.constraints)
-      .filter(([, def]) => !defs.has(def))
-      .map(([name]) => alter(sql`drop constraint ${sql.identifier(name)}`)),
+    ...gone.map(name =>
+      live.indexes[name]
+        ? {
+            sql: sql`drop index ${sql.identifier(schema)}.${sql.identifier(name)}`
+          }
+        : alter(sql`drop constraint ${sql.identifier(name)}`)
+    ),
     ...dropped.map(name =>
       alter(sql`drop column ${sql.identifier(name)}`, risks[name])
     ),
@@ -245,7 +243,7 @@ c.contype = 'f' and c.conrelid <> c.confrelid and c.confrelid = ${sql.inline(
       )
       steps.push(
         {
-          sql: sql`create sequence if not exists ${sql.identifier(
+          sql: sql`create sequence ${sql.identifier(
             schema
           )}.${sql.unsafe(sequence)} owned by ${target}.${id}`
         },
@@ -281,6 +279,15 @@ c.contype = 'f' and c.conrelid <> c.confrelid and c.confrelid = ${sql.inline(
       )
     }
     if (to.extra && from.extra !== to.extra) {
+      // A serial's sequence goes with its default, so the identity's own
+      // sequence is the one that continues above the rows
+      const owned: {seq: string | null} = yield tx.get(
+        sql`select pg_get_serial_sequence(${sql.inline(
+          tx.dialect.inline(target)
+        )}, ${sql.inline(name)}) as seq`
+      )
+      if (!from.extra && owned.seq)
+        steps.push({sql: sql`drop sequence ${sql.unsafe(owned.seq)}`})
       steps.push(
         alter(
           from.extra

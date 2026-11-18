@@ -155,10 +155,8 @@ function* recreate(
   const rowid = live.rowid !== false
   // Views and triggers may use the table, sqlite reparses them between the
   // drop and the rename, so all of them are dropped and restored after
-  const kept: Array<SchemaRow> = yield schema(
-    tx,
-    sql`type in ('view', 'trigger')`
-  )
+  const triggers: Array<SchemaRow> = yield schema(tx, sql`type = 'trigger'`)
+  const views: Array<SchemaRow> = yield schema(tx, sql`type = 'view'`)
   const autoIncrement = (info: TableInfo) =>
     values(info.columns).some(column => column.extra)
   // Read as text, a counter can be larger than a JavaScript number holds
@@ -210,8 +208,9 @@ function* recreate(
     })
   ]
   return [
-    ...kept.map(row => ({
-      sql: sql`drop ${sql.unsafe(row.type)} if exists ${sql.identifier(row.name)}`
+    // Triggers first, a trigger on a view goes before its view
+    ...[...triggers, ...views].map(row => ({
+      sql: sql`drop ${sql.unsafe(row.type)} ${sql.identifier(row.name)}`
     })),
     {sql: api.createTable(prefix + api.name)},
     ...(names.length > 0
@@ -238,11 +237,7 @@ function* recreate(
         ]
       : []),
     ...api.createIndexes().map(sql => ({sql})),
-    ...['view', 'trigger'].flatMap(type =>
-      kept
-        .filter(row => row.type === type)
-        .map(row => ({sql: sql.unsafe(row.sql!)}))
-    )
+    ...[...views, ...triggers].map(row => ({sql: sql.unsafe(row.sql!)}))
   ]
 }
 
