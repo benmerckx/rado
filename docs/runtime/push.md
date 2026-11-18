@@ -58,20 +58,37 @@ Push only touches the tables you pass it. It never drops other tables, and
 there are no migration files, history table or down migrations.
 
 Tables are pushed in foreign key order, so `push(db, Post, User)` creates
-`User` first. Temporary tables can't be pushed.
+`User` first. Tables whose foreign keys form a cycle are refused with an error
+naming them; create one side with `db.create` and add the other reference in
+a second push. Temporary tables can't be pushed.
 
 `push` lives in its own modules, so apps that never push don't ship the code
-that reads and compares schemas, and apps that do only ship their dialect. Because it's plain JavaScript talking to
-your driver, it works everywhere rado works: Node.js, Bun, Deno, Cloudflare
-Workers and the browser (PGlite/sql.js).
+that reads and compares schemas, and apps that do only ship their dialect.
+Because it's plain JavaScript talking to your driver, it works everywhere rado
+works: Node.js, Bun, Deno, Cloudflare Workers and the browser (PGlite/sql.js).
 
 ### Transactions
 
 On SQLite and PostgreSQL everything runs inside one transaction: either the
-schema ends up matching, or nothing changed.
+schema ends up matching, or nothing changed. Writers are kept out while push
+checks for data and applies the changes, so a row written in between can't be
+lost: PostgreSQL locks each table in `share row exclusive` mode, SQLite starts
+an `immediate` transaction. Readers are not blocked.
 
-MySQL commits implicitly after every DDL statement, so there push handles one
-table at a time and a failure halfway leaves the tables before it pushed.
+MySQL commits implicitly after every DDL statement, so there:
+
+- each table's changes, renames included, go into one `alter table`, which
+  MySQL applies atomically: a failure, such as a new unique index over
+  duplicates, leaves that table as it was
+- tables are pushed one at a time, so a failure leaves the tables before it
+  pushed
+- with `force`, the `update` that fills nulls with a default runs just before
+  the `alter table` and stays if it fails
+- the data checks and the `alter table` are separate statements and MySQL
+  can't hold a lock across DDL, so a row written in between can be lost: push
+  while writers are paused if that matters
+- push and `push.plan` refuse to run inside a transaction, since their DDL
+  would commit it
 
 ## Dry run
 
@@ -83,8 +100,17 @@ const statements = await push.plan(db, User, Post)
 // ['alter table "user" add column "bio" text', ...]
 ```
 
-An empty array means the database already matches. On MySQL planning creates
-and drops a scratch table to read the desired schema back.
+An empty array means the database already matches. On SQLite and PostgreSQL
+the plan applies each table in a transaction that is rolled back, so later
+tables are planned against the earlier changes, exactly as push would run
+them. A table push would refuse is left unapplied, and a statement that fails
+fails the plan, as it would fail the push.
+
+MySQL can't roll back DDL, so there each table is planned against the database
+as it is. When one table's change affects another, renaming a column other
+tables reference for example, push may run fewer statements than the plan
+shows. Planning creates a scratch table under a fresh name to read the desired
+schema back, and drops only that table.
 
 ## Data loss
 
@@ -97,8 +123,15 @@ Push would drop column "bio" with data: alter table "user" drop column "bio"
 It checks the rows, so these are only refused when there is data to lose:
 
 - dropping a column that holds values
-- narrowing a column type, for example `varchar(20)` to `varchar(10)` or
-  `bigint` to `integer`, when the column holds values
+- changing a column type in a way that may not hold every value, when the
+  column holds values. What counts as safe depends on the database:
+  - PostgreSQL: a longer length or precision, a larger integer type, or any
+    character type to `text` or `varchar`
+  - MySQL: the same, with text types sized in bytes, so `varchar(1000)` to
+    `tinytext` (255 bytes) is refused
+  - SQLite: any change that keeps the column's
+    [affinity](https://www.sqlite.org/datatype3.html#determination_of_column_affinity),
+    since SQLite doesn't enforce lengths
 - making a column `not null` while it holds nulls
 
 Pass `force` to run them anyway:
@@ -146,9 +179,12 @@ rebuilds the table following
 [the procedure SQLite recommends](https://www.sqlite.org/lang_altertable.html#otheralter):
 
 1. turn `foreign_keys` off, since it can't change inside a transaction
-2. create the new table, copy the rows over, casting columns whose type
-   changed, then drop the old table and rename the new one
-3. recreate the table's indexes and triggers, and the views that use it
+2. create the new table, copy the rows over with their rowids, then drop the
+   old table and rename the new one. Values are copied as they are, the new
+   column's affinity converts what it can without loss. An `autoincrement`
+   counter keeps its high-water mark
+3. recreate the table's indexes and triggers, and every view along with the
+   triggers on views, since a view may use the table
 4. run `pragma foreign_key_check` and roll back if any rows now violate a
    foreign key
 5. turn `foreign_keys` back on
