@@ -26,6 +26,7 @@ import {
 import {push} from '#/postgres/push.ts'
 import {shape} from '#/postgres/shape.ts'
 import {isDeno, testPostgres} from '../TestRuntime.ts'
+import {failure, fixture} from '../TestUtils.ts'
 import {type Case, testCases} from './TestCases.ts'
 
 const test = suite(import.meta)
@@ -800,10 +801,9 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     const T = review.table('review_t', {v: integer()}, t => ({
       review_t_v: index().on(t.v)
     }))
-    await reset()
-    await run('create table public.review_t (v int)')
-    await run('create table review.review_t (v int)')
-    try {
+    await fixture(reset, async () => {
+      await run('create table public.review_t (v int)')
+      await run('create table review.review_t (v int)')
       await push(db, T)
       test.equal(
         await all(
@@ -812,22 +812,21 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
         [{schema: 'review'}]
       )
       test.equal(await push.plan(db, T), [])
-    } finally {
-      await reset()
-    }
+    })
   })
 
-  test('push keeps foreign keys to tables in other schemas apart', async () => {
+  test('foreign keys across schemas', async () => {
     const PublicParent = table('fk_parent', {id: integer().primaryKey()})
     const ReviewParent = review.table('fk_parent', {id: integer().primaryKey()})
     const Child = table('fk_child', {
       parent: integer().references(ReviewParent.id)
     })
-    await reset()
-    await run('create table public.fk_parent (id int primary key)')
-    await run('create table review.fk_parent (id int primary key)')
-    await run('create table fk_child (parent int references public.fk_parent)')
-    try {
+    await fixture(reset, async () => {
+      await run('create table public.fk_parent (id int primary key)')
+      await run('create table review.fk_parent (id int primary key)')
+      await run(
+        'create table fk_child (parent int references public.fk_parent)'
+      )
       await push(db, Child, PublicParent, ReviewParent)
       test.equal(
         await all(
@@ -836,27 +835,22 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
         [{target: 'review.fk_parent'}]
       )
       test.equal(await push.plan(db, PublicParent, ReviewParent, Child), [])
-    } finally {
-      await reset()
-    }
+    })
   })
 
-  test('push keeps literal defaults that look qualified', async () => {
+  test('qualified looking defaults', async () => {
     const D = review.table('review_d', {
       id: integer(),
       s: text().default('review.hello')
     })
-    await reset()
-    try {
+    await fixture(reset, async () => {
       await push(db, D)
       test.equal(await push.plan(db, D), [])
       await run('insert into review.review_d (id) values (1)')
       test.equal(await all('select s from review.review_d'), [
         {s: 'review.hello'}
       ])
-    } finally {
-      await reset()
-    }
+    })
   })
 
   test('push compares timestamp precision', async () => {
@@ -869,12 +863,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       await push(db, Fine)
       test.equal(await push.plan(db, Fine), [])
       await run(`update ts_t set at = '2026-01-02 03:04:05.678901'`)
-      const error = await Promise.resolve()
-        .then(() => push(db, Coarse))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const error = await failure(() => push(db, Coarse))
       test.equal(error.startsWith('Push would change column "at"'), true)
       test.equal(await all(`select to_char(at, 'US') as us from ts_t`), [
         {us: '678901'}
@@ -933,12 +922,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table decimal_t (n numeric(8, 2))')
     await run('insert into decimal_t values (123456.78)')
     try {
-      const error = await Promise.resolve()
-        .then(() => push(db, T))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const error = await failure(() => push(db, T))
       test.equal(
         error.startsWith(
           'Push would change column "n" from numeric(8,2) to numeric(8,4)'
@@ -953,7 +937,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push alters the resolved table, not a temporary one', async () => {
+  test('alter the resolved table', async () => {
     const T = table('shadow_t', {id: integer()})
     await run('drop table if exists pg_temp.shadow_t')
     await run('drop table if exists public.shadow_t')
@@ -977,7 +961,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push changes the type of a column with a default', async () => {
+  test('retype a column with a default', async () => {
     const T = table('retype_t', {n: integer().default(1)})
     await run('drop table if exists retype_t')
     await run(`create table retype_t (n text default '1')`)
@@ -995,7 +979,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push promotes a nullable column to an identity', async () => {
+  test('nullable column to identity', async () => {
     const T = table('ident_t', {id: integer().generatedByDefaultAsIdentity()})
     for (const [rows, next] of [
       ['(1), (2)', 3],
@@ -1017,7 +1001,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push refuses to check rows behind row level security', async () => {
+  test('row level security', async () => {
     const T = table('rls_t', {id: integer()})
     await run('drop table if exists rls_t')
     await run('drop role if exists push_rls')
@@ -1033,12 +1017,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       await run('reset role')
       await run(`insert into rls_t values (1, 'x')`)
       await run('set role push_rls')
-      const error = await Promise.resolve()
-        .then(() => push(db, T))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const error = await failure(() => push(db, T))
       await run('reset role')
       test.equal(
         error,
@@ -1056,7 +1035,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push references the permanent table, not a temporary one', async () => {
+  test('reference the permanent table', async () => {
     const Parent = table('fkt_parent', {id: integer().primaryKey()})
     const Child = table('fkt_child', {pid: integer().references(Parent.id)})
     const target = () =>
@@ -1105,7 +1084,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push indexes a new table, not a temporary one', async () => {
+  test('index the new table', async () => {
     const Users = table('dup_users', {email: text()}, t => ({
       dup_users_email: uniqueIndex().on(t.email)
     }))
@@ -1115,12 +1094,9 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     try {
       await push(db, Users)
       await run(`insert into public.dup_users values ('a')`)
-      const error = await Promise.resolve()
-        .then(() => run(`insert into public.dup_users values ('a')`))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const error = await failure(() =>
+        run(`insert into public.dup_users values ('a')`)
+      )
       test.equal(error.includes('duplicate key'), true)
       test.equal(await all('select email from public.dup_users'), [
         {email: 'a'}
@@ -1131,7 +1107,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push moves a primary key another pushed table references', async () => {
+  test('move a referenced primary key', async () => {
     const Users = table('key_users', {
       id: integer().notNull(),
       account: integer().primaryKey()
@@ -1151,12 +1127,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('insert into key_users values (1, 1)')
     await run('insert into key_posts values (1)')
     try {
-      const error = await Promise.resolve()
-        .then(() => push(db, Users))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const error = await failure(() => push(db, Users))
       test.equal(error.includes('depend'), true)
       test.equal(await constraint('key_users', 'p'), [
         {def: 'PRIMARY KEY (id)'}
@@ -1194,7 +1165,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('serial promotion leaves another sequence alone', async () => {
+  test('serial promotion', async () => {
     const Promoted = table('a_b', {id: serial().primaryKey()})
     const fails = (run: () => unknown) =>
       Promise.resolve()
@@ -1243,7 +1214,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
-  test('push leaves an existing rado_push schema alone', async () => {
+  test('existing rado_push schema', async () => {
     const T = table('fk_child', {parent: integer(), extra: text()})
     await reset()
     await run('create schema if not exists rado_push')
@@ -1278,12 +1249,7 @@ function testLock(
     try {
       await other.query('begin')
       await other.query('alter table relock_t add column extra text')
-      const pushing = Promise.resolve()
-        .then(() => push(db, T))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const pushing = failure(() => push(db, T))
       await new Promise(resolve => setTimeout(resolve, 300))
       await other.query('commit')
       test.equal(await pushing, '')
@@ -1308,12 +1274,7 @@ function testLock(
     try {
       await other.query('begin')
       await other.query(`insert into lock_t values (2, 'x')`)
-      const pushing = Promise.resolve()
-        .then(() => push(db, L))
-        .then(
-          () => '',
-          error => error.message
-        )
+      const pushing = failure(() => push(db, L))
       await new Promise(resolve => setTimeout(resolve, 300))
       await other.query('commit')
       test.equal(

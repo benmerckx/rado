@@ -58,3 +58,26 @@ export function mapTo(column: Column, value: unknown): unknown {
   const data = getData(column)
   return data.mapToDriverValue ? data.mapToDriverValue(value) : value
 }
+
+// The message a call fails with, empty if it succeeds
+export async function failure(run: () => unknown): Promise<string> {
+  try {
+    await run()
+    return ''
+  } catch (error) {
+    return (error as Error).message
+  }
+}
+
+// Runs a test between two cleanups, the second even when it fails
+export async function fixture(
+  cleanup: () => unknown,
+  run: () => Promise<void>
+): Promise<void> {
+  await cleanup()
+  try {
+    await run()
+  } finally {
+    await cleanup()
+  }
+}

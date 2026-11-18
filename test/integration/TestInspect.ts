@@ -4,8 +4,9 @@ import {inspect} from '#/inspect.ts'
 import {inspect as sqliteInspect} from '#/sqlite/inspect.ts'
 import {push as sqlitePush} from '#/sqlite/push.ts'
 import {integer} from '#/universal.ts'
+import {failure, fixture} from '../TestUtils.ts'
 
-const fixture = {
+const setup = {
   sqlite: [
     'create table insp_owner (tenant integer, id integer, email text, constraint insp_owner_email unique (email), primary key (tenant, id))',
     `create table insp_item (id integer primary key autoincrement, label text not null default 'new', score real default 0, owner_tenant integer, owner_id integer, foreign key (owner_tenant, owner_id) references insp_owner (tenant, id) on delete cascade on update restrict)`,
@@ -30,7 +31,7 @@ const fixture = {
   ]
 }
 
-const cleanup = [
+const teardown = [
   'drop view if exists insp_view',
   'drop table if exists insp_item',
   'drop table if exists insp_owner'
@@ -41,16 +42,16 @@ export function testInspect(db: Database, test: DefineTest) {
   const run = async (statements: Array<string>) => {
     for (const statement of statements) await db.run(sql.unsafe(statement))
   }
+  const cleanup = (statements: Array<string>) => () => run(statements)
   const reset = async () => {
-    await run(cleanup)
+    await run(teardown)
     if (runtime === 'postgres')
       await run(['drop schema if exists insp_other cascade'])
   }
 
-  test('inspect reads tables, keys, indexes and views', async () => {
-    await reset()
-    await run(fixture[runtime])
-    try {
+  test('inspect tables, keys and views', async () => {
+    await fixture(reset, async () => {
+      await run(setup[runtime])
       const schema = await inspect(db)
       const table = (name: string) =>
         schema.tables.find(table => table.name === name)!
@@ -105,9 +106,7 @@ export function testInspect(db: Database, test: DefineTest) {
           ['insp_ref']
         )
       }
-    } finally {
-      await reset()
-    }
+    })
   })
 
   test('inspect reads odd identifiers', async () => {
@@ -130,9 +129,8 @@ export function testInspect(db: Database, test: DefineTest) {
         runtime === 'mysql' ? '`' : '"'
       )
     ]
-    await run(drop)
-    await run(statements[runtime])
-    try {
+    await fixture(cleanup(drop), async () => {
+      await run(statements[runtime])
       const {tables} = await inspect(db)
       const odd = tables.find(table => table.name === 'insp(odd, t')!
       const index = odd.indexes.find(index => index.name === 'insp(i')!
@@ -147,9 +145,7 @@ export function testInspect(db: Database, test: DefineTest) {
         test.equal(odd.primaryKey?.columns, ['a, b', 'c)d'])
         test.equal(index.definition.startsWith('create fulltext index'), true)
       }
-    } finally {
-      await run(drop)
-    }
+    })
   })
 
   test('inspect reads indexes of a shadowed name', async () => {
@@ -171,11 +167,10 @@ export function testInspect(db: Database, test: DefineTest) {
 
   test('inspect reads generated columns', async () => {
     const drop = ['drop table if exists insp_gen']
-    await run(drop)
-    await run([
-      `create table insp_gen (a ${runtime === 'sqlite' ? 'integer' : 'int'}, b int generated always as (a * 2) stored)`
-    ])
-    try {
+    await fixture(cleanup(drop), async () => {
+      await run([
+        `create table insp_gen (a ${runtime === 'sqlite' ? 'integer' : 'int'}, b int generated always as (a * 2) stored)`
+      ])
       const {tables} = await inspect(db)
       const [a, b] = tables.find(table => table.name === 'insp_gen')!.columns
       test.equal([a.name, a.generated], ['a', undefined])
@@ -188,42 +183,29 @@ export function testInspect(db: Database, test: DefineTest) {
           await sqlitePush.plan(db as any, table('insp_gen', {a: integer()})),
           []
         )
-    } finally {
-      await run(drop)
-    }
+    })
   })
 
   test('inspect unescapes mysql expressions', async () => {
     if (runtime !== 'mysql') return
     const drop = ['drop table if exists insp_expr']
-    await run(drop)
-    await run([
-      `create table insp_expr (a text default (''), b varchar(9) as (concat(a, 'x')), index insp_expr_ix ((concat(b, 'y'))))`
-    ])
-    try {
+    await fixture(cleanup(drop), async () => {
+      await run([
+        `create table insp_expr (a text default (''), b varchar(9) as (concat(a, 'x')), index insp_expr_ix ((concat(b, 'y'))))`
+      ])
       const {tables} = await inspect(db)
       const {columns, indexes} = tables.find(
         table => table.name === 'insp_expr'
       )!
       test.equal(columns[0].default, "_utf8mb4''")
       test.equal(columns[1].generated, "concat(`a`,_utf8mb4'x')")
-      await run([
-        'drop index insp_expr_ix on insp_expr',
-        indexes[0].definition
-      ])
-    } finally {
-      await run(drop)
-    }
+      await run(['drop index insp_expr_ix on insp_expr', indexes[0].definition])
+    })
   })
 
   test('inspect refuses another dialect', async () => {
     if (runtime === 'sqlite') return
-    const error = await Promise.resolve()
-      .then(() => sqliteInspect(db as any))
-      .then(
-        () => '',
-        error => error.message
-      )
+    const error = await failure(() => sqliteInspect(db as any))
     test.equal(error, 'Expected a sqlite database')
   })
 }

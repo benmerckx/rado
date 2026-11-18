@@ -656,7 +656,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
         error => String(error.message)
       )
 
-  test('plan leaves a table named like the old scratch table', async () => {
+  test('old scratch table name', async () => {
     const Victim = table('victim', {id: int(), extra: int()})
     await run('drop table if exists victim, __rado_victim')
     await run('create table victim (id int)')
@@ -720,7 +720,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
-  test('push keeps same-named tables in two databases apart', async () => {
+  test('same name in two databases', async () => {
     const archive = mysqlSchema('push_archive')
     const Parent = table('dup_parent', {id: int().primaryKey()})
     const ArchiveParent = archive.table('dup_parent', {id: int().primaryKey()})
@@ -790,7 +790,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
-  test('a new table with a failing index is not created', async () => {
+  test('failing index on a new table', async () => {
     const T = table('bad_new', {t: text()}, t => ({i: index().on(t.t)}))
     await run('drop table if exists bad_new')
     try {
@@ -829,7 +829,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
-  test('push refuses index options MySQL lacks before creating anything', async () => {
+  test('refuse unsupported index options', async () => {
     const Plain = table('plain_new', {id: int()})
     const Partial = table('partial_new', {code: int(), s: text()}, t => ({
       vip: uniqueIndex()
@@ -853,7 +853,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
-  test('push refuses a table a temporary table shadows', async () => {
+  test('temporary table shadows', async () => {
     const Logs = table('logs_t', {id: int()})
     await run('drop temporary table if exists logs_t')
     await run('drop table if exists logs_t')
@@ -879,7 +879,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
-  test('push moves a primary key another pushed table references', async () => {
+  test('move a referenced primary key', async () => {
     const Users = table('key_users', {
       id: int().notNull(),
       account: int().primaryKey()
@@ -915,7 +915,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
-  test('push changes a key column another pushed table references', async () => {
+  test('change a referenced key column', async () => {
     const Wide = table('ref_users', {id: bigint().primaryKey()})
     const WidePosts = table('ref_posts', {uid: bigint().references(Wide.id)})
     const Counted = table('ref_users', {

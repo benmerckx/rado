@@ -1,6 +1,7 @@
 import {suite} from '@alinea/suite'
 import {testDriver} from '../TestDriver.ts'
 import {isNode} from '../TestRuntime.ts'
+import {failure} from '../TestUtils.ts'
 
 const test = suite(import.meta)
 
@@ -17,12 +18,9 @@ if (isNode) {
     const {integer} = await import('#/sqlite.ts')
     const {sql} = await import('#/index.ts')
     await db.run(sql`pragma foreign_keys = on`)
-    const error = await Promise.resolve()
-      .then(() => push(db, table('d1_push', {id: integer()})))
-      .then(
-        () => '',
-        error => error.message
-      )
+    const error = await failure(() =>
+      push(db, table('d1_push', {id: integer()}))
+    )
     test.equal(error, 'Push needs a driver with transactions')
     test.equal(
       await db.get(
