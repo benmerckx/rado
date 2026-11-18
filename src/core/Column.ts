@@ -1,5 +1,5 @@
 import type {DriverSpecs} from './Driver.ts'
-import type {Field, FieldData} from './expr/Field.ts'
+import {type Field, type FieldData, referenced} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import {type Input, input, mapToColumn} from './expr/Input.ts'
 import {
@@ -195,7 +195,7 @@ function formatReferences(
 ): Sql {
   return sql.query(
     callFunction(
-      sql.identifier(fields[0].targetName),
+      referenced(fields[0]),
       fields.map(field => sql.identifier(field.fieldName))
     ),
     {

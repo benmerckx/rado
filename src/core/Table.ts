@@ -119,7 +119,7 @@ export class TableApi<
   createIndexes(): Array<Sql> {
     return entries(this.indexes()).map(([name, index]) => {
       const indexApi = getData(index)
-      return indexApi.toSql(this.name, name, false)
+      return indexApi.toSql(this.name, name, false, this.schemaName)
     })
   }
 
@@ -154,7 +154,8 @@ export class TableApi<
 
 export function tableFields(
   targetName: string,
-  columns: TableDefinition
+  columns: TableDefinition,
+  schemaName?: string
 ): Record<string, HasSql> {
   return fromEntries(
     entries(columns).map(([name, column]) => {
@@ -169,7 +170,7 @@ export function tableFields(
               value === null ? null : decode(value, specs)
           }
         : columnApi
-      const field = new Field(targetName, givenName ?? name, source)
+      const field = new Field(targetName, givenName ?? name, source, schemaName)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })
@@ -302,7 +303,7 @@ function createTable<Definition extends TableDefinition, Name extends string>(
     temporary,
     columns
   })
-  const fields = tableFields(api.aliased, api.columns)
+  const fields = tableFields(api.aliased, api.columns, api.schemaName)
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.identifier(),
@@ -327,7 +328,7 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
     ...getTable(table),
     alias
   })
-  const fields = tableFields(api.aliased, api.columns)
+  const fields = tableFields(api.aliased, api.columns, api.schemaName)
   return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.identifier(),

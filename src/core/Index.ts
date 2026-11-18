@@ -15,7 +15,12 @@ class IndexData {
 }
 
 export class IndexApi extends IndexData {
-  toSql(tableName: string, indexName: string, ifNotExists: boolean): Sql {
+  toSql(
+    tableName: string,
+    indexName: string,
+    ifNotExists: boolean,
+    schemaName?: string
+  ): Sql {
     const fields = this.fields.map(field =>
       sql.join([
         field,
@@ -33,7 +38,9 @@ export class IndexApi extends IndexData {
         sql.identifier(indexName),
         sql`on`,
         this.only && sql`only`,
-        sql.identifier(tableName),
+        schemaName
+          ? sql`${sql.identifier(schemaName)}.${sql.identifier(tableName)}`
+          : sql.identifier(tableName),
         this.using && sql`using ${this.using}`,
         sql`(${sql.join(fields, sql`, `)})`,
         this.where && sql`where ${this.where}`
