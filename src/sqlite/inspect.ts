@@ -1,148 +1,108 @@
 import type {Database} from '../core/Database.ts'
-import type {ColumnInfo, ForeignKeyInfo, Gen, TableInfo} from '../core/Push.ts'
-import {type Sql, sql} from '../core/Sql.ts'
+import {
+  type ForeignKey,
+  type Inspect,
+  type Schema,
+  type Table,
+  createInspect
+} from '../core/Inspect.ts'
+import type {Gen} from '../core/Push.ts'
+import {sql} from '../core/Sql.ts'
+import {type Row, catalog} from './catalog.ts'
 
-const {values} = Object
+export type * from '../core/Inspect.ts'
 
-export const prefix = '__rado_'
+// The column list of an index and the text after it, split on top level
+// commas outside quotes
+function split(text: string): {list: Array<string>; rest: string} {
+  const list: Array<string> = []
+  let depth = 0
+  let quote = ''
+  let start = text.indexOf('(') + 1
+  for (let i = start; i < text.length; i++) {
+    const char = text[i]
+    if (quote) {
+      if (char === quote) quote = ''
+    } else if (`'"\`[`.includes(char)) quote = char === '[' ? ']' : char
+    else if (char === '(') depth++
+    else if (char === ',' && !depth) {
+      list.push(text.slice(start, i).trim())
+      start = i + 1
+    } else if (char === ')' && !depth--) {
+      list.push(text.slice(start, i).trim())
+      return {list, rest: text.slice(i + 1)}
+    }
+  }
+  return {list, rest: ''}
+}
 
-// Lowercases and strips quotes outside string literals, which stay intact
-function normalize(text: string): string {
-  return text
-    .split(/('(?:[^']|'')*')/)
-    .map((part, i) =>
-      i % 2
-        ? part
-        : part
-            .toLowerCase()
-            .replace(/["`[\]]/g, '')
-            .replace(/\s+/g, ' ')
-            .replace(/ ?([(),=<>]) ?/g, '$1')
+function* read(tx: Database, schema = 'main'): Gen<Schema> {
+  const rows = yield* catalog(tx, schema)
+  const tables = rows.map((table): Table => {
+    const groups = Map.groupBy(table.keys, (key: Row) => key.name)
+    const keys = [...groups].map(([name, rows]) => ({
+      name,
+      origin: rows[0].origin,
+      unique: Boolean(rows[0].unique),
+      columns: rows.map(row => row.col)
+    }))
+    const primary = table.columns
+      .filter(row => row.pk > 0)
+      .toSorted((a, b) => a.pk - b.pk)
+      .map(row => row.name)
+    const increments = /\bautoincrement\b/i.test(
+      table.sql[table.name].replace(/'([^']|'')*'/g, '')
     )
-    .join('')
-}
-
-interface PragmaColumn {
-  name: string
-  type: string
-  notnull: number
-  dflt_value: string | null
-  pk: number
-}
-
-interface PragmaIndex {
-  name: string
-  unique: number
-  origin: string
-}
-
-interface PragmaForeignKey {
-  id: number
-  table: string
-  from: string
-  to: string | null
-  on_update: string
-  on_delete: string
-}
-
-export interface SchemaRow {
-  type: string
-  name: string
-  sql: string | null
-}
-
-function pragma(tx: Database, name: string, target: string): unknown {
-  return tx.all(sql`select * from ${sql.unsafe(name)}(${sql.inline(target)})`)
-}
-
-export function schema(tx: Database, where: Sql): unknown {
-  return tx.all(
-    sql`select type, name, sql from sqlite_master where ${where} order by rowid`
-  )
-}
-
-export function* inspect(
-  tx: Database,
-  name: string,
-  copy = false
-): Gen<TableInfo | undefined> {
-  const rows: Array<PragmaColumn> = yield pragma(tx, 'pragma_table_info', name)
-  if (rows.length === 0) return undefined
-  const master: Array<SchemaRow> = yield schema(
-    tx,
-    sql`tbl_name = ${sql.inline(name)}`
-  )
-  const primary = rows
-    .filter(row => row.pk > 0)
-    .toSorted((a, b) => a.pk - b.pk)
-    .map(row => row.name)
-  // String literals are left out, a default can contain any word
-  const autoIncrement = /\bautoincrement\b/i.test(
-    master.find(row => row.type === 'table')!.sql!.replace(/'([^']|'')*'/g, '')
-  )
-  const columns: Record<string, ColumnInfo> = {}
-  for (const row of rows) {
-    const value = row.dflt_value?.trim() ?? null
-    columns[row.name] = {
-      type: normalize(row.type),
-      notNull: Boolean(row.notnull),
-      default: value && (value.includes("'") ? value : value.toLowerCase()),
-      extra: autoIncrement && primary[0] === row.name ? 'autoincrement' : ''
-    }
-  }
-  const constraints: Record<string, string> = {}
-  if (primary.length > 0) constraints.primary = `primary key (${primary})`
-  const indexes: Record<string, string> = {}
-  const list: Array<PragmaIndex> = yield pragma(tx, 'pragma_index_list', name)
-  for (const index of list) {
-    if (index.origin === 'u') {
-      const info: Array<{name: string}> = yield pragma(
-        tx,
-        'pragma_index_info',
-        index.name
+    const fks = Map.groupBy(table.fks, (fk: Row) => fk.id)
+    return {
+      schema,
+      name: table.name,
+      columns: table.columns.map(row => ({
+        name: row.name,
+        type: row.type,
+        notNull: Boolean(row.notnull),
+        default: row.dflt_value,
+        autoIncrement: increments && primary[0] === row.name
+      })),
+      ...(primary.length ? {primaryKey: {columns: primary}} : {}),
+      uniques: keys
+        .filter(key => key.origin === 'u')
+        .map(({name, columns}) => ({name, columns})),
+      indexes: keys
+        .filter(key => key.origin === 'c')
+        .map(({name, unique, columns}) => {
+          const definition = table.sql[name]
+          const {list, rest} = split(definition)
+          const where = rest.match(/^\s*where\s+([\s\S]*)$/i)?.[1]
+          return {
+            name,
+            unique,
+            columns: columns.map((column, i) => column ?? list[i]),
+            ...(where ? {where} : {}),
+            definition
+          }
+        }),
+      foreignKeys: [...fks.values()].map(
+        (rows): ForeignKey => ({
+          columns: rows.map(row => row.from),
+          schema,
+          table: rows[0].table,
+          references: rows.map(row => row.to ?? ''),
+          onDelete: rows[0].on_delete,
+          onUpdate: rows[0].on_update
+        })
       )
-      constraints[index.name] = `unique (${info.map(column => column.name)})`
-    } else if (index.origin === 'c') {
-      const text = normalize(master.find(row => row.name === index.name)!.sql!)
-      indexes[copy ? index.name.slice(prefix.length) : index.name] =
-        (index.unique ? 'unique ' : '') + text.slice(text.indexOf('('))
     }
-  }
-  const fks: Array<PragmaForeignKey> = yield pragma(
-    tx,
-    'pragma_foreign_key_list',
-    name
+  })
+  const views: Array<Row> = yield tx.all(
+    sql`select name, sql from ${sql.identifier(
+      schema
+    )}.sqlite_master where type = 'view' order by rowid`
   )
-  const foreignKeys: Record<number, ForeignKeyInfo> = {}
-  for (const fk of fks) {
-    const entry = (foreignKeys[fk.id] ??= {
-      columns: [],
-      table: fk.table,
-      references: [],
-      onDelete: fk.on_delete.toLowerCase(),
-      onUpdate: fk.on_update.toLowerCase()
-    })
-    entry.columns.push(fk.from)
-    entry.references.push(fk.to ?? '')
-  }
-  const [{wr}]: Array<{wr: number}> = yield tx.all(
-    sql`select wr from pragma_table_list where schema = 'main' and name = ${sql.inline(name)}`
-  )
-  // The column that is the rowid, an empty string if it is hidden, false
-  // for a table without rowid. A primary key with an index of its own, as
-  // integer primary key desc has, isn't the rowid
-  const rowid = wr
-    ? false
-    : primary.length === 1 &&
-        columns[primary[0]].type === 'integer' &&
-        !list.some(index => index.origin === 'pk')
-      ? primary[0]
-      : ''
   return {
-    columns,
-    constraints,
-    indexes,
-    foreignKeys: values(foreignKeys),
-    rowid
+    tables,
+    views: views.map(row => ({schema, name: row.name, definition: row.sql}))
   }
 }
+
+export const inspect: Inspect<'sqlite'> = createInspect('sqlite', read)

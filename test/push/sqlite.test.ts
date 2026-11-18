@@ -13,7 +13,7 @@ import {
   uniqueIndex
 } from '#/index.ts'
 import {integer, numeric, text} from '#/sqlite.ts'
-import {inspect} from '#/sqlite/inspect.ts'
+import {info as inspect} from '#/sqlite/info.ts'
 import {push} from '#/sqlite/push.ts'
 import {isBun, isNode} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'

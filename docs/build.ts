@@ -82,6 +82,7 @@ const nav: Array<NavGroup> = [
       },
       {text: 'Prepared statements', href: 'runtime/prepared-statements.html'},
       {text: 'Schema push', href: 'runtime/push.html'},
+      {text: 'Inspect', href: 'runtime/inspect.html'},
       {text: 'Universal queries', href: 'runtime/universal-queries.html'}
     ]
   },

@@ -23,7 +23,7 @@ import {
   uuid,
   varchar
 } from '#/postgres.ts'
-import {inspect} from '#/postgres/inspect.ts'
+import {info as inspect} from '#/postgres/info.ts'
 import {push} from '#/postgres/push.ts'
 import {isDeno, testPostgres} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'

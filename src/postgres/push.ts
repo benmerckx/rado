@@ -24,7 +24,8 @@ import {
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
-import {inspect, prepend} from './inspect.ts'
+import {prepend} from './catalog.ts'
+import {info} from './info.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
@@ -81,14 +82,14 @@ function* plan(
   // Keeps writers out until the transaction ends, so the data checks hold,
   // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
-  const before = (yield* inspect(tx, api.name, schema))!
+  const before = (yield* info(tx, api.name, schema))!
   const renamed = renameSteps(api, before, options).map(pair =>
     renameColumn(target, pair)
   )
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
     const live =
-      renamed.length > 0 ? (yield* inspect(sp, api.name, schema))! : before
+      renamed.length > 0 ? (yield* info(sp, api.name, schema))! : before
     const enums: Array<Step> = []
     for (const query of api.createEnums()) {
       const name = sp.dialect.inline(query).match(/type (.+?) as/)![1]
@@ -104,7 +105,7 @@ function* plan(
       yield* prepend(inner, scratchSchema)
       for (const query of shadow(api, api.name, scratchSchema).create())
         yield inner.run(query)
-      return (yield* inspect(inner, api.name, scratchSchema))!
+      return (yield* info(inner, api.name, scratchSchema))!
     })
     return [
       ...enums,

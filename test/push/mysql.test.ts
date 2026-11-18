@@ -27,7 +27,7 @@ import {
   uniqueIndex,
   varchar
 } from '#/mysql.ts'
-import {inspect} from '#/mysql/inspect.ts'
+import {info as inspect} from '#/mysql/info.ts'
 import {push} from '#/mysql/push.ts'
 import {isDeno, testMysql} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'

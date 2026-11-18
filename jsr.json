@@ -8,10 +8,14 @@
     ".": "./src/index.ts",
     "./sqlite": "./src/sqlite.ts",
     "./sqlite/push": "./src/sqlite/push.ts",
+    "./sqlite/inspect": "./src/sqlite/inspect.ts",
     "./mysql": "./src/mysql.ts",
     "./mysql/push": "./src/mysql/push.ts",
+    "./mysql/inspect": "./src/mysql/inspect.ts",
     "./postgres": "./src/postgres.ts",
     "./postgres/push": "./src/postgres/push.ts",
-    "./push": "./src/push.ts"
+    "./postgres/inspect": "./src/postgres/inspect.ts",
+    "./push": "./src/push.ts",
+    "./inspect": "./src/inspect.ts"
   }
 }

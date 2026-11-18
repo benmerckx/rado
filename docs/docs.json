@@ -52,6 +52,7 @@
           "runtime/transactions-and-batch",
           "runtime/prepared-statements",
           "runtime/push",
+          "runtime/inspect",
           "runtime/universal-queries"
         ]
       },

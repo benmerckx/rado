@@ -20,9 +20,21 @@ import {
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
-import {type SchemaRow, inspect, prefix, schema} from './inspect.ts'
+import {info, prefix} from './info.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
+
+interface SchemaRow {
+  type: string
+  name: string
+  sql: string | null
+}
+
+function schema(tx: Database, where: Sql): unknown {
+  return tx.all(
+    sql`select type, name, sql from sqlite_master where ${where} order by rowid`
+  )
+}
 
 const {entries, keys, values} = Object
 const constant = /^(null|true|false|[-+\d.e]+|x?'([^']|'')*')$/i
@@ -54,20 +66,20 @@ function* plan(
     throw new Error(
       `Cannot push "${api.name}", a temporary "${shadowed.name}" shadows it`
     )
-  const before = yield* inspect(tx, api.name)
+  const before = yield* info(tx, api.name)
   if (!before) return api.create().map(sql => ({sql}))
   const renamed = renameSteps(api, before, options).map(pair =>
     renameColumn(api.identifier(), pair)
   )
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
-    const live = renamed.length > 0 ? (yield* inspect(sp, api.name))! : before
+    const live = renamed.length > 0 ? (yield* info(sp, api.name))! : before
     // Sqlite accepts foreign keys to missing tables, the copy keeps them
     const copy = prefix + api.name
     yield sp.run(api.createTable(copy))
     for (const [name, index] of entries(api.indexes()))
       yield sp.run(getData(index).toSql(copy, prefix + name, false))
-    const desired = (yield* inspect(sp, copy, true))!
+    const desired = (yield* info(sp, copy, true))!
     return [...renamed, ...(yield* changes(sp, api, live, desired))]
   })
 }

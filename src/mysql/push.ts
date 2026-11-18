@@ -22,7 +22,7 @@ import {
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
-import {inspect} from './inspect.ts'
+import {info} from './info.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
@@ -82,7 +82,7 @@ function* plan(
 ): Gen<Array<Step>> {
   const {home}: {home: string} = yield tx.get(sql`select database() as home`)
   const schema = api.schemaName ?? home
-  const before = yield* inspect(tx, api.name, schema)
+  const before = yield* info(tx, api.name, schema)
   if (!before) return [{sql: create(api)}]
   // The catalog shows the permanent table, statements reach a temporary one
   // of the same name on this connection
@@ -93,7 +93,7 @@ function* plan(
     throw new Error(`Cannot push "${api.name}", a temporary table shadows it`)
   const renamed = fromEntries(renameSteps(api, before, options))
   const live = Object.keys(renamed).length
-    ? (yield* inspect(tx, api.name, schema, renamed))!
+    ? (yield* info(tx, api.name, schema, renamed))!
     : before
   // DDL is not transactional: the desired table is created under a fresh
   // name next to the real one and only what was created is dropped
@@ -107,7 +107,7 @@ function* plan(
   try {
     yield tx.run(create(copy))
     created = true
-    desired = (yield* inspect(tx, copy.name, schema))!
+    desired = (yield* info(tx, copy.name, schema))!
   } finally {
     if (created) yield tx.run(sql`drop table ${copy.identifier()}`)
   }

@@ -1,128 +1,91 @@
 import type {Database} from '../core/Database.ts'
 import {
-  type ColumnInfo,
-  type ForeignKeyInfo,
-  type Gen,
-  type TableInfo,
-  scratch
-} from '../core/Push.ts'
+  type Constraint,
+  type Inspect,
+  type Schema,
+  type Table,
+  createInspect
+} from '../core/Inspect.ts'
+import type {Gen} from '../core/Push.ts'
 import {sql} from '../core/Sql.ts'
+import {type Row, catalog} from './catalog.ts'
+import {actions} from './info.ts'
 
-const {values} = Object
+export type * from '../core/Inspect.ts'
 
-const actions: Record<string, string> = {
-  a: 'no action',
-  r: 'restrict',
-  c: 'cascade',
-  n: 'set null',
-  d: 'set default'
+// Column names as a constraint definition lists them, unquoted
+function listed(def: string): Array<string> {
+  return def
+    .slice(def.indexOf('(') + 1, def.indexOf(')'))
+    .split(', ')
+    .map(name =>
+      name.startsWith('"') ? name.slice(1, -1).replaceAll('""', '"') : name
+    )
 }
 
-interface ColumnRow {
-  name: string
-  type: string
-  notNull: boolean
-  default: string | null
-  identity: string
-}
-
-interface ForeignKeyRow {
-  name: string
-  column: string
-  schema: string
-  table: string
-  reference: string
-  onUpdate: string
-  onDelete: string
-}
-
-type Named = Array<{name: string; def: string}>
-
-// Queries are kept compact, template whitespace survives minification
-// Read with the table's schema first in the search path, so names in types
-// and defaults print the same for the live table and its scratch copy
-export function* inspect(
-  tx: Database,
-  name: string,
-  schema: string
-): Gen<TableInfo | undefined> {
-  return yield* scratch(tx, function* (sp) {
-    yield* prepend(sp, schema)
-    return yield* read(sp, name, schema)
-  })
-}
-
-// Puts a schema first in the search path until the transaction ends
-export function* prepend(tx: Database, schema: string): Gen<void> {
-  const {path}: {path: string} = yield tx.get(
-    sql`select current_setting('search_path') as path`
-  )
-  yield tx.run(
-    sql`set local search_path to ${sql.identifier(schema)}, ${sql.unsafe(path)}`
-  )
-}
-
-function* read(
-  tx: Database,
-  name: string,
-  schema: string
-): Gen<TableInfo | undefined> {
-  const found: {oid: unknown} | null = yield tx.get(sql`select c.oid from
-pg_class c join pg_namespace n on n.oid = c.relnamespace where c.relname =
-${name} and n.nspname = ${schema} and c.relkind in ('r', 'p')`)
-  if (!found) return undefined
-  const oid = sql`${sql.inline(String(found.oid))}::oid`
-  const rows: Array<ColumnRow> = yield tx.all(sql`select a.attname as name,
-format_type(a.atttypid, a.atttypmod) as type, a.attnotnull as "notNull",
-pg_get_expr(d.adbin, d.adrelid) as default, a.attidentity::text as identity
-from pg_attribute a left join pg_attrdef d on d.adrelid = a.attrelid and
-d.adnum = a.attnum where a.attrelid = ${oid} and a.attnum > 0 and not
-a.attisdropped order by a.attnum`)
-  const columns: Record<string, ColumnInfo> = {}
-  for (const row of rows)
-    columns[row.name] = {
-      type: row.type,
-      notNull: row.notNull,
-      default: row.default,
-      extra: row.identity
-    }
-  const constraints: Record<string, string> = {}
-  const constraintRows: Named = yield tx.all(sql`select conname as name,
-pg_get_constraintdef(oid) as def from pg_constraint where conrelid = ${oid}
-and contype in ('p', 'u')`)
-  for (const row of constraintRows) constraints[row.name] = row.def
-  const indexes: Record<string, string> = {}
-  const indexRows: Named = yield tx.all(sql`select i.relname as name,
-pg_get_indexdef(x.indexrelid) as def from pg_index x join pg_class i on i.oid
-= x.indexrelid where x.indrelid = ${oid} and not exists (select 1 from
-pg_constraint where conindid = x.indexrelid and conrelid = ${oid})`)
-  for (const {name, def} of indexRows)
-    indexes[name] =
-      (def.startsWith('CREATE UNIQUE') ? 'unique ' : '') +
-      def.slice(def.indexOf(' USING '))
-  const fkRows: Array<ForeignKeyRow> = yield tx.all(sql`select conname as
-name, a.attname as column, rn.nspname as schema, r.relname as table,
-ra.attname as reference,
-confupdtype::text as "onUpdate", confdeltype::text as "onDelete" from
-pg_constraint join pg_class r on r.oid = confrelid join pg_namespace rn on
-rn.oid = r.relnamespace cross join lateral
-unnest(conkey, confkey) with ordinality as k(num, ref, pos) join pg_attribute
-a on a.attrelid = conrelid and a.attnum = k.num join pg_attribute ra on
-ra.attrelid = confrelid and ra.attnum = k.ref where conrelid = ${oid} and
-contype = 'f' order by conname, k.pos`)
-  const fks: Record<string, ForeignKeyInfo> = {}
-  for (const row of fkRows) {
-    const fk = (fks[row.name] ??= {
+function* read(tx: Database, given?: string): Gen<Schema> {
+  const schema: string =
+    given ?? ((yield tx.get(sql`select current_schema() as name`)) as Row).name
+  const rows = yield* catalog(tx, schema)
+  const action = (code: string) => actions[code].toUpperCase()
+  const tables = rows.map((table): Table => {
+    const constraint = (row: Row): Constraint & {name: string} => ({
       name: row.name,
-      columns: [],
-      schema: row.schema,
-      table: row.table,
-      references: [],
-      onDelete: actions[row.onDelete],
-      onUpdate: actions[row.onUpdate]
+      columns: listed(row.def),
+      definition: row.def
     })
-    fk.columns.push(row.column)
-    fk.references.push(row.reference)
+    const primary = table.keys.find(row => row.type === 'p')
+    const indexes = Map.groupBy(table.indexes, (row: Row) => row.name)
+    const fks = Map.groupBy(table.fks, (row: Row) => row.name)
+    return {
+      schema,
+      name: table.name,
+      columns: table.columns.map(row => ({
+        name: row.name,
+        type: row.type,
+        notNull: row.notNull,
+        default: row.default,
+        autoIncrement:
+          Boolean(row.identity) || Boolean(row.default?.startsWith('nextval('))
+      })),
+      ...(primary ? {primaryKey: constraint(primary)} : {}),
+      uniques: table.keys.filter(row => row.type === 'u').map(constraint),
+      indexes: [...indexes].map(([name, rows]) => {
+        const where = rows[0].def.match(/ WHERE (.*)$/)?.[1]
+        return {
+          name,
+          unique: rows[0].unique,
+          columns: rows.map(row => row.col),
+          ...(where ? {where} : {}),
+          definition: rows[0].def
+        }
+      }),
+      foreignKeys: [...fks].map(([name, rows]) => ({
+        name,
+        columns: rows.map(row => row.column),
+        schema: rows[0].schema,
+        table: rows[0].table,
+        references: rows.map(row => row.reference),
+        onDelete: action(rows[0].onDelete),
+        onUpdate: action(rows[0].onUpdate)
+      }))
+    }
+  })
+  const views: Array<Row> = yield tx.all(
+    sql`select viewname as name, definition from pg_views where schemaname = ${schema} order by viewname`
+  )
+  return {
+    tables,
+    views: views.map(row => ({
+      schema,
+      name: row.name,
+      definition: row.definition
+    }))
   }
-  return {columns, constraints, indexes, foreignKeys: values(fks)}
 }
+
+export const inspect: Inspect<'postgres'> = createInspect(
+  'postgres',
+  read,
+  true
+)
