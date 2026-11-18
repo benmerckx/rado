@@ -1,10 +1,11 @@
 import {suite} from '@alinea/suite'
+import {call} from '#/core/Call.ts'
 import {foreignKey, primaryKey, unique} from '#/core/Constraint.ts'
 import {index} from '#/core/Index.ts'
 import {getCreate, getDrop} from '#/core/Internal.ts'
 import {table, temporaryTable} from '#/core/Table.ts'
 import {integer, text} from '#/sqlite/columns.ts'
-import {emit} from '../TestUtils.ts'
+import {builder, emit} from '../TestUtils.ts'
 
 suite(import.meta, test => {
   const Node = table('Node', {
@@ -13,6 +14,15 @@ suite(import.meta, test => {
 
   test('format table and column name', () => {
     test.equal(emit(Node.id), '"Node"."id"')
+  })
+
+  test('call a table valued function', () => {
+    const Info = table('pragma_table_info', {name: text()})
+    const info = call(Info, 'x', 'Node')
+    test.equal(
+      emit(builder.select(info.name).from(info)),
+      'select "x"."name" from "pragma_table_info"("Node") as "x"'
+    )
   })
 
   test('temporary table creation and removal', () => {

@@ -43,6 +43,8 @@ class TableData {
   temporary?: boolean
   columns!: TableDefinition
   config?: () => TableConfigResult
+  // Arguments of a table valued function, which the table then calls
+  args?: Array<Sql>
 }
 
 export class TableApi<
@@ -67,7 +69,9 @@ export class TableApi<
 
   target(): Sql {
     return sql.join([
-      this.identifier(),
+      this.args
+        ? sql`${this.identifier()}(${sql.join(this.args, sql`, `)})`
+        : this.identifier(),
       this.alias ? sql`as ${sql.identifier(this.alias)}` : undefined
     ])
   }
