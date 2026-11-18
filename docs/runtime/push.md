@@ -87,9 +87,12 @@ MySQL commits implicitly after every DDL statement, so there:
   pushed
 - with `force`, the `update` that fills nulls with a default runs just before
   the `alter table` and stays if it fails
-- the data checks and the `alter table` are separate statements and MySQL
-  can't hold a lock across DDL, so a row written in between can be lost: push
-  while writers are paused if that matters
+- MySQL can't keep writers out while push checks the data, so a column seen
+  empty could fill up before the `alter table`. Dropping a column or
+  narrowing its type therefore always needs `force` on MySQL, even on an
+  empty table; push while writers are paused
+- indexes with `where`, `nulls first`/`nulls last`, `concurrently` or `only`
+  are refused before anything is created, MySQL has no equivalent
 - push and `push.plan` refuse to run inside a transaction, since their DDL
   would commit it
 
@@ -108,13 +111,18 @@ An empty array means the database already matches. On SQLite and PostgreSQL
 the plan applies each table in a transaction that is rolled back, so later
 tables are planned against the earlier changes, exactly as push would run
 them. A table push would refuse is left unapplied, and a statement that fails
-fails the plan, as it would fail the push. A rollback doesn't return values
-drawn from an existing sequence, so on PostgreSQL a table whose changes would
-draw one, a new column with a `nextval` default for example, is planned but
-not applied. The plan takes the same locks as push while it runs.
+fails the plan, as it would fail the push. The plan takes the same locks as
+push while it runs.
+
+On PostgreSQL, running an expression can do what a rollback doesn't undo,
+such as drawing from a sequence, directly or inside a function. So a table is
+planned but not applied when its changes add a column with a default that
+isn't a constant, or fill nulls with an `update`, which can also fire
+triggers. Later tables are then planned against that table as it was.
 
 MySQL can't roll back DDL, so there nothing is applied and each table is
-planned against the database as it is. When one table's change affects another, renaming a column other
+planned against the database as it is. When one table's change affects
+another, renaming a column other
 tables reference for example, push may run fewer statements than the plan
 shows. Planning creates a scratch table under a fresh name to read the desired
 schema back, and drops only that table.
@@ -166,7 +174,9 @@ await push(db, User, {rename: {'user.name': 'full_name'}})
 
 The hint renames the column in place and keeps its data. Once applied it is
 a no-op, so it is safe to leave in place until every database has been
-pushed. For a table in a schema, prefix the schema: `'app.user.name'`.
+pushed. For a table in a schema, prefix the schema: `'app.user.name'`. A hint
+for a table that isn't pushed, or naming a column the table doesn't define,
+is an error, so a typo can't turn a rename into a drop and an add.
 
 Renaming only the property keeps the column, since the database name is
 unchanged:
@@ -191,12 +201,16 @@ rebuilds the table following
    old table and rename the new one. Values are copied as they are, the new
    column's affinity converts what it can without loss. An `autoincrement`
    counter keeps its high-water mark. If columns named `rowid`, `_rowid_` and
-   `oid` hide the rowid, the rebuild is refused
+   `oid` hide the rowid, the rebuild is refused. When an existing column
+   becomes an `integer primary key`, it becomes the rowid: push refuses this
+   without `force` unless every row's value already equals its rowid
 3. recreate the table's indexes and triggers, and every view along with the
    triggers on views, since a view may use the table
-4. run `pragma foreign_key_check` on the pushed tables and roll back if any
-   rows violate a foreign key. This runs on every push, also when keys aren't
-   enforced, so a push never adds a key its rows break
+4. run `pragma foreign_key_check` on the whole database and roll back if the
+   push added a violation, including one in a table that references a pushed
+   table, or made a reference invalid (`foreign key mismatch`). It runs on
+   every push, also when keys aren't enforced. Violations that existed before
+   the push don't fail it
 5. turn `foreign_keys` back on if it was on
 
 If you call push inside your own transaction with `foreign_keys` on, it
