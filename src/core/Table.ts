@@ -4,6 +4,7 @@ import type {ForeignKeyConstraint, UniqueConstraint} from './Constraint.ts'
 import {PrimaryKeyConstraint} from './Constraint.ts'
 import type {DriverSpecs} from './Driver.ts'
 import {Field} from './expr/Field.ts'
+import {callFunction} from './expr/Functions.ts'
 import type {Input} from './expr/Input.ts'
 import {type JsonExpr, jsonExpr} from './expr/Json.ts'
 import {Index} from './Index.ts'
@@ -43,8 +44,8 @@ class TableData {
   temporary?: boolean
   columns!: TableDefinition
   config?: () => TableConfigResult
-  // Arguments of a table valued function, which the table then calls
-  args?: Array<Sql>
+  // Arguments of a table valued function, such as sqlite's pragma functions
+  args?: Array<Input<unknown>>
 }
 
 export class TableApi<
@@ -70,7 +71,7 @@ export class TableApi<
   target(): Sql {
     return sql.join([
       this.args
-        ? sql`${this.identifier()}(${sql.join(this.args, sql`, `)})`
+        ? callFunction(this.identifier(), this.args)
         : this.identifier(),
       this.alias ? sql`as ${sql.identifier(this.alias)}` : undefined
     ])
@@ -328,9 +329,24 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   table: Table<Definition>,
   alias: Alias
 ): Table<Definition, Alias> {
+  return derive(table, {alias})
+}
+
+export function call<Definition extends TableDefinition, Alias extends string>(
+  table: Table<Definition>,
+  alias: Alias,
+  ...args: Array<Input<unknown>>
+): Table<Definition, Alias> {
+  return derive(table, {alias, args})
+}
+
+function derive<Definition extends TableDefinition, Alias extends string>(
+  table: Table<Definition>,
+  data: {alias: Alias; args?: Array<Input<unknown>>}
+): Table<Definition, Alias> {
   const api = assign(new TableApi<Definition, Alias>(), {
     ...getTable(table),
-    alias
+    ...data
   })
   const fields = tableFields(api.aliased, api.columns, api.schemaName)
   return <Table<Definition, Alias>>{

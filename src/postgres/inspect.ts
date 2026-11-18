@@ -1,4 +1,3 @@
-import {call} from '../core/Call.ts'
 import {references} from '../core/Catalog.ts'
 import type {Database} from '../core/Database.ts'
 import {and, eq, inArray} from '../core/expr/Conditions.ts'
@@ -11,7 +10,7 @@ import {
   createInspect
 } from '../core/Inspect.ts'
 import {sql} from '../core/Sql.ts'
-import {alias, table} from '../core/Table.ts'
+import {alias, call, table} from '../core/Table.ts'
 import {type Gen, scratch} from '../core/Transaction.ts'
 import {
   Attribute,

@@ -1,9 +1,8 @@
 import {suite} from '@alinea/suite'
-import {call} from '#/core/Call.ts'
 import {foreignKey, primaryKey, unique} from '#/core/Constraint.ts'
 import {index} from '#/core/Index.ts'
 import {getCreate, getDrop} from '#/core/Internal.ts'
-import {table, temporaryTable} from '#/core/Table.ts'
+import {call, table, temporaryTable} from '#/core/Table.ts'
 import {integer, text} from '#/sqlite/columns.ts'
 import {builder, emit} from '../TestUtils.ts'
 

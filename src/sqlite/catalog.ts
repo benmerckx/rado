@@ -1,10 +1,9 @@
-import {call} from '../core/Call.ts'
 import {own} from '../core/Catalog.ts'
 import type {Database} from '../core/Database.ts'
 import {and, eq, inArray, ne} from '../core/expr/Conditions.ts'
 import {schema as define} from '../core/Schema.ts'
 import {sql} from '../core/Sql.ts'
-import {alias, table} from '../core/Table.ts'
+import {alias, call, table} from '../core/Table.ts'
 import type {Gen} from '../core/Transaction.ts'
 import {integer, text} from './columns.ts'
 
