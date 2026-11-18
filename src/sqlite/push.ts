@@ -153,9 +153,18 @@ function* recreate(
   const copied = keys(desired.columns).filter(name => live.columns[name])
   if (!rowid && copied.length === 0)
     throw new Error(`Cannot rebuild "${api.name}" without a column to copy`)
-  // Rowids are copied so they keep their values
-  const names = [...(rowid ? ['rowid'] : []), ...copied]
-  const selection = names.map(name => {
+  // Rowids are copied so they keep their values, through a name no column
+  // shadows on either side
+  const free = (info: TableInfo) =>
+    ['rowid', '_rowid_', 'oid'].find(
+      alias => !keys(info.columns).some(name => name.toLowerCase() === alias)
+    )
+  const from = free(live)
+  const into = free(desired)
+  if (rowid && !(from && into))
+    throw new Error(`Cannot rebuild "${api.name}", its columns hide the rowid`)
+  const names = [...(rowid ? [into!] : []), ...copied]
+  const selection = [...(rowid ? [from!] : []), ...copied].map(name => {
     const to = desired.columns[name]
     const fallback = data[name]?.defaultValue
     const value = sql.identifier(name)
@@ -208,15 +217,21 @@ const runner: Runner = function* (db, apply, dry) {
       db,
       function* (tx) {
         const locked = on && (yield* enforced(tx))
-        const result = yield* apply(tx, true, steps => {
+        const tables: Array<string> = []
+        const result = yield* apply(tx, true, (steps, api) => {
           if (locked && steps.some(step => step.rebuild))
             throw new Error('Cannot rebuild with foreign keys enforced')
+          tables.push(api.name)
         })
-        const violations: Array<unknown> = on
-          ? yield tx.all(sql`pragma foreign_key_check`)
-          : []
-        if (violations.length > 0)
-          throw new Error('Push would violate foreign key constraints')
+        // Checked whether or not keys are enforced, a push must not add a
+        // foreign key that its rows violate
+        for (const name of tables) {
+          const violations: Array<unknown> = yield tx.all(
+            sql`select 1 from pragma_foreign_key_check(${sql.inline(name)})`
+          )
+          if (violations.length > 0)
+            throw new Error('Push would violate foreign key constraints')
+        }
         return result
       },
       dry,

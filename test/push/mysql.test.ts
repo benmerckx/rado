@@ -17,6 +17,7 @@ import {
   foreignKey,
   index,
   int,
+  mysqlSchema,
   mysqlTable as table,
   primaryKey,
   text,
@@ -718,6 +719,115 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
+  test('push keeps same-named tables in two databases apart', async () => {
+    const archive = mysqlSchema('push_archive')
+    const Parent = table('dup_parent', {id: int().primaryKey()})
+    const ArchiveParent = archive.table('dup_parent', {id: int().primaryKey()})
+    const Dup = table('dup', {
+      id: int(),
+      a: int(),
+      pid: int().references(Parent.id)
+    })
+    const ArchiveDup = archive.table('dup', {
+      id: int(),
+      b: text(),
+      c: int(),
+      pid: int().references(ArchiveParent.id)
+    })
+    const reset = async () => {
+      await run('create database if not exists push_archive')
+      await run('drop table if exists dup, push_archive.dup')
+      await run('drop table if exists dup_parent, push_archive.dup_parent')
+    }
+    await reset()
+    await run('create table dup_parent (id int primary key)')
+    await run('create table push_archive.dup_parent (id int primary key)')
+    await run(
+      'create table dup (id int, a int, pid int, foreign key (pid) references push_archive.dup_parent (id))'
+    )
+    await run('create table push_archive.dup (id int, b text, pid int)')
+    await run('insert into dup_parent values (1)')
+    await run('insert into push_archive.dup_parent values (1)')
+    await run('insert into dup values (1, 10, 1)')
+    await run(`insert into push_archive.dup values (1, 'x', 1)`)
+    const describe = (schema: string) =>
+      all(
+        `select column_name as name from information_schema.columns where table_schema = '${schema}' and table_name = 'dup' order by ordinal_position`
+      )
+    const target = (schema: string) =>
+      all(
+        `select referenced_table_schema as target from information_schema.key_column_usage where table_schema = '${schema}' and table_name = 'dup' and referenced_table_name is not null`
+      )
+    try {
+      await push(db, Parent, ArchiveParent, Dup, ArchiveDup)
+      test.equal(await describe('mysql'), [
+        {name: 'id'},
+        {name: 'a'},
+        {name: 'pid'}
+      ])
+      test.equal(await describe('push_archive'), [
+        {name: 'id'},
+        {name: 'b'},
+        {name: 'pid'},
+        {name: 'c'}
+      ])
+      test.equal(await target('mysql'), [{target: 'mysql'}])
+      test.equal(await target('push_archive'), [{target: 'push_archive'}])
+      test.equal(await all('select id, a, pid from dup'), [
+        {id: 1, a: 10, pid: 1}
+      ])
+      test.equal(await all('select id, b, pid from push_archive.dup'), [
+        {id: 1, b: 'x', pid: 1}
+      ])
+      test.equal(
+        await push.plan(db, Parent, ArchiveParent, Dup, ArchiveDup),
+        []
+      )
+    } finally {
+      await reset()
+      await run('drop database push_archive')
+    }
+  })
+
+  test('a new table with a failing index is not created', async () => {
+    const T = table('bad_new', {t: text()}, t => ({i: index().on(t.t)}))
+    await run('drop table if exists bad_new')
+    try {
+      test.equal(
+        (await fails(() => push(db, T))).includes('without a key length'),
+        true
+      )
+      test.equal(
+        await all(
+          `select table_name from information_schema.tables where table_schema = database() and table_name = 'bad_new'`
+        ),
+        []
+      )
+    } finally {
+      await run('drop table if exists bad_new')
+    }
+  })
+
+  test('push refuses dropping fractional seconds', async () => {
+    const T = table('fsp_t', {at: datetime()})
+    await run('drop table if exists fsp_t')
+    await run('create table fsp_t (at datetime(6))')
+    await run(`insert into fsp_t values ('2026-01-02 03:04:05.678901')`)
+    try {
+      test.equal(
+        (await fails(() => push(db, T))).startsWith(
+          'Push would change column "at" from datetime(6) to datetime'
+        ),
+        true
+      )
+      test.equal(await all('select microsecond(at) as us from fsp_t'), [
+        {us: 678901}
+      ])
+    } finally {
+      await run('drop table if exists fsp_t')
+    }
+  })
+
   test('push refuses text types that are too small', async () => {
     const T = table('narrow_t', {v: tinytext()})
     await run('drop table if exists narrow_t')
@@ -751,7 +861,12 @@ if (!isDeno && testMysql) {
     test,
     {
       push,
-      inspect: (db, table) => inspect(db, getTable(table).name),
+      inspect: (db, table) =>
+        inspect(
+          db,
+          getTable(table).name,
+          getTable(table).schemaName ?? 'mysql'
+        ),
       drop: name => `drop table if exists \`${name}\``
     },
     cases

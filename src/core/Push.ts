@@ -32,6 +32,8 @@ export interface Step {
   sql: Sql
   risk?: string
   rebuild?: boolean
+  // Changes something a rollback doesn't undo, such as a sequence
+  effect?: boolean
 }
 
 export interface ColumnInfo {
@@ -70,7 +72,7 @@ export interface Planner {
 export type Apply = (
   tx: Database,
   execute: boolean,
-  check?: (steps: Array<Step>) => void
+  check?: (steps: Array<Step>, api: TableApi) => void
 ) => Gen<Array<string>>
 
 export interface Runner {
@@ -132,6 +134,8 @@ export function createPush<R extends Runtime>(
   function go(db: Database, input: PushInput, dry: boolean) {
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
+    if (!db.driver.supportsTransactions)
+      throw new Error('Push needs a driver with transactions')
     const last = input.at(-1)
     const options = last && !hasTable(last) ? (last as PushOptions) : {}
     const tables = (input.filter(hasTable) as Array<Table>).map(getTable)
@@ -152,10 +156,12 @@ export function createPush<R extends Runtime>(
               throw new Error(
                 `Push would ${risky.risk}: ${db.dialect.inline(risky.sql)}`
               )
-            check?.(steps)
+            check?.(steps, api)
             result.push(...steps.map(step => db.dialect.inline(step.sql)))
-            // A refused table is left as is, as push would stop there
-            if (execute && !risky && steps.length > 0)
+            // A refused table is left as is, as push would stop there, and a
+            // dry run skips tables it can't apply without leaving a trace
+            const skip = risky || (dry && steps.some(step => step.effect))
+            if (execute && !skip && steps.length > 0)
               yield tx.batch(steps.map(step => step.sql)).run()
           }
           return result
@@ -383,20 +389,34 @@ export function renameSteps(
     })
 }
 
-export function parseType(type: string): {base: string; args: Array<number>} {
-  const [, base, args] = type.match(/^([^(]*?)\s*(?:\((.*)\))?\s*$/)!
-  return {base, args: args ? args.split(',').map(Number) : []}
+// A type as its name, its arguments and what follows them, as in
+// timestamp(6) without time zone
+export function parseType(type: string): {
+  base: string
+  args: Array<number>
+} {
+  const [, name, args, rest] = type.match(/^([^(]*)(?:\(([^)]*)\))?(.*)$/)!
+  return {
+    base: [name.trim(), rest.trim()].filter(Boolean).join(' '),
+    args: args ? args.split(',').map(Number) : []
+  }
 }
 
-// Same type with arguments that are at least as large
-export function grows(from: string, to: string): boolean {
+// Same type with arguments at least as large, where fill gives the
+// arguments a type has when they are left out
+export function grows(
+  from: string,
+  to: string,
+  fill: (base: string) => Array<number>
+): boolean {
   const a = parseType(from)
   const b = parseType(to)
+  const x = a.args.length ? a.args : fill(a.base)
+  const y = b.args.length ? b.args : fill(b.base)
   return (
     a.base === b.base &&
-    (b.args.length === 0 ||
-      (a.args.length === b.args.length &&
-        a.args.every((arg, i) => arg <= b.args[i])))
+    x.length === y.length &&
+    x.every((arg, i) => arg <= y[i])
   )
 }
 

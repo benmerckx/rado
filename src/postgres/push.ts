@@ -27,10 +27,19 @@ export type {PushInput, PushOptions} from '../core/Push.ts'
 
 const {entries, values} = Object
 
+// Arguments a type has when they are left out, unlimited where unbounded
+function fill(base: string): Array<number> {
+  if (/^(character varying|bit varying)$/.test(base)) return [Infinity]
+  if (base === 'numeric') return [Infinity, Infinity]
+  if (/^(time|timestamp|interval)\b/.test(base)) return [6]
+  if (base === 'character' || base === 'bit') return [1]
+  return []
+}
+
 function widens(from: string, to: string): boolean {
   const a = parseType(from).base
   return (
-    grows(from, to) ||
+    grows(from, to, fill) ||
     ranks('smallint integer bigint', a, parseType(to).base) ||
     (/^(character|text)/.test(a) &&
       (to === 'text' || to === 'character varying'))
@@ -47,10 +56,14 @@ function* plan(
   )
   const schema = api.schemaName ?? home
   const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
-  const before = yield* inspect(tx, api.name, schema)
-  if (!before) return api.create().map(sql => ({sql}))
-  // Keeps writers out until the transaction ends, so the data checks hold
+  const {found}: {found: unknown} = yield tx.get(
+    sql`select to_regclass(format('%I.%I', ${schema}::text, ${api.name}::text)) as found`
+  )
+  if (!found) return api.create().map(sql => ({sql}))
+  // Keeps writers out until the transaction ends, so the data checks hold,
+  // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
+  const before = (yield* inspect(tx, api.name, schema))!
   const renamed = renameSteps(api, before, options).map(([, , step]) => step)
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
@@ -102,6 +115,9 @@ function* changes(
     sql: sql`alter table ${target} ${change}`,
     risk
   })
+  // A rollback doesn't return values drawn from an existing sequence
+  const draws = (name: string) =>
+    /nextval/i.test(tx.dialect.inline(data[name].defaultValue ?? sql``))
   const fks = foreignKeyChanges(api, live, home)
   const {dropped, added, changed, risks, nulls} = yield* compare(
     tx,
@@ -130,9 +146,10 @@ function* changes(
     ...dropped.map(name =>
       alter(sql`drop column ${sql.identifier(name)}`, risks[name])
     ),
-    ...added.map(name =>
-      alter(sql`add column ${bare.columnDefinition(data[name].key)}`)
-    )
+    ...added.map(name => ({
+      ...alter(sql`add column ${bare.columnDefinition(data[name].key)}`),
+      effect: draws(name)
+    }))
   ]
   for (const name of changed) {
     const from = live.columns[name]
@@ -173,7 +190,8 @@ function* changes(
     if (risk && fallback)
       steps.push({
         sql: sql`update ${target} set ${sql.identifier(name)} = (${fallback}) where ${sql.identifier(name)} is null`.inlineValues(),
-        risk
+        risk,
+        effect: draws(name)
       })
     steps.push(
       alter(

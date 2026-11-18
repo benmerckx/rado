@@ -664,6 +664,54 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('push checks foreign keys when they are not enforced', async () => {
+    await fresh('child', 'parent')
+    await run('create table parent (id integer primary key, code integer)')
+    await run('create table child (id integer primary key, parent integer)')
+    await run('insert into child values (1, 2)')
+    try {
+      test.equal(
+        failure(() => push(db, Parent, Child)),
+        'Push would violate foreign key constraints'
+      )
+      test.equal(all(`select * from pragma_foreign_key_list('child')`), [])
+      test.equal(all('select parent from child'), [{parent: 2}])
+      test.equal(all('pragma foreign_keys'), [{foreign_keys: 0}])
+    } finally {
+      await fresh('child', 'parent')
+    }
+  })
+
+  test('rebuild keeps rowids behind a column named rowid', async () => {
+    const Shadowed = table('shadowed', {rowid: text(), v: text().unique()})
+    const Hidden = table('hidden', {
+      rowid: text(),
+      _rowid_: text(),
+      oid: text(),
+      v: text().unique()
+    })
+    await fresh('shadowed', 'hidden')
+    await run('create table shadowed (rowid text, v text)')
+    await run(
+      `insert into shadowed (_rowid_, rowid, v) values (42, 'user', 'x')`
+    )
+    await run(
+      'create table hidden (rowid text, _rowid_ text, oid text, v text)'
+    )
+    try {
+      await push(db, Shadowed)
+      test.equal(all('select _rowid_ as id, rowid, v from shadowed'), [
+        {id: 42, rowid: 'user', v: 'x'}
+      ])
+      test.equal(
+        failure(() => push(db, Hidden)),
+        'Cannot rebuild "hidden", its columns hide the rowid'
+      )
+    } finally {
+      await fresh('shadowed', 'hidden')
+    }
+  })
+
   test('live index names keep the scratch prefix', async () => {
     const Prefixed = table('prefixed', {v: integer()}, t => ({
       __rado_v: index().on(t.v)

@@ -1,4 +1,5 @@
 import type {Database} from '../core/Database.ts'
+import {getData} from '../core/Internal.ts'
 import {
   type Gen,
   type Push,
@@ -24,7 +25,7 @@ import {inspect} from './inspect.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
-const {fromEntries} = Object
+const {entries, fromEntries} = Object
 const capacity: Record<string, number> = {
   tinytext: 255,
   text: 65535,
@@ -32,16 +33,44 @@ const capacity: Record<string, number> = {
   longtext: 4294967295
 }
 
+// Arguments a type has when they are left out
+function fill(base: string): Array<number> {
+  if (/^(datetime|timestamp|time)$/.test(base)) return [0]
+  if (base === 'char' || base === 'binary') return [1]
+  if (base === 'decimal') return [10, 0]
+  return []
+}
+
 // Text capacity is in bytes, a character takes up to four
 function widens(from: string, to: string): boolean {
   const a = parseType(from)
   const b = parseType(to).base
   return (
-    grows(from, to) ||
+    grows(from, to, fill) ||
     ranks('tinyint smallint mediumint int bigint', a.base, b) ||
     ranks('tinytext text mediumtext longtext', a.base, b) ||
     (/char/.test(a.base) && a.args[0] * 4 <= capacity[b])
   )
+}
+
+// One create table with its indexes, so a failing index leaves no table
+function create(api: TableApi): Sql {
+  const keys = entries(api.indexes()).map(([name, index]) => {
+    const {unique, fields, order, using} = getData(index)
+    return sql.join([
+      unique && sql`unique`,
+      sql`index ${sql.identifier(name)}`,
+      using && sql`using ${using}`,
+      sql`(${sql.join(
+        fields.map(field => sql.join([field, order && sql.unsafe(order)])),
+        sql`, `
+      )})`
+    ])
+  })
+  return sql`create table ${api.identifier()} (${sql.join(
+    [api.createDefinition(), ...keys],
+    sql`, `
+  )})`.inlineFields(false)
 }
 
 function* plan(
@@ -49,29 +78,33 @@ function* plan(
   api: TableApi,
   options: PushOptions
 ): Gen<Array<Step>> {
-  const before = yield* inspect(tx, api.name)
-  if (!before) return api.create().map(sql => ({sql}))
+  const {home}: {home: string} = yield tx.get(sql`select database() as home`)
+  const schema = api.schemaName ?? home
+  const before = yield* inspect(tx, api.name, schema)
+  if (!before) return [{sql: create(api)}]
   const renamed = fromEntries(
     renameSteps(api, before, options).map(([from, to]) => [from, to])
   )
   const live = Object.keys(renamed).length
-    ? (yield* inspect(tx, api.name, renamed))!
+    ? (yield* inspect(tx, api.name, schema, renamed))!
     : before
   // DDL is not transactional: the desired table is created under a fresh
   // name next to the real one and only what was created is dropped
-  const copy = shadow(api, `__rado_${Math.random().toString(36).slice(2, 12)}`)
+  const copy = shadow(
+    api,
+    `__rado_${Math.random().toString(36).slice(2, 12)}`,
+    api.schemaName
+  )
   let created = false
   let desired: TableInfo
   try {
-    for (const query of copy.create()) {
-      yield tx.run(query)
-      created = true
-    }
-    desired = (yield* inspect(tx, copy.name))!
+    yield tx.run(create(copy))
+    created = true
+    desired = (yield* inspect(tx, copy.name, schema))!
   } finally {
     if (created) yield tx.run(sql`drop table ${copy.identifier()}`)
   }
-  return yield* changes(tx, api, live, desired, renamed)
+  return yield* changes(tx, api, live, desired, renamed, home)
 }
 
 // All changes go into one alter table, which MySQL applies atomically
@@ -80,7 +113,8 @@ function* changes(
   api: TableApi,
   live: TableInfo,
   desired: TableInfo,
-  renamed: Record<string, string>
+  renamed: Record<string, string>,
+  home: string
 ): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -89,7 +123,7 @@ function* changes(
     Object.entries(renamed).map(([from, to]) => [to, from])
   )
   const source = (name: string) => original[name] ?? name
-  const fks = foreignKeyChanges(api, live)
+  const fks = foreignKeyChanges(api, live, home)
   const kept = live.foreignKeys.filter(fk => !fks.dropped.includes(fk))
   // MySQL adds an index for each foreign key that lacks one
   const implicit = new Set(

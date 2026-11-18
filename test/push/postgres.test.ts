@@ -853,6 +853,50 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
+  test('push compares timestamp precision', async () => {
+    const Coarse = table('ts_t', {at: timestamp({precision: 3})})
+    const Fine = table('ts_t', {at: timestamp({precision: 6})})
+    await run('drop table if exists ts_t')
+    await run('create table ts_t (at timestamp(3))')
+    await run(`insert into ts_t values ('2026-01-02 03:04:05.678')`)
+    try {
+      await push(db, Fine)
+      test.equal(await push.plan(db, Fine), [])
+      await run(`update ts_t set at = '2026-01-02 03:04:05.678901'`)
+      const error = await Promise.resolve()
+        .then(() => push(db, Coarse))
+        .then(
+          () => '',
+          error => error.message
+        )
+      test.equal(error.startsWith('Push would change column "at"'), true)
+      test.equal(await all(`select to_char(at, 'US') as us from ts_t`), [
+        {us: '678901'}
+      ])
+    } finally {
+      await run('drop table if exists ts_t')
+    }
+  })
+
+  test('plan leaves sequences alone', async () => {
+    const T = table('seq_t', {
+      id: integer(),
+      n: integer().default(sql`nextval('push_seq')`)
+    })
+    await run('drop table if exists seq_t')
+    await run('drop sequence if exists push_seq')
+    await run('create sequence push_seq')
+    await run('create table seq_t (id int)')
+    await run('insert into seq_t values (1)')
+    try {
+      test.equal((await push.plan(db, T)).length, 1)
+      test.equal(await all(`select nextval('push_seq')::int as n`), [{n: 1}])
+    } finally {
+      await run('drop table if exists seq_t')
+      await run('drop sequence if exists push_seq')
+    }
+  })
+
   test('push leaves an existing rado_push schema alone', async () => {
     const T = table('fk_child', {parent: integer(), extra: text()})
     await reset()
@@ -880,6 +924,35 @@ function testLock(
     end(): Promise<void>
   }>
 ) {
+  test('push reads the table after taking the lock', async () => {
+    const T = table('relock_t', {id: integer(), extra: text()})
+    await db.run(sql`drop table if exists relock_t`)
+    await db.run(sql`create table relock_t (id int)`)
+    const other = await connect()
+    try {
+      await other.query('begin')
+      await other.query('alter table relock_t add column extra text')
+      const pushing = Promise.resolve()
+        .then(() => push(db, T))
+        .then(
+          () => '',
+          error => error.message
+        )
+      await new Promise(resolve => setTimeout(resolve, 300))
+      await other.query('commit')
+      test.equal(await pushing, '')
+      test.equal(
+        await db.all(
+          sql<object>`select column_name as name from information_schema.columns where table_name = 'relock_t' order by ordinal_position`
+        ),
+        [{name: 'id'}, {name: 'extra'}]
+      )
+    } finally {
+      await other.end()
+      await db.run(sql`drop table if exists relock_t`)
+    }
+  })
+
   test('push waits for writers before checking data', async () => {
     const L = table('lock_t', {id: integer()})
     await db.run(sql`drop table if exists lock_t`)

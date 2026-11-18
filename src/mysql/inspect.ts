@@ -26,6 +26,7 @@ interface KeyRow {
 interface ForeignKeyRow {
   name: string
   column: string
+  ref_schema: string
   ref_table: string
   ref_column: string
   on_update: string
@@ -36,10 +37,11 @@ interface ForeignKeyRow {
 export function* inspect(
   tx: Database,
   name: string,
+  schema: string,
   renamed: Record<string, string> = {}
 ): Gen<TableInfo | undefined> {
   const as = (column: string) => renamed[column] ?? column
-  const where = sql`table_schema = database() and table_name = ${name}`
+  const where = sql`table_schema = ${schema} and table_name = ${name}`
   const rows: Array<ColumnRow> = yield tx.all(sql`select column_name as name,
 column_type as type, is_nullable as nullable, column_default as value, extra
 as extra from information_schema.columns where ${where} order by ordinal_position`)
@@ -75,12 +77,13 @@ seq_in_index`)
     else indexes[key] = `${unique ? 'unique ' : ''}(${columns})`
   const fkRows: Array<ForeignKeyRow> = yield tx.all(sql`select
 k.constraint_name as name, k.column_name as \`column\`,
-k.referenced_table_name as ref_table, k.referenced_column_name as ref_column,
+k.referenced_table_schema as ref_schema, k.referenced_table_name as
+ref_table, k.referenced_column_name as ref_column,
 r.update_rule as on_update, r.delete_rule as on_delete from
 information_schema.key_column_usage k join
 information_schema.referential_constraints r on r.constraint_schema =
 k.constraint_schema and r.constraint_name = k.constraint_name and r.table_name
-= k.table_name where k.table_schema = database() and k.table_name = ${name}
+= k.table_name where k.table_schema = ${schema} and k.table_name = ${name}
 and k.referenced_table_name is not null order by k.constraint_name,
 k.ordinal_position`)
   const fks: Record<string, ForeignKeyInfo> = {}
@@ -88,6 +91,7 @@ k.ordinal_position`)
     const fk = (fks[row.name] ??= {
       name: row.name,
       columns: [],
+      schema: row.ref_schema,
       table: row.ref_table,
       references: [],
       onDelete: row.on_delete.toLowerCase(),
@@ -95,7 +99,9 @@ k.ordinal_position`)
     })
     fk.columns.push(as(row.column))
     fk.references.push(
-      row.ref_table === name ? as(row.ref_column) : row.ref_column
+      row.ref_table === name && row.ref_schema === schema
+        ? as(row.ref_column)
+        : row.ref_column
     )
   }
   return {columns, constraints, indexes, foreignKeys: values(fks)}

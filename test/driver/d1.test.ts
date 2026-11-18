@@ -11,5 +11,26 @@ if (isNode) {
   const db = connect(
     <any>new D1Database(new D1DatabaseAPI(await createSQLiteDB(':memory:')))
   )
+  test('d1: push needs transactions', async () => {
+    const {push} = await import('#/sqlite/push.ts')
+    const {table} = await import('#/index.ts')
+    const {integer} = await import('#/sqlite.ts')
+    const {sql} = await import('#/index.ts')
+    await db.run(sql`pragma foreign_keys = on`)
+    const error = await Promise.resolve()
+      .then(() => push(db, table('d1_push', {id: integer()})))
+      .then(
+        () => '',
+        error => error.message
+      )
+    test.equal(error, 'Push needs a driver with transactions')
+    test.equal(
+      await db.get(
+        sql<{on: number}>`select foreign_keys as "on" from pragma_foreign_keys`
+      ),
+      {on: 1}
+    )
+  })
+
   testDriver(db, test, 'd1')
 }
