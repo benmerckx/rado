@@ -716,6 +716,49 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('rebuild keeps an autoincrement counter beyond 2^53', async () => {
+    const Big = table('big', {
+      id: integer().primaryKey({autoIncrement: true}),
+      v: integer()
+    })
+    await fresh('big')
+    await run('create table big (id integer primary key autoincrement, v text)')
+    await run('insert into big values (9007199254740993, 1)')
+    await run('delete from big')
+    try {
+      await push(db, Big)
+      await run('insert into big (v) values (2)')
+      test.equal(all('select cast(id as text) as id from big'), [
+        {id: '9007199254740994'}
+      ])
+    } finally {
+      await fresh('big')
+    }
+  })
+
+  test('push refuses when another foreign key is malformed', async () => {
+    const Parent = table('fk_parent', {id: integer(), v: text()})
+    await fresh('fk_child', 'fk_parent', 'fk_bad', 'fk_other')
+    await run('create table fk_parent (id integer primary key, v text)')
+    await run('create table fk_child (pid integer references fk_parent(id))')
+    await run('insert into fk_parent values (1, null)')
+    await run('insert into fk_child values (1)')
+    await run('create table fk_other (code text)')
+    await run('create table fk_bad (code text references fk_other(code))')
+    try {
+      test.equal(
+        failure(() => push(db, Parent)),
+        'Cannot check foreign keys: foreign key mismatch - "fk_bad" referencing "fk_other"'
+      )
+      test.equal(all(`select pk from pragma_table_info('fk_parent')`), [
+        {pk: 1},
+        {pk: 0}
+      ])
+    } finally {
+      await fresh('fk_child', 'fk_bad', 'fk_other', 'fk_parent')
+    }
+  })
+
   test('rebuild refuses to change rowids to a new primary key', async () => {
     const Keyed = table('keyed', {id: integer().primaryKey(), v: text()})
     await fresh('keyed')

@@ -64,7 +64,11 @@ function* plan(
   // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
   const before = (yield* inspect(tx, api.name, schema))!
-  const renamed = renameSteps(api, before, options).map(([, , step]) => step)
+  const renamed = renameSteps(api, before, options).map(([from, to]) => ({
+    sql: sql`alter table ${api.identifier()} rename column ${sql.identifier(
+      from
+    )} to ${sql.identifier(to)}`
+  }))
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
     const live =
@@ -191,6 +195,15 @@ function* changes(
               : sql`${column} add generated ${kind} as identity`
         )
       )
+      // A new identity starts at 1, it continues above the rows it has
+      if (!from.extra)
+        steps.push({
+          sql: sql`select setval(pg_get_serial_sequence(${sql.inline(
+            tx.dialect.inline(qualified)
+          )}, ${sql.inline(name)}), coalesce(max(${sql.identifier(
+            name
+          )}), 0) + 1, false) from ${target}`
+        })
     }
     if (from.notNull === to.notNull) continue
     const fallback = data[name].defaultValue

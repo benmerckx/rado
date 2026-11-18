@@ -10,6 +10,8 @@ export interface Case {
   options?: PushOptions
   // Columns per table whose data must survive the push
   keep?: Record<string, Array<string>>
+  // Raw SQL that must succeed after the push
+  after?: string
   skip?: string
 }
 
@@ -100,6 +102,8 @@ export function testCases(
         const pushed = await read(c.desired)
         test.equal(await dialect.push.plan(db, ...c.desired, options), [])
         test.equal(await rows(c.keep, true), before)
+        for (const statement of statements(c.after))
+          await db.run(sql.unsafe(statement))
         for (const name of names) await db.run(sql.unsafe(dialect.drop(name)))
         await db.create(...c.desired)
         test.equal(pushed, await read(c.desired))

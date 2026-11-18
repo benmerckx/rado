@@ -82,9 +82,7 @@ function* plan(
   const schema = api.schemaName ?? home
   const before = yield* inspect(tx, api.name, schema)
   if (!before) return [{sql: create(api)}]
-  const renamed = fromEntries(
-    renameSteps(api, before, options).map(([from, to]) => [from, to])
-  )
+  const renamed = fromEntries(renameSteps(api, before, options))
   const live = Object.keys(renamed).length
     ? (yield* inspect(tx, api.name, schema, renamed))!
     : before
@@ -138,18 +136,10 @@ function* changes(
     live,
     desired,
     widens,
-    source
-  )
-  // A column seen empty can fill up before the alter table runs, so drops
-  // and narrowing count as risks whatever the rows hold
-  const why =
+    source,
+    // A column seen empty can fill up before the alter table runs
     "MySQL can't keep writers out while it checks the data, pass force"
-  for (const name of dropped) risks[name] = `drop column "${name}" (${why})`
-  for (const name of changed) {
-    const [from, to] = [live, desired].map(info => info.columns[name].type)
-    if (from !== to && !widens(from, to))
-      risks[name] = `change column "${name}" from ${from} to ${to} (${why})`
-  }
+  )
   const primary = desired.constraints.primary
   const pkChanged = live.constraints.primary !== primary
   const definition = (name: string) => bare.columnDefinition(data[name].key)

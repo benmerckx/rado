@@ -210,7 +210,9 @@ rebuilds the table following
    push added a violation, including one in a table that references a pushed
    table, or made a reference invalid (`foreign key mismatch`). It runs on
    every push, also when keys aren't enforced. Violations that existed before
-   the push don't fail it
+   the push don't fail it, but a malformed foreign key anywhere in the
+   database stops the check itself, so push refuses with
+   `Cannot check foreign keys` and the error naming it
 5. turn `foreign_keys` back on if it was on
 
 If you call push inside your own transaction with `foreign_keys` on, it

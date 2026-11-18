@@ -73,7 +73,7 @@ export interface Planner {
 export type Apply = (
   tx: Database,
   execute: boolean,
-  check?: (steps: Array<Step>, api: TableApi) => void
+  check?: (steps: Array<Step>) => void
 ) => Gen<Array<string>>
 
 export interface Runner {
@@ -162,7 +162,7 @@ export function createPush<R extends Runtime>(
               throw new Error(
                 `Push would ${risky.risk}: ${db.dialect.inline(risky.sql)}`
               )
-            check?.(steps, api)
+            check?.(steps)
             result.push(...steps.map(step => db.dialect.inline(step.sql)))
             // A refused table is left as is, as push would stop there, and a
             // dry run skips tables it can't apply without leaving a trace
@@ -375,31 +375,19 @@ export function renames(
     })
 }
 
-// Hints that still apply to the live columns, as from, to and the statement
+// Hints that still apply to the live columns, as from and to
 export function renameSteps(
   api: TableApi,
   live: TableInfo,
   options: PushOptions
-): Array<[from: string, to: string, step: Step]> {
-  return renames(api, options)
-    .filter(([from]) => live.columns[from])
-    .map(([from, to]) => {
-      if (live.columns[to])
-        throw new Error(`Cannot rename "${from}" to "${to}", both exist`)
-      return [
-        from,
-        to,
-        {
-          sql: sql`alter table ${api.identifier()} rename column ${sql.identifier(
-            from
-          )} to ${sql.identifier(to)}`
-        }
-      ]
-    })
+): Array<[from: string, to: string]> {
+  return renames(api, options).filter(([from, to]) => {
+    if (live.columns[from] && live.columns[to])
+      throw new Error(`Cannot rename "${from}" to "${to}", both exist`)
+    return live.columns[from]
+  })
 }
 
-// A type as its name, its arguments and what follows them, as in
-// timestamp(6) without time zone
 export function parseType(type: string): {
   base: string
   args: Array<number>
@@ -453,7 +441,9 @@ export function* compare(
   live: TableInfo,
   desired: TableInfo,
   widens: (from: string, to: string) => boolean,
-  source = (name: string) => name
+  source = (name: string) => name,
+  // Why rows can't be checked, drops and narrowing then always count
+  unchecked?: string
 ): Gen<Changes> {
   const hasRows = yield* exists(tx, target)
   const a = live.columns
@@ -475,27 +465,31 @@ export function* compare(
       target,
       sql`${sql.identifier(source(name))} is ${sql.unsafe(nulls ? '' : 'not ')}null`
     )
-  if (hasRows) {
+  const loses = function* (name: string) {
+    return unchecked || (hasRows && (yield* has(name, false)))
+  }
+  const note = unchecked ? ` (${unchecked})` : ''
+  if (hasRows)
     for (const name of added)
       if (b[name].notNull && b[name].default === null && !b[name].extra)
         throw new Error(
           `Cannot add not null column "${name}" without a default to "${table}"`
         )
-    for (const name of dropped)
-      if (yield* has(name, false))
-        risks[name] = `drop column "${name}" with data`
-    for (const name of changed) {
-      const from = a[name]
-      const to = b[name]
-      if (
-        from.type !== to.type &&
-        !widens(from.type, to.type) &&
-        (yield* has(name, false))
-      )
-        risks[name] = `change column "${name}" from ${from.type} to ${to.type}`
-      if (to.notNull && !from.notNull && (yield* has(name, true)))
-        nulls[name] = `make column "${name}" not null over null values`
-    }
+  for (const name of dropped)
+    if (yield* loses(name))
+      risks[name] = `drop column "${name}"${note || ' with data'}`
+  for (const name of changed) {
+    const from = a[name]
+    const to = b[name]
+    if (
+      from.type !== to.type &&
+      !widens(from.type, to.type) &&
+      (yield* loses(name))
+    )
+      risks[name] =
+        `change column "${name}" from ${from.type} to ${to.type}${note}`
+    if (hasRows && to.notNull && !from.notNull && (yield* has(name, true)))
+      nulls[name] = `make column "${name}" not null over null values`
   }
   return {hasRows, dropped, added, changed, risks, nulls}
 }

@@ -45,7 +45,11 @@ function* plan(
 ): Gen<Array<Step>> {
   const before = yield* inspect(tx, api.name)
   if (!before) return api.create().map(sql => ({sql}))
-  const renamed = renameSteps(api, before, options).map(([, , step]) => step)
+  const renamed = renameSteps(api, before, options).map(([from, to]) => ({
+    sql: sql`alter table ${api.identifier()} rename column ${sql.identifier(
+      from
+    )} to ${sql.identifier(to)}`
+  }))
   return yield* scratch(tx, function* (sp) {
     for (const step of renamed) yield sp.run(step.sql)
     const live = renamed.length > 0 ? (yield* inspect(sp, api.name))! : before
@@ -143,9 +147,12 @@ function* recreate(
   )
   const autoIncrement = (info: TableInfo) =>
     values(info.columns).some(column => column.extra)
-  const sequence: {seq: number} | null =
+  // Read as text, a counter can be larger than a JavaScript number holds
+  const sequence: {seq: string} | null =
     autoIncrement(live) && autoIncrement(desired)
-      ? yield tx.get(sql`select seq from sqlite_sequence where name = ${name}`)
+      ? yield tx.get(
+          sql`select cast(seq as text) as seq from sqlite_sequence where name = ${name}`
+        )
       : null
   const copied = keys(desired.columns).filter(name => live.columns[name])
   if (!rowid && copied.length === 0)
@@ -201,9 +208,9 @@ function* recreate(
       ? [
           {sql: sql`delete from sqlite_sequence where name = ${name}`},
           {
-            sql: sql`insert into sqlite_sequence (name, seq) values (${name}, ${sql.inline(
+            sql: sql`insert into sqlite_sequence (name, seq) values (${name}, cast(${sql.inline(
               sequence.seq
-            )})`
+            )} as integer))`
           }
         ]
       : []),
@@ -220,13 +227,13 @@ function* enforced(db: Database): Gen<boolean> {
 // The foreign_keys pragma is a no-op inside a transaction, so it is turned
 // off around it and the keys are checked before commit. An immediate
 // transaction keeps writers out between the data checks and the changes.
-// Violations as keys, or the error a broken foreign key raises
-function* violations(tx: Database): Gen<Set<string> | string> {
+// A malformed foreign key, anywhere, makes the check itself fail
+function* violations(tx: Database, failure: string): Gen<Array<string>> {
   try {
     const rows: Array<object> = yield tx.all(sql`pragma foreign_key_check`)
-    return new Set(rows.map(row => values(row).join()))
+    return rows.map(row => values(row).join())
   } catch (error) {
-    return (error as Error).message
+    throw new Error(`${failure}: ${(error as Error).message}`, {cause: error})
   }
 }
 
@@ -240,18 +247,21 @@ const runner: Runner = function* (db, apply, dry) {
         const locked = on && (yield* enforced(tx))
         // Checked whether or not keys are enforced, and only what the push
         // breaks fails it, so existing orphans elsewhere don't block it
-        const before = yield* violations(tx)
+        const before = yield* violations(tx, 'Cannot check foreign keys')
         const result = yield* apply(tx, true, steps => {
           if (locked && steps.some(step => step.rebuild))
             throw new Error('Cannot rebuild with foreign keys enforced')
         })
-        const after = yield* violations(tx)
-        if (typeof after === 'string' && after !== before)
-          throw new Error(`Push would break a foreign key: ${after}`)
-        if (typeof after !== 'string')
-          for (const key of after)
-            if (typeof before === 'string' || !before.has(key))
-              throw new Error('Push would violate foreign key constraints')
+        // Counted, rows of a table without rowid can repeat the same key
+        for (const key of yield* violations(
+          tx,
+          'Push would break a foreign key'
+        )) {
+          const index = before.indexOf(key)
+          if (index < 0)
+            throw new Error('Push would violate foreign key constraints')
+          before.splice(index, 1)
+        }
         return result
       },
       dry,

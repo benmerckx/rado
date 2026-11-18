@@ -227,11 +227,16 @@ const cases: Record<string, Case> = {
   },
   AddIdentityToColumn: {
     current: `
-      create table users (id integer not null);
+      create table users (id integer primary key);
       insert into users values (1);
     `,
-    desired: [table('users', {id: integer().generatedByDefaultAsIdentity()})],
-    keep: {users: ['id']}
+    desired: [
+      table('users', {
+        id: integer().generatedByDefaultAsIdentity().primaryKey()
+      })
+    ],
+    keep: {users: ['id']},
+    after: `insert into users default values`
   },
   AddColumnWithIdentity: {
     current: `create table users (name text); insert into users values ('a')`,
