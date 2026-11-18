@@ -12,12 +12,17 @@ import {type Row, catalog, part, quote} from './catalog.ts'
 
 export type * from '../core/Inspect.ts'
 
+// Expressions are stored with their quotes and backslashes escaped
+function unescape(text: string): string {
+  return text.replace(/\\(.)/g, '$1')
+}
+
 // Literal defaults are stored as their value, expressions as text: bit and
 // hex literals and numbers of non-string types read as they are
 function literal({value, type, extra}: Row): string | null {
+  if (/default_generated/i.test(extra)) return unescape(value)
   if (
     value === null ||
-    /default_generated/i.test(extra) ||
     /^(b'|0x)/i.test(value) ||
     (!/char|text|blob|binary|enum|set|json/i.test(type) &&
       /^-?[\d.]+(e[-+]?\d+)?$/i.test(value))
@@ -26,12 +31,25 @@ function literal({value, type, extra}: Row): string | null {
   return `'${value.replaceAll("'", "''")}'`
 }
 
+// The expression a column takes on update, from its extra information
+function onUpdate(extra: string): {onUpdate?: string} {
+  const value = extra.match(/\bon update (.+)$/i)?.[1]
+  return value ? {onUpdate: value} : {}
+}
+
 function* read(tx: Database, given?: string): Gen<Schema> {
   const schema: string =
     given ?? ((yield tx.get(sql`select database() as name`)) as Row).name
   const rows = yield* catalog(tx, schema)
   const tables = rows.map((table): Table => {
-    const keys = [...Map.groupBy(table.keys, (row: Row) => row.name)]
+    const keys = [
+      ...Map.groupBy(
+        table.keys.map(row =>
+          row.expression ? {...row, expression: unescape(row.expression)} : row
+        ),
+        (row: Row) => row.name
+      )
+    ]
     const primary = keys.find(([name]) => name === 'PRIMARY')
     const fks = Map.groupBy(table.fks, (row: Row) => row.name)
     return {
@@ -43,7 +61,8 @@ function* read(tx: Database, given?: string): Gen<Schema> {
         notNull: row.nullable === 'NO',
         default: literal(row),
         autoIncrement: /auto_increment/i.test(row.extra),
-        ...(row.expr ? {generated: row.expr} : {})
+        ...(row.expr ? {generated: unescape(row.expr)} : {}),
+        ...onUpdate(row.extra)
       })),
       ...(primary
         ? {

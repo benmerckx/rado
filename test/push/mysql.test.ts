@@ -982,6 +982,22 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
+  test('inspect reads on update', async () => {
+    const {inspect} = await import('#/mysql/inspect.ts')
+    await run('drop table if exists updated_t')
+    await run(
+      'create table updated_t (a int, at timestamp default current_timestamp on update current_timestamp)'
+    )
+    try {
+      const {tables} = await inspect(db)
+      const [a, at] = tables.find(table => table.name === 'updated_t')!.columns
+      test.equal(a.onUpdate, undefined)
+      test.equal(at.onUpdate?.toLowerCase(), 'current_timestamp')
+    } finally {
+      await run('drop table if exists updated_t')
+    }
+  })
+
   test('push refuses text types that are too small', async () => {
     const T = table('narrow_t', {v: tinytext()})
     await run('drop table if exists narrow_t')

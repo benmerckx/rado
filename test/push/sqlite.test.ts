@@ -521,6 +521,18 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('a trigger named after its table', async () => {
+    await reset()
+    const Counter = table('log', {id: integer().primaryKey().autoincrement()})
+    await push(db, Counter)
+    await run('create trigger log after insert on log begin select 1; end')
+    try {
+      test.equal(await push.plan(db, Counter), [])
+    } finally {
+      await reset()
+    }
+  })
+
   test('rebuild inside a transaction needs foreign keys off', async () => {
     await reset()
     await run('create table parent (id integer primary key, code text)')

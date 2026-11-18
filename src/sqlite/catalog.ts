@@ -53,8 +53,11 @@ export function* catalog(
     ', pragma_foreign_key_list(t.name, t.schema) x',
     ' order by x.id, x.seq'
   )
+  // Triggers have a namespace of their own, one can share a table's name
   const master: Array<Row> = yield tx.all(
-    sql`select name, sql from ${sql.identifier(schema)}.sqlite_master`
+    sql`select name, sql from ${sql.identifier(
+      schema
+    )}.sqlite_master where type in ('table', 'index')`
   )
   const text = Object.fromEntries(master.map(row => [row.name, row.sql]))
   const own = (rows: Array<Row>, name: string) =>

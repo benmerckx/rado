@@ -28,6 +28,8 @@ export interface Column {
   autoIncrement: boolean
   // The expression of a generated column
   generated?: string
+  // The expression a column takes on update, on MySQL
+  onUpdate?: string
 }
 
 export interface Constraint {

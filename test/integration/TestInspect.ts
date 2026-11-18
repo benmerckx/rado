@@ -193,6 +193,29 @@ export function testInspect(db: Database, test: DefineTest) {
     }
   })
 
+  test('inspect unescapes mysql expressions', async () => {
+    if (runtime !== 'mysql') return
+    const drop = ['drop table if exists insp_expr']
+    await run(drop)
+    await run([
+      `create table insp_expr (a text default (''), b varchar(9) as (concat(a, 'x')), index insp_expr_ix ((concat(b, 'y'))))`
+    ])
+    try {
+      const {tables} = await inspect(db)
+      const {columns, indexes} = tables.find(
+        table => table.name === 'insp_expr'
+      )!
+      test.equal(columns[0].default, "_utf8mb4''")
+      test.equal(columns[1].generated, "concat(`a`,_utf8mb4'x')")
+      await run([
+        'drop index insp_expr_ix on insp_expr',
+        indexes[0].definition
+      ])
+    } finally {
+      await run(drop)
+    }
+  })
+
   test('inspect refuses another dialect', async () => {
     if (runtime === 'sqlite') return
     const error = await Promise.resolve()

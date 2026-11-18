@@ -69,21 +69,19 @@ function* read(tx: Database, schema = 'main'): Gen<Schema> {
     return {
       schema,
       name: table.name,
-      // Hidden columns of virtual tables stay out, generated ones don't
-      columns: table.columns
-        .filter(row => row.hidden !== 1)
-        .map(row => {
-          const generated =
-            row.hidden > 1 ? generation(table.sql[table.name], row.name) : ''
-          return {
-            name: row.name,
-            type: row.type,
-            notNull: Boolean(row.notnull),
-            default: row.dflt_value,
-            autoIncrement: increments && primary[0] === row.name,
-            ...(generated ? {generated} : {})
-          }
-        }),
+      // Hidden columns are generated ones, virtual tables aren't listed
+      columns: table.columns.map(row => {
+        const generated =
+          row.hidden && generation(table.sql[table.name], row.name)
+        return {
+          name: row.name,
+          type: row.type,
+          notNull: Boolean(row.notnull),
+          default: row.dflt_value,
+          autoIncrement: increments && primary[0] === row.name,
+          ...(generated ? {generated} : {})
+        }
+      }),
       ...(primary.length ? {primaryKey: {columns: primary}} : {}),
       uniques: keys
         .filter(key => key.origin === 'u')

@@ -66,6 +66,7 @@ interface Column {
   default: string | null // sql expression text
   autoIncrement: boolean // autoincrement, auto_increment, serial or identity
   generated?: string // the expression of a generated column
+  onUpdate?: string // the expression set on update, on MySQL
 }
 
 interface Constraint {
@@ -109,7 +110,7 @@ Differences between the databases:
 - SQLite doesn't keep the names of primary keys, unique constraints and
   foreign keys, so those come without one. A foreign key that names no columns
   references the primary key, its `references` then hold empty strings.
-  Hidden columns of virtual tables are left out
+  Virtual tables, such as fts5 ones, are left out
 - MySQL treats a unique constraint and a unique index as the same thing, a
   unique key, so every unique key is listed in `indexes` and `uniques` stays
   empty. MySQL doesn't keep index statements, so an index `definition` is put
