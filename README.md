@@ -212,7 +212,7 @@ More in [Universal queries](docs/runtime/universal-queries.md).
 ### Schema push
 
 ```ts
-import {push} from 'rado/push'
+import {push} from 'rado/sqlite/push'
 
 // Compares the defined schema to the actual database and applies the diff
 await push(db, User, Post)

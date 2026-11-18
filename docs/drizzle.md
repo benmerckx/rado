@@ -156,8 +156,9 @@ declarative function:
 await push(db, User, Post)
 ```
 
-`push` from `rado/push` diffs schema against database and applies changes
-on the spot, anywhere, including browsers and edge runtimes. It refuses
+`push` from `rado/sqlite/push` (or the postgres and mysql equivalents) diffs
+schema against database and applies changes on the spot, anywhere, including
+browsers and edge runtimes. It refuses
 changes that lose data unless forced, and `push.plan` shows what would run.
 Less ceremony, less control: for carefully reviewed production migrations
 you may still prefer a dedicated tool. See [Schema push](runtime/push.md).

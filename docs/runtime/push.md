@@ -24,10 +24,25 @@ For an existing database, `push` compares each table you pass with what's
 actually in the database and applies the difference:
 
 ```ts
-import {push} from 'rado/push'
+import {push} from 'rado/sqlite/push'
 
 await push(db, User, Post)
 ```
+
+Import it from the entry for your database:
+
+| Database   | Import                                    |
+| ---------- | ----------------------------------------- |
+| SQLite     | `import {push} from 'rado/sqlite/push'`   |
+| PostgreSQL | `import {push} from 'rado/postgres/push'` |
+| MySQL      | `import {push} from 'rado/mysql/push'`    |
+| Any        | `import {push} from 'rado/push'`          |
+
+Each dialect entry bundles only its own planner, and refuses a database of
+another dialect with `Expected a sqlite database`. `rado/push` is for
+[universal databases](universal-queries.md) whose dialect is picked at
+runtime: it bundles all three planners and picks one from
+`db.dialect.runtime`.
 
 What it handles:
 
@@ -45,8 +60,8 @@ there are no migration files, history table or down migrations.
 Tables are pushed in foreign key order, so `push(db, Post, User)` creates
 `User` first. Temporary tables can't be pushed.
 
-`push` lives in its own module, so apps that never push don't ship the code
-that reads and compares schemas. Because it's plain JavaScript talking to
+`push` lives in its own modules, so apps that never push don't ship the code
+that reads and compares schemas, and apps that do only ship their dialect. Because it's plain JavaScript talking to
 your driver, it works everywhere rado works: Node.js, Bun, Deno, Cloudflare
 Workers and the browser (PGlite/sql.js).
 
@@ -159,7 +174,8 @@ such as views, sequences or policies.
 ## Upgrading from `db.migrate`
 
 `db.migrate(...tables)` was replaced by `push(db, ...tables)` from
-`rado/push`. The `Database` constructor no longer takes a diff argument:
+`rado/sqlite/push`, `rado/postgres/push` or `rado/mysql/push` (or `rado/push`
+for universal databases). The `Database` constructor no longer takes a diff argument:
 `new Database(driver, dialect, options)`. Push refuses destructive changes
 that `db.migrate` ran silently; pass `{force: true}` for the old behavior.
 
