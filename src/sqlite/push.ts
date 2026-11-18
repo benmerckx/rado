@@ -153,11 +153,11 @@ function* recreate(
   const temp = sql.identifier(prefix + api.name)
   const data = columns(api)
   const rowid = live.rowid !== false
-  // Dropping the table drops its triggers, views are dropped as well since
-  // they may use it, and with them their instead of triggers
+  // Views and triggers may use the table, sqlite reparses them between the
+  // drop and the rename, so all of them are dropped and restored after
   const kept: Array<SchemaRow> = yield schema(
     tx,
-    sql`type = 'view' or type = 'trigger' and (tbl_name = ${name} or tbl_name in (select name from sqlite_master where type = 'view'))`
+    sql`type in ('view', 'trigger')`
   )
   const autoIncrement = (info: TableInfo) =>
     values(info.columns).some(column => column.extra)
@@ -197,18 +197,22 @@ function* recreate(
   // Without a rowid or a column in common, there is nothing to copy rows by
   if (names.length === 0 && (yield* hasRows()))
     throw new Error(`Cannot rebuild "${api.name}", no column of its rows stays`)
-  const selection = [...(ids ? [from!] : []), ...copied].map(name => {
-    const to = desired.columns[name]
-    const fallback = data[name]?.defaultValue
-    const value = sql.identifier(name)
-    return to?.notNull && !live.columns[name].notNull && fallback
-      ? sql`coalesce(${value}, ${fallback})`.inlineValues()
-      : value
-  })
+  const selection = [
+    ...(ids ? [sql.identifier(from!)] : []),
+    ...copied.map(name => {
+      const fallback = data[name].defaultValue
+      const value = sql.identifier(name)
+      return desired.columns[name].notNull &&
+        !live.columns[name].notNull &&
+        fallback
+        ? sql`coalesce(${value}, ${fallback})`.inlineValues()
+        : value
+    })
+  ]
   return [
-    ...kept
-      .filter(row => row.type === 'view')
-      .map(view => ({sql: sql`drop view ${sql.identifier(view.name)}`})),
+    ...kept.map(row => ({
+      sql: sql`drop ${sql.unsafe(row.type)} if exists ${sql.identifier(row.name)}`
+    })),
     {sql: api.createTable(prefix + api.name)},
     ...(names.length > 0
       ? [
@@ -234,7 +238,11 @@ function* recreate(
         ]
       : []),
     ...api.createIndexes().map(sql => ({sql})),
-    ...kept.map(row => ({sql: sql.unsafe(row.sql!)}))
+    ...['view', 'trigger'].flatMap(type =>
+      kept
+        .filter(row => row.type === type)
+        .map(row => ({sql: sql.unsafe(row.sql!)}))
+    )
   ]
 }
 

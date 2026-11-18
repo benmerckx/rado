@@ -879,6 +879,42 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
     }
   })
 
+  test('push moves a primary key another pushed table references', async () => {
+    const Users = table('key_users', {
+      id: int().notNull(),
+      account: int().primaryKey()
+    })
+    const Posts = table('key_posts', {author: int().references(Users.account)})
+    const keys = (name: string) =>
+      all(
+        `select index_name as name, column_name as col from information_schema.statistics where table_schema = database() and table_name = '${name}' and index_name = 'PRIMARY'`
+      )
+    const target = () =>
+      all(
+        `select referenced_column_name as col from information_schema.key_column_usage where table_schema = database() and table_name = 'key_posts' and referenced_table_name is not null`
+      )
+    await run('drop table if exists key_posts, key_users')
+    await run(
+      'create table key_users (id int primary key, account int not null, unique key account (account))'
+    )
+    await run(
+      'create table key_posts (author int, foreign key (author) references key_users (id))'
+    )
+    await run('insert into key_users values (1, 1)')
+    await run('insert into key_posts values (1)')
+    try {
+      test.equal((await fails(() => push(db, Users))) !== '', true)
+      test.equal(await keys('key_users'), [{name: 'PRIMARY', col: 'id'}])
+      await push(db, Users, Posts)
+      test.equal(await keys('key_users'), [{name: 'PRIMARY', col: 'account'}])
+      test.equal(await target(), [{col: 'account'}])
+      test.equal(await all('select author from key_posts'), [{author: 1}])
+      test.equal(await push.plan(db, Users, Posts), [])
+    } finally {
+      await run('drop table if exists key_posts, key_users')
+    }
+  })
+
   test('push refuses text types that are too small', async () => {
     const T = table('narrow_t', {v: tinytext()})
     await run('drop table if exists narrow_t')

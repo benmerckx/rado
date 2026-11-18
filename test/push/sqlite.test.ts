@@ -863,6 +863,41 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('rebuild keeps triggers of other tables that use it', async () => {
+    const Audit = table('audit', {message: text().default('logged')})
+    await fresh('events', 'audit')
+    await run('create table audit (message text)')
+    await run('create table events (id integer)')
+    await run(
+      `create trigger events_audit after insert on events begin insert into audit (rowid) values (null); end`
+    )
+    try {
+      await push(db, Audit)
+      await run('insert into events values (1)')
+      test.equal(all('select message from audit'), [{message: 'logged'}])
+    } finally {
+      await fresh('events', 'audit')
+    }
+  })
+
+  test('rebuild adds a column named rowid', async () => {
+    const Named = table('named', {
+      v: text().unique(),
+      rowid: text('rowid').notNull().default('n')
+    })
+    await fresh('named')
+    await run('create table named (v text)')
+    await run(`insert into named (rowid, v) values (42, 'a')`)
+    try {
+      await push(db, Named)
+      test.equal(all('select _rowid_ as id, v, rowid from named'), [
+        {id: 42, v: 'a', rowid: 'n'}
+      ])
+    } finally {
+      await fresh('named')
+    }
+  })
+
   test('rebuild refuses to change rowids to a new primary key', async () => {
     const Keyed = table('keyed', {id: integer().primaryKey(), v: text()})
     await fresh('keyed')

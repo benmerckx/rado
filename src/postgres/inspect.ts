@@ -47,14 +47,19 @@ export function* inspect(
   schema: string
 ): Gen<TableInfo | undefined> {
   return yield* scratch(tx, function* (sp) {
-    const {path}: {path: string} = yield sp.get(
-      sql`select current_setting('search_path') as path`
-    )
-    yield sp.run(
-      sql`set local search_path to ${sql.identifier(schema)}, ${sql.unsafe(path)}`
-    )
+    yield* prepend(sp, schema)
     return yield* read(sp, name, schema)
   })
+}
+
+// Puts a schema first in the search path until the transaction ends
+export function* prepend(tx: Database, schema: string): Gen<void> {
+  const {path}: {path: string} = yield tx.get(
+    sql`select current_setting('search_path') as path`
+  )
+  yield tx.run(
+    sql`set local search_path to ${sql.identifier(schema)}, ${sql.unsafe(path)}`
+  )
 }
 
 function* read(

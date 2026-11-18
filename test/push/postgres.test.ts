@@ -1131,6 +1131,69 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     }
   })
 
+  test('push moves a primary key another pushed table references', async () => {
+    const Users = table('key_users', {
+      id: integer().notNull(),
+      account: integer().primaryKey()
+    })
+    const Posts = table('key_posts', {
+      author: integer().references(Users.account)
+    })
+    const constraint = (name: string, type: string) =>
+      all(
+        `select pg_get_constraintdef(oid) as def from pg_constraint where conrelid = '${name}'::regclass and contype = '${type}'`
+      )
+    await run('drop table if exists key_posts, key_users')
+    await run(
+      'create table key_users (id int primary key, account int unique not null)'
+    )
+    await run('create table key_posts (author int references key_users (id))')
+    await run('insert into key_users values (1, 1)')
+    await run('insert into key_posts values (1)')
+    try {
+      const error = await Promise.resolve()
+        .then(() => push(db, Users))
+        .then(
+          () => '',
+          error => error.message
+        )
+      test.equal(error.includes('depend'), true)
+      test.equal(await constraint('key_users', 'p'), [
+        {def: 'PRIMARY KEY (id)'}
+      ])
+      await push(db, Users, Posts)
+      test.equal(await constraint('key_users', 'p'), [
+        {def: 'PRIMARY KEY (account)'}
+      ])
+      test.equal(await constraint('key_posts', 'f'), [
+        {def: 'FOREIGN KEY (author) REFERENCES key_users(account)'}
+      ])
+      test.equal(await all('select author from key_posts'), [{author: 1}])
+      test.equal(await push.plan(db, Users, Posts), [])
+    } finally {
+      await run('drop table if exists key_posts, key_users')
+    }
+  })
+
+  test('push promotes a key column to serial', async () => {
+    const Invoices = table('invoices', {id: serial().primaryKey()})
+    await run('drop table if exists invoices')
+    await run('create table invoices (id integer primary key)')
+    await run('insert into invoices values (1), (5)')
+    try {
+      await push(db, Invoices)
+      await run('insert into invoices default values')
+      test.equal(await all('select id from invoices order by id'), [
+        {id: 1},
+        {id: 5},
+        {id: 6}
+      ])
+      test.equal(await push.plan(db, Invoices), [])
+    } finally {
+      await run('drop table if exists invoices')
+    }
+  })
+
   test('push leaves an existing rado_push schema alone', async () => {
     const T = table('fk_child', {parent: integer(), extra: text()})
     await reset()

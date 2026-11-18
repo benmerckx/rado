@@ -77,7 +77,8 @@ function create(api: TableApi): Sql {
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions
+  options: PushOptions,
+  tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const {home}: {home: string} = yield tx.get(sql`select database() as home`)
   const schema = api.schemaName ?? home
@@ -110,7 +111,7 @@ function* plan(
   } finally {
     if (created) yield tx.run(sql`drop table ${copy.identifier()}`)
   }
-  return yield* changes(tx, api, live, desired, renamed, home)
+  return yield* changes(tx, api, live, desired, renamed, home, schema, tables)
 }
 
 // All changes go into one alter table, which MySQL applies atomically
@@ -120,7 +121,9 @@ function* changes(
   live: TableInfo,
   desired: TableInfo,
   renamed: Record<string, string>,
-  home: string
+  home: string,
+  schema: string,
+  tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -196,8 +199,34 @@ function* changes(
     }),
     ...fks.added.map(fk => sql`add ${foreignKey(fk)}`)
   )
-  if (clauses.length === 0) return fills
+  // Foreign keys of other pushed tables on a key that goes are dropped
+  // first, the other table's own plan adds what it wants
+  const gone = [
+    ...(pkChanged ? [live.constraints.primary] : []),
+    ...differ(live.indexes, desired.indexes).map(name => live.indexes[name])
+  ].map(def => def?.replace(/^[^(]*\(|\)$|`/g, ''))
+  const dependents: Array<Record<string, string>> = yield tx.all(sql`select
+constraint_name as name, table_schema as db, table_name as tbl,
+group_concat(referenced_column_name order by ordinal_position) as cols from
+information_schema.key_column_usage where referenced_table_schema = ${schema}
+and referenced_table_name = ${api.name} and not (table_schema = ${schema} and
+table_name = ${api.name}) group by constraint_name, table_schema, table_name`)
+  const drops = dependents
+    .filter(
+      fk =>
+        gone.includes(fk.cols) &&
+        tables.some(
+          other => other.name === fk.tbl && (other.schemaName ?? home) === fk.db
+        )
+    )
+    .map(fk => ({
+      sql: sql`alter table ${sql.identifier(fk.db)}.${sql.identifier(
+        fk.tbl
+      )} drop foreign key ${sql.identifier(fk.name)}`
+    }))
+  if (clauses.length === 0) return [...drops, ...fills]
   return [
+    ...drops,
     ...fills,
     {sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`, risk}
   ]

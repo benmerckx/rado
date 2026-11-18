@@ -24,7 +24,7 @@ import {
 } from '../core/Push.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import type {TableApi} from '../core/Table.ts'
-import {inspect} from './inspect.ts'
+import {inspect, prepend} from './inspect.ts'
 
 export type {PushInput, PushOptions} from '../core/Push.ts'
 
@@ -53,7 +53,8 @@ function widens(from: string, to: string): boolean {
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions
+  options: PushOptions,
+  tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const {home}: {home: string} = yield tx.get(
     sql`select current_schema() as home`
@@ -97,16 +98,10 @@ function* plan(
       if (!row.found) enums.push({sql: query})
     }
     const desired = yield* scratch(sp, function* (inner) {
-      const {path}: {path: string} = yield inner.get(
-        sql`select current_setting('search_path') as path`
-      )
       // A fresh name, so an existing schema is never touched
       const scratchSchema = `rado_push_${Math.random().toString(36).slice(2)}`
-      const scratch = sql.identifier(scratchSchema)
-      yield inner.run(sql`create schema ${scratch}`)
-      yield inner.run(
-        sql`set local search_path to ${scratch}, ${sql.unsafe(path)}`
-      )
+      yield inner.run(sql`create schema ${sql.identifier(scratchSchema)}`)
+      yield* prepend(inner, scratchSchema)
       for (const query of shadow(api, api.name, scratchSchema).create())
         yield inner.run(query)
       return (yield* inspect(inner, api.name, scratchSchema))!
@@ -114,7 +109,17 @@ function* plan(
     return [
       ...enums,
       ...renamed,
-      ...(yield* changes(sp, api, schema, target, live, desired, home, options))
+      ...(yield* changes(
+        sp,
+        api,
+        schema,
+        target,
+        live,
+        desired,
+        home,
+        options,
+        tables
+      ))
     ]
   })
 }
@@ -128,7 +133,8 @@ function* changes(
   live: TableInfo,
   desired: TableInfo,
   home: string,
-  options: PushOptions
+  options: PushOptions,
+  tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const data = columns(api)
   const bare = shadow(api, api.name, api.schemaName, true)
@@ -165,7 +171,37 @@ function* changes(
   const defs = new Set(values(desired.constraints))
   const liveDefs = new Set(values(live.constraints))
   const indexes = api.indexes()
+  const keys = new Set([
+    ...differ(live.indexes, desired.indexes),
+    ...entries(live.constraints)
+      .filter(([, def]) => !defs.has(def))
+      .map(([name]) => name)
+  ])
+  // Foreign keys of other pushed tables that use a key that goes are
+  // dropped first, the other table's own plan adds what it wants
+  const dependents: Array<Record<string, string>> = yield tx.all(sql`select
+c.conname as name, n.nspname as schema, r.relname as table, i.relname as key
+from pg_constraint c join pg_class r on r.oid = c.conrelid join pg_namespace n
+on n.oid = r.relnamespace join pg_class i on i.oid = c.conindid where
+c.contype = 'f' and c.conrelid <> c.confrelid and c.confrelid = ${sql.inline(
+    tx.dialect.inline(target)
+  )}::regclass`)
   const steps: Array<Step> = [
+    ...dependents
+      .filter(
+        fk =>
+          keys.has(fk.key) &&
+          tables.some(
+            other =>
+              other.name === fk.table &&
+              (other.schemaName ?? home) === fk.schema
+          )
+      )
+      .map(fk => ({
+        sql: sql`alter table ${sql.identifier(fk.schema)}.${sql.identifier(
+          fk.table
+        )} drop constraint ${sql.identifier(fk.name)}`
+      })),
     ...differ(live.indexes, desired.indexes).map(name => ({
       sql: sql`drop index ${sql.identifier(schema)}.${sql.identifier(name)}`
     })),
@@ -201,7 +237,24 @@ function* changes(
         alter(sql`${column} type ${type} using ${id}::${type}`, risks[name])
       )
     }
-    if (to.default !== (cleared ? null : from.default))
+    // A sequence the copy's default draws from is created for the column
+    const sequence = to.default?.match(/^nextval\('(.+)'::regclass\)$/)?.[1]
+    if (sequence && to.default !== from.default) {
+      const qualified = sql.inline(
+        `${tx.dialect.inline(sql.identifier(schema))}.${sequence}`
+      )
+      steps.push(
+        {
+          sql: sql`create sequence if not exists ${sql.identifier(
+            schema
+          )}.${sql.unsafe(sequence)} owned by ${target}.${id}`
+        },
+        {
+          sql: sql`select setval(${qualified}, greatest(coalesce(max(${id}), 0) + 1, 1), false) from ${target}`
+        },
+        alter(sql`${column} set default nextval(${qualified})`)
+      )
+    } else if (to.default !== (cleared ? null : from.default))
       steps.push(
         alter(
           to.default === null

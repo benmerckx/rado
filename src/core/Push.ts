@@ -65,7 +65,13 @@ export interface TableInfo {
 export type Gen<T> = Generator<unknown, T, any>
 
 export interface Planner {
-  (tx: Database, api: TableApi, options: PushOptions): Gen<Array<Step>>
+  (
+    tx: Database,
+    api: TableApi,
+    options: PushOptions,
+    // Every table pushed, whose foreign keys may be dropped and re-added
+    tables: Array<TableApi>
+  ): Gen<Array<Step>>
 }
 
 // Plans each table and applies it when execute is set, so later tables are
@@ -156,7 +162,7 @@ export function createPush<R extends Runtime>(
         function* (tx, execute, check) {
           const result: Array<string> = []
           for (const api of ordered) {
-            const steps = yield* planner(tx, api, options)
+            const steps = yield* planner(tx, api, options, ordered)
             const risky = !options.force && steps.find(step => step.risk)
             if (risky && !dry)
               throw new Error(
