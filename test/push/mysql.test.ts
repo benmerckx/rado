@@ -520,7 +520,8 @@ const cases: Record<string, Case> = {
   },
   CreateTableWithUniqueColumnDrop: {
     current: `create table users (id bigint primary key, name varchar(40) unique)`,
-    desired: [users]
+    desired: [users],
+    options: {force: true}
   },
   CreateTableWithUniqueColumn: {
     current: `create table users (id bigint primary key)`,
@@ -825,6 +826,30 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
       ])
     } finally {
       await run('drop table if exists fsp_t')
+    }
+  })
+
+  test('push refuses index options MySQL lacks before creating anything', async () => {
+    const Plain = table('plain_new', {id: int()})
+    const Partial = table('partial_new', {code: int(), s: text()}, t => ({
+      vip: uniqueIndex()
+        .on(t.code)
+        .where(sql`${t.s} = 'vip'`)
+    }))
+    await run('drop table if exists plain_new, partial_new')
+    try {
+      test.equal(
+        await fails(() => push(db, Plain, Partial)),
+        `MySQL indexes don't support where, see "vip"`
+      )
+      test.equal(
+        await all(
+          `select table_name from information_schema.tables where table_schema = database() and table_name in ('plain_new', 'partial_new')`
+        ),
+        []
+      )
+    } finally {
+      await run('drop table if exists plain_new, partial_new')
     }
   })
 

@@ -59,6 +59,7 @@ export interface TableInfo {
   constraints: Record<string, string>
   indexes: Record<string, string>
   foreignKeys: Array<ForeignKeyInfo>
+  rowid?: string | false
 }
 
 export type Gen<T> = Generator<unknown, T, any>
@@ -129,7 +130,8 @@ const single: Runner = (db, apply, dry) =>
 export function createPush<R extends Runtime>(
   runtime: R,
   planner: Planner,
-  runner = single
+  runner = single,
+  validate?: (api: TableApi) => void
 ): Push<R> {
   function go(db: Database, input: PushInput, dry: boolean) {
     if (db.dialect.runtime !== runtime)
@@ -141,8 +143,12 @@ export function createPush<R extends Runtime>(
     const tables = (input.filter(hasTable) as Array<Table>).map(getTable)
     for (const api of tables) {
       if (api.temporary) throw new Error('Temporary tables cannot be pushed')
+      validate?.(api)
       renames(api, options)
     }
+    for (const from of keys(options.rename ?? {}))
+      if (!tables.some(api => from.startsWith(prefix(api))))
+        throw new Error(`Rename "${from}" is not a column of a pushed table`)
     const ordered = order(tables)
     return exec(
       runner(
@@ -351,18 +357,21 @@ export function shadow(
   })
 }
 
+const prefix = (api: TableApi) =>
+  `${api.schemaName ? `${api.schemaName}.` : ''}${api.name}.`
+
 // Rename hints for this table, checked against the desired columns
 export function renames(
   api: TableApi,
   options: PushOptions
 ): Array<[from: string, to: string]> {
-  const prefix = `${api.schemaName ? `${api.schemaName}.` : ''}${api.name}.`
+  const start = prefix(api)
   const known = columns(api)
   return entries(options.rename ?? {})
-    .filter(([from]) => from.startsWith(prefix))
+    .filter(([from]) => from.startsWith(start))
     .map(([from, to]) => {
       if (!known[to]) throw new Error(`Unknown column "${to}" in rename`)
-      return [from.slice(prefix.length), to]
+      return [from.slice(start.length), to]
     })
 }
 
@@ -413,11 +422,11 @@ export function grows(
   const b = parseType(to)
   const x = a.args.length ? a.args : fill(a.base)
   const y = b.args.length ? b.args : fill(b.base)
-  return (
-    a.base === b.base &&
-    x.length === y.length &&
-    x.every((arg, i) => arg <= y[i])
-  )
+  if (a.base !== b.base || x.length !== y.length) return false
+  // Precision and scale: neither the digits after nor before the point drop
+  if (x.length === 2)
+    return y[0] === Infinity || (x[1] <= y[1] && x[0] - x[1] <= y[0] - y[1])
+  return x.every((arg, i) => arg <= y[i])
 }
 
 // Whether one is listed after the other in an ordered family

@@ -140,6 +140,16 @@ function* changes(
     widens,
     source
   )
+  // A column seen empty can fill up before the alter table runs, so drops
+  // and narrowing count as risks whatever the rows hold
+  const why =
+    "MySQL can't keep writers out while it checks the data, pass force"
+  for (const name of dropped) risks[name] = `drop column "${name}" (${why})`
+  for (const name of changed) {
+    const [from, to] = [live, desired].map(info => info.columns[name].type)
+    if (from !== to && !widens(from, to))
+      risks[name] = `change column "${name}" from ${from} to ${to} (${why})`
+  }
   const primary = desired.constraints.primary
   const pkChanged = live.constraints.primary !== primary
   const definition = (name: string) => bare.columnDefinition(data[name].key)
@@ -208,4 +218,17 @@ const runner: Runner = function* (db, apply, dry) {
   return yield* apply(db, !dry)
 }
 
-export const push: Push<'mysql'> = createPush('mysql', plan, runner)
+// Refused before anything is created, MySQL would silently build a different
+// index
+function validate(api: TableApi): void {
+  for (const [name, index] of entries(api.indexes())) {
+    const data = getData(index) as unknown as Record<string, unknown>
+    const option = ['where', 'nulls', 'concurrently', 'only'].find(
+      key => data[key]
+    )
+    if (option)
+      throw new Error(`MySQL indexes don't support ${option}, see "${name}"`)
+  }
+}
+
+export const push: Push<'mysql'> = createPush('mysql', plan, runner, validate)

@@ -76,8 +76,9 @@ export function* inspect(
     .filter(row => row.pk > 0)
     .toSorted((a, b) => a.pk - b.pk)
     .map(row => row.name)
+  // String literals are left out, a default can contain any word
   const autoIncrement = /\bautoincrement\b/i.test(
-    master.find(row => row.type === 'table')!.sql!
+    master.find(row => row.type === 'table')!.sql!.replace(/'([^']|'')*'/g, '')
   )
   const columns: Record<string, ColumnInfo> = {}
   for (const row of rows) {
@@ -124,5 +125,21 @@ export function* inspect(
     entry.columns.push(fk.from)
     entry.references.push(fk.to ?? '')
   }
-  return {columns, constraints, indexes, foreignKeys: values(foreignKeys)}
+  const [{wr}]: Array<{wr: number}> = yield tx.all(
+    sql`select wr from pragma_table_list where schema = 'main' and name = ${sql.inline(name)}`
+  )
+  // The column that is the rowid, an empty string if it is hidden, false
+  // for a table without rowid
+  const rowid = wr
+    ? false
+    : primary.length === 1 && columns[primary[0]].type === 'integer'
+      ? primary[0]
+      : ''
+  return {
+    columns,
+    constraints,
+    indexes,
+    foreignKeys: values(foreignKeys),
+    rowid
+  }
 }

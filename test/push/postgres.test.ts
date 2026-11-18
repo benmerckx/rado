@@ -8,6 +8,7 @@ import {
   foreignKey,
   index,
   integer,
+  numeric,
   pgEnum,
   pgSchema,
   pgTable as table,
@@ -894,6 +895,56 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     } finally {
       await run('drop table if exists seq_t')
       await run('drop sequence if exists push_seq')
+    }
+  })
+
+  test('plan leaves sequences behind functions alone', async () => {
+    const T = table('ticket_t', {
+      id: integer(),
+      n: integer().default(sql`ticket()`)
+    })
+    await run('drop table if exists ticket_t')
+    await run('drop function if exists ticket')
+    await run('drop sequence if exists ticket_seq')
+    await run('create sequence ticket_seq')
+    await run(
+      `create function ticket() returns int language sql as 'select nextval(''ticket_seq'')::int'`
+    )
+    await run('create table ticket_t (id int)')
+    await run('insert into ticket_t values (1)')
+    try {
+      test.equal((await push.plan(db, T)).length, 1)
+      test.equal(await all(`select nextval('ticket_seq')::int as n`), [{n: 1}])
+    } finally {
+      await run('drop table if exists ticket_t')
+      await run('drop function if exists ticket')
+      await run('drop sequence if exists ticket_seq')
+    }
+  })
+
+  test('push refuses fewer integer digits', async () => {
+    const T = table('decimal_t', {n: numeric({precision: 8, scale: 4})})
+    await run('drop table if exists decimal_t')
+    await run('create table decimal_t (n numeric(8, 2))')
+    await run('insert into decimal_t values (123456.78)')
+    try {
+      const error = await Promise.resolve()
+        .then(() => push(db, T))
+        .then(
+          () => '',
+          error => error.message
+        )
+      test.equal(
+        error.startsWith(
+          'Push would change column "n" from numeric(8,2) to numeric(8,4)'
+        ),
+        true
+      )
+      test.equal(await all('select n::text as n from decimal_t'), [
+        {n: '123456.78'}
+      ])
+    } finally {
+      await run('drop table if exists decimal_t')
     }
   })
 

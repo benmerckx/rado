@@ -682,6 +682,89 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     }
   })
 
+  test('push keeps keys that other tables reference', async () => {
+    const Owner = table('owner', {id: integer(), code: text()})
+    await fresh('pet', 'owner', 'stray')
+    await run('create table owner (id integer, code text unique)')
+    await run('create table pet (owner text references owner(code))')
+    await run(`insert into owner values (1, 'a')`)
+    await run(`insert into pet values ('a')`)
+    try {
+      test.equal(
+        failure(() => push(db, Owner))?.startsWith(
+          'Push would break a foreign key: foreign key mismatch'
+        ),
+        true
+      )
+      test.equal(all(`select "unique" from pragma_index_list('owner')`), [
+        {unique: 1}
+      ])
+      // An orphan the push didn't make doesn't block it
+      await run('create table stray (owner text references owner(code))')
+      await run(`insert into stray values ('missing')`)
+      const Pushed = table('owner', {
+        id: integer(),
+        code: text().unique(),
+        extra: text()
+      })
+      await push(db, Pushed)
+      test.equal(all('select code, extra from owner'), [
+        {code: 'a', extra: null}
+      ])
+    } finally {
+      await fresh('pet', 'stray', 'owner')
+    }
+  })
+
+  test('rebuild refuses to change rowids to a new primary key', async () => {
+    const Keyed = table('keyed', {id: integer().primaryKey(), v: text()})
+    await fresh('keyed')
+    await run('create table keyed (id integer, v text)')
+    await run(
+      `insert into keyed (rowid, id, v) values (77, 10, 'a'), (81, null, 'b')`
+    )
+    try {
+      test.equal(
+        failure(() => push(db, Keyed))?.startsWith(
+          'Push would change the rowids of "keyed" to "id"'
+        ),
+        true
+      )
+      test.equal(all('select _rowid_ as rowid, id from keyed'), [
+        {rowid: 77, id: 10},
+        {rowid: 81, id: null}
+      ])
+      await run('update keyed set id = rowid')
+      await push(db, Keyed)
+      test.equal(all('select _rowid_ as rowid, id, v from keyed'), [
+        {rowid: 77, id: 77, v: 'a'},
+        {rowid: 81, id: 81, v: 'b'}
+      ])
+    } finally {
+      await fresh('keyed')
+    }
+  })
+
+  test('rebuild reads without rowid from the table, not its text', async () => {
+    const Worded = table('worded', {
+      id: integer(),
+      s: text().default('without rowid').unique()
+    })
+    await fresh('worded')
+    await run(
+      `create table worded (id integer, s text default 'without rowid')`
+    )
+    await run(`insert into worded (rowid, id, s) values (77, 1, 'a')`)
+    try {
+      await push(db, Worded)
+      test.equal(all('select _rowid_ as rowid, s from worded'), [
+        {rowid: 77, s: 'a'}
+      ])
+    } finally {
+      await fresh('worded')
+    }
+  })
+
   test('rebuild keeps rowids behind a column named rowid', async () => {
     const Shadowed = table('shadowed', {rowid: text(), v: text().unique()})
     const Hidden = table('hidden', {

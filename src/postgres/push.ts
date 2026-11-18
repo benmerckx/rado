@@ -115,9 +115,17 @@ function* changes(
     sql: sql`alter table ${target} ${change}`,
     risk
   })
-  // A rollback doesn't return values drawn from an existing sequence
-  const draws = (name: string) =>
-    /nextval/i.test(tx.dialect.inline(data[name].defaultValue ?? sql``))
+  // Evaluating an expression can do what a rollback doesn't undo, such as
+  // drawing from a sequence, so a dry run only applies constant defaults
+  const draws = (name: string) => {
+    const value = data[name].defaultValue
+    return Boolean(
+      value &&
+      !/^('([^']|'')*'|-?[\d.]+|true|false|null)$/i.test(
+        tx.dialect.inline(value)
+      )
+    )
+  }
   const fks = foreignKeyChanges(api, live, home)
   const {dropped, added, changed, risks, nulls} = yield* compare(
     tx,
@@ -191,7 +199,8 @@ function* changes(
       steps.push({
         sql: sql`update ${target} set ${sql.identifier(name)} = (${fallback}) where ${sql.identifier(name)} is null`.inlineValues(),
         risk,
-        effect: draws(name)
+        // An update can fire triggers
+        effect: true
       })
     steps.push(
       alter(

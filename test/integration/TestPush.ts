@@ -136,6 +136,8 @@ async function rejects(
 }
 
 export function testPush(db: Database, test: DefineTest) {
+  // MySQL can't guard drops against concurrent writers, so they need force
+  const unchecked = {force: db.dialect.runtime === 'mysql'}
   const clean = async (...tables: Array<Table>) => {
     for (const table of tables) await db.drop(table)
   }
@@ -169,7 +171,7 @@ export function testPush(db: Database, test: DefineTest) {
   test('push creates missing table', async () => {
     await clean(TableB)
     try {
-      await push(db, TableB)
+      await push(db, TableB, unchecked)
       await db.insert(TableB).values({
         fieldB: 'created',
         unchangedField: 'test',
@@ -237,7 +239,7 @@ export function testPush(db: Database, test: DefineTest) {
           unchangedField: 'test2'
         })
       })
-      await push(db, TableB)
+      await push(db, TableB, unchecked)
       await db.insert(TableB).values({
         fieldB: 'unique2',
         extraColumn: 'extra',
@@ -265,7 +267,7 @@ export function testPush(db: Database, test: DefineTest) {
         fieldA: 'initial',
         unchangedField: 'unchanged'
       })
-      await push(db, TableB)
+      await push(db, TableB, unchecked)
       const node = await db.select().from(TableB).get()
       test.equal(node?.fieldB, 'initial')
       test.equal(node?.newRequiredField, 'default')
@@ -303,7 +305,7 @@ export function testPush(db: Database, test: DefineTest) {
           fieldA: `value${i}`,
           unchangedField: `test${i}`
         })
-      await push(db, TableB)
+      await push(db, TableB, unchecked)
       for (let i = 5; i < 10; i++)
         await db.insert(TableB).values({
           fieldB: `value${i}`,
@@ -347,7 +349,7 @@ export function testPush(db: Database, test: DefineTest) {
         async () => {
           await push(db, UserB)
         },
-        'Push would drop column "name" with data'
+        'Push would drop column "name"'
       )
       test.equal(await db.select().from(UserA), [{id: 1, name: 'a', bio: 'b'}])
       await push(db, UserB, {force: true})
@@ -362,7 +364,15 @@ export function testPush(db: Database, test: DefineTest) {
     try {
       await push(db, UserA)
       await db.insert(UserA).values({})
-      await push(db, UserB)
+      if (db.dialect.runtime === 'mysql')
+        await rejects(
+          test,
+          async () => {
+            await push(db, UserB)
+          },
+          "MySQL can't keep writers out while it checks the data"
+        )
+      await push(db, UserB, unchecked)
       test.equal(await db.select().from(UserB), [{id: 1, fullName: null}])
     } finally {
       await clean(UserA)
@@ -434,6 +444,27 @@ export function testPush(db: Database, test: DefineTest) {
       await push(db, UserB, {...rename, force: true})
       test.equal(await db.select().from(UserB), [{id: 1, fullName: 'ada'}])
       test.equal(await push.plan(db, UserB, rename), [])
+    } finally {
+      await clean(UserA)
+    }
+  })
+
+  test('push rejects a rename for a table it is not given', async () => {
+    await clean(UserA)
+    try {
+      await push(db, UserA)
+      await db.insert(UserA).values({name: 'ada'})
+      await rejects(
+        test,
+        async () => {
+          await push(db, UserB, {
+            rename: {'push_usr.name': 'full_name'},
+            force: true
+          })
+        },
+        'Rename "push_usr.name" is not a column of a pushed table'
+      )
+      test.equal(await db.select(UserA.name).from(UserA), ['ada'])
     } finally {
       await clean(UserA)
     }

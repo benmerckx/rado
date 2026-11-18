@@ -11,6 +11,7 @@ import {
   compare,
   createPush,
   differ,
+  exists,
   foreignKeyChanges,
   renameSteps,
   scratch,
@@ -133,11 +134,7 @@ function* recreate(
   const name = sql.inline(api.name)
   const temp = sql.identifier(prefix + api.name)
   const data = columns(api)
-  const [table]: Array<SchemaRow> = yield schema(
-    tx,
-    sql`type = 'table' and name = ${name}`
-  )
-  const rowid = !/without\s+rowid/i.test(table.sql!)
+  const rowid = live.rowid !== false
   // Dropping the table drops its triggers, views are dropped as well since
   // they may use it, and with them their instead of triggers
   const kept: Array<SchemaRow> = yield schema(
@@ -154,17 +151,31 @@ function* recreate(
   if (!rowid && copied.length === 0)
     throw new Error(`Cannot rebuild "${api.name}" without a column to copy`)
   // Rowids are copied so they keep their values, through a name no column
-  // shadows on either side
+  // shadows on either side, unless a copied column becomes the rowid
   const free = (info: TableInfo) =>
     ['rowid', '_rowid_', 'oid'].find(
       alias => !keys(info.columns).some(name => name.toLowerCase() === alias)
     )
   const from = free(live)
   const into = free(desired)
-  if (rowid && !(from && into))
+  const alias = desired.rowid as string
+  const promoted = copied.includes(alias)
+  if (rowid && !(from && (into || promoted)))
     throw new Error(`Cannot rebuild "${api.name}", its columns hide the rowid`)
-  const names = [...(rowid ? [into!] : []), ...copied]
-  const selection = [...(rowid ? [from!] : []), ...copied].map(name => {
+  if (
+    rowid &&
+    promoted &&
+    alias !== live.rowid &&
+    (yield* exists(
+      tx,
+      target,
+      sql`${sql.identifier(alias)} is not ${sql.identifier(from!)}`
+    ))
+  )
+    risk ??= `change the rowids of "${api.name}" to "${alias}"`
+  const ids = rowid && !promoted
+  const names = [...(ids ? [into!] : []), ...copied]
+  const selection = [...(ids ? [from!] : []), ...copied].map(name => {
     const to = desired.columns[name]
     const fallback = data[name]?.defaultValue
     const value = sql.identifier(name)
@@ -209,6 +220,16 @@ function* enforced(db: Database): Gen<boolean> {
 // The foreign_keys pragma is a no-op inside a transaction, so it is turned
 // off around it and the keys are checked before commit. An immediate
 // transaction keeps writers out between the data checks and the changes.
+// Violations as keys, or the error a broken foreign key raises
+function* violations(tx: Database): Gen<Set<string> | string> {
+  try {
+    const rows: Array<object> = yield tx.all(sql`pragma foreign_key_check`)
+    return new Set(rows.map(row => values(row).join()))
+  } catch (error) {
+    return (error as Error).message
+  }
+}
+
 const runner: Runner = function* (db, apply, dry) {
   const on = yield* enforced(db)
   if (on) yield db.run(sql`pragma foreign_keys = off`)
@@ -217,21 +238,20 @@ const runner: Runner = function* (db, apply, dry) {
       db,
       function* (tx) {
         const locked = on && (yield* enforced(tx))
-        const tables: Array<string> = []
-        const result = yield* apply(tx, true, (steps, api) => {
+        // Checked whether or not keys are enforced, and only what the push
+        // breaks fails it, so existing orphans elsewhere don't block it
+        const before = yield* violations(tx)
+        const result = yield* apply(tx, true, steps => {
           if (locked && steps.some(step => step.rebuild))
             throw new Error('Cannot rebuild with foreign keys enforced')
-          tables.push(api.name)
         })
-        // Checked whether or not keys are enforced, a push must not add a
-        // foreign key that its rows violate
-        for (const name of tables) {
-          const violations: Array<unknown> = yield tx.all(
-            sql`select 1 from pragma_foreign_key_check(${sql.inline(name)})`
-          )
-          if (violations.length > 0)
-            throw new Error('Push would violate foreign key constraints')
-        }
+        const after = yield* violations(tx)
+        if (typeof after === 'string' && after !== before)
+          throw new Error(`Push would break a foreign key: ${after}`)
+        if (typeof after !== 'string')
+          for (const key of after)
+            if (typeof before === 'string' || !before.has(key))
+              throw new Error('Push would violate foreign key constraints')
         return result
       },
       dry,
