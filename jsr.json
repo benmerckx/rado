@@ -7,8 +7,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./sqlite": "./src/sqlite.ts",
+    "./sqlite/push": "./src/sqlite/push.ts",
     "./mysql": "./src/mysql.ts",
+    "./mysql/push": "./src/mysql/push.ts",
     "./postgres": "./src/postgres.ts",
+    "./postgres/push": "./src/postgres/push.ts",
     "./push": "./src/push.ts"
   }
 }

@@ -22,7 +22,8 @@ import {
   uuid,
   varchar
 } from '#/postgres.ts'
-import {inspect} from '#/postgres/push.ts'
+import {inspect} from '#/postgres/inspect.ts'
+import {push} from '#/postgres/push.ts'
 import {isDeno, testPostgres} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -792,6 +793,7 @@ if (!isDeno) {
     db,
     test,
     {
+      push,
       inspect: (db, table) => {
         const api = getTable(table)
         return inspect(db, api.name, api.schemaName ?? 'public')

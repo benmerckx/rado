@@ -9,7 +9,9 @@ import {
   temporaryTable,
   unique
 } from '#/index.ts'
+import {push as postgresPush} from '#/postgres/push.ts'
 import {push} from '#/push.ts'
+import {push as sqlitePush} from '#/sqlite/push.ts'
 import {id, integer, text, varchar} from '#/universal.ts'
 
 // Initial table structure
@@ -453,6 +455,18 @@ export function testPush(db: Database, test: DefineTest) {
     } finally {
       await clean(Before)
     }
+  })
+
+  test('push rejects another dialect', async () => {
+    const other = db.dialect.runtime === 'sqlite' ? postgresPush : sqlitePush
+    const expected = db.dialect.runtime === 'sqlite' ? 'postgres' : 'sqlite'
+    await rejects(
+      test,
+      async () => {
+        await other(db, UserA)
+      },
+      `Expected a ${expected} database`
+    )
   })
 
   test('push rejects temporary tables', async () => {

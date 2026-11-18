@@ -10,9 +10,9 @@ import {
   table,
   uniqueIndex
 } from '#/index.ts'
-import {push} from '#/push.ts'
 import {integer, numeric, text} from '#/sqlite.ts'
-import {inspect} from '#/sqlite/push.ts'
+import {inspect} from '#/sqlite/inspect.ts'
+import {push} from '#/sqlite/push.ts'
 import {isBun, isNode} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -522,10 +522,7 @@ function testRebuild(db: Database) {
           () => '',
           error => error.message
         )
-      test.equal(
-        error,
-        'Cannot rebuild a table while foreign keys are enforced'
-      )
+      test.equal(error, 'Cannot rebuild with foreign keys enforced')
     } finally {
       await run('pragma foreign_keys = off')
       await reset()
@@ -544,6 +541,7 @@ function testRebuild(db: Database) {
 }
 
 const dialect = {
+  push,
   inspect: (db: Database, t: Parameters<typeof getTable>[0]) =>
     inspect(db, getTable(t).name),
   drop: (name: string) => `drop table if exists "${name}"`

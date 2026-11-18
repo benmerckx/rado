@@ -1,7 +1,7 @@
 import type {DefineTest} from '@alinea/suite'
-import {exec, foreignKey, type Gen, type TableInfo} from '#/core/Push.ts'
+import {exec, type Gen, signature, type TableInfo} from '#/core/Push.ts'
+import type {Push, PushOptions} from '#/core/Push.ts'
 import {type Database, type Table, getTable, sql} from '#/index.ts'
-import {type PushOptions, push} from '#/push.ts'
 
 export interface Case {
   // Raw SQL creating the current schema, including rows
@@ -14,6 +14,7 @@ export interface Case {
 }
 
 export interface Dialect {
+  push: Push
   inspect(db: Database, table: Table): Gen<TableInfo | undefined>
   drop(name: string): string
 }
@@ -27,7 +28,7 @@ function normalize(info: TableInfo | undefined) {
     columns: Object.entries(info.columns).toSorted(byKey),
     constraints: Object.values(info.constraints).toSorted(),
     indexes: Object.entries(info.indexes).toSorted(byKey),
-    foreignKeys: info.foreignKeys.map(foreignKey).toSorted()
+    foreignKeys: info.foreignKeys.map(signature).toSorted()
   }
 }
 
@@ -95,9 +96,9 @@ export function testCases(
           await db.run(sql.unsafe(statement))
         const before = await rows(c.keep)
         const options = c.options ?? {}
-        await push(db, ...c.desired, options)
+        await dialect.push(db, ...c.desired, options)
         const pushed = await read(c.desired)
-        test.equal(await push.plan(db, ...c.desired, options), [])
+        test.equal(await dialect.push.plan(db, ...c.desired, options), [])
         test.equal(await rows(c.keep, true), before)
         for (const name of names) await db.run(sql.unsafe(dialect.drop(name)))
         await db.create(...c.desired)
