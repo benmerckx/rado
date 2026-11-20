@@ -22,7 +22,10 @@ if (testServers) {
   })
 
   test('neon-http: no interactive transactions', async () => {
-    await test.throws(() => db.transaction(async () => {}), 'not supported')
+    const error = await db
+      .transaction(async () => {})
+      .catch(error => error.message)
+    test.equal(error, 'Transactions are not supported over Neon HTTP')
   })
 
   // Every query runs in its own session: lastInsertId() cannot see the
