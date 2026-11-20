@@ -1,5 +1,10 @@
 import {collectEnumQuery} from '../postgres/enum.ts'
-import {type Column, type JsonColumn, formatColumn} from './Column.ts'
+import {
+  type Column,
+  type JsonColumn,
+  formatColumn,
+  formatReferences
+} from './Column.ts'
 import type {ForeignKeyConstraint, UniqueConstraint} from './Constraint.ts'
 import {PrimaryKeyConstraint} from './Constraint.ts'
 import type {DriverSpecs} from './Driver.ts'
@@ -77,17 +82,15 @@ export class TableApi<
     ])
   }
 
-  columnDefinition(name: string): Sql {
+  columnDefinition(name: string, inline = true): Sql {
     const columnData = this.columns[name]
     const column = getData(columnData)
     const columnName = sql.identifier(column.name ?? name)
-    return sql`${columnName} ${formatColumn(column)}`
+    return sql`${columnName} ${formatColumn(column, inline)}`
   }
 
   createDefinition(): Sql {
-    const createColumns = keys(this.columns).map(name =>
-      this.columnDefinition(name)
-    )
+    const names = keys(this.columns)
     const createConstraints = configEntries(this.config?.())
       .filter(([, value]) => hasConstraint(value))
       .map(([key, value]) => {
@@ -96,7 +99,28 @@ export class TableApi<
         if (!name && !key) return constraint
         return sql`constraint ${sql.identifier(name ?? key!)} ${constraint}`
       })
-    return sql.join(createColumns.concat(createConstraints), sql`, `)
+    const foreignKeys = names.flatMap(name => {
+      const column = getData(this.columns[name])
+      if (!column.references) return []
+      const references = formatReferences(
+        [column.references()],
+        column.referenceOptions
+      )
+      const field = sql.identifier(column.name ?? name)
+      return [sql`foreign key (${field}) references ${references}`]
+    })
+    const definition = (inline: boolean, extra: Array<Sql> = []) =>
+      sql.join(
+        names
+          .map(name => this.columnDefinition(name, inline))
+          .concat(createConstraints, extra),
+        sql`, `
+      )
+    // MySQL before 9.0 parses inline column references but ignores them
+    return sql.universal({
+      mysql: definition(false, foreignKeys),
+      default: definition(true)
+    })
   }
 
   listColumns(): Sql {
