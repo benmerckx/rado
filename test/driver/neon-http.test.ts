@@ -25,8 +25,17 @@ if (testServers) {
     await test.throws(() => db.transaction(async () => {}), 'not supported')
   })
 
-  // Every query runs in its own session, lastInsertId() cannot see the insert
-  const sessionless = new Set(['neon-http: joins', 'neon-http: include'])
+  // Every query runs in its own session: lastInsertId() cannot see the
+  // insert, and inspect needs an interactive transaction
+  const sessionless = new Set(
+    [
+      'joins',
+      'include',
+      'inspect tables, keys and views',
+      'inspect reads odd identifiers',
+      'inspect reads generated columns'
+    ].map(name => `neon-http: ${name}`)
+  )
   const run = Object.assign(
     (name: string, ...args: Array<any>) =>
       (sessionless.has(name) ? test.skip : test)(name, ...(args as [any])),

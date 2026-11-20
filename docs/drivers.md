@@ -128,8 +128,8 @@ Every query runs in its own session, so session state such as
 `lastInsertId()` does not carry over to the next query. Use `returning`
 instead. HTTP has no interactive transactions, so `db.transaction` is
 unavailable. [`db.batch`](runtime/transactions-and-batch.md#batch) runs its
-queries in a single transaction. For interactive transactions, use the
-websocket `Pool` with the pg driver.
+queries in a single transaction. Schema push and inspect need interactive
+transactions too. For those, use the websocket `Pool` with the pg driver.
 
 ## SQLite
 
@@ -213,6 +213,8 @@ Pass `ctx.storage` of a SQLite-backed Durable Object. Queries run on
 `ctx.storage.sql`. Durable Objects reject `begin` and `savepoint` statements,
 so transactions use `transactionSync()` for synchronous callbacks and
 `transaction()` for async ones. Both nest. The `behavior` option is ignored.
+Durable Objects always enforce foreign keys, so a push that has to rebuild a
+table is refused. Temporary tables are not available.
 
 ## MySQL
 
