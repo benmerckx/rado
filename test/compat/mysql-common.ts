@@ -2,8 +2,8 @@
 
 import {expect, expectTypeOf} from 'bun:test'
 import {suite} from '@alinea/suite'
-import mysql2 from 'mysql2'
-import {'mysql2' as connect} from '#/driver.ts'
+import {MySQL} from 'mysql-wasm'
+import {'mysql-wasm' as connect} from '#/driver.ts'
 import {
   type Database,
   TransactionRollbackError,
@@ -75,8 +75,7 @@ import {
 type Equal<A, B extends A & (A extends B ? unknown : never)> = true
 const Expect = <T extends true>() => {}
 
-const mysqlConnection = 'mysql://root:mysql@localhost:3306/mysql'
-const db = connect(mysql2.createConnection(mysqlConnection))
+const db = connect(await MySQL.create())
 type TestMySQLDB = typeof db
 const toLocalDate = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate())

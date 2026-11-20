@@ -1,9 +1,7 @@
-import {isBun, testMysql} from './TestRuntime.ts'
+import {isBun} from './TestRuntime.ts'
 
-if (isBun)
-  if (testMysql) {
-    await import('./compat/mysql-common.ts')
-  } else {
-    await import('./compat/sqlite-common.ts')
-    await import('./compat/postgres-common.ts')
-  }
+if (isBun) {
+  await import('./compat/sqlite-common.ts')
+  await import('./compat/postgres-common.ts')
+  await import('./compat/mysql-common.ts')
+}

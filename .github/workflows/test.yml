@@ -9,6 +9,7 @@ on:
 
 env:
   CI: true
+  TEST_SERVERS: true
   FORCE_COLOR: true
 
 jobs:
