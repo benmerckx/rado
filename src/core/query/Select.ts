@@ -1098,5 +1098,15 @@ export function unionQuery(query: UnionQuery): Sql {
       return sql.query({[op]: segmentQuery(query)})
     })
   )
-  return sql.query(formatCTE(query), segments, formatModifiers(query))
+  // A compound query can only be ordered by its output columns, so fields
+  // are emitted without their table name
+  const selected = querySelection(firstSelect(select[0] as SelectQuery))
+  const orderBy = query.orderBy?.map(part =>
+    selected.aliasOf(part) ? part : getSql(part).inlineFields(false)
+  )
+  return sql.query(
+    formatCTE(query),
+    segments,
+    formatModifiers({...query, orderBy}, selected)
+  )
 }

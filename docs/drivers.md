@@ -18,6 +18,7 @@ database.
 | SQLite     | [@libsql/client](https://www.npmjs.com/package/@libsql/client)                     | `rado/driver/libsql`         | async      |
 | SQLite     | Cloudflare D1                                                                      | `rado/driver/d1`             | async      |
 | MySQL      | [mysql2](https://www.npmjs.com/package/mysql2)                                     | `rado/driver/mysql2`         | async      |
+| MySQL      | [mysql-wasm](https://www.npmjs.com/package/mysql-wasm)                             | `rado/driver/mysql-wasm`     | async      |
 
 ## Sync vs async databases
 
@@ -175,6 +176,17 @@ const db = connect(createConnection({uri: process.env.DATABASE_URL}))
 
 Both callback-style and promise-style mysql2 connections are accepted.
 
+### mysql-wasm (async)
+
+```ts
+import {MySQL} from 'mysql-wasm'
+import {connect} from 'rado/driver/mysql-wasm'
+
+const db = connect(await MySQL.create())
+```
+
+Runs MySQL in process, on Node.js 24 or later, Bun and in browsers.
+
 ## One import to rule them all
 
 If you prefer, `rado/driver` re-exports every connect function keyed by
@@ -192,8 +204,8 @@ Handy when the driver choice itself is dynamic.
 
 - **Dialect**: which SQL gets emitted (quoting, parameter style, type names)
 - **Sync or async**: whether results need `await`
-- **JSON handling**: drivers that parse JSON natively (pg, pglite, mysql2)
-  are handled transparently; SQLite drivers receive JSON as text and rado
-  parses it for you
+- **JSON handling**: drivers that parse JSON natively (pg, pglite, mysql2,
+  mysql-wasm) are handled transparently; SQLite drivers receive JSON as text
+  and rado parses it for you
 - **Available features**: e.g. `returning` exists on PostgreSQL and SQLite
   but not MySQL; the types only offer what your dialect supports

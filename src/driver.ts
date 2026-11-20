@@ -2,6 +2,7 @@ export {connect as 'better-sqlite3'} from './driver/better-sqlite3.ts'
 export {connect as 'bun:sqlite'} from './driver/bun-sqlite.ts'
 export {connect as 'd1'} from './driver/d1.ts'
 export {connect as '@libsql/client'} from './driver/libsql.ts'
+export {connect as 'mysql-wasm'} from './driver/mysql-wasm.ts'
 export {connect as 'mysql2'} from './driver/mysql2.ts'
 export {connect as 'node:sqlite'} from './driver/node-sqlite.ts'
 export {

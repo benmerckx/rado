@@ -2,6 +2,7 @@ import {suite} from '@alinea/suite'
 import {Column, column} from '#/core/Column.ts'
 import {
   type AsyncDatabase,
+  type DatabaseOptions,
   type Index,
   type Sql,
   type Table,
@@ -29,7 +30,7 @@ import {
 } from '#/mysql.ts'
 import {push} from '#/mysql/push.ts'
 import {shape} from '#/mysql/shape.ts'
-import {isDeno, testMysql} from '../TestRuntime.ts'
+import {isDeno, testServers} from '../TestRuntime.ts'
 import {type Case, testCases} from './TestCases.ts'
 
 const test = suite(import.meta)
@@ -645,7 +646,7 @@ const cases: Record<string, Case> = {
   }
 }
 
-function testRegressions(db: AsyncDatabase<'mysql'>) {
+function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
   const run = (query: string) => db.run(sql.unsafe(query))
   const all = (query: string) => db.all(sql.unsafe(query) as Sql<object>)
   const fails = (run: () => unknown) =>
@@ -761,7 +762,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
       )
     try {
       await push(db, Parent, ArchiveParent, Dup, ArchiveDup)
-      test.equal(await describe('mysql'), [
+      test.equal(await describe(home), [
         {name: 'id'},
         {name: 'a'},
         {name: 'pid'}
@@ -772,7 +773,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
         {name: 'pid'},
         {name: 'c'}
       ])
-      test.equal(await target('mysql'), [{target: 'mysql'}])
+      test.equal(await target(home), [{target: home}])
       test.equal(await target('push_archive'), [{target: 'push_archive'}])
       test.equal(await all('select id, a, pid from dup'), [
         {id: 1, a: 10, pid: 1}
@@ -1019,30 +1020,35 @@ function testRegressions(db: AsyncDatabase<'mysql'>) {
   })
 }
 
-if (!isDeno && testMysql) {
-  const {mysql2: connect} = await import('#/driver.ts')
-  const {default: mysql2} = await import('mysql2')
-  const client = mysql2.createConnection(
-    'mysql://root:mysql@localhost:3306/mysql'
-  )
-  const db = connect(client)
+if (!isDeno) {
+  const open = testServers
+    ? async (options?: DatabaseOptions) => {
+        const {mysql2: connect} = await import('#/driver.ts')
+        const {default: mysql2} = await import('mysql2')
+        const url = 'mysql://root:mysql@localhost:3306/mysql'
+        return connect(mysql2.createConnection(url), options)
+      }
+    : async (options?: DatabaseOptions) => {
+        const {'mysql-wasm': connect} = await import('#/driver.ts')
+        const {MySQL} = await import('mysql-wasm')
+        return connect(await MySQL.create(), options)
+      }
+  const db = await open()
+  const [{home}] = await db.all(sql<{home: string}>`select database() as home`)
   testCases(
     db,
     test,
     {
       push,
       shape: (db, table) =>
-        shape(db, getTable(table).name, getTable(table).schemaName ?? 'mysql'),
+        shape(db, getTable(table).name, getTable(table).schemaName ?? home),
       drop: name => `drop table if exists \`${name}\``
     },
     cases
   )
-  testRegressions(db)
+  testRegressions(db, home)
   const logged: Array<string> = []
-  const logging = connect(
-    mysql2.createConnection('mysql://root:mysql@localhost:3306/mysql'),
-    {logQuery: query => logged.push(query.sql)}
-  )
+  const logging = await open({logQuery: query => logged.push(query.sql)})
   test('push drops and narrows without reading rows', async () => {
     const Dropped = table('lazy_t', {id: int(), w: varchar({length: 20})})
     const Narrowed = table('lazy_t', {id: int(), w: varchar({length: 5})})

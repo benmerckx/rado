@@ -25,7 +25,7 @@ import {
 } from '#/postgres.ts'
 import {push} from '#/postgres/push.ts'
 import {shape} from '#/postgres/shape.ts'
-import {isDeno, testPostgres} from '../TestRuntime.ts'
+import {isDeno, testServers} from '../TestRuntime.ts'
 import {failure, fixture} from '../TestUtils.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -1293,7 +1293,7 @@ function testLock(
 }
 
 if (!isDeno) {
-  const db = testPostgres
+  const db = testServers
     ? await (async () => {
         const {pg: connect} = await import('#/driver.ts')
         const {default: pg} = await import('pg')

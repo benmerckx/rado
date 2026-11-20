@@ -1,8 +1,10 @@
 import type {DefineTest} from '@alinea/suite'
 import type {Database} from '#/index.ts'
+import {testAggregates} from './integration/TestAggregates.ts'
 import {testBasic} from './integration/TestBasic.ts'
 import {testBatch} from './integration/TestBatch.ts'
 import {testColumns} from './integration/TestColumns.ts'
+import {testConditions} from './integration/TestConditions.ts'
 import {testConflicts} from './integration/TestConflicts.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
 import {testCTE} from './integration/TestCTE.ts'
@@ -15,9 +17,11 @@ import {testJson} from './integration/TestJson.ts'
 import {testMutationResult} from './integration/TestMutationResult.ts'
 import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
 import {testPush} from './integration/TestPush.ts'
+import {testSetOperations} from './integration/TestSetOperations.ts'
 import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
 import {testUpdate} from './integration/TestUpdate.ts'
+import {testValues} from './integration/TestValues.ts'
 import {testViews} from './integration/TestViews.ts'
 
 export function testDriver(db: Database, test: DefineTest<any>, label: string) {
@@ -35,6 +39,10 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   testBasic(db, prefixed)
   testBatch(db, prefixed)
   testColumns(db, prefixed)
+  testValues(db, prefixed)
+  testConditions(db, prefixed)
+  testAggregates(db, prefixed)
+  testSetOperations(db, prefixed)
   testDirectQuery(db, prefixed)
   testSubquery(db, prefixed)
   testMutationResult(db, prefixed)
