@@ -11,4 +11,5 @@ export {
   connect as 'pg'
 } from './driver/pg.ts'
 export {connect as '@electric-sql/pglite'} from './driver/pglite.ts'
+export {connect as 'postgres'} from './driver/postgres.ts'
 export {connect as 'sql.js'} from './driver/sql.js.ts'
