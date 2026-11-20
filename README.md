@@ -114,19 +114,23 @@ import {connect} from 'rado/driver/better-sqlite3'
 const db = connect(new Database('app.db'))
 ```
 
-| Database   | Package                                                                            | Import                       | Sync/async |
-| ---------- | ---------------------------------------------------------------------------------- | ---------------------------- | ---------- |
-| PostgreSQL | [pg](https://www.npmjs.com/package/pg)                                             | `rado/driver/pg`             | async      |
-| PostgreSQL | [@electric-sql/pglite](https://www.npmjs.com/package/@electric-sql/pglite)         | `rado/driver/pglite`         | async      |
-| PostgreSQL | [@neondatabase/serverless](https://www.npmjs.com/package/@neondatabase/serverless) | `rado/driver/pg`             | async      |
-| PostgreSQL | [@vercel/postgres](https://www.npmjs.com/package/@vercel/postgres)                 | `rado/driver/pg`             | async      |
-| SQLite     | [better-sqlite3](https://www.npmjs.com/package/better-sqlite3)                     | `rado/driver/better-sqlite3` | sync       |
-| SQLite     | `node:sqlite`                                                                      | `rado/driver/node-sqlite`    | sync       |
-| SQLite     | `bun:sqlite`                                                                       | `rado/driver/bun-sqlite`     | sync       |
-| SQLite     | [sql.js](https://www.npmjs.com/package/sql.js)                                     | `rado/driver/sql.js`         | sync       |
-| SQLite     | [@libsql/client](https://www.npmjs.com/package/@libsql/client)                     | `rado/driver/libsql`         | async      |
-| SQLite     | Cloudflare D1                                                                      | `rado/driver/d1`             | async      |
-| MySQL      | [mysql2](https://www.npmjs.com/package/mysql2)                                     | `rado/driver/mysql2`         | async      |
+| Database   | Package                                                                                          | Import                       | Sync/async |
+| ---------- | ------------------------------------------------------------------------------------------------ | ---------------------------- | ---------- |
+| PostgreSQL | [pg](https://www.npmjs.com/package/pg)                                                           | `rado/driver/pg`             | async      |
+| PostgreSQL | [@electric-sql/pglite](https://www.npmjs.com/package/@electric-sql/pglite)                       | `rado/driver/pglite`         | async      |
+| PostgreSQL | [postgres](https://www.npmjs.com/package/postgres)                                               | `rado/driver/postgres`       | async      |
+| PostgreSQL | [@neondatabase/serverless](https://www.npmjs.com/package/@neondatabase/serverless)               | `rado/driver/pg`             | async      |
+| PostgreSQL | `neon()` from [@neondatabase/serverless](https://www.npmjs.com/package/@neondatabase/serverless) | `rado/driver/neon-http`      | async      |
+| PostgreSQL | [@vercel/postgres](https://www.npmjs.com/package/@vercel/postgres)                               | `rado/driver/pg`             | async      |
+| SQLite     | [better-sqlite3](https://www.npmjs.com/package/better-sqlite3)                                   | `rado/driver/better-sqlite3` | sync       |
+| SQLite     | `node:sqlite`                                                                                    | `rado/driver/node-sqlite`    | sync       |
+| SQLite     | `bun:sqlite`                                                                                     | `rado/driver/bun-sqlite`     | sync       |
+| SQLite     | [sql.js](https://www.npmjs.com/package/sql.js)                                                   | `rado/driver/sql.js`         | sync       |
+| SQLite     | [@libsql/client](https://www.npmjs.com/package/@libsql/client)                                   | `rado/driver/libsql`         | async      |
+| SQLite     | Cloudflare D1                                                                                    | `rado/driver/d1`             | async      |
+| SQLite     | Cloudflare Durable Objects                                                                       | `rado/driver/durable-object` | sync       |
+| MySQL      | [mysql2](https://www.npmjs.com/package/mysql2)                                                   | `rado/driver/mysql2`         | async      |
+| Any        | `Bun.sql`                                                                                        | `rado/driver/bun-sql`        | async      |
 
 Synchronous drivers give you a fully synchronous database. No `await`
 required, although awaiting queries still works. See

@@ -36,3 +36,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  neonproxy:
+    image: ghcr.io/timowilhelm/local-neon-http-proxy:main
+    environment:
+      PG_CONNECTION_STRING: postgres://postgres:postgres@postgres:5432/postgres
+    ports:
+      - '4444:4444'
+    depends_on:
+      postgres:
+        condition: service_healthy

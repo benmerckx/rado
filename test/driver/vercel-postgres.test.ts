@@ -7,16 +7,16 @@ const test = suite(import.meta)
 if (testServers) {
   const pgConnection = 'postgres://postgres:postgres@localhost:5432/postgres'
   const {pg: connect} = await import('#/driver.ts')
-  const {neonConfig} = await import('@neondatabase/serverless')
-  Object.assign(neonConfig, {
+  const {createClient} = await import('@vercel/postgres')
+  const client = createClient({
+    connectionString: pgConnection
+  })
+  // @vercel/postgres depends on its own copy of @neondatabase/serverless
+  Object.assign(client.neonConfig, {
     wsProxy: () => 'localhost:5488/v1',
     useSecureWebSocket: false,
     pipelineTLS: false,
     pipelineConnect: false
-  })
-  const {createClient} = await import('@vercel/postgres')
-  const client = createClient({
-    connectionString: pgConnection
   })
   await client.connect()
 
