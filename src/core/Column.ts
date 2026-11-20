@@ -1,5 +1,5 @@
 import type {DriverSpecs} from './Driver.ts'
-import type {Field, FieldData} from './expr/Field.ts'
+import {type Field, type FieldData, referenced} from './expr/Field.ts'
 import {callFunction} from './expr/Functions.ts'
 import {type Input, input, mapToColumn} from './expr/Input.ts'
 import {
@@ -189,13 +189,13 @@ export function columnConfig<Options>(args: ColumnArguments<Options>): {
   return {name: undefined, options: args[0] as Options}
 }
 
-function formatReferences(
+export function formatReferences(
   fields: Array<FieldData>,
   options: ReferenceOptions = {}
 ): Sql {
   return sql.query(
     callFunction(
-      sql.identifier(fields[0].targetName),
+      referenced(fields[0]),
       fields.map(field => sql.identifier(field.fieldName))
     ),
     {
@@ -204,7 +204,7 @@ function formatReferences(
     }
   )
 }
-export function formatColumn(column: BaseColumnData): Sql {
+export function formatColumn(column: BaseColumnData, inline = true): Sql {
   return sql.query(
     column.type,
     {
@@ -221,6 +221,7 @@ export function formatColumn(column: BaseColumnData): Sql {
       : undefined,
     {
       references:
+        inline &&
         column.references &&
         formatReferences([column.references!()], column.referenceOptions)
     }

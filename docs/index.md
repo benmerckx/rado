@@ -46,7 +46,8 @@ you're coming from Drizzle ORM, jump straight to
 
 - [Transactions & batch](runtime/transactions-and-batch.md): atomicity, rollbacks, batching
 - [Prepared statements](runtime/prepared-statements.md): placeholders, `prepare`, `toSQL`
-- [Migrations](runtime/migrations.md): `db.create`, `db.drop`, `db.migrate`
+- [Schema push](runtime/push.md): `db.create`, `db.drop`, `push`
+- [Inspect](runtime/inspect.md): read a database's tables, keys, indexes and views
 - [Universal queries](runtime/universal-queries.md): one query, any database
 
 ### Background

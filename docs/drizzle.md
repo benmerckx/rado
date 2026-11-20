@@ -150,16 +150,18 @@ committing to a dialect at build time. See
 
 Drizzle ships drizzle-kit, a separate (closed-source, heavyweight) package
 that generates `.sql` migration files on disk. Rado builds in a single
-declarative method:
+declarative function:
 
 ```ts
-await db.migrate(User, Post)
+await push(db, User, Post)
 ```
 
-It diffs schema against database and applies changes on the spot, anywhere,
-including browsers and edge runtimes. Less ceremony, less control: for
-carefully reviewed production migrations you may still prefer a dedicated
-tool. See [Migrations](runtime/migrations.md).
+`push` from `rado/sqlite/push` (or the postgres and mysql equivalents) diffs
+schema against database and applies changes on the spot, anywhere, including
+browsers and edge runtimes. It refuses
+changes that lose data unless forced, and `push.plan` shows what would run.
+Less ceremony, less control: for carefully reviewed production migrations
+you may still prefer a dedicated tool. See [Schema push](runtime/push.md).
 
 ### Simpler types
 
@@ -169,11 +171,31 @@ codebase). In practice: faster type-checking, readable tooltips, and
 `Database`/`Select`/`Table` types you can actually write in annotations
 without filling in a row of `any`s.
 
+## Deliberate departures
+
+These are decisions, not gaps waiting to be filled:
+
+- **No callbacks where a value will do.** Columns, tables and conditions are
+  passed directly. Callbacks exist only where the value can't exist yet: the
+  table config (`self => ({...})`) for composite constraints,
+  `.references(() => User.id)` for forward and circular references, and
+  recursive CTEs (`unionAll(self => ...)`).
+- **No metadata getters** like `getTableConfig`, `getViewConfig`,
+  `getTableName` or `is()`. A table is already its own column map, and
+  everything else stays internal. `getTableColumns` only exists as a
+  compatibility alias that returns the table.
+- **No validator generation** (zod, valibot, typebox). Validate input where it
+  enters your app; the row types come from `InferSelectModel` and
+  `InferInsertModel`.
+- **Functions mirror the database.** Helpers such as the sqlite functions or
+  vector operators are ported when the database (or a common extension like
+  pgvector) ships them, not invented on top.
+
 ## What's missing
 
 - **The relational query API** (`db.query.*.findMany`): by design; use
   [Include](queries/include.md)
-- **drizzle-kit** style SQL-file migrations: use `db.migrate` or an external
+- **drizzle-kit** style SQL-file migrations: use `push` or an external
   migration tool
 - **Ecosystem**: Drizzle has integrations, studio tooling and a large
   community; rado is a focused query builder

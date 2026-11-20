@@ -51,7 +51,8 @@
         "pages": [
           "runtime/transactions-and-batch",
           "runtime/prepared-statements",
-          "runtime/migrations",
+          "runtime/push",
+          "runtime/inspect",
           "runtime/universal-queries"
         ]
       },

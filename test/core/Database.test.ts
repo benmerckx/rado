@@ -8,6 +8,7 @@ import type {
 } from '#/core/Driver.ts'
 import {sql} from '#/core/Sql.ts'
 import {temporaryTable} from '#/core/Table.ts'
+import {push} from '#/push.ts'
 import {integer} from '#/sqlite/columns.ts'
 import {sqliteDialect} from '#/sqlite/dialect.ts'
 
@@ -38,10 +39,10 @@ test('database frees direct statements after success and failure', () => {
     transaction: run => run(driver),
     batch: () => []
   }
-  const db = new SyncDatabase(driver, sqliteDialect, undefined!)
+  const db = new SyncDatabase(driver, sqliteDialect)
 
   const Scratch = temporaryTable('Scratch', {id: integer()})
-  test.throws(() => db.migrate(Scratch), 'Temporary tables cannot be')
+  test.throws(() => push(db, Scratch), 'Temporary tables cannot be')
 
   test.equal(db.get(sql`select 1`), null)
   test.equal(db.all(sql`select 1`), [])
@@ -82,7 +83,7 @@ test('database frees asynchronous direct statements after success and failure', 
       return []
     }
   }
-  const db = new AsyncDatabase(driver, sqliteDialect, undefined!)
+  const db = new AsyncDatabase(driver, sqliteDialect)
 
   test.equal(await db.get(sql`select 1`), null)
   test.equal(await db.all(sql`select 1`), [])

@@ -1,9 +1,15 @@
 import {collectEnumQuery} from '../postgres/enum.ts'
-import {type Column, type JsonColumn, formatColumn} from './Column.ts'
+import {
+  type Column,
+  type JsonColumn,
+  formatColumn,
+  formatReferences
+} from './Column.ts'
 import type {ForeignKeyConstraint, UniqueConstraint} from './Constraint.ts'
 import {PrimaryKeyConstraint} from './Constraint.ts'
 import type {DriverSpecs} from './Driver.ts'
 import {Field} from './expr/Field.ts'
+import {callFunction} from './expr/Functions.ts'
 import type {Input} from './expr/Input.ts'
 import {type JsonExpr, jsonExpr} from './expr/Json.ts'
 import {Index} from './Index.ts'
@@ -43,6 +49,8 @@ class TableData {
   temporary?: boolean
   columns!: TableDefinition
   config?: () => TableConfigResult
+  // Arguments of a table valued function, such as sqlite's pragma functions
+  args?: Array<Input<unknown>>
 }
 
 export class TableApi<
@@ -67,22 +75,22 @@ export class TableApi<
 
   target(): Sql {
     return sql.join([
-      this.identifier(),
+      this.args
+        ? callFunction(this.identifier(), this.args)
+        : this.identifier(),
       this.alias ? sql`as ${sql.identifier(this.alias)}` : undefined
     ])
   }
 
-  columnDefinition(name: string): Sql {
+  columnDefinition(name: string, inline = true): Sql {
     const columnData = this.columns[name]
     const column = getData(columnData)
     const columnName = sql.identifier(column.name ?? name)
-    return sql`${columnName} ${formatColumn(column)}`
+    return sql`${columnName} ${formatColumn(column, inline)}`
   }
 
   createDefinition(): Sql {
-    const createColumns = keys(this.columns).map(name =>
-      this.columnDefinition(name)
-    )
+    const names = keys(this.columns)
     const createConstraints = configEntries(this.config?.())
       .filter(([, value]) => hasConstraint(value))
       .map(([key, value]) => {
@@ -91,7 +99,28 @@ export class TableApi<
         if (!name && !key) return constraint
         return sql`constraint ${sql.identifier(name ?? key!)} ${constraint}`
       })
-    return sql.join(createColumns.concat(createConstraints), sql`, `)
+    const foreignKeys = names.flatMap(name => {
+      const column = getData(this.columns[name])
+      if (!column.references) return []
+      const references = formatReferences(
+        [column.references()],
+        column.referenceOptions
+      )
+      const field = sql.identifier(column.name ?? name)
+      return [sql`foreign key (${field}) references ${references}`]
+    })
+    const definition = (inline: boolean, extra: Array<Sql> = []) =>
+      sql.join(
+        names
+          .map(name => this.columnDefinition(name, inline))
+          .concat(createConstraints, extra),
+        sql`, `
+      )
+    // MySQL before 9.0 parses inline column references but ignores them
+    return sql.universal({
+      mysql: definition(false, foreignKeys),
+      default: definition(true)
+    })
   }
 
   listColumns(): Sql {
@@ -119,7 +148,7 @@ export class TableApi<
   createIndexes(): Array<Sql> {
     return entries(this.indexes()).map(([name, index]) => {
       const indexApi = getData(index)
-      return indexApi.toSql(this.name, name, false)
+      return indexApi.toSql(this.name, name, false, this.schemaName)
     })
   }
 
@@ -154,7 +183,8 @@ export class TableApi<
 
 export function tableFields(
   targetName: string,
-  columns: TableDefinition
+  columns: TableDefinition,
+  schemaName?: string
 ): Record<string, HasSql> {
   return fromEntries(
     entries(columns).map(([name, column]) => {
@@ -169,7 +199,7 @@ export function tableFields(
               value === null ? null : decode(value, specs)
           }
         : columnApi
-      const field = new Field(targetName, givenName ?? name, source)
+      const field = new Field(targetName, givenName ?? name, source, schemaName)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })
@@ -302,7 +332,7 @@ function createTable<Definition extends TableDefinition, Name extends string>(
     temporary,
     columns
   })
-  const fields = tableFields(api.aliased, api.columns)
+  const fields = tableFields(api.aliased, api.columns, api.schemaName)
   const table = <Table<Definition, Name>>{
     [internalTable]: api,
     [internalTarget]: api.identifier(),
@@ -323,11 +353,26 @@ export function alias<Definition extends TableDefinition, Alias extends string>(
   table: Table<Definition>,
   alias: Alias
 ): Table<Definition, Alias> {
+  return derive(table, {alias})
+}
+
+export function call<Definition extends TableDefinition, Alias extends string>(
+  table: Table<Definition>,
+  alias: Alias,
+  ...args: Array<Input<unknown>>
+): Table<Definition, Alias> {
+  return derive(table, {alias, args})
+}
+
+function derive<Definition extends TableDefinition, Alias extends string>(
+  table: Table<Definition>,
+  data: {alias: Alias; args?: Array<Input<unknown>>}
+): Table<Definition, Alias> {
   const api = assign(new TableApi<Definition, Alias>(), {
     ...getTable(table),
-    alias
+    ...data
   })
-  const fields = tableFields(api.aliased, api.columns)
+  const fields = tableFields(api.aliased, api.columns, api.schemaName)
   return <Table<Definition, Alias>>{
     [internalTable]: api,
     [internalTarget]: api.identifier(),

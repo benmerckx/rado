@@ -1,6 +1,7 @@
 import {suite} from '@alinea/suite'
 import {formatColumn} from '#/core/Column.ts'
-import {getData} from '#/core/Internal.ts'
+import {getCreate, getData} from '#/core/Internal.ts'
+import {mysqlTable} from '#/mysql.ts'
 import * as mysql from '#/mysql/columns.ts'
 import {mysqlDialect} from '#/mysql/dialect.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
@@ -133,4 +134,16 @@ test('mysql timestamp mapping', () => {
 test('mysql time sql', () => {
   test.equal(columnSql(mysql.time()), 'time')
   test.equal(columnSql(mysql.time({fsp: 4})), 'time(4)')
+})
+
+test('mysql column references become table constraints', () => {
+  const users = mysqlTable('users', {id: mysql.int().primaryKey()})
+  const posts = mysqlTable('posts', {
+    author: mysql.int().references(users.id, {onDelete: 'cascade'})
+  })
+  test.equal(
+    mysqlDialect.emit(getCreate(posts)[0]!).sql,
+    'create table `posts` (`author` integer, foreign key (`author`) ' +
+      'references `users`(`id`) on delete cascade)'
+  )
 })

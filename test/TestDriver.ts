@@ -11,11 +11,12 @@ import {testCTE} from './integration/TestCTE.ts'
 import {testDirectQuery} from './integration/TestDirectQuery.ts'
 import {testEnums} from './integration/TestEnums.ts'
 import {testInclude} from './integration/TestInclude.ts'
+import {testInspect} from './integration/TestInspect.ts'
 import {testJoins} from './integration/TestJoins.ts'
 import {testJson} from './integration/TestJson.ts'
-import {testMigration} from './integration/TestMigration.ts'
 import {testMutationResult} from './integration/TestMutationResult.ts'
 import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
+import {testPush} from './integration/TestPush.ts'
 import {testSetOperations} from './integration/TestSetOperations.ts'
 import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
@@ -54,9 +55,10 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   testConflicts(db, prefixed)
   testUpdate(db, prefixed)
   testViews(db, prefixed)
+  testInspect(db, prefixed)
   if (db.driver.supportsTransactions) {
     testTransactions(db, prefixed)
-    testMigration(db, prefixed)
+    testPush(db, prefixed)
   }
   closeDb()
 }

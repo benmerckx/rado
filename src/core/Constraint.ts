@@ -1,4 +1,4 @@
-import type {Field, FieldData} from './expr/Field.ts'
+import {type Field, type FieldData, referenced} from './expr/Field.ts'
 import {
   type HasConstraint,
   type HasData,
@@ -80,9 +80,7 @@ export function primaryKey(options: {
   columns: Array<Field>
 }): PrimaryKeyConstraint
 export function primaryKey(...fields: Array<Field>): PrimaryKeyConstraint
-export function primaryKey(
-  ...args: Array<any>
-): PrimaryKeyConstraint {
+export function primaryKey(...args: Array<any>): PrimaryKeyConstraint {
   if (args.length === 1 && 'columns' in args[0])
     return new PrimaryKeyConstraint({
       name: args[0].name,
@@ -117,7 +115,7 @@ export class ForeignKeyConstraint
     return sql`foreign key (${sql.join(
       fields.map(field => sql.identifier(field.fieldName)),
       sql`, `
-    )}) references ${sql.identifier(references[0].targetName)} (${sql.join(
+    )}) references ${referenced(references[0])} (${sql.join(
       references.map(field => sql.identifier(field.fieldName)),
       sql`, `
     )})`
@@ -130,9 +128,7 @@ export function foreignKey(options: {
   foreignColumns?: Array<Field>
 }): ForeignKeyConstraint
 export function foreignKey(...fields: Array<Field>): ForeignKeyConstraint
-export function foreignKey(
-  ...args: Array<any>
-): ForeignKeyConstraint {
+export function foreignKey(...args: Array<any>): ForeignKeyConstraint {
   if (args.length === 1 && 'columns' in args[0])
     return new ForeignKeyConstraint({
       name: args[0].name,

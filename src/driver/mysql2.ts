@@ -18,7 +18,6 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
-import {mysqlDiff} from '../mysql/diff.ts'
 import {setTransaction, startTransaction} from '../mysql/transactions.ts'
 
 type Queryable = PromiseConnection | Pool | PoolConnection
@@ -163,7 +162,6 @@ export function connect(
   return new AsyncDatabase(
     new Mysql2Driver('promise' in client ? client.promise() : client),
     mysqlDialect,
-    mysqlDiff,
     options
   )
 }

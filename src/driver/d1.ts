@@ -7,7 +7,6 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
-import {sqliteDiff} from '../sqlite/diff.ts'
 
 type Client = D1Database
 
@@ -90,10 +89,5 @@ export function connect(
   client: Client,
   options?: DatabaseOptions
 ): AsyncDatabase<'sqlite'> {
-  return new AsyncDatabase(
-    new D1Driver(client),
-    sqliteDialect,
-    sqliteDiff,
-    options
-  )
+  return new AsyncDatabase(new D1Driver(client), sqliteDialect, options)
 }

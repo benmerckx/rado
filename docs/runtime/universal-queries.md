@@ -82,9 +82,9 @@ const epochNow = sql.universal({
 })
 ```
 
-And since [migrations](migrations.md) run through the same dialect machinery,
-`db.migrate(User)` keeps any of the three databases in sync with the same
-schema definition.
+And since [push](push.md) runs through the same dialect machinery, `push`
+from `rado/push` keeps any of the three databases in sync with the same schema
+definition, picking the planner from the database at runtime.
 
 ## What to watch out for
 

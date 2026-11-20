@@ -13,7 +13,6 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
-import {sqliteDiff} from '../sqlite/diff.ts'
 import {ReusedStatement, StatementCache} from '../sqlite/statements.ts'
 import {execTransaction} from '../sqlite/transactions.ts'
 
@@ -112,10 +111,5 @@ export function connect(
   db: Client,
   options?: DatabaseOptions
 ): SyncDatabase<'sqlite'> {
-  return new SyncDatabase(
-    new BetterSqlite3Driver(db),
-    sqliteDialect,
-    sqliteDiff,
-    options
-  )
+  return new SyncDatabase(new BetterSqlite3Driver(db), sqliteDialect, options)
 }

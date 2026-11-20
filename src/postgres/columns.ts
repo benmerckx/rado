@@ -211,8 +211,7 @@ export class PgColumn<
     return new PgColumn({
       ...getData(this),
       isUnique: true,
-      nullsNotDistinct: config?.nulls === 'not distinct',
-      name
+      nullsNotDistinct: config?.nulls === 'not distinct'
     })
   }
 

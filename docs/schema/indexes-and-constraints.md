@@ -91,6 +91,5 @@ available on the builder.
 ## When do they apply?
 
 Constraints and indexes are emitted by `db.create(Table)` and kept up to date
-by `db.migrate(Table)`. The migration diff adds, drops and recreates indexes
-and constraints to match your definition. See
-[Migrations](../runtime/migrations.md).
+by `push(db, Table)`, which adds, drops and recreates indexes and constraints
+to match your definition. See [Schema push](../runtime/push.md).

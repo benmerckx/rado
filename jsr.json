@@ -2,16 +2,20 @@
   "name": "@rado/rado",
   "version": "1.3.0",
   "publish": {
-    "include": [
-      "README.md",
-      "LICENSE",
-      "src"
-    ]
+    "include": ["README.md", "LICENSE", "src"]
   },
   "exports": {
     ".": "./src/index.ts",
     "./sqlite": "./src/sqlite.ts",
+    "./sqlite/push": "./src/sqlite/push.ts",
+    "./sqlite/inspect": "./src/sqlite/inspect.ts",
     "./mysql": "./src/mysql.ts",
-    "./postgres": "./src/postgres.ts"
+    "./mysql/push": "./src/mysql/push.ts",
+    "./mysql/inspect": "./src/mysql/inspect.ts",
+    "./postgres": "./src/postgres.ts",
+    "./postgres/push": "./src/postgres/push.ts",
+    "./postgres/inspect": "./src/postgres/inspect.ts",
+    "./push": "./src/push.ts",
+    "./inspect": "./src/inspect.ts"
   }
 }

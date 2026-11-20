@@ -89,8 +89,8 @@ db.create(User, Post)
 ```
 
 `db.create` emits `create table` (and any index) statements. For evolving an
-existing database to match your schema, there's `db.migrate`. See
-[Migrations](runtime/migrations.md).
+existing database to match your schema, there's `push`. See
+[Schema push](runtime/push.md).
 
 ## Insert some rows
 

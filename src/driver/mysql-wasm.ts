@@ -8,7 +8,6 @@ import {
 import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
-import {mysqlDiff} from '../mysql/diff.ts'
 import {setTransaction, startTransaction} from '../mysql/transactions.ts'
 
 type Queryable = Client | Transaction
@@ -109,10 +108,5 @@ export function connect(
   db: MySQL | Client,
   options?: DatabaseOptions
 ): AsyncDatabase<'mysql'> {
-  return new AsyncDatabase(
-    new MysqlWasmDriver(db),
-    mysqlDialect,
-    mysqlDiff,
-    options
-  )
+  return new AsyncDatabase(new MysqlWasmDriver(db), mysqlDialect, options)
 }

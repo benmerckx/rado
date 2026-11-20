@@ -5,14 +5,9 @@ import {
   type DatabaseOptions,
   type TransactionOptions
 } from '../core/Database.ts'
-import type {
-  AsyncDriver,
-  AsyncStatement,
-  BatchedQuery
-} from '../core/Driver.ts'
+import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
-import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = PGlite | Transaction
@@ -118,10 +113,5 @@ export function connect(
   db: PGlite,
   options?: DatabaseOptions
 ): AsyncDatabase<'postgres'> {
-  return new AsyncDatabase(
-    new PGliteDriver(db),
-    postgresDialect,
-    postgresDiff,
-    options
-  )
+  return new AsyncDatabase(new PGliteDriver(db), postgresDialect, options)
 }

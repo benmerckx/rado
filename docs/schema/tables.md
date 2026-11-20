@@ -1,7 +1,7 @@
 # Tables
 
 A table in rado is a plain value: a name plus an object of columns. Define it
-once and use it everywhere: in queries, in `db.create`, in `db.migrate`, in
+once and use it everywhere: in queries, in `db.create`, in `push`, in
 type inference.
 
 ## Defining a table
@@ -50,7 +50,7 @@ await db.drop(Scratch)
 Rado does not manage the table's lifetime: temporary tables are scoped according
 to the connection semantics of the database and driver in use. They can be
 created or dropped on either a database or transaction, but cannot be passed to
-`db.migrate`.
+`push`.
 
 ## Column names are inferred
 
