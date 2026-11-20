@@ -171,6 +171,26 @@ codebase). In practice: faster type-checking, readable tooltips, and
 `Database`/`Select`/`Table` types you can actually write in annotations
 without filling in a row of `any`s.
 
+## Deliberate departures
+
+These are decisions, not gaps waiting to be filled:
+
+- **No callbacks where a value will do.** Columns, tables and conditions are
+  passed directly. Callbacks exist only where the value can't exist yet: the
+  table config (`self => ({...})`) for composite constraints,
+  `.references(() => User.id)` for forward and circular references, and
+  recursive CTEs (`unionAll(self => ...)`).
+- **No metadata getters** like `getTableConfig`, `getViewConfig`,
+  `getTableName` or `is()`. A table is already its own column map, and
+  everything else stays internal. `getTableColumns` only exists as a
+  compatibility alias that returns the table.
+- **No validator generation** (zod, valibot, typebox). Validate input where it
+  enters your app; the row types come from `InferSelectModel` and
+  `InferInsertModel`.
+- **Functions mirror the database.** Helpers such as the sqlite functions or
+  vector operators are ported when the database (or a common extension like
+  pgvector) ships them, not invented on top.
+
 ## What's missing
 
 - **The relational query API** (`db.query.*.findMany`): by design; use
