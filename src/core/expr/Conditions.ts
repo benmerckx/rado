@@ -1,5 +1,4 @@
-import {type HasSql, getQuery, hasSql} from '../Internal.ts'
-import type {Either} from '../MetaData.ts'
+import {type HasQuery, type HasSql, getQuery, hasSql} from '../Internal.ts'
 import type {SingleQuery} from '../Queries.ts'
 import {type Sql, sql} from '../Sql.ts'
 import {type Input, input} from './Input.ts'
@@ -181,6 +180,6 @@ export function when<Out, In = boolean>(
   ])
 }
 
-export function exists(query: SingleQuery<any, Either>): Sql<boolean> {
+export function exists(query: HasQuery): Sql<boolean> {
   return bool(sql`exists (${getQuery(query)})`)
 }

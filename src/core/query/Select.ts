@@ -39,7 +39,7 @@ import {
   selection
 } from '../Selection.ts'
 import {Sql, sql} from '../Sql.ts'
-import type {Table, TableDefinition, TableFields} from '../Table.ts'
+import type {Scope, Table, TableDefinition, TableFields} from '../Table.ts'
 import type {Expand} from '../Types.ts'
 import type {VirtualTarget} from '../Virtual.ts'
 import {formatCTE} from './CTE.ts'
@@ -449,11 +449,13 @@ export type SubQuery<Input, Name extends string = string> = RetypeSubQueryInput<
 type RetypeSubQueryInput<Input, TableName extends string> =
   Input extends HasSql<infer Value>
     ? Field<Value, TableName>
-    : Input extends SelectionRecord
-      ? Expand<{
-          [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
-        }>
-      : Input
+    : Input extends Table<infer Definition>
+      ? RetypeSubQueryInput<TableFields<Definition>, TableName>
+      : Input extends SelectionRecord
+        ? Expand<{
+            [K in keyof Input]: RetypeSubQueryInput<Input[K], TableName>
+          }>
+        : Input
 
 export interface SelectBase<
   Input,
@@ -478,7 +480,7 @@ export interface SelectBase<
 
 export interface WithoutSelection<Meta extends QueryMeta> {
   from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>,
+    from: Table<Definition, Name> | Scope<Definition, Name>,
     config?: IndexHintConfigFor<Meta>
   ): AllFrom<
     TableFields<Definition>,
@@ -498,7 +500,7 @@ export interface WithSelection<
   Meta extends QueryMeta
 > extends SelectBase<Input, Meta> {
   from<Definition extends TableDefinition, Name extends string>(
-    from: Table<Definition, Name>,
+    from: Table<Definition, Name> | Scope<Definition, Name>,
     config?: IndexHintConfigFor<Meta>
   ): SelectionFromTargets<Input, Meta, Name>
   from<SubInput, Name extends string>(
@@ -913,6 +915,15 @@ function formatTarget(target: HasTarget, indexHints?: IndexHintConfig): Sql {
   return sql.join([formattedTarget, formatIndexHints(indexHints)])
 }
 
+export function scoped(
+  from: SelectQuery['from'],
+  where?: HasSql<boolean>
+): HasSql<boolean> | undefined {
+  const base = Array.isArray(from) ? from[0] : from
+  const scopeWhere = base && hasTable(base) && getTable(base).where
+  return scopeWhere ? and(scopeWhere, where) : where
+}
+
 export function formatFrom(
   from: SelectQuery['from'],
   baseConfig?: IndexHintConfig
@@ -924,11 +935,13 @@ export function formatFrom(
         if (hasTarget(join)) return formatTarget(join, baseConfig)
         if (hasSql(join)) return getSql(join)
         const {target, op, on, config} = joinOp(join)
+        // A joined scope narrows the join, so outer joins keep their rows
+        const scope = hasTable(target) && getTable(target).where
         return sql.query({
           [op]: hasTarget(target)
             ? formatTarget(target, config)
             : getSql(target),
-          on
+          on: scope ? and(scope, on) : on
         })
       })
     )
@@ -950,7 +963,7 @@ export function selectQuery(query: SelectQuery): Sql {
       select,
       from: from && formatFrom(from, query),
       for: query.for,
-      where,
+      where: scoped(from, where),
       groupBy: groupBy && sql.join(groupBy, sql`, `),
       having: typeof having === 'function' ? having(selected.input) : having
     },

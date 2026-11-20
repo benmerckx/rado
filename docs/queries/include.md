@@ -8,8 +8,7 @@ their posts" without a separate ORM API, a relations file or N+1 queries.
 import {eq, include} from 'rado'
 
 const users = await db
-  .select({
-    ...User,
+  .select(User, {
     posts: include(db.select().from(Post).where(eq(Post.authorId, User.id)))
   })
   .from(User)
@@ -28,8 +27,7 @@ returns an object instead of an array. `null` when there's no match:
 
 ```ts
 const posts = await db
-  .select({
-    ...Post,
+  .select(Post, {
     author: include.one(
       db.select().from(User).where(eq(User.id, Post.authorId))
     )
@@ -66,12 +64,10 @@ Includes nest. Each level is still part of the same single query:
 
 ```ts
 const users = await db
-  .select({
-    ...User,
+  .select(User, {
     posts: include(
       db
-        .select({
-          ...Post,
+        .select(Post, {
           comments: include(
             db.select().from(Comment).where(eq(Comment.postId, Post.id))
           )

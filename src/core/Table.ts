@@ -43,6 +43,8 @@ class TableData {
   temporary?: boolean
   columns!: TableDefinition
   config?: () => TableConfigResult
+  // Set on scoped targets, narrows every select, update and delete
+  where?: HasSql<boolean>
 }
 
 export class TableApi<
@@ -169,7 +171,7 @@ export function tableFields(
               value === null ? null : decode(value, specs)
           }
         : columnApi
-      const field = new Field(targetName, givenName ?? name, source)
+      const field = new Field(targetName, givenName ?? name, source, name)
       if (columnApi.json) return [name, jsonExpr(field)]
       return [name, field]
     })
@@ -198,6 +200,14 @@ export type Table<
   HasCreate &
   HasDrop
 
+// A table narrowed to some rows: `from` takes it, a join does not
+export interface Scope<
+  Definition extends TableDefinition = TableDefinition,
+  Name extends string = string
+> {
+  readonly [internalTable]: TableApi<Definition, Name>
+}
+
 export type TableFields<
   Definition extends TableDefinition,
   TableName extends string = string
@@ -209,8 +219,8 @@ export type TableFields<
           [infer Nullable extends boolean, boolean]
         >
       ? [Nullable] extends [false]
-        ? Field<T, TableName>
-        : Field<T | null, TableName>
+        ? Field<T, TableName, K & string>
+        : Field<T | null, TableName, K & string>
       : never
 }
 

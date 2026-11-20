@@ -184,10 +184,7 @@ export class Database<Meta extends QueryMeta = Either>
     source: Table | HasSql,
     condition?: HasSql<boolean>
   ): SelectFirst<Sql<number>, Meta> {
-    return this.select(count())
-      .from(source as HasSql)
-      .where(condition)
-      .$first()
+    return count(this, source, condition)
   }
 }
 

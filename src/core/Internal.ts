@@ -19,6 +19,7 @@ export const internalInclude: unique symbol = Symbol()
 export const internalEnum: unique symbol = Symbol()
 export const internalCreate: unique symbol = Symbol()
 export const internalDrop: unique symbol = Symbol()
+export const internalColumns: unique symbol = Symbol()
 
 // Builders are immutable, so an internal getter only needs to run once
 const caches = new Map<symbol, WeakMap<object, unknown>>()
@@ -113,3 +114,7 @@ export const hasCreate = (obj: object): obj is HasCreate =>
 export const getCreate = (obj: HasCreate) => obj[internalCreate]
 export const hasDrop = (obj: object): obj is HasDrop => internalDrop in obj
 export const getDrop = (obj: HasDrop) => obj[internalDrop]
+// A related table carries relations next to its columns. A spread of it
+// loses this key, and is then everything it copied.
+export const getColumns = (obj: object): object =>
+  (obj as {[internalColumns]?: object})[internalColumns] ?? obj

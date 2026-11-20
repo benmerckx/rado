@@ -2,6 +2,7 @@ import type {DefineTest} from '@alinea/suite'
 import type {Database} from '#/index.ts'
 import {testBasic} from './integration/TestBasic.ts'
 import {testBatch} from './integration/TestBatch.ts'
+import {testBundle} from './integration/TestBundle.ts'
 import {testColumns} from './integration/TestColumns.ts'
 import {testConflicts} from './integration/TestConflicts.ts'
 import {testConstraints} from './integration/TestConstraints.ts'
@@ -14,6 +15,7 @@ import {testJson} from './integration/TestJson.ts'
 import {testMigration} from './integration/TestMigration.ts'
 import {testMutationResult} from './integration/TestMutationResult.ts'
 import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
+import {testRelations} from './integration/TestRelations.ts'
 import {testSubquery} from './integration/TestSubquery.ts'
 import {testTransactions} from './integration/TestTransactions.ts'
 import {testUpdate} from './integration/TestUpdate.ts'
@@ -43,6 +45,8 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   testConstraints(db, prefixed)
   testCTE(db, prefixed)
   testInclude(db, prefixed)
+  testRelations(db, prefixed)
+  testBundle(db, prefixed)
   testConflicts(db, prefixed)
   testUpdate(db, prefixed)
   testViews(db, prefixed)

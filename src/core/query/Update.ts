@@ -23,7 +23,7 @@ import {type Sql, sql} from '../Sql.ts'
 import type {TableDefinition, TableFields, TableUpdate} from '../Table.ts'
 import {formatCTE} from './CTE.ts'
 import type {FromGuard, UpdateQuery} from './Query.ts'
-import {formatFrom} from './Select.ts'
+import {formatFrom, scoped} from './Select.ts'
 import {formatModifiers} from './Shared.ts'
 
 export class Update<
@@ -161,10 +161,14 @@ export function updateQuery(query: UpdateQuery): Sql {
           default: selected.inlineFields(false)
         })
       : selected?.inlineFields(false)
+  const scope = scoped(from, where)
   return sql.query(
     formatCTE(query),
     formatUpdateFrom(target, set, from),
-    {where, returning: returningSelection},
+    {
+      where: tableApi.where ? and(tableApi.where, scope) : scope,
+      returning: returningSelection
+    },
     formatModifiers(query)
   )
 }

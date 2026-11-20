@@ -5,6 +5,7 @@ import {
   type HasTable,
   type HasTarget,
   cached,
+  getColumns,
   getField,
   getSelection,
   getSql,
@@ -16,7 +17,7 @@ import {
 } from './Internal.ts'
 import type {JoinOp} from './query/Query.ts'
 import {type Sql, sql} from './Sql.ts'
-import type {Table, TableRow} from './Table.ts'
+import type {Table, TableDefinition, TableFields, TableRow} from './Table.ts'
 import type {Expand} from './Types.ts'
 import {type VirtualTarget, virtualTarget} from './Virtual.ts'
 
@@ -101,11 +102,25 @@ class ObjectColumn implements Column {
   }
 }
 
+// A table with fields added, what `{...table, ...extra}` is for a plain table
+export type Extend<
+  Definition extends TableDefinition,
+  Name extends string,
+  Extra
+> = Expand<Omit<TableFields<Definition, Name>, keyof Extra> & Extra>
+
+export function extend(
+  input: SelectionInput,
+  extra?: SelectionRecord
+): SelectionInput {
+  return extra ? {...getSelection(input as Table).input, ...extra} : input
+}
+
 function firstTargetName(input: SelectionInput): string | undefined {
   const expr = getSql(input as HasSql)
   if (expr) return hasField(input) ? getField(input).targetName : undefined
   if (!input || typeof input !== 'object') return
-  for (const value of Object.values(input)) {
+  for (const value of Object.values(getColumns(input))) {
     const name = firstTargetName(value)
     if (name) return name
   }
@@ -133,7 +148,7 @@ export class Selection<
     if (expr) return new SqlColumn(expr, getField(<any>input)?.targetName)
     return new ObjectColumn(
       nullable,
-      Object.entries(input).map(([name, value]) => [
+      Object.entries(getColumns(input)).map(([name, value]) => [
         name,
         this.#defineColumn(nullable, value)
       ])
@@ -160,7 +175,8 @@ export class Selection<
         columns.push({input, expr, name: exprName})
         return
       }
-      for (const [name, value] of Object.entries(input)) collect(value, name)
+      for (const [name, value] of Object.entries(getColumns(input)))
+        collect(value, name)
     }
     collect(this.input)
     return (this.#columns = columns)
@@ -199,7 +215,7 @@ export class Selection<
       if (hasField(input)) names.add(getField(input).targetName)
       return
     }
-    for (const value of Object.values(input))
+    for (const value of Object.values(getColumns(input)))
       this.#collectTargetNames(value, names)
   }
 
