@@ -59,6 +59,13 @@ jobs:
       - uses: denoland/setup-deno@v1
         with:
           deno-version: v1.x
+      # Started after postgres is healthy, it sets up a schema on startup
+      - name: neon http proxy
+        run: |
+          docker run -d --network ${{ job.services.postgres.network }} \
+            -e PG_CONNECTION_STRING=postgres://postgres:postgres@postgres:5432/postgres \
+            -p 4444:4444 ghcr.io/timowilhelm/local-neon-http-proxy:main
+          timeout 60 sh -c 'until curl -s -o /dev/null localhost:4444; do sleep 1; done'
       - run: bun install --frozen-lockfile
       - run: bun tsc
       # - run: bun cycles
