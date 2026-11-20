@@ -7,7 +7,6 @@ import {
 import type {BatchedQuery, SyncDriver, SyncStatement} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
-import {sqliteDiff} from '../sqlite/diff.ts'
 
 type Storage = DurableObjectStorage
 
@@ -103,7 +102,6 @@ export function connect(
   return new SyncDatabase(
     new DurableObjectDriver(storage),
     sqliteDialect,
-    sqliteDiff,
     options
   )
 }

@@ -7,17 +7,13 @@ import {
   type TransactionUniversalOptions
 } from '../core/Database.ts'
 import type {Dialect} from '../core/Dialect.ts'
-import type {Diff} from '../core/Diff.ts'
 import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {mysqlDialect} from '../mysql/dialect.ts'
-import {mysqlDiff} from '../mysql/diff.ts'
 import * as mysql from '../mysql/transactions.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
-import {postgresDiff} from '../postgres/diff.ts'
 import * as postgres from '../postgres/transactions.ts'
 import {sqliteDialect} from '../sqlite/dialect.ts'
-import {sqliteDiff} from '../sqlite/diff.ts'
 
 type Adapter = 'postgres' | 'mysql' | 'sqlite'
 
@@ -156,10 +152,10 @@ export class BunSqlDriver implements AsyncDriver {
   }
 }
 
-const dialects: Record<Adapter, [Dialect, Diff]> = {
-  postgres: [postgresDialect, postgresDiff],
-  mysql: [mysqlDialect, mysqlDiff],
-  sqlite: [sqliteDialect, sqliteDiff]
+const dialects: Record<Adapter, Dialect> = {
+  postgres: postgresDialect,
+  mysql: mysqlDialect,
+  sqlite: sqliteDialect
 }
 
 function adapterOf(client: SQL): Adapter {
@@ -174,11 +170,9 @@ export function connect<Dialect extends Adapter = 'postgres'>(
   const adapter = adapterOf(client)
   // Prepared statements make Bun encode json parameters a second time
   if (adapter === 'postgres') client.options.prepare = false
-  const [dialect, diff] = dialects[adapter]
   return new AsyncDatabase(
     new BunSqlDriver(client as unknown as Queryable, adapter),
-    dialect,
-    diff,
+    dialects[adapter],
     options
   )
 }

@@ -6,7 +6,6 @@ import {AsyncDatabase, type DatabaseOptions} from '../core/Database.ts'
 import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
-import {postgresDiff} from '../postgres/diff.ts'
 
 type Client = NeonQueryFunction<boolean, boolean>
 
@@ -79,10 +78,5 @@ export function connect(
   client: Client,
   options?: DatabaseOptions
 ): AsyncDatabase<'postgres'> {
-  return new AsyncDatabase(
-    new NeonHttpDriver(client),
-    postgresDialect,
-    postgresDiff,
-    options
-  )
+  return new AsyncDatabase(new NeonHttpDriver(client), postgresDialect, options)
 }

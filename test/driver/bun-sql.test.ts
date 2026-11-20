@@ -29,15 +29,15 @@ if (isBun) {
     })
 
     test('bun-sql: mysql transaction options', async () => {
-      await mysql.run(sql`create table ReadOnly (id int)`)
+      await mysql.run(sql`create table BunSqlReadOnly (id int)`)
       try {
-        const insert = sql`insert into ReadOnly values (1)`
+        const insert = sql`insert into BunSqlReadOnly values (1)`
         const error = await mysql
           .transaction(tx => tx.run(insert), {accessMode: 'read only'})
           .catch(error => error.message)
         test.equal(/read only/i.test(error), true)
       } finally {
-        await mysql.run(sql`drop table ReadOnly`)
+        await mysql.run(sql`drop table BunSqlReadOnly`)
       }
     })
 

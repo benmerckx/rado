@@ -13,7 +13,6 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
-import {postgresDiff} from '../postgres/diff.ts'
 import {setTransaction} from '../postgres/transactions.ts'
 
 type Client = Sql<any>
@@ -109,10 +108,5 @@ export function connect(
 ): AsyncDatabase<'postgres'> {
   // Rado encodes json parameters itself, postgres-js would encode them twice
   for (const oid of [114, 3802]) client.options.serializers[oid] = serializeJson
-  return new AsyncDatabase(
-    new PostgresDriver(client),
-    postgresDialect,
-    postgresDiff,
-    options
-  )
+  return new AsyncDatabase(new PostgresDriver(client), postgresDialect, options)
 }
