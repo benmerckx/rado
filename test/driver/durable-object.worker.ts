@@ -9,6 +9,12 @@ interface Env {
 
 type Run = () => unknown
 
+interface Test {
+  name: string
+  skip: boolean
+  run: Run
+}
+
 function throws(run: Run, includes?: string): unknown {
   const fail = () => {
     throw new Error('Expected an error')
@@ -26,10 +32,23 @@ function throws(run: Run, includes?: string): unknown {
   fail()
 }
 
+// Durable Objects forbid temp tables and always enforce foreign keys, which
+// makes push refuse to rebuild a table
+const unsupported = new Set([
+  'inspect reads indexes of a shadowed name',
+  'multiple pushes',
+  'push index modifications',
+  'push refuses to narrow a type',
+  'push refuses not null over nulls',
+  'push fails adding a required column to rows'
+])
+
 // Collects the shared driver tests so they run inside the Durable Object
-function collect(tests: Array<[string, Run]>): any {
-  const define = (name: string, ...args: Array<any>) =>
-    tests.push([name, args.at(-1)])
+function collect(tests: Array<Test>): any {
+  const define = (name: string, ...args: Array<any>) => {
+    const skip = unsupported.has(name.slice('durable-object: '.length))
+    tests.push({name, skip, run: args.at(-1)})
+  }
   return Object.assign(define, {
     skip() {},
     only: define,
@@ -47,15 +66,19 @@ function collect(tests: Array<[string, Run]>): any {
 
 export class TestObject extends DurableObject<Env> {
   async fetch(): Promise<Response> {
-    const tests: Array<[string, Run]> = []
+    const tests: Array<Test> = []
     testDriver(connect(this.ctx.storage), collect(tests), 'durable-object')
     const results = []
-    for (const [name, run] of tests) {
+    for (const {name, skip, run} of tests) {
       try {
-        await run()
-        results.push({name})
+        if (!skip) await run()
+        results.push({name, skip})
       } catch (error) {
-        results.push({name, error: String((error as Error).stack ?? error)})
+        results.push({
+          name,
+          skip,
+          error: String((error as Error).stack ?? error)
+        })
       }
     }
     return Response.json(results)

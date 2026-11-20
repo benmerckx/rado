@@ -29,11 +29,12 @@ if (!isDeno) {
   const response = await mf.dispatchFetch('http://localhost')
   const results = (await response.json()) as Array<{
     name: string
+    skip: boolean
     error?: string
   }>
   await mf.dispose()
-  for (const {name, error} of results)
-    test(name, () => {
+  for (const {name, skip, error} of results)
+    (skip ? test.skip : test)(name, () => {
       if (error) throw new Error(error)
     })
 }
