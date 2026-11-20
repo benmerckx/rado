@@ -15,8 +15,10 @@ if (isBun) {
     const postgres = connect(
       new SQL('postgres://postgres:postgres@localhost:5432/postgres')
     )
+    // A fresh server only accepts caching_sha2_password logins over TLS, Bun
+    // can't fetch the RSA key instead
     const mysql = connect<'mysql'>(
-      new SQL('mysql://root:mysql@localhost:3306/mysql')
+      new SQL({url: 'mysql://root:mysql@localhost:3306/mysql', tls: true})
     )
 
     test('bun-sql: postgres transaction options', async () => {
