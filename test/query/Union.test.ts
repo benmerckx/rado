@@ -1,6 +1,7 @@
 import {suite} from '@alinea/suite'
 import type {IsPostgres} from '#/core/MetaData.ts'
 import {
+  desc,
   except,
   exceptAll,
   intersect,
@@ -93,6 +94,19 @@ suite(import.meta, test => {
     )
     const qInline = exceptAll(a, b)
     test.equal(emit(qInline), emit(query))
+  })
+
+  test('order a union by its output columns', () => {
+    const query = a.union(b).orderBy(desc(Node.id))
+    test.equal(
+      emit(query),
+      'select "Node"."id" from "Node" union select "Node"."id" from "Node" order by "id" desc'
+    )
+    const named = pg.select({key: Node.id}).from(Node)
+    test.equal(
+      emit(named.union(named).orderBy(Node.id)),
+      'select "Node"."id" as "key" from "Node" union select "Node"."id" as "key" from "Node" order by "key"'
+    )
   })
 
   test('recursive', () => {
