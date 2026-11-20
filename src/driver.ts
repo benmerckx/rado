@@ -5,6 +5,7 @@ export {connect as 'd1'} from './driver/d1.ts'
 export {connect as '@libsql/client'} from './driver/libsql.ts'
 export {connect as 'mysql-wasm'} from './driver/mysql-wasm.ts'
 export {connect as 'mysql2'} from './driver/mysql2.ts'
+export {connect as 'neon-http'} from './driver/neon-http.ts'
 export {connect as 'node:sqlite'} from './driver/node-sqlite.ts'
 export {
   connect as '@neondatabase/serverless',
