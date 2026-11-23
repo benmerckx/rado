@@ -100,6 +100,7 @@ The full documentation lives in [docs](docs/README.md). A map of the territory:
 | [Transactions & batch](docs/runtime/transactions-and-batch.md)      | Atomic operations, rollbacks, batching                                                                                                                                                    |
 | [Prepared statements](docs/runtime/prepared-statements.md)          | Placeholders, `prepare`, inspecting generated SQL                                                                                                                                         |
 | [Schema push](docs/runtime/push.md)                                 | `db.create`, `push` and how diffing works                                                                                                                                                 |
+| [Migrations](docs/runtime/migrations.md)                            | `generate` SQL files and `migrate` them on startup                                                                                                                                        |
 | [Universal queries](docs/runtime/universal-queries.md)              | One query, three databases                                                                                                                                                                |
 | [Coming from Drizzle](docs/drizzle.md)                              | Side-by-side comparison and migration notes                                                                                                                                               |
 
@@ -225,7 +226,8 @@ await push(db, schema)
 
 Works in Node.js, Bun, Deno and the browser. It is powerful and a little
 direct, so read [Schema push](docs/runtime/push.md) before pointing it at
-production.
+production. For reviewed SQL files instead, see
+[Migrations](docs/runtime/migrations.md).
 
 ## Coming from Drizzle?
 

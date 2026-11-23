@@ -84,7 +84,9 @@ export function list(migrations: Migrations): Array<Migration> {
   const names = result.map(m => m.name)
   const twice = names.find((name, i) => names.indexOf(name) !== i)
   if (twice) throw new Error(`Migration ${twice} is defined twice`)
-  return result.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+  return result.toSorted((a, b) =>
+    a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+  )
 }
 
 // Tables and views in the current schema, or the one named
