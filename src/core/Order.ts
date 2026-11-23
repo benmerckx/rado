@@ -78,7 +78,7 @@ function components<T>(
     }
     if (low.get(item) !== index.get(item)) return
     const group = stack.splice(stack.indexOf(item))
-    result.push(group.sort((a, b) => items.indexOf(a) - items.indexOf(b)))
+    result.push(group.toSorted((a, b) => items.indexOf(a) - items.indexOf(b)))
   }
   for (const item of items) if (!index.has(item)) connect(item)
   return result
