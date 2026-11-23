@@ -178,8 +178,9 @@ if (!isDeno) {
     })
     if (isBun) {
       const {SQL} = await import('bun')
-      // A fresh server only accepts caching_sha2_password logins over TLS
-      const db = drivers['bun-sql'](new SQL({url, tls: true}))
+      // A fresh server only accepts caching_sha2_password logins over TLS.
+      // One connection, so the session time zone set below covers it.
+      const db = drivers['bun-sql'](new SQL({url, tls: true, max: 1}))
       targets.push({label: 'bun-sql mysql', db})
     }
   }
