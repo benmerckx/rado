@@ -104,32 +104,34 @@ export function fuzz<Context>(
           .insert(Fuzz)
           .values({value: sql.placeholder('value')})
           .prepare(`fuzz_${id}`)
-        await hegel.testAsync(
-          async tc => {
-            const input = tc.draw(rows, 'rows')
-            const write = tc.draw(writes, 'write')
-            const values = input.map(value => ({value}))
-            await db.delete(Fuzz)
-            if (write === 'prepared')
-              for (const value of input) await insert.run({value})
-            else if (!returning) await db.insert(Fuzz).values(values)
-            else {
-              const returned = await returning
-                .insert(Fuzz)
-                .values(values)
-                .returning(Fuzz.value)
-              check(test, field, returned, input)
-            }
-            const selected = await db.select().from(Fuzz).orderBy(asc(Fuzz.id))
-            check(
-              test,
-              field,
-              selected.map(row => row.value),
-              input
-            )
-          },
-          {testCases: runs}
-        )
+        // The key also seeds derandomized runs, as on CI, so each property
+        // gets its own sequence and its own saved failures
+        await new hegel.Hegel(async tc => {
+          const input = tc.draw(rows, 'rows')
+          const write = tc.draw(writes, 'write')
+          const values = input.map(value => ({value}))
+          await db.delete(Fuzz)
+          if (write === 'prepared')
+            for (const value of input) await insert.run({value})
+          else if (!returning) await db.insert(Fuzz).values(values)
+          else {
+            const returned = await returning
+              .insert(Fuzz)
+              .values(values)
+              .returning(Fuzz.value)
+            check(test, field, returned, input)
+          }
+          const selected = await db.select().from(Fuzz).orderBy(asc(Fuzz.id))
+          check(
+            test,
+            field,
+            selected.map(row => row.value),
+            input
+          )
+        })
+          .databaseKey(`${label}: ${name}`)
+          .settings({testCases: runs})
+          .run()
       } finally {
         await db.drop(Fuzz)
       }
