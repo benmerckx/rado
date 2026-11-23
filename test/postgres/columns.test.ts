@@ -26,8 +26,10 @@ test('pg bigint and bigserial mapping', () => {
   const bigserialCol = pg.bigserial()
   test.equal(columnSql(bigintCol), 'bigint')
   test.equal(columnSql(bigserialCol), 'bigserial')
-  test.equal(mapFrom(bigintCol, '42'), BigInt('42'))
-  test.equal(mapFrom(bigserialCol, '43'), BigInt('43'))
+  const big: bigint = mapFrom(bigintCol, '42')
+  const bigserial: bigint = mapFrom(bigserialCol, '43')
+  test.equal(big, BigInt('42'))
+  test.equal(bigserial, BigInt('43'))
 
   const bigintNum = pg.bigint(undefined, {mode: 'number'})
   const bigserialNum = pg.bigserial(undefined, {mode: 'number'})

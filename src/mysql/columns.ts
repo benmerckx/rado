@@ -33,11 +33,11 @@ function formatDateTime(value: Date): string {
 }
 
 export function bigint(
-  ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
-): Column<number>
-export function bigint(
   ...args: ColumnArguments<{mode?: 'bigint'; unsigned?: boolean}>
 ): Column<bigint>
+export function bigint(
+  ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
+): Column<number>
 export function bigint(
   ...args: ColumnArguments<{mode?: IntegerMode; unsigned?: boolean}>
 ) {

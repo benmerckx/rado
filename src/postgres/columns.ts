@@ -268,11 +268,11 @@ export class PgColumn<
 }
 
 export function bigint(
-  ...args: ColumnArguments<{mode: 'number'}>
-): PgColumn<number>
-export function bigint(
   ...args: ColumnArguments<{mode?: 'bigint'}>
 ): PgColumn<bigint>
+export function bigint(
+  ...args: ColumnArguments<{mode: 'number'}>
+): PgColumn<number>
 export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
   const {name, options} = columnConfig(args)
   return new PgColumn({
@@ -283,11 +283,11 @@ export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
 }
 
 export function bigserial(
-  ...args: ColumnArguments<{mode: 'number'}>
-): PgColumn<number>
-export function bigserial(
   ...args: ColumnArguments<{mode?: 'bigint'}>
 ): PgColumn<bigint>
+export function bigserial(
+  ...args: ColumnArguments<{mode: 'number'}>
+): PgColumn<number>
 export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
   const {name, options} = columnConfig(args)
   return new PgColumn({
