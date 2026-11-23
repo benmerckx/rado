@@ -21,7 +21,7 @@ import {Master} from './catalog.ts'
 import {integer, text} from './columns.ts'
 import {prefix, shape} from './shape.ts'
 
-export type {PushInput, PushOptions} from '../core/Push.ts'
+export type {PushOptions, Schema} from '../core/Push.ts'
 
 const Sequence = table('sqlite_sequence', {
   name: text().notNull(),

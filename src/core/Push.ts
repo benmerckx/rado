@@ -1,10 +1,11 @@
 import type {Database} from './Database.ts'
-import {columns, foreignKeys, isForeignKey, key} from './ForeignKey.ts'
-import {getData, getTable, hasTable, internalData} from './Internal.ts'
+import {columns, isForeignKey} from './ForeignKey.ts'
+import {getData, internalData} from './Internal.ts'
 import type {Deliver, QueryDialect, QueryMeta, Runtime} from './MetaData.ts'
+import {order, tables} from './Order.ts'
 import type {Shape} from './Shape.ts'
 import {type Sql, sql} from './Sql.ts'
-import type {Table, TableApi, TableConfigResult} from './Table.ts'
+import type {TableApi, TableConfigResult} from './Table.ts'
 import {exec, type Gen, within} from './Transaction.ts'
 
 export interface PushOptions {
@@ -12,17 +13,21 @@ export interface PushOptions {
   rename?: Record<string, string>
 }
 
-export type PushInput = Array<Table> | [...Array<Table>, PushOptions]
+// A module namespace or object literal, values that aren't tables are
+// ignored
+export type Schema = object
 
 // A dialect entry only accepts a database of its dialect
 export interface Push<D extends QueryDialect = QueryDialect> {
   <Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
-    ...input: PushInput
+    schema: Schema,
+    options?: PushOptions
   ): Deliver<Meta, void>
   plan<Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
-    ...input: PushInput
+    schema: Schema,
+    options?: PushOptions
   ): Deliver<Meta, Array<string>>
 }
 
@@ -65,23 +70,26 @@ export function createPush<R extends Runtime>(
   runner = single,
   validate?: (api: TableApi) => void
 ): Push<R> {
-  function go(db: Database, input: PushInput, dry: boolean) {
+  function go(
+    db: Database,
+    schema: Schema,
+    dry: boolean,
+    options: PushOptions = {}
+  ) {
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
     if (!db.driver.supportsTransactions)
       throw new Error('Push needs a driver with transactions')
-    const last = input.at(-1)
-    const options = last && !hasTable(last) ? (last as PushOptions) : {}
-    const tables = (input.filter(hasTable) as Array<Table>).map(getTable)
-    for (const api of tables) {
+    const found = tables(schema)
+    for (const api of found) {
       if (api.temporary) throw new Error('Temporary tables cannot be pushed')
       validate?.(api)
       renames(api, options)
     }
     for (const from of Object.keys(options.rename ?? {}))
-      if (!tables.some(api => from.startsWith(prefix(api))))
+      if (!found.some(api => from.startsWith(prefix(api))))
         throw new Error(`Rename "${from}" is not a column of a pushed table`)
-    const ordered = order(tables)
+    const ordered = order(found)
     return exec(
       runner(
         db,
@@ -108,37 +116,13 @@ export function createPush<R extends Runtime>(
       )
     )
   }
-  const push = (db: Database, ...input: PushInput) => {
-    const result = go(db, input, false)
+  const push = (db: Database, schema: Schema, options?: PushOptions) => {
+    const result = go(db, schema, false, options)
     if (result instanceof Promise) return result.then(() => {})
   }
-  push.plan = (db: Database, ...input: PushInput) => go(db, input, true)
+  push.plan = (db: Database, schema: Schema, options?: PushOptions) =>
+    go(db, schema, true, options)
   return push as Push<R>
-}
-
-// Referenced tables first, so foreign keys can be created
-function order(tables: Array<TableApi>): Array<TableApi> {
-  const byName = new Map(
-    tables.map(api => [key(api.schemaName, api.name), api])
-  )
-  const result: Array<TableApi> = []
-  const visiting = new Set<TableApi>()
-  const visit = (api: TableApi) => {
-    if (result.includes(api)) return
-    visiting.add(api)
-    for (const {schema, table} of foreignKeys(api)) {
-      const dependency = byName.get(key(schema, table))
-      if (!dependency || dependency === api) continue
-      const pair = `"${dependency.name}" and "${api.name}"`
-      if (visiting.has(dependency))
-        throw new Error(`Foreign keys form a cycle between ${pair}`)
-      visit(dependency)
-    }
-    visiting.delete(api)
-    result.push(api)
-  }
-  for (const api of tables) visit(api)
-  return result
 }
 
 // Keys of a that b lacks or defines differently

@@ -180,7 +180,9 @@ export function testInspect(db: Database, test: DefineTest) {
       // Push still leaves generated columns out on sqlite
       if (runtime === 'sqlite' && db.driver.supportsTransactions)
         test.equal(
-          await sqlitePush.plan(db as any, table('insp_gen', {a: integer()})),
+          await sqlitePush.plan(db as any, {
+            table: table('insp_gen', {a: integer()})
+          }),
           []
         )
     })

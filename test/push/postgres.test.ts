@@ -804,14 +804,14 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await fixture(reset, async () => {
       await run('create table public.review_t (v int)')
       await run('create table review.review_t (v int)')
-      await push(db, T)
+      await push(db, {T})
       test.equal(
         await all(
           `select schemaname as schema from pg_indexes where indexname = 'review_t_v'`
         ),
         [{schema: 'review'}]
       )
-      test.equal(await push.plan(db, T), [])
+      test.equal(await push.plan(db, {T}), [])
     })
   })
 
@@ -827,14 +827,14 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       await run(
         'create table fk_child (parent int references public.fk_parent)'
       )
-      await push(db, Child, PublicParent, ReviewParent)
+      await push(db, {Child, PublicParent, ReviewParent})
       test.equal(
         await all(
           `select confrelid::regclass::text as target from pg_constraint where conrelid = 'fk_child'::regclass and contype = 'f'`
         ),
         [{target: 'review.fk_parent'}]
       )
-      test.equal(await push.plan(db, PublicParent, ReviewParent, Child), [])
+      test.equal(await push.plan(db, {PublicParent, ReviewParent, Child}), [])
     })
   })
 
@@ -844,8 +844,8 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       s: text().default('review.hello')
     })
     await fixture(reset, async () => {
-      await push(db, D)
-      test.equal(await push.plan(db, D), [])
+      await push(db, {D})
+      test.equal(await push.plan(db, {D}), [])
       await run('insert into review.review_d (id) values (1)')
       test.equal(await all('select s from review.review_d'), [
         {s: 'review.hello'}
@@ -860,10 +860,10 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table ts_t (at timestamp(3))')
     await run(`insert into ts_t values ('2026-01-02 03:04:05.678')`)
     try {
-      await push(db, Fine)
-      test.equal(await push.plan(db, Fine), [])
+      await push(db, {Fine})
+      test.equal(await push.plan(db, {Fine}), [])
       await run(`update ts_t set at = '2026-01-02 03:04:05.678901'`)
-      const error = await failure(() => push(db, Coarse))
+      const error = await failure(() => push(db, {Coarse}))
       test.equal(error.startsWith('Push would change column "at"'), true)
       test.equal(await all(`select to_char(at, 'US') as us from ts_t`), [
         {us: '678901'}
@@ -884,7 +884,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table seq_t (id int)')
     await run('insert into seq_t values (1)')
     try {
-      test.equal((await push.plan(db, T)).length, 1)
+      test.equal((await push.plan(db, {T})).length, 1)
       test.equal(await all(`select nextval('push_seq')::int as n`), [{n: 1}])
     } finally {
       await run('drop table if exists seq_t')
@@ -907,7 +907,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table ticket_t (id int)')
     await run('insert into ticket_t values (1)')
     try {
-      test.equal((await push.plan(db, T)).length, 1)
+      test.equal((await push.plan(db, {T})).length, 1)
       test.equal(await all(`select nextval('ticket_seq')::int as n`), [{n: 1}])
     } finally {
       await run('drop table if exists ticket_t')
@@ -922,7 +922,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table decimal_t (n numeric(8, 2))')
     await run('insert into decimal_t values (123456.78)')
     try {
-      const error = await failure(() => push(db, T))
+      const error = await failure(() => push(db, {T}))
       test.equal(
         error.startsWith(
           'Push would change column "n" from numeric(8,2) to numeric(8,4)'
@@ -945,7 +945,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create temporary table shadow_t (id int, notes text)')
     await run(`insert into pg_temp.shadow_t values (1, 'keep')`)
     try {
-      await push(db, T)
+      await push(db, {T})
       test.equal(
         await all(
           `select column_name as name from information_schema.columns where table_schema = 'public' and table_name = 'shadow_t' order by ordinal_position`
@@ -967,13 +967,13 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run(`create table retype_t (n text default '1')`)
     await run(`insert into retype_t values ('2')`)
     try {
-      await push(db, T, {force: true})
+      await push(db, {T}, {force: true})
       await run('insert into retype_t default values')
       test.equal(await all('select n from retype_t order by n'), [
         {n: 1},
         {n: 2}
       ])
-      test.equal(await push.plan(db, T), [])
+      test.equal(await push.plan(db, {T}), [])
     } finally {
       await run('drop table if exists retype_t')
     }
@@ -989,7 +989,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       await run('create table ident_t (id int)')
       await run(`insert into ident_t values ${rows}`)
       try {
-        await push(db, T)
+        await push(db, {T})
         await run('insert into ident_t default values')
         test.equal(
           await all('select max(id) as id from ident_t where id > 0'),
@@ -1017,7 +1017,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       await run('reset role')
       await run(`insert into rls_t values (1, 'x')`)
       await run('set role push_rls')
-      const error = await failure(() => push(db, T))
+      const error = await failure(() => push(db, {T}))
       await run('reset role')
       test.equal(
         error,
@@ -1048,10 +1048,10 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create temporary table fkt_parent (id int primary key)')
     await run('create table public.fkt_child (pid int)')
     try {
-      await push(db, Parent, Child)
+      await push(db, {Parent, Child})
       test.equal(await target(), [{schema: 'public'}])
       await run('drop table public.fkt_child')
-      await push(db, Parent, Child)
+      await push(db, {Parent, Child})
       test.equal(await target(), [{schema: 'public'}])
     } finally {
       await run('drop table if exists public.fkt_child, pg_temp.fkt_parent')
@@ -1072,7 +1072,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       )
       await run('insert into unident_t default values')
       try {
-        await push(db, desired)
+        await push(db, {desired})
         await run(inserted)
         test.equal(await all('select id from unident_t order by id'), [
           {id: 1},
@@ -1092,7 +1092,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('drop table if exists public.dup_users')
     await run('create temporary table dup_users (email text)')
     try {
-      await push(db, Users)
+      await push(db, {Users})
       await run(`insert into public.dup_users values ('a')`)
       const error = await failure(() =>
         run(`insert into public.dup_users values ('a')`)
@@ -1127,12 +1127,12 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('insert into key_users values (1, 1)')
     await run('insert into key_posts values (1)')
     try {
-      const error = await failure(() => push(db, Users))
+      const error = await failure(() => push(db, {Users}))
       test.equal(error.includes('depend'), true)
       test.equal(await constraint('key_users', 'p'), [
         {def: 'PRIMARY KEY (id)'}
       ])
-      await push(db, Users, Posts)
+      await push(db, {Users, Posts})
       test.equal(await constraint('key_users', 'p'), [
         {def: 'PRIMARY KEY (account)'}
       ])
@@ -1140,7 +1140,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
         {def: 'FOREIGN KEY (author) REFERENCES key_users(account)'}
       ])
       test.equal(await all('select author from key_posts'), [{author: 1}])
-      test.equal(await push.plan(db, Users, Posts), [])
+      test.equal(await push.plan(db, {Users, Posts}), [])
     } finally {
       await run('drop table if exists key_posts, key_users')
     }
@@ -1152,14 +1152,14 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table invoices (id integer primary key)')
     await run('insert into invoices values (1), (5)')
     try {
-      await push(db, Invoices)
+      await push(db, {Invoices})
       await run('insert into invoices default values')
       test.equal(await all('select id from invoices order by id'), [
         {id: 1},
         {id: 5},
         {id: 6}
       ])
-      test.equal(await push.plan(db, Invoices), [])
+      test.equal(await push.plan(db, {Invoices}), [])
     } finally {
       await run('drop table if exists invoices')
     }
@@ -1180,8 +1180,8 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('create table a_b (id integer primary key)')
     await run('insert into a_b values (10)')
     try {
-      test.equal((await fails(() => push.plan(db, Promoted))) !== '', true)
-      test.equal((await fails(() => push(db, Promoted))) !== '', true)
+      test.equal((await fails(() => push.plan(db, {Promoted}))) !== '', true)
+      test.equal((await fails(() => push(db, {Promoted}))) !== '', true)
       await run('insert into a default values')
       test.equal(await all('select b_id from a order by b_id'), [
         {b_id: 1},
@@ -1201,14 +1201,14 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('insert into serial_t default values')
     await run('insert into serial_t default values')
     try {
-      await push(db, T)
+      await push(db, {T})
       await run('insert into serial_t default values')
       test.equal(await all('select id from serial_t order by id'), [
         {id: 1},
         {id: 2},
         {id: 3}
       ])
-      test.equal(await push.plan(db, T), [])
+      test.equal(await push.plan(db, {T}), [])
     } finally {
       await run('drop table if exists serial_t')
     }
@@ -1222,8 +1222,8 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
     await run('insert into rado_push.keep values (1)')
     await run('create table fk_child (parent int)')
     try {
-      await push(db, T)
-      test.equal(await push.plan(db, T), [])
+      await push(db, {T})
+      test.equal(await push.plan(db, {T}), [])
       test.equal(await all('select v from rado_push.keep'), [{v: 1}])
     } finally {
       await run('drop schema rado_push cascade')
@@ -1249,7 +1249,7 @@ function testLock(
     try {
       await other.query('begin')
       await other.query('alter table relock_t add column extra text')
-      const pushing = failure(() => push(db, T))
+      const pushing = failure(() => push(db, {T}))
       await new Promise(resolve => setTimeout(resolve, 300))
       await other.query('commit')
       test.equal(await pushing, '')
@@ -1274,7 +1274,7 @@ function testLock(
     try {
       await other.query('begin')
       await other.query(`insert into lock_t values (2, 'x')`)
-      const pushing = failure(() => push(db, L))
+      const pushing = failure(() => push(db, {L}))
       await new Promise(resolve => setTimeout(resolve, 300))
       await other.query('commit')
       test.equal(

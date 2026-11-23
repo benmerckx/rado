@@ -26,7 +26,7 @@ import {grows, parseType, ranks} from '../core/Widening.ts'
 import {Class, Constraint, Namespace, home, prepend} from './catalog.ts'
 import {shape} from './shape.ts'
 
-export type {PushInput, PushOptions} from '../core/Push.ts'
+export type {PushOptions, Schema} from '../core/Push.ts'
 
 // Arguments a type has when they are left out, unlimited where unbounded
 function fill(base: string): Array<number> {

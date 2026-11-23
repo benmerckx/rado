@@ -12,6 +12,8 @@ import {
   getCreate,
   getDrop,
   getResolver,
+  hasCreate,
+  hasDrop,
   hasQuery,
   hasSelection,
   internalResolver
@@ -24,6 +26,7 @@ import type {
   QueryMeta,
   Sync
 } from './MetaData.ts'
+import {members} from './Order.ts'
 import {BatchQuery, type SingleQuery} from './Queries.ts'
 import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'
@@ -71,12 +74,14 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  create(...createables: Array<HasCreate>): BatchQuery<unknown, Meta> {
-    return new BatchQuery(getResolver(this), createables.flatMap(getCreate))
+  create(...input: Array<HasCreate | object>): BatchQuery<unknown, Meta> {
+    const queries = members(input, hasCreate).flatMap(getCreate)
+    return new BatchQuery(getResolver(this), queries)
   }
 
-  drop(...droppables: Array<HasDrop>): BatchQuery<unknown, Meta> {
-    return new BatchQuery(getResolver(this), droppables.flatMap(getDrop))
+  drop(...input: Array<HasDrop | object>): BatchQuery<unknown, Meta> {
+    const queries = members(input, hasDrop).reverse().flatMap(getDrop)
+    return new BatchQuery(getResolver(this), queries)
   }
 
   run(input: HasSql): Deliver<Meta, void> {

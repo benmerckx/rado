@@ -42,7 +42,7 @@ test('database frees direct statements after success and failure', () => {
   const db = new SyncDatabase(driver, sqliteDialect)
 
   const Scratch = temporaryTable('Scratch', {id: integer()})
-  test.throws(() => push(db, Scratch), 'Temporary tables cannot be')
+  test.throws(() => push(db, {Scratch}), 'Temporary tables cannot be')
 
   test.equal(db.get(sql`select 1`), null)
   test.equal(db.all(sql`select 1`), [])

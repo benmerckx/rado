@@ -1,6 +1,7 @@
 import type {DefineTest} from '@alinea/suite'
 import type {Async} from '#/core/MetaData.ts'
 import {
+  alias,
   type Database,
   type Table,
   foreignKey,
@@ -76,9 +77,9 @@ const TableC = table(
 // A postgres database can't be passed to the sqlite entry
 export function typed(db: Database<Async<'postgres'>>): void {
   // @ts-expect-error
-  void sqlitePush(db)
-  void postgresPush(db)
-  void push(db)
+  void sqlitePush(db, {})
+  void postgresPush(db, {})
+  void push(db, {})
 }
 
 const RenamedParent = table('push_parent', {pid: integer().primaryKey()})
@@ -163,14 +164,14 @@ export function testPush(db: Database, test: DefineTest) {
     )
     const tables = [ColumnPrimaryKeyUpload, CompositePrimaryKeyUpload]
     await fixture(drop(...tables), async () => {
-      await push(db, ...tables)
-      test.equal(await push.plan(db, ...tables), [])
+      await push(db, {...tables})
+      test.equal(await push.plan(db, {...tables}), [])
     })
   })
 
   test('push creates missing table', async () => {
     await fixture(drop(TableB), async () => {
-      await push(db, TableB, unchecked)
+      await push(db, {TableB}, unchecked)
       await db.insert(TableB).values({
         fieldB: 'created',
         unchangedField: 'test',
@@ -193,7 +194,7 @@ export function testPush(db: Database, test: DefineTest) {
           newRequiredField: 'custom'
         })
       })
-      test.equal(await push.plan(db, TableB), [])
+      test.equal(await push.plan(db, {TableB}), [])
     })
   })
 
@@ -205,7 +206,7 @@ export function testPush(db: Database, test: DefineTest) {
         removeMe: 0,
         unchangedField: 'test'
       })
-      await push(db, TableB, {force: true})
+      await push(db, {TableB}, {force: true})
       const newNode = await db.select().from(TableB).get()
       test.equal(newNode, {
         id: 1,
@@ -214,7 +215,7 @@ export function testPush(db: Database, test: DefineTest) {
         unchangedField: 'test',
         newRequiredField: 'default'
       })
-      test.equal(await push.plan(db, TableB), [])
+      test.equal(await push.plan(db, {TableB}), [])
     })
   })
 
@@ -232,7 +233,7 @@ export function testPush(db: Database, test: DefineTest) {
           unchangedField: 'test2'
         })
       })
-      await push(db, TableB, unchecked)
+      await push(db, {TableB}, unchecked)
       await db.insert(TableB).values({
         fieldB: 'unique2',
         extraColumn: 'extra',
@@ -257,7 +258,7 @@ export function testPush(db: Database, test: DefineTest) {
         fieldA: 'initial',
         unchangedField: 'unchanged'
       })
-      await push(db, TableB, unchecked)
+      await push(db, {TableB}, unchecked)
       const node = await db.select().from(TableB).get()
       test.equal(node?.fieldB, 'initial')
       test.equal(node?.newRequiredField, 'default')
@@ -267,8 +268,8 @@ export function testPush(db: Database, test: DefineTest) {
         unchangedField: 'test',
         newRequiredField: 'custom'
       })
-      await push(db, TableC)
-      test.equal(await push.plan(db, TableC), [])
+      await push(db, {TableC})
+      test.equal(await push.plan(db, {TableC}), [])
       const nodes = await db.select().from(TableC).orderBy(TableC.id)
       test.equal(nodes.length, 2)
       test.equal(nodes[0].fieldB, 'initial')
@@ -292,7 +293,7 @@ export function testPush(db: Database, test: DefineTest) {
           fieldA: `value${i}`,
           unchangedField: `test${i}`
         })
-      await push(db, TableB, unchecked)
+      await push(db, {TableB}, unchecked)
       for (let i = 5; i < 10; i++)
         await db.insert(TableB).values({
           fieldB: `value${i}`,
@@ -300,19 +301,19 @@ export function testPush(db: Database, test: DefineTest) {
           unchangedField: `test${i}`,
           newRequiredField: `required${i}`
         })
-      await push(db, TableC)
-      test.equal(await push.plan(db, TableC), [])
+      await push(db, {TableC})
+      test.equal(await push.plan(db, {TableC}), [])
       test.equal(await db.$count(TableC), 10)
     })
   })
 
   test('push plan does not run', async () => {
     await fixture(drop(UserA), async () => {
-      const create = await push.plan(db, UserA)
+      const create = await push.plan(db, {UserA})
       test.equal(create.length > 0, true)
-      test.equal(await push.plan(db, UserA), create)
-      await push(db, UserA)
-      const change = await push.plan(db, UserB, {force: true})
+      test.equal(await push.plan(db, {UserA}), create)
+      await push(db, {UserA})
+      const change = await push.plan(db, {UserB}, {force: true})
       test.equal(change.length > 0, true)
       await db.insert(UserA).values({name: 'kept', bio: 'kept'})
       test.equal(await db.select().from(UserA), [
@@ -323,34 +324,34 @@ export function testPush(db: Database, test: DefineTest) {
 
   test('push refuses to lose data', async () => {
     await fixture(drop(UserA), async () => {
-      await push(db, UserA)
+      await push(db, {UserA})
       await db.insert(UserA).values({name: 'a', bio: 'b'})
       await rejects(
         test,
         async () => {
-          await push(db, UserB)
+          await push(db, {UserB})
         },
         'Push would drop column "name"'
       )
       test.equal(await db.select().from(UserA), [{id: 1, name: 'a', bio: 'b'}])
-      await push(db, UserB, {force: true})
+      await push(db, {UserB}, {force: true})
       test.equal(await db.select().from(UserB), [{id: 1, fullName: null}])
     })
   })
 
   test('push drops empty columns without force', async () => {
     await fixture(drop(UserA), async () => {
-      await push(db, UserA)
+      await push(db, {UserA})
       await db.insert(UserA).values({})
       if (db.dialect.runtime === 'mysql')
         await rejects(
           test,
           async () => {
-            await push(db, UserB)
+            await push(db, {UserB})
           },
           "MySQL can't keep writers out while it checks the data"
         )
-      await push(db, UserB, unchecked)
+      await push(db, {UserB}, unchecked)
       test.equal(await db.select().from(UserB), [{id: 1, fullName: null}])
     })
   })
@@ -362,20 +363,20 @@ export function testPush(db: Database, test: DefineTest) {
       v: varchar('v', {length: 5})
     })
     await fixture(drop(Wide), async () => {
-      await push(db, Narrow)
+      await push(db, {Narrow})
       await db.insert(Narrow).values({v: 'abc'})
-      await push(db, Wide)
-      test.equal(await push.plan(db, Wide), [])
+      await push(db, {Wide})
+      test.equal(await push.plan(db, {Wide}), [])
       // Sqlite doesn't enforce lengths, so nothing can be lost there
       if (db.dialect.runtime !== 'sqlite')
         await rejects(
           test,
           async () => {
-            await push(db, Narrow)
+            await push(db, {Narrow})
           },
           'Push would change column "v"'
         )
-      await push(db, Narrow, {force: db.dialect.runtime !== 'sqlite'})
+      await push(db, {Narrow}, {force: db.dialect.runtime !== 'sqlite'})
       test.equal(await db.select(Narrow.v).from(Narrow), ['abc'])
     })
   })
@@ -387,46 +388,50 @@ export function testPush(db: Database, test: DefineTest) {
       v: integer().notNull().default(7)
     })
     await fixture(drop(Loose), async () => {
-      await push(db, Loose)
+      await push(db, {Loose})
       await db.insert(Loose).values([{v: null}, {v: 1}])
       await rejects(
         test,
         async () => {
-          await push(db, Strict)
+          await push(db, {Strict})
         },
         'Push would make column "v" not null over null values'
       )
-      await push(db, Strict, {force: true})
+      await push(db, {Strict}, {force: true})
       test.equal(
         await db.select(Strict.v).from(Strict).orderBy(Strict.id),
         [7, 1]
       )
-      test.equal(await push.plan(db, Strict), [])
+      test.equal(await push.plan(db, {Strict}), [])
     })
   })
 
   test('push renames a column', async () => {
     await fixture(drop(UserA), async () => {
-      await push(db, UserA)
+      await push(db, {UserA})
       await db.insert(UserA).values({name: 'ada'})
       const rename = {rename: {'push_user.name': 'full_name'}}
-      await push(db, UserB, {...rename, force: true})
+      await push(db, {UserB}, {...rename, force: true})
       test.equal(await db.select().from(UserB), [{id: 1, fullName: 'ada'}])
-      test.equal(await push.plan(db, UserB, rename), [])
+      test.equal(await push.plan(db, {UserB}, rename), [])
     })
   })
 
   test('rename of a missing table', async () => {
     await fixture(drop(UserA), async () => {
-      await push(db, UserA)
+      await push(db, {UserA})
       await db.insert(UserA).values({name: 'ada'})
       await rejects(
         test,
         async () => {
-          await push(db, UserB, {
-            rename: {'push_usr.name': 'full_name'},
-            force: true
-          })
+          await push(
+            db,
+            {UserB},
+            {
+              rename: {'push_usr.name': 'full_name'},
+              force: true
+            }
+          )
         },
         'Rename "push_usr.name" is not a column of a pushed table'
       )
@@ -438,7 +443,7 @@ export function testPush(db: Database, test: DefineTest) {
     await rejects(
       test,
       async () => {
-        await push(db, UserB, {rename: {'push_user.name': 'nope'}})
+        await push(db, {UserB}, {rename: {'push_user.name': 'nope'}})
       },
       'Unknown column "nope"'
     )
@@ -446,10 +451,10 @@ export function testPush(db: Database, test: DefineTest) {
 
   test('push orders tables by foreign keys', async () => {
     await fixture(drop(Post, Author), async () => {
-      await push(db, Post, Author)
+      await push(db, {Post, Author})
       await db.insert(Author).values({id: 1, name: 'a'})
       await db.insert(Post).values({id: 1, author: 1, editor: 1})
-      test.equal(await push.plan(db, Post, Author), [])
+      test.equal(await push.plan(db, {Post, Author}), [])
     })
   })
 
@@ -457,15 +462,15 @@ export function testPush(db: Database, test: DefineTest) {
     const Before = table('push_required', {id: id()})
     const After = table('push_required', {id: id(), v: text().notNull()})
     await fixture(drop(Before), async () => {
-      await push(db, Before)
-      await push(db, After)
+      await push(db, {Before})
+      await push(db, {After})
       await db.drop(After)
-      await push(db, Before)
+      await push(db, {Before})
       await db.insert(Before).values({})
       await rejects(
         test,
         async () => {
-          await push(db, After)
+          await push(db, {After})
         },
         'Cannot add not null column "v" without a default'
       )
@@ -478,7 +483,7 @@ export function testPush(db: Database, test: DefineTest) {
     await rejects(
       test,
       async () => {
-        await other(db as any, UserA)
+        await other(db as any, {UserA})
       },
       `Expected a ${expected} database`
     )
@@ -492,14 +497,14 @@ export function testPush(db: Database, test: DefineTest) {
       parent: integer().references(Parent.id)
     })
     await fixture(drop(RenamedChild, RenamedParent), async () => {
-      await push(db, Parent, Child)
+      await push(db, {Parent, Child})
       const rename = {rename: {'push_parent.id': 'pid'}}
       // Renaming the column also renames the reference, so only the
       // rename runs
-      const plan = await push.plan(db, RenamedParent, RenamedChild, rename)
+      const plan = await push.plan(db, {RenamedParent, RenamedChild}, rename)
       test.equal(plan.length, 1)
-      await push(db, RenamedParent, RenamedChild, rename)
-      test.equal(await push.plan(db, RenamedParent, RenamedChild), [])
+      await push(db, {RenamedParent, RenamedChild}, rename)
+      test.equal(await push.plan(db, {RenamedParent, RenamedChild}), [])
       await db.insert(RenamedParent).values({pid: 1})
       await db.insert(RenamedChild).values({id: 1, parent: 1})
       test.equal(await db.select(RenamedChild.parent).from(RenamedChild), [1])
@@ -511,7 +516,7 @@ export function testPush(db: Database, test: DefineTest) {
     await rejects(
       test,
       async () => {
-        await push(db, CycleA, CycleB)
+        await push(db, {CycleA, CycleB})
       },
       'Foreign keys form a cycle between'
     )
@@ -525,7 +530,7 @@ export function testPush(db: Database, test: DefineTest) {
     await rejects(
       test,
       async () => {
-        await push(db, Scratch)
+        await push(db, {Scratch})
       },
       'Temporary tables cannot be pushed'
     )
@@ -533,10 +538,61 @@ export function testPush(db: Database, test: DefineTest) {
 
   test('push leaves other tables alone', async () => {
     await fixture(drop(UserA, Author), async () => {
-      await push(db, UserA, Author)
-      await push(db, UserA)
+      await push(db, {UserA, Author})
+      await push(db, {UserA})
       await db.insert(Author).values({id: 1})
       test.equal(await db.$count(Author), 1)
     })
   })
+
+  test('push takes a schema object', async () => {
+    const related = Object.assign({}, Post)
+    const schema = {Post, Author, related, helper: () => 1, name: 'x'}
+    await fixture(drop(Post, Author), async () => {
+      const plan = await push.plan(db, schema)
+      test.equal(plan.filter(line => line.startsWith('create table')).length, 2)
+      await push(db, schema)
+      test.equal(await push.plan(db, schema), [])
+    })
+  })
+
+  test('push rejects a table defined twice', async () => {
+    await rejects(
+      test,
+      async () => {
+        await push(db, {UserA, UserB})
+      },
+      'Table "push_user" is defined twice'
+    )
+    await rejects(
+      test,
+      async () => {
+        await push(db, UserA)
+      },
+      'Expected a schema object, not a table'
+    )
+  })
+
+  test('create and drop take schema objects', async () => {
+    const schema = {Post, Author, other: 1}
+    await fixture(drop(Post, Author, UserA), async () => {
+      await db.create(schema, UserA)
+      await db.insert(Author).values({id: 1})
+      await db.insert(Post).values({id: 1, author: 1})
+      test.equal(await db.$count(Post), 1)
+      await db.drop(schema)
+      await db.create({Post, alias: alias(Post, 'p')}, Author)
+      await db.drop(Post, {Author})
+      test.equal(await db.$count(UserA), 0)
+    })
+  })
+}
+
+// Values that are neither definitions nor objects are refused
+export function createTyped(db: Database): void {
+  // @ts-expect-error
+  void db.create(123)
+  // @ts-expect-error
+  void db.drop('x')
+  void db.create({UserA}, Post, {a: 1})
 }

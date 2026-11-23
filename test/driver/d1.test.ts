@@ -19,7 +19,7 @@ if (isNode) {
     const {sql} = await import('#/index.ts')
     await db.run(sql`pragma foreign_keys = on`)
     const error = await failure(() =>
-      push(db, table('d1_push', {id: integer()}))
+      push(db, {table: table('d1_push', {id: integer()})})
     )
     test.equal(error, 'Push needs a driver with transactions')
     test.equal(

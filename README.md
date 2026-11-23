@@ -217,9 +217,10 @@ More in [Universal queries](docs/runtime/universal-queries.md).
 
 ```ts
 import {push} from 'rado/sqlite/push'
+import * as schema from './schema.ts'
 
 // Compares the defined schema to the actual database and applies the diff
-await push(db, User, Post)
+await push(db, schema)
 ```
 
 Works in Node.js, Bun, Deno and the browser. It is powerful and a little

@@ -100,8 +100,9 @@ See [PostgreSQL schemas & enums](postgres-schemas-and-enums.md).
 
 ## Creating and dropping
 
-Views participate in `db.create` and `db.drop` like tables. Order matters:
-create the tables a view depends on first, and drop the view before its tables:
+Views participate in `db.create` and `db.drop` like tables. `db.create`
+creates views after tables and `db.drop` drops them first. Views that use other
+views are created in the order given and dropped in reverse:
 
 ```ts
 await db.create(User, ActiveUsers)
