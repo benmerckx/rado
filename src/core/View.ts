@@ -16,6 +16,7 @@ import {
   internalDrop,
   internalQuery,
   internalSelection,
+  internalSource,
   internalTarget
 } from './Internal.ts'
 import type {QueryMeta} from './MetaData.ts'
@@ -134,6 +135,7 @@ export class QueryView extends ViewBase {
       ...target,
       [internalSelection]: selection(target),
       [internalQuery]: getQuery(query),
+      [internalSource]: query,
       get [internalCreate]() {
         const result = createView(createData, getQuery(query))
         return [result]
@@ -168,6 +170,7 @@ export class DefinedView<Definition extends TableDefinition> extends ViewBase {
       ...fields,
       [internalSelection]: selection(fields),
       [internalQuery]: getSql(query),
+      [internalSource]: query,
       get [internalCreate]() {
         const result = createView(data, query)
         return [result]

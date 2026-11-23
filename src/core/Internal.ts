@@ -19,6 +19,8 @@ export const internalInclude: unique symbol = Symbol()
 export const internalEnum: unique symbol = Symbol()
 export const internalCreate: unique symbol = Symbol()
 export const internalDrop: unique symbol = Symbol()
+// The query builder a view was defined with
+export const internalSource: unique symbol = Symbol()
 
 // Builders are immutable, so an internal getter only needs to run once
 const caches = new Map<symbol, WeakMap<object, unknown>>()
@@ -112,4 +114,6 @@ export const hasCreate = (obj: object): obj is HasCreate =>
   internalCreate in obj
 export const getCreate = (obj: HasCreate) => obj[internalCreate]
 export const hasDrop = (obj: object): obj is HasDrop => internalDrop in obj
+export const getSource = (obj: object): object | undefined =>
+  (obj as {[internalSource]?: object})[internalSource]
 export const getDrop = (obj: HasDrop) => obj[internalDrop]

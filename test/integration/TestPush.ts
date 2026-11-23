@@ -617,6 +617,24 @@ export function testPush(db: Database, test: DefineTest) {
       )
     })
   })
+
+  test('create views whose aliases name other views', async () => {
+    const Daily = view('push_b_daily').as(
+      db.select({push_a_summary: Author.id}).from(Author)
+    )
+    const Summary = view('push_a_summary').as(
+      db.select({id: Daily.push_a_summary}).from(Daily)
+    )
+    const cleanup = async () => {
+      await db.drop(Summary, Daily)
+      await drop(Author)()
+    }
+    await fixture(cleanup, async () => {
+      await db.create({Summary, Daily, Author})
+      await db.insert(Author).values({id: 1})
+      test.equal(await db.select(Summary.id).from(Summary), [1])
+    })
+  })
 }
 
 // Values that are neither definitions nor objects are refused

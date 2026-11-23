@@ -8,8 +8,10 @@ import {
   type internalTable,
   getData,
   getQuery,
+  getSource,
   getTable,
   getTarget,
+  hasData,
   hasQuery,
   hasTable,
   hasTarget
@@ -115,34 +117,99 @@ export function order(tables: Array<TableApi>): Array<TableApi> {
 
 type View = HasQuery & HasTarget
 
-// The views a view's query reads from, matched by their name in its sql
+// The targets a query builder reads from: its data is walked, so views are
+// matched by identity in from, joins, unions and subqueries. Fields and sql
+// are class instances and aren't entered.
+function reads(source: object, views: Set<object>): Set<object> {
+  const found = new Set<object>()
+  const seen = new Set<object>()
+  const stack: Array<unknown> = [source]
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (!isObject(node) || seen.has(node)) continue
+    seen.add(node)
+    if (node !== source && views.has(node)) found.add(node)
+    else if (Array.isArray(node)) stack.push(...node)
+    else if (hasData(node)) stack.push(getData(node))
+    else if (Object.getPrototypeOf(node) === Object.prototype)
+      stack.push(...Object.values(node))
+  }
+  return found
+}
+
+function escape(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// The views a view reads from. A view defined from raw sql is matched by
+// name, leaving out names after a dot or as, which are columns and aliases
 function sources<V extends View>(
   views: Array<V>,
   text: (input: Sql) => string
 ): (view: V) => Array<V> {
-  const names = new Map(views.map(view => [view, text(getTarget(view))]))
+  const all = new Set<object>(views)
+  const names = new Map(
+    views.map(view => [
+      view,
+      new RegExp(`(?<!\\.\\s*|\\bas\\s+)${escape(text(getTarget(view)))}`, 'i')
+    ])
+  )
   return view => {
+    const source = getSource(view)
+    if (source && hasData(source)) {
+      const found = reads(source, all)
+      return views.filter(other => found.has(other))
+    }
     const query = text(getQuery(view))
     return views.filter(
-      other => other !== view && query.includes(names.get(other)!)
+      other => other !== view && names.get(other)!.test(query)
     )
   }
 }
 
+// A view can't read from itself, through other views or not
+function chain<V extends View>(
+  views: Array<V>,
+  text: (input: Sql) => string
+): Array<V> {
+  const groups = components(views, sources(views, text))
+  const cycle = groups.find(group => group.length > 1)
+  if (cycle) {
+    const names = cycle.map(view => text(getTarget(view))).join(' and ')
+    throw new Error(`Views form a cycle between ${names}`)
+  }
+  return groups.flat()
+}
+
 type Member = HasCreate & HasDrop
+
+// A pgSchema, the one definition that names a target but isn't one to query
+function isSchema(value: object): boolean {
+  return hasTarget(value) && !hasTable(value) && !hasQuery(value)
+}
 
 // Arguments are definitions or schema objects whose definitions are picked
 // out. Schemas go first, then enums, then tables with referenced tables
 // first, then views after the views they read from. Within a foreign key
 // cycle, and where nothing depends on anything, the order given is kept.
+export interface Members {
+  has: (value: object) => boolean
+  text: (input: Sql) => string
+  // A schema object's pgSchema values are left out, dropping one cascades
+  // to everything in it
+  drop?: boolean
+}
+
 export function members(
   input: Array<object>,
-  has: (value: object) => boolean,
-  text: (input: Sql) => string
+  {has, text, drop}: Members
 ): Array<Member> {
   const values = input.flatMap(value => {
     if (has(value)) return [value as Member]
-    const found = Object.values(value).filter(isObject).filter(has)
+    const found = Object.values(value)
+      .filter(isObject)
+      .filter(has)
+      .filter(value => !(drop && isSchema(value)))
     if (found.length === 0) throw new Error('No definitions in schema')
     return found as Array<Member>
   })
@@ -157,12 +224,7 @@ export function members(
   const rest = distinct.filter(value => !hasTable(value))
   const views = rest.filter(value => hasQuery(value)) as Array<Member & View>
   const others = rest.filter(value => !hasQuery(value))
-  const schemas = others.filter(value => hasTarget(value))
-  const enums = others.filter(value => !hasTarget(value))
-  return [
-    ...schemas,
-    ...enums,
-    ...sorted,
-    ...components(views, sources(views, text)).flat()
-  ]
+  const schemas = others.filter(isSchema)
+  const enums = others.filter(value => !isSchema(value))
+  return [...schemas, ...enums, ...sorted, ...chain(views, text)]
 }
