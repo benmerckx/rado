@@ -194,10 +194,11 @@ export function strings(
   return bom ? all : all.filter(text => !text.startsWith('\uFEFF'))
 }
 
-export function bytes(): Gen<Uint8Array> {
+// MySQL's blob holds up to 64KB
+export function bytes(maxSize = 65_535): Gen<Uint8Array> {
   return gs.oneOf(
-    gs.binary({maxSize: 64}),
-    gs.binary({minSize: 1024, maxSize: 70_000})
+    gs.binary({maxSize: Math.min(64, maxSize)}),
+    gs.binary({minSize: Math.min(1024, maxSize), maxSize})
   )
 }
 
@@ -236,7 +237,11 @@ export function json(options: Limits = {}): Gen<Json> {
 export function dates(min: string, max: string): Gen<Date> {
   return gs.oneOf(
     gs.temporal.jsDates({minValue: new Date(min), maxValue: new Date(max)}),
-    gs.sampledFrom([new Date(0), new Date(min), new Date(max)])
+    gs.sampledFrom(
+      [0, Date.parse(min), Date.parse(max)]
+        .filter(time => time >= Date.parse(min) && time <= Date.parse(max))
+        .map(time => new Date(time))
+    )
   )
 }
 
