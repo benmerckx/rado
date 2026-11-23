@@ -100,8 +100,12 @@ if (!isDeno) {
       }),
       decimalNumber: field(
         mysql.decimal({mode: 'number', precision: 30, scale: 10}),
-        decimals.map(Number),
-        {expect: n => Number(canonical(String(n), 10))}
+        // Numbers like 1e-7 are bound as String(n), in exponent notation
+        gs.oneOf(
+          decimals.map(Number),
+          gs.sampledFrom([1e-7, -1e-10, 1.5e-7, 9.9e19])
+        ),
+        {expect: n => Number(n.toFixed(10))}
       ),
       decimalBigint: field(
         mysql.decimal({mode: 'bigint', precision: 30, scale: 0}),
