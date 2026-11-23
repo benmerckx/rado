@@ -64,11 +64,42 @@ if (testServers) {
       int: 1,
       json: {a: 1}
     }
+    let queries = 0
+    const query = pool.query.bind(pool)
+    pool.query = ((...args: Parameters<typeof query>) => {
+      queries++
+      return query(...args)
+    }) as typeof pool.query
     try {
       const pooled = connect(pool)
       test.equal(await db.get(row), expected)
       test.equal(await pooled.get(row), expected)
       test.equal(await pooled.transaction(tx => tx.get(row)), expected)
+      // Pools are queried as is, neon relies on that to query over fetch
+      test.equal(queries, 1)
+    } finally {
+      await pool.end()
+    }
+  })
+
+  test('pg: pools behind a proxy, like the sql export of @vercel/postgres', async () => {
+    const pool = new pg.Pool({connectionString: pgConnection, max: 2})
+    const proxy = new Proxy(() => {}, {
+      get(_, key) {
+        const value = Reflect.get(pool, key)
+        return typeof value === 'function' ? value.bind(pool) : value
+      }
+    })
+    const proxied = connect(proxy as unknown as typeof pool)
+    try {
+      test.equal(await proxied.get(sql`select '2020-01-01'::date as date`), {
+        date: '2020-01-01'
+      })
+      // A pool taken for a client would run each statement on any connection
+      await proxied.transaction(async tx => {
+        await tx.run(sql`create temp table proxied (x int) on commit drop`)
+        await tx.run(sql`insert into proxied values (1)`)
+      })
     } finally {
       await pool.end()
     }

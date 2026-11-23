@@ -6,8 +6,19 @@ import {AsyncDatabase, type DatabaseOptions} from '../core/Database.ts'
 import type {AsyncDriver, AsyncStatement, BatchedQuery} from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
+import {type Parsers, textParsers} from '../postgres/parsers.ts'
 
 type Client = NeonQueryFunction<boolean, boolean>
+
+let parsers: Promise<Parsers> | undefined
+
+// Given types replace neon's own, so those are imported for the fallback,
+// lazily, so importing the drivers doesn't need neon installed
+function types(): Promise<Parsers> {
+  return (parsers ??= import('@neondatabase/serverless').then(neon =>
+    textParsers(neon.types)
+  ))
+}
 
 class PreparedStatement implements AsyncStatement {
   constructor(
@@ -15,11 +26,15 @@ class PreparedStatement implements AsyncStatement {
     private sql: string
   ) {}
 
-  #query<ArrayMode extends boolean>(
+  async #query<ArrayMode extends boolean>(
     params: Array<unknown>,
     arrayMode: ArrayMode
   ): Promise<FullQueryResults<ArrayMode>> {
-    return this.client.query(this.sql, params, {arrayMode, fullResults: true})
+    return this.client.query(this.sql, params, {
+      arrayMode,
+      fullResults: true,
+      types: await types()
+    })
   }
 
   all(params: Array<unknown>): Promise<Array<object>> {
@@ -61,8 +76,9 @@ export class NeonHttpDriver implements AsyncDriver {
 
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
     if (queries.length === 0) return []
+    const options = {types: await types()}
     const results = await this.client.transaction(
-      queries.map(({sql, params}) => this.client.query(sql, params)),
+      queries.map(({sql, params}) => this.client.query(sql, params, options)),
       {arrayMode: true, fullResults: true}
     )
     return results.map((result, index) =>

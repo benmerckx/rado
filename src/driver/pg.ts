@@ -13,6 +13,7 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {postgresDialect} from '../postgres/dialect.ts'
+import {type Parsers, textParsers} from '../postgres/parsers.ts'
 import {setTransaction} from '../postgres/transactions.ts'
 
 type Queryable = Client | Pool | PoolClient
@@ -36,12 +37,18 @@ export interface PgCompatible {
   }): Promise<{rows: Array<any>; rowCount?: number | null}>
 }
 
+// Properties are read rather than checked with `in`: the sql export of
+// @vercel/postgres is a Proxy that only forwards reads to its pool
+function has(client: Queryable, key: string, type: string): boolean {
+  return typeof (client as unknown as Record<string, unknown>)[key] === type
+}
+
 function isPool(client: Queryable): client is Pool {
   return (
-    'connect' in client &&
-    'totalCount' in client &&
-    'idleCount' in client &&
-    'waitingCount' in client
+    has(client, 'connect', 'function') &&
+    has(client, 'totalCount', 'number') &&
+    has(client, 'idleCount', 'number') &&
+    has(client, 'waitingCount', 'number')
   )
 }
 
@@ -57,23 +64,28 @@ async function acquireClient(
   }
 }
 
-// pg parses dates and timestamps itself, reading those without a zone as
-// local time. Like drizzle, these stay text so the columns can parse them.
-const RAW = new Set([1082, 1114, 1184, 1186, 1182, 1115, 1185, 1187, 1231])
-const raw = (value: string) => value
-
-interface Parsers {
-  getTypeParser(oid: number, format?: string): unknown
+interface PoolLike {
+  Client?: new (options: unknown) => Parsers
+  options?: unknown
 }
 
-// A query given its own types skips the client's, so they are the fallback
-function types(client: Queryable) {
-  if (!('getTypeParser' in client)) return undefined
-  const parsers = client as Parsers
-  return {
-    getTypeParser: (oid: number, format?: string) =>
-      RAW.has(oid) ? raw : parsers.getTypeParser(oid, format)
-  }
+const poolParsers = new WeakMap<object, Parsers>()
+
+// A query given its own types skips the client's, so those are the fallback.
+// A pool has none, but a client made like its own does, and only connects
+// once asked to.
+function parsersOf(client: Queryable): Parsers | undefined {
+  if (has(client, 'getTypeParser', 'function')) return client as Parsers
+  const {Client, options} = client as PoolLike
+  if (!isPool(client) || !Client) return undefined
+  let parsers = poolParsers.get(client)
+  if (!parsers) poolParsers.set(client, (parsers = new Client(options)))
+  return parsers
+}
+
+function types(client: Queryable): Parsers | undefined {
+  const parsers = parsersOf(client)
+  return parsers && textParsers(parsers)
 }
 
 interface QueryConfig {
@@ -97,15 +109,7 @@ class PreparedStatement implements AsyncStatement {
       values: params
     }
     if (rowMode) config.rowMode = rowMode
-    if (!isPool(this.client))
-      return this.client.query({...config, types: types(this.client)})
-    // Pools have no parsers of their own, the client they hand out does
-    const client = await this.client.connect()
-    try {
-      return await client.query({...config, types: types(client)})
-    } finally {
-      client.release()
-    }
+    return this.client.query({...config, types: types(this.client)})
   }
 
   all(params: Array<unknown>): Promise<Array<object>> {
@@ -147,8 +151,9 @@ export class PgDriver implements AsyncDriver {
 
   async close(): Promise<void> {
     if (this.depth > 0) throw new Error('Cannot close a transaction')
-    if ('release' in this.client) return this.client.release()
-    if ('end' in this.client) return this.client.end()
+    const client = this.client as PoolClient & Pool
+    if (has(client, 'release', 'function')) return client.release()
+    if (has(client, 'end', 'function')) return client.end()
   }
 
   async batch(queries: Array<BatchedQuery>): Promise<Array<Array<unknown>>> {
