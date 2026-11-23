@@ -4,7 +4,7 @@ import * as gs from '@hegeldev/hegel/generators'
 import type {IsPostgres, IsSqlite} from '#/core/MetaData.ts'
 import {type Column, type Database, asc, sql, table} from '#/index.ts'
 import * as universal from '#/universal/columns.ts'
-import {isBun} from '../TestRuntime.ts'
+import {isBun, isNode} from '../TestRuntime.ts'
 
 type Gen<T> = gs.PrintableGenerator<T>
 type ReturningDb = Database<IsPostgres | IsSqlite>
@@ -15,11 +15,9 @@ export {gs}
 const env: Record<string, string | undefined> = process.env
 export const runs = Number(env.FUZZ_RUNS ?? 25)
 
-// Bun stops a test after 5s, which a high FUZZ_RUNS easily exceeds
-if (isBun && env.FUZZ_RUNS) {
-  const {setDefaultTimeout} = await import('bun:test')
-  setDefaultTimeout(3_600_000)
-}
+// Bun stops a test after 5s, which a high FUZZ_RUNS easily exceeds. Its
+// timeout is set per test file, so fuzz sets it for each file it runs in.
+const bun = isBun && env.FUZZ_RUNS ? await import('bun:test') : undefined
 
 export interface Case {
   column: Column<unknown>
@@ -85,6 +83,7 @@ export function fuzz<Context>(
   {label, db}: Target,
   cases: Record<string, Case>
 ): void {
+  bun?.setDefaultTimeout(3_600_000)
   const runtime = db.dialect.runtime
   const returning = runtime === 'mysql' ? undefined : (db as ReturningDb)
   for (const [name, field] of Object.entries(cases)) {
@@ -185,10 +184,15 @@ export interface Limits {
 }
 
 // Numeric affinity stores integral doubles as integers, which node:sqlite
-// refuses to read back once they are past Number.MAX_SAFE_INTEGER
+// refuses to read back once they are past Number.MAX_SAFE_INTEGER. Json
+// columns have numeric affinity too, for top level numbers.
 export function numbers(options: Limits = {}): Gen<number> {
   if (options.unsafe ?? true) return doubles()
-  return doubles().filter(n => !Number.isInteger(n) || Number.isSafeInteger(n))
+  return doubles().filter(safe)
+}
+
+function safe(n: number): boolean {
+  return !Number.isInteger(n) || Number.isSafeInteger(n)
 }
 
 export function strings(
@@ -225,6 +229,11 @@ export type Json =
 
 export function json(options: Limits = {}): Gen<Json> {
   const text = strings({...options, maxSize: 8})
+  // JSON.parse on Node 24 sometimes returns the wrong key when keys need
+  // escapes, such as "\u000b" read back as "\\"
+  const keys = isNode
+    ? text.filter(key => JSON.stringify(key) === `"${key}"`)
+    : text
   const leaf = gs.oneOf<Json>(
     gs.none(),
     gs.booleans(),
@@ -238,13 +247,16 @@ export function json(options: Limits = {}): Gen<Json> {
       gs.oneOf<Json>(
         gs.arrays(children, {maxSize: 4}),
         gs
-          .maps(text, children, {maxSize: 4})
+          .maps(keys, children, {maxSize: 4})
           .map(map => Object.fromEntries(map))
       ),
     {maxDepth: 6}
   )
-  if (options.jsonNumbers ?? true) return values
-  return values.filter(value => typeof value !== 'number')
+  const {jsonNumbers = true, unsafe = true} = options
+  if (jsonNumbers && unsafe) return values
+  return values.filter(
+    value => typeof value !== 'number' || (jsonNumbers && safe(value))
+  )
 }
 
 export function dates(min: string, max: string): Gen<Date> {
@@ -262,8 +274,16 @@ export function days(min: string, max: string): Gen<Date> {
   return dates(min, max).map(date => new Date(date.toISOString().slice(0, 10)))
 }
 
+// What JSON.stringify keeps of a value, without going through JSON.parse
 export function asJson(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value))
+  if (typeof value === 'number') return value + 0
+  if (Array.isArray(value)) return value.map(asJson)
+  if (!value || typeof value !== 'object') return value
+  const entries = Object.entries(value).map(([key, item]) => [
+    key,
+    asJson(item)
+  ])
+  return Object.fromEntries(entries)
 }
 
 export function universalCases(options: Limits = {}): Record<string, Case> {
