@@ -359,7 +359,7 @@ export function date(
   options: {mode: 'date'}
 ): PgColumn<Date>
 export function date(name?: string, options?: {mode: 'date' | 'string'}) {
-  const mode = options?.mode ?? 'date'
+  const mode = options?.mode ?? 'string'
   return new PgColumn({
     name,
     type: column.date(),

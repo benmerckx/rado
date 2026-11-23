@@ -5,6 +5,7 @@ import {
   column,
   columnConfig
 } from '../core/Column.ts'
+import {getData} from '../core/Internal.ts'
 
 export function boolean(name?: string): Column<boolean> {
   return new Column({
@@ -68,7 +69,8 @@ export function blob(
   ...args: ColumnArguments<{mode: 'json' | 'bigint' | 'buffer'}>
 ) {
   const {name, options} = columnConfig(args)
-  if (options?.mode === 'json') return json(name)
+  if (options?.mode === 'json')
+    return new JsonColumn({...getData(json(name)), type: column.blob()})
   if (options?.mode === 'bigint')
     return new Column({
       name,

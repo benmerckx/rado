@@ -47,6 +47,7 @@ test('pg date mapping', () => {
   const dateStr = pg.date(undefined, {mode: 'string'})
   const dateDate = pg.date(undefined, {mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
+  test.equal(mapFrom(pg.date(), '2020-01-01'), '2020-01-01')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
   const mapped = mapFrom(dateDate, '2020-01-01')
   if (!(mapped instanceof Date)) throw new Error('Expected Date')

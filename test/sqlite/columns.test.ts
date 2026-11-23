@@ -39,7 +39,7 @@ test('sqlite blob modes', () => {
   test.equal(mapTo(bigintCol, BigInt('43')), '43')
 
   const jsonCol = sqlite.blob<{foo: string}>({mode: 'json'})
-  test.equal(columnSql(jsonCol), 'json')
+  test.equal(columnSql(jsonCol), 'blob')
   const jsonRaw = JSON.stringify({foo: 'bar'})
   test.equal(mapTo(jsonCol, {foo: 'bar'}), jsonRaw)
   test.equal(mapFrom(jsonCol, jsonRaw), {foo: 'bar'})
