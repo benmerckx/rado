@@ -3,6 +3,7 @@ import type {Database} from '../core/Database.ts'
 import {eq, inArray, or} from '../core/expr/Conditions.ts'
 import {columns, foreignKeyChanges} from '../core/ForeignKey.ts'
 import {type HasSql, getData} from '../core/Internal.ts'
+import {type Define, define} from '../core/Order.ts'
 import {
   type PlanOptions,
   type Push,
@@ -22,6 +23,7 @@ import {integer, text} from './columns.ts'
 import {unenforced} from './keys.ts'
 import {prefix, shape} from './shape.ts'
 
+export type {Define} from '../core/Order.ts'
 export type {PushOptions, Schema} from '../core/Push.ts'
 
 const Sequence = table('sqlite_sequence', {
@@ -338,3 +340,6 @@ const runner: Runner = (db, apply, dry) =>
   )
 
 export const push: Push<'sqlite'> = createPush('sqlite', plan, runner)
+
+export const create: Define<'sqlite'> = define('sqlite', false)
+export const drop: Define<'sqlite'> = define('sqlite', true)

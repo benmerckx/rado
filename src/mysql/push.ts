@@ -3,6 +3,7 @@ import type {Database} from '../core/Database.ts'
 import {and, eq, isNull, not} from '../core/expr/Conditions.ts'
 import {columns, foreignKey, foreignKeyChanges} from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
+import {type Define, define} from '../core/Order.ts'
 import {
   type Push,
   type PlanOptions,
@@ -21,6 +22,7 @@ import {grows, parseType, ranks} from '../core/Widening.ts'
 import {Usage, home} from './catalog.ts'
 import {shape} from './shape.ts'
 
+export type {Define} from '../core/Order.ts'
 export type {PushOptions, Schema} from '../core/Push.ts'
 
 const capacity: Record<string, number> = {
@@ -51,7 +53,7 @@ function widens(from: string, to: string): boolean {
 }
 
 // One create table with its indexes, so a failing index leaves no table
-function create(api: TableApi): Sql {
+function createTable(api: TableApi): Sql {
   const keys = Object.entries(api.indexes()).map(([name, index]) => {
     const {unique, fields, order, using} = getData(index)
     return sql.join([
@@ -100,7 +102,7 @@ function* plan(
   const base = yield* home(tx)
   const schema = api.schemaName ?? base
   const before = yield* shape(tx, api.name, schema)
-  if (!before) return [{sql: create(api)}]
+  if (!before) return [{sql: createTable(api)}]
   // The catalog shows the permanent table, statements reach a temporary one
   // of the same name on this connection
   const [shown] = yield* result(
@@ -131,7 +133,7 @@ function* plan(
 function* copy(tx: Database, api: TableApi, schema: string): Gen<Shape> {
   const name = `__rado_${Math.random().toString(36).slice(2, 12)}`
   const table = shadow(api, name, api.schemaName)
-  yield tx.run(create(table))
+  yield tx.run(createTable(table))
   try {
     return (yield* shape(tx, name, schema))!
   } finally {
@@ -331,3 +333,6 @@ function validate(api: TableApi): void {
 }
 
 export const push: Push<'mysql'> = createPush('mysql', plan, runner, validate)
+
+export const create: Define<'mysql'> = define('mysql', false)
+export const drop: Define<'mysql'> = define('mysql', true)

@@ -15,7 +15,7 @@ import {
   unique
 } from '#/index.ts'
 import {push as postgresPush} from '#/postgres/push.ts'
-import {push} from '#/push.ts'
+import {create, drop as dropAll, push} from '#/push.ts'
 import {push as sqlitePush} from '#/sqlite/push.ts'
 import {id, integer, text, varchar} from '#/universal.ts'
 import {failure, fixture} from '../TestUtils.ts'
@@ -585,7 +585,7 @@ export function testPush(db: Database, test: DefineTest) {
     )
   })
 
-  test('create and drop take schema objects', async () => {
+  test('create and drop order a schema object', async () => {
     // Namespaces list their keys alphabetically, the referencing table and
     // view first
     const Authors = view('push_authors').as(
@@ -595,28 +595,25 @@ export function testPush(db: Database, test: DefineTest) {
     const schema = {Ids, Post, Authors, Author, other: 1}
     const cleanup = async () => {
       await db.drop(Ids, Authors)
-      await drop(Post, Author, UserA)()
+      await drop(Post, Author)()
     }
     await fixture(cleanup, async () => {
-      await db.create(schema, UserA)
+      await create(db, schema)
       await db.insert(Author).values({id: 1})
       await db.insert(Post).values({id: 1, author: 1})
       test.equal(await db.$count(Post), 1)
       test.equal(await db.select(Ids.id).from(Ids), [1])
-      await db.drop({Authors, Ids})
-      await db.drop({Author, Post})
-      await db.create({Post, alias: alias(Post, 'p')}, Author)
-      await db.drop(Author, {Post})
-      test.equal(await db.$count(UserA), 0)
+      await dropAll(db, schema)
+      test.equal((await failure(() => db.select().from(Author))) !== '', true)
+      await create(db, {Post, alias: alias(Post, 'p'), Author})
+      await dropAll(db, {Author, Post})
       test.equal(
-        await failure(() => db.create({other: 1})),
+        await failure(() => create(db, {other: 1})),
         'No definitions in schema'
       )
-      test.equal(
-        // @ts-expect-error
-        await failure(() => db.create(UserA.id)),
-        'No definitions in schema'
-      )
+      // db.create keeps the order given
+      await db.create(Author, Post)
+      await db.drop(Post, Author)
     })
   })
 
@@ -643,11 +640,11 @@ export function testPush(db: Database, test: DefineTest) {
     )
     const views = {FromSub, InSub, WithCte, FromSql, Raw, Base}
     const cleanup = async () => {
-      await db.drop(views)
+      await dropAll(db, views)
       await drop(Author)()
     }
     await fixture(cleanup, async () => {
-      await db.create(views, Author)
+      await create(db, {...views, Author})
       await db.insert(Author).values({id: 1})
       test.equal(await db.select(Raw.id).from(Raw), [1])
       test.equal(await db.select(WithCte.id).from(WithCte), [1])
@@ -666,7 +663,7 @@ export function testPush(db: Database, test: DefineTest) {
       await drop(Author)()
     }
     await fixture(cleanup, async () => {
-      await db.create({Summary, Daily, Author})
+      await create(db, {Summary, Daily, Author})
       await db.insert(Author).values({id: 1})
       test.equal(await db.select(Summary.id).from(Summary), [1])
     })
@@ -679,9 +676,12 @@ export function createTyped(db: Database): void {
   void db.create(123)
   // @ts-expect-error
   void db.drop('x')
-  void db.create({UserA}, Post, {a: 1})
-  void db.create(fixtures)
+  // @ts-expect-error
+  void db.create({UserA})
+  void create(db, fixtures)
   void push(db, fixtures)
+  // @ts-expect-error
+  void create(db, UserA)
   // @ts-expect-error
   void push(db, UserA)
 }

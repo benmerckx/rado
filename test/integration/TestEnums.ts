@@ -1,6 +1,7 @@
 import type {DefineTest} from '@alinea/suite'
 import {sql, table, type Database} from '#/index.ts'
 import {pgEnum, pgSchema} from '#/postgres.ts'
+import {create, drop} from '#/push.ts'
 
 export function testEnums(db: Database, test: DefineTest) {
   test('create a schema before its enums', async () => {
@@ -12,11 +13,13 @@ export function testEnums(db: Database, test: DefineTest) {
       zz
     }
     try {
-      await db.create(schema)
+      await create(db, schema)
       await db.insert(schema.Mood).values({state: 'a'})
       test.equal(await db.select(schema.Mood.state).from(schema.Mood), ['a'])
     } finally {
-      await db.drop(schema)
+      // A schema object's pgSchema is left to drop by hand
+      await drop(db, schema)
+      await db.drop(zz)
     }
   })
 

@@ -12,8 +12,6 @@ import {
   getCreate,
   getDrop,
   getResolver,
-  hasCreate,
-  hasDrop,
   hasQuery,
   hasSelection,
   internalResolver
@@ -26,7 +24,6 @@ import type {
   QueryMeta,
   Sync
 } from './MetaData.ts'
-import {type Schema, members} from './Order.ts'
 import {BatchQuery, type SingleQuery} from './Queries.ts'
 import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'
@@ -75,21 +72,13 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  create(...input: Array<HasCreate | Schema>): BatchQuery<unknown, Meta> {
-    const queries = members(input, {has: hasCreate, text: this.#text}).flatMap(
-      getCreate
-    )
-    return new BatchQuery(getResolver(this), queries)
+  create(...createables: Array<HasCreate>): BatchQuery<unknown, Meta> {
+    return new BatchQuery(getResolver(this), createables.flatMap(getCreate))
   }
 
-  drop(...input: Array<HasDrop | Schema>): BatchQuery<unknown, Meta> {
-    const queries = members(input, {has: hasDrop, text: this.#text, drop: true})
-      .toReversed()
-      .flatMap(getDrop)
-    return new BatchQuery(getResolver(this), queries)
+  drop(...droppables: Array<HasDrop>): BatchQuery<unknown, Meta> {
+    return new BatchQuery(getResolver(this), droppables.flatMap(getDrop))
   }
-
-  #text = (input: Sql) => this.dialect.inline(input)
 
   run(input: HasSql): Deliver<Meta, void> {
     const sql = this.dialect.inline(input)

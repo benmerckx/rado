@@ -1,9 +1,11 @@
 import type {Database} from './core/Database.ts'
+import {type Define, define} from './core/Order.ts'
 import type {Push, PushOptions, Schema} from './core/Push.ts'
 import {push as mysql} from './mysql/push.ts'
 import {push as postgres} from './postgres/push.ts'
 import {push as sqlite} from './sqlite/push.ts'
 
+export type {Define} from './core/Order.ts'
 export type {PushOptions, Schema} from './core/Push.ts'
 
 // For universal databases whose dialect is picked at runtime, this bundles
@@ -19,3 +21,7 @@ export const push: Push = Object.assign(
       pick(db).plan(db, schema, options)
   }
 ) as Push
+
+// Ordering doesn't depend on the dialect
+export const create: Define = define(undefined, false)
+export const drop: Define = define(undefined, true)

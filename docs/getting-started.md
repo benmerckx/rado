@@ -88,7 +88,9 @@ More on all of this in [Tables](schema/tables.md).
 db.create(User, Post)
 ```
 
-`db.create` emits `create table` (and any index) statements. To evolve a
+`db.create` emits `create table` (and any index) statements, in the order you
+list them. `create(db, schema)` from `rado/<dialect>/push` takes a whole
+schema module and works out the order. To evolve a
 database as your schema changes, use [push](runtime/push.md) during
 development or versioned [migrations](runtime/migrations.md) in production.
 

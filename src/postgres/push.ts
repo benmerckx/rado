@@ -14,6 +14,7 @@ import {
   foreignKeys
 } from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
+import {type Define, define} from '../core/Order.ts'
 import {
   type Push,
   type PlanOptions,
@@ -33,6 +34,7 @@ import {Class, Constraint, Namespace, home, prepend} from './catalog.ts'
 import {enumSchemas} from './enum.ts'
 import {shape} from './shape.ts'
 
+export type {Define} from '../core/Order.ts'
 export type {PushOptions, Schema} from '../core/Push.ts'
 
 // Arguments a type has when they are left out, unlimited where unbounded
@@ -428,3 +430,6 @@ function* changes({
 }
 
 export const push: Push<'postgres'> = createPush('postgres', plan)
+
+export const create: Define<'postgres'> = define('postgres', false)
+export const drop: Define<'postgres'> = define('postgres', true)

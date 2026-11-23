@@ -107,15 +107,12 @@ atomicity. It maps directly onto D1's native batch API.
 ## Creating and dropping in bulk
 
 `db.create` and `db.drop` accept any number of tables, views, schemas and
-enums, or schema objects holding them, and run as a batch:
+enums, and run as a batch, in the order you list them:
 
 ```ts
 await db.create(appSchema, User, Post, ActiveUsers)
 await db.drop(ActiveUsers, Post, User)
-await db.create(schema) // import * as schema from './schema.ts'
 ```
 
-Schemas are created first, then enums, then tables with referenced tables
-first, then views after the views they read from. `db.drop` runs in the reverse order. See
-[Schema push](push.md#creating-from-scratch).
-`push` sorts tables by foreign key itself. See [Schema push](push.md).
+`create(db, schema)` from the push entries takes a schema object and works
+the order out for you, see [Schema push](push.md#creating-from-scratch).

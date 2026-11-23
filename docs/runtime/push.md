@@ -6,20 +6,33 @@ code, then ask the database to match it.
 ## Creating from scratch
 
 `db.create` emits `create table` statements (plus indexes, enums, views,
-schemas) for everything you pass it. Pass definitions, a schema object such as
-a module namespace, or both:
+schemas) for everything you pass it, in the order you list them:
 
 ```ts
-import * as schema from './schema.ts'
-
 await db.create(User, Post)
-await db.create(schema)
-await db.create(schema, AuditLog)
 ```
 
-From a schema object it picks out what it can create and ignores other
-exports; an argument with nothing to create is an error. Whatever the order of
-the arguments, and module namespaces list their exports alphabetically:
+Dropping is the mirror image, again in the order you list:
+
+```ts
+await db.drop(Post, User)
+```
+
+To have rado work the order out, `create` and `drop` from the push entry take
+a schema object, such as a module namespace:
+
+```ts
+import {create, drop} from 'rado/postgres/push'
+import * as schema from './schema.ts'
+
+await create(db, schema)
+await drop(db, schema)
+```
+
+They pick out what they can create and ignore other exports; a schema with
+nothing to create is an error, `No definitions in schema`. Module namespaces
+list their exports alphabetically, so the order is worked out from the
+definitions:
 
 1. schemas, then enums
 2. tables, referenced tables before the tables that reference them. Tables
@@ -30,16 +43,12 @@ the arguments, and module namespaces list their exports alphabetically:
    counts quoted or not, but not after a `.` or `as`, where it is a column
    or an alias. Views can't form a cycle, that is an error
 
-Where nothing depends on anything, the order given is kept.
-
-`db.drop` runs in exactly the reverse order:
-
-```ts
-await db.drop(schema)
-```
-
-A `pgSchema` in a schema object is created but not dropped: its drop
-cascades to everything in it, so pass it to `db.drop` directly to drop it.
+Where nothing depends on anything, the order given is kept. `drop` runs in
+exactly the reverse order, and leaves out a `pgSchema` in the schema object:
+dropping one cascades to everything in it, so pass it to `db.drop` to drop
+it. Like push, they return directly on a synchronous driver and a promise on
+an asynchronous one, and the entry for a dialect refuses a database of
+another. `rado/push` has them for universal databases.
 
 ## Pushing changes with `push`
 

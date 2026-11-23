@@ -1,3 +1,4 @@
+import type {Database} from './Database.ts'
 import {configEntries, isForeignKey, key} from './ForeignKey.ts'
 import {
   type HasCreate,
@@ -6,14 +7,19 @@ import {
   type HasTable,
   type HasTarget,
   type internalTable,
+  getCreate,
   getData,
+  getDrop,
   getQuery,
   getTable,
   getTarget,
+  hasCreate,
+  hasDrop,
   hasQuery,
   hasTable,
   hasTarget
 } from './Internal.ts'
+import type {Deliver, QueryDialect, QueryMeta, Runtime} from './MetaData.ts'
 import type {Sql} from './Sql.ts'
 import type {TableApi} from './Table.ts'
 
@@ -206,4 +212,34 @@ export function members(
   const schemas = others.filter(isSchema)
   const enums = others.filter(value => !isSchema(value))
   return [...schemas, ...enums, ...sorted, ...chain(views, text)]
+}
+
+export interface Define<D extends QueryDialect = QueryDialect> {
+  <Meta extends QueryMeta & {dialect: D}>(
+    db: Database<Meta>,
+    schema: Schema
+  ): Deliver<Meta, void>
+}
+
+// Create and drop work out the order, db.create and db.drop keep the one
+// given and stay out of this module
+export function define<R extends Runtime>(
+  runtime: R | undefined,
+  drop: boolean
+): Define<R> {
+  return ((db: Database, schema: Schema) => {
+    if (runtime && db.dialect.runtime !== runtime)
+      throw new Error(`Expected a ${runtime} database`)
+    const text = (input: Sql) => db.dialect.inline(input)
+    const found = members([schema], {
+      has: drop ? hasDrop : hasCreate,
+      text,
+      drop
+    })
+    const queries = drop
+      ? found.toReversed().flatMap(getDrop)
+      : found.flatMap(getCreate)
+    const result = db.batch(queries).run()
+    if (result instanceof Promise) return result.then(() => {})
+  }) as Define<R>
 }
