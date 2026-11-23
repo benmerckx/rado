@@ -76,14 +76,18 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   create(...input: Array<HasCreate | Schema>): BatchQuery<unknown, Meta> {
-    const queries = members(input, hasCreate).flatMap(getCreate)
+    const queries = members(input, hasCreate, this.#text).flatMap(getCreate)
     return new BatchQuery(getResolver(this), queries)
   }
 
   drop(...input: Array<HasDrop | Schema>): BatchQuery<unknown, Meta> {
-    const queries = members(input, hasDrop).toReversed().flatMap(getDrop)
+    const queries = members(input, hasDrop, this.#text)
+      .toReversed()
+      .flatMap(getDrop)
     return new BatchQuery(getResolver(this), queries)
   }
+
+  #text = (input: Sql) => this.dialect.inline(input)
 
   run(input: HasSql): Deliver<Meta, void> {
     const sql = this.dialect.inline(input)

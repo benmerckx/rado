@@ -1,4 +1,3 @@
-import {Emitter} from './Emitter.ts'
 import {configEntries, isForeignKey, key} from './ForeignKey.ts'
 import {
   type HasCreate,
@@ -114,33 +113,18 @@ export function order(tables: Array<TableApi>): Array<TableApi> {
   return groups.flat()
 }
 
-// Collects the identifiers a query names
-class Names extends Emitter {
-  names = new Set<string>()
-  emitIdentifier(value: string): void {
-    this.names.add(value)
-  }
-  emitValue(): void {}
-  emitInline(): void {}
-  emitJsonPath(): void {}
-  emitPlaceholder(): void {}
-}
-
-function identifiers(input: Sql): Set<string> {
-  const names = new Names('sqlite')
-  input.emit(names)
-  return names.names
-}
-
 type View = HasQuery & HasTarget
 
-// The views a view's query reads from, matched by name
-function sources<V extends View>(views: Array<V>): (view: V) => Array<V> {
-  const own = new Map(views.map(view => [view, identifiers(getTarget(view))]))
+// The views a view's query reads from, matched by their name in its sql
+function sources<V extends View>(
+  views: Array<V>,
+  text: (input: Sql) => string
+): (view: V) => Array<V> {
+  const names = new Map(views.map(view => [view, text(getTarget(view))]))
   return view => {
-    const used = identifiers(getQuery(view))
+    const query = text(getQuery(view))
     return views.filter(
-      other => other !== view && [...own.get(other)!].every(n => used.has(n))
+      other => other !== view && query.includes(names.get(other)!)
     )
   }
 }
@@ -153,7 +137,8 @@ type Member = HasCreate & HasDrop
 // cycle, and where nothing depends on anything, the order given is kept.
 export function members(
   input: Array<object>,
-  has: (value: object) => boolean
+  has: (value: object) => boolean,
+  text: (input: Sql) => string
 ): Array<Member> {
   const values = input.flatMap(value => {
     if (has(value)) return [value as Member]
@@ -178,6 +163,6 @@ export function members(
     ...schemas,
     ...enums,
     ...sorted,
-    ...components(views, sources(views)).flat()
+    ...components(views, sources(views, text)).flat()
   ]
 }
