@@ -1,4 +1,4 @@
-import {type Input as UserInput, input, mapToColumn} from '../expr/Input.ts'
+import {type Input as UserInput, mapToColumn} from '../expr/Input.ts'
 import {
   type HasQuery,
   cached,
