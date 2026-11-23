@@ -14,6 +14,7 @@ tinyint({unsigned: true})
 smallint({unsigned: true}) // number
 mediumint({unsigned: true}) // number
 integer() / int() // number
+bigint() // bigint
 bigint({mode: 'number'}) // number
 bigint({mode: 'bigint', unsigned: true}) // bigint
 float() // number
@@ -68,6 +69,12 @@ const Post = mysqlTable('post', {
   createdAt: timestamp('created_at', {mode: 'date'}).defaultNow()
 })
 ```
+
+`datetime` and `timestamp` in `date` mode write and read `Date`s as UTC wall
+clock time. MySQL converts `timestamp` values between the session time zone
+and UTC, so run sessions in UTC (`set time_zone = '+00:00'`, on every
+connection when using a pool) or the stored values shift. Values with more
+fractional seconds than the column's `fsp` are rounded by MySQL.
 
 ## JSON
 

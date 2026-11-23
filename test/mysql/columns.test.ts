@@ -32,7 +32,8 @@ test('mysql bigint mapping', () => {
   test.equal(columnSql(big), 'bigint')
   test.equal(columnSql(bigExplicit), 'bigint')
   test.equal(columnSql(bigUnsigned), 'bigint unsigned')
-  test.equal(mapFrom(big, '42'), BigInt('42'))
+  const value: bigint = mapFrom(big, '42')
+  test.equal(value, BigInt('42'))
   test.equal(mapFrom(bigExplicit, '42'), BigInt('42'))
   test.equal(mapFrom(bigNum, '43'), 43)
 })
@@ -83,6 +84,7 @@ test('mysql decimal and numeric sql', () => {
   test.equal(mapFrom(decimal, '10.25'), '10.25')
   test.equal(mapFrom(decimalNum, '10.25'), 10.25)
   test.equal(mapFrom(decimalBig, '10'), BigInt('10'))
+  test.equal(mapTo(decimalBig, 10n ** 25n), '10000000000000000000000000')
 })
 
 test('mysql json mapping', () => {
@@ -110,7 +112,7 @@ test('mysql datetime mapping', () => {
   test.ok(mapFrom(dtExplicitDate, '2020-01-01 00:00:00') instanceof Date)
   test.ok(mapFrom(dtDate, '2020-01-01 00:00:00') instanceof Date)
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(dtDate, date), '2020-01-01 00:00:00')
+  test.equal(mapTo(dtDate, date), '2020-01-01 00:00:00.000')
   test.equal(
     mapFrom(dtDate, mapTo(dtDate, date) as string).toISOString(),
     date.toISOString()

@@ -5110,7 +5110,7 @@ test('all types', async ctx => {
       char: 'c',
       date: new Date('2025-03-12T00:00:00.000Z'),
       dateStr: '2025-03-12',
-      datetime: new Date('2025-03-12T01:32:41.000Z'),
+      datetime: new Date('2025-03-12T01:32:42.000Z'),
       datetimeStr: '2025-03-12 01:32:41',
       decimal: '47521',
       decimalNum: 9007199254740991,

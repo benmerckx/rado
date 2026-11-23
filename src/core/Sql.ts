@@ -11,6 +11,7 @@ import {
   internalSql
 } from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
+import {placeholders} from './Param.ts'
 
 export type Decoder<T = unknown> =
   | ((value: unknown) => T)
@@ -125,7 +126,9 @@ export namespace sql {
   }
 
   export function placeholder<T>(name: string): Sql<T> {
-    return new Sql(emitter => emitter.emitPlaceholder(name))
+    const placeholder = new Sql<T>(emitter => emitter.emitPlaceholder(name))
+    placeholders.set(placeholder, name)
+    return placeholder
   }
 
   export function identifier<T>(identifier: string): Sql<T> {

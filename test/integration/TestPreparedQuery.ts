@@ -1,6 +1,9 @@
 import type {DefineTest} from '@alinea/suite'
-import {eq, sql, type Database} from '#/index.ts'
+import {eq, sql, table, type Database} from '#/index.ts'
+import {id, json} from '#/universal.ts'
 import {Node} from './schema.ts'
+
+const Settings = table('Settings', {id: id(), value: json<unknown>()})
 
 export function testPreparedQuery(db: Database, test: DefineTest) {
   test('prepared query methods and reuse', async () => {
@@ -118,6 +121,24 @@ export function testPreparedQuery(db: Database, test: DefineTest) {
       test.equal(selectResult, ['hello'])
     } finally {
       await db.drop(Node)
+    }
+  })
+
+  test('placeholders map values to columns', async () => {
+    await db.create(Settings)
+    try {
+      await using insert = db
+        .insert(Settings)
+        .values({value: sql.placeholder('value')})
+        .prepare('placeholder-insert')
+      await insert.run({value: false})
+      await insert.run({value: [1, 'two']})
+      test.equal(await db.select(Settings.value).from(Settings), [
+        false,
+        [1, 'two']
+      ])
+    } finally {
+      await db.drop(Settings)
     }
   })
 }

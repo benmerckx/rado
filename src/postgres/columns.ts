@@ -81,26 +81,61 @@ function formatLine(value: LineTuple | LineABC | string): string {
   return `{${value.a},${value.b},${value.c}}`
 }
 
-function pad2(value: number): string {
-  return String(value).padStart(2, '0')
+function pad(value: number, size = 2): string {
+  return String(value).padStart(size, '0')
 }
 
-function pad3(value: number): string {
-  return String(value).padStart(3, '0')
+// Postgres prints years with at least four digits, and year 0 as 1 BC
+function formatDay(value: Date): {day: string; era: string} {
+  if (Number.isNaN(value.getTime())) throw new Error('Invalid date')
+  const year = value.getUTCFullYear()
+  const month = pad(value.getUTCMonth() + 1)
+  const date = pad(value.getUTCDate())
+  const day = `${pad(year > 0 ? year : 1 - year, 4)}-${month}-${date}`
+  return {day, era: year > 0 ? '' : ' BC'}
 }
 
 function formatDateString(value: Date): string {
-  return `${value.getUTCFullYear()}-${pad2(value.getUTCMonth() + 1)}-${pad2(
-    value.getUTCDate()
-  )}`
+  const {day, era} = formatDay(value)
+  return day + era
 }
 
+const TIMESTAMP = new RegExp(
+  '^(\\d{4,})-(\\d\\d)-(\\d\\d)' +
+    '(?:[ T](\\d\\d):(\\d\\d):(\\d\\d)(?:\\.(\\d+))?)?' +
+    '(?:([+-])(\\d\\d)(?::?(\\d\\d))?(?::?(\\d\\d))?|Z)?( BC)?$'
+)
+
+// Date only parses ISO strings reliably, and guesses years like 0001 as 2001
+function parseTimestamp(value: string): Date {
+  const match = TIMESTAMP.exec(value)
+  if (!match) return new Date(value)
+  const [, year, month, day, hours, minutes, seconds, fraction = ''] = match
+  const [sign, offsetHours, offsetMinutes, offsetSeconds, bc] = match.slice(8)
+  const date = new Date(0)
+  const fullYear = bc ? 1 - Number(year) : Number(year)
+  date.setUTCFullYear(fullYear, Number(month) - 1, Number(day))
+  // The offset goes in with the time, so values at the edges of what a Date
+  // holds don't pass outside it in between
+  const direction = sign === '-' ? -1 : 1
+  date.setUTCHours(
+    Number(hours ?? 0) - direction * Number(offsetHours ?? 0),
+    Number(minutes ?? 0) - direction * Number(offsetMinutes ?? 0),
+    Number(seconds ?? 0) - direction * Number(offsetSeconds ?? 0),
+    Number(fraction.padEnd(3, '0').slice(0, 3))
+  )
+  return date
+}
+
+// Matches how postgres prints timestamps, also used to write them
 function formatTimestampString(value: Date, withTimeZone: boolean): string {
-  const date = formatDateString(value)
-  const time = `${pad2(value.getUTCHours())}:${pad2(
-    value.getUTCMinutes()
-  )}:${pad2(value.getUTCSeconds())}.${pad3(value.getUTCMilliseconds())}`
-  return withTimeZone ? `${date} ${time}+00` : `${date} ${time}`
+  const {day, era} = formatDay(value)
+  const ms = value.getUTCMilliseconds()
+  const fraction = ms ? `.${pad(ms, 3)}`.replace(/0+$/, '') : ''
+  const time = `${pad(value.getUTCHours())}:${pad(value.getUTCMinutes())}:${pad(
+    value.getUTCSeconds()
+  )}${fraction}`
+  return `${day} ${time}${withTimeZone ? '+00' : ''}${era}`
 }
 
 function parsePgArrayValue(input: string): Array<unknown> {
@@ -173,7 +208,7 @@ function serializePgArrayItem(value: unknown): string {
   if (Array.isArray(value)) return serializePgArrayValue(value)
   if (value === null || value === undefined) return 'NULL'
   let normalized: string
-  if (value instanceof Date) normalized = value.toISOString()
+  if (value instanceof Date) normalized = formatTimestampString(value, true)
   else if (typeof value === 'string') normalized = value
   else if (
     typeof value === 'number' ||
@@ -268,11 +303,11 @@ export class PgColumn<
 }
 
 export function bigint(
-  ...args: ColumnArguments<{mode: 'number'}>
-): PgColumn<number>
-export function bigint(
   ...args: ColumnArguments<{mode?: 'bigint'}>
 ): PgColumn<bigint>
+export function bigint(
+  ...args: ColumnArguments<{mode: 'number'}>
+): PgColumn<number>
 export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
   const {name, options} = columnConfig(args)
   return new PgColumn({
@@ -283,11 +318,11 @@ export function bigint(...args: ColumnArguments<{mode?: IntegerMode}>) {
 }
 
 export function bigserial(
-  ...args: ColumnArguments<{mode: 'number'}>
-): PgColumn<number>
-export function bigserial(
   ...args: ColumnArguments<{mode?: 'bigint'}>
 ): PgColumn<bigint>
+export function bigserial(
+  ...args: ColumnArguments<{mode: 'number'}>
+): PgColumn<number>
 export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
   const {name, options} = columnConfig(args)
   return new PgColumn({
@@ -298,9 +333,9 @@ export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
 }
 
 export function char(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length?: number}>
 ): PgColumn<string> {
+  const {name, options} = columnConfig(args)
   return new PgColumn({
     name,
     type: column.character(options?.length ?? 1)
@@ -326,25 +361,22 @@ export function cidr(name?: string): PgColumn<string> {
 }
 
 export function date(
-  name?: string,
-  options?: {mode: 'string'}
+  ...args: ColumnArguments<{mode?: 'string'}>
 ): PgColumn<string>
-export function date(
-  name: string | undefined,
-  options: {mode: 'date'}
-): PgColumn<Date>
-export function date(name?: string, options?: {mode: 'date' | 'string'}) {
-  const mode = options?.mode ?? 'date'
+export function date(...args: ColumnArguments<{mode: 'date'}>): PgColumn<Date>
+export function date(...args: ColumnArguments<{mode?: 'date' | 'string'}>) {
+  const {name, options} = columnConfig(args)
+  const mode = options?.mode ?? 'string'
   return new PgColumn({
     name,
     type: column.date(),
     mapFromDriverValue(value: string | Date) {
       if (mode === 'date')
-        return value instanceof Date ? value : new Date(value)
+        return value instanceof Date ? value : parseTimestamp(value)
       return value instanceof Date ? formatDateString(value) : value
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date ? value.toISOString() : value
+      return value instanceof Date ? formatDateString(value) : value
     }
   })
 }
@@ -583,15 +615,25 @@ export function smallserial(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.smallserial()})
 }
 
+// Postgres puts the precision before the zone: timestamp(3) with time zone
+function zoned(kind: 'time' | 'timestamp', precision?: Precision): ColumnType {
+  const type = column[kind](precision)
+  return new ColumnType(
+    `${kind} with time zone`,
+    type.args,
+    sql`${type} with time zone`
+  )
+}
+
 export function time(
   ...args: ColumnArguments<{precision?: Precision; withTimeZone?: boolean}>
 ): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({
     name,
-    type: column[options?.withTimeZone ? 'time with time zone' : 'time'](
-      options?.precision
-    )
+    type: options?.withTimeZone
+      ? zoned('time', options.precision)
+      : column.time(options?.precision)
   })
 }
 
@@ -624,19 +666,20 @@ export function timestamp(
   const mode = options?.mode ?? 'date'
   return new PgColumn({
     name,
-    type: column[withTimeZone ? 'timestamp with time zone' : 'timestamp'](
-      options?.precision
-    ),
+    type: withTimeZone
+      ? zoned('timestamp', options?.precision)
+      : column.timestamp(options?.precision),
     mapFromDriverValue(value: string | Date) {
       if (mode === 'string') {
         return value instanceof Date
           ? formatTimestampString(value, !!withTimeZone)
           : value
       }
-      return value instanceof Date ? value : new Date(value)
+      return value instanceof Date ? value : parseTimestamp(value)
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date ? value.toISOString() : value
+      // A zone is ignored by timestamps without one, which read it as UTC
+      return value instanceof Date ? formatTimestampString(value, true) : value
     }
   })
 }

@@ -72,7 +72,7 @@ blob<T>({mode: 'json'}) // typed JSON
 
 ```ts
 json<T>() // typed JSON stored as text
-jsonb<T>() // typed JSON stored in SQLite's binary jsonb format
+jsonb<T>() // the same, JSON text in a text column
 ```
 
 Both give you typed property access in queries:
@@ -87,6 +87,9 @@ await db.select().from(User).where(eq(User.settings.theme, 'dark'))
 ```
 
 See [JSON](../queries/json.md) for everything you can do with these.
+
+Both are declared as `text`. A `json` or `jsonb` type name would give the
+column numeric affinity, which stores a top level JSON number as a real.
 
 ## Auto-incrementing primary keys
 

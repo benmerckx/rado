@@ -33,11 +33,11 @@ function formatDateTime(value: Date): string {
 }
 
 export function bigint(
-  ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
-): Column<number>
-export function bigint(
   ...args: ColumnArguments<{mode?: 'bigint'; unsigned?: boolean}>
 ): Column<bigint>
+export function bigint(
+  ...args: ColumnArguments<{mode: 'number'; unsigned?: boolean}>
+): Column<number>
 export function bigint(
   ...args: ColumnArguments<{mode?: IntegerMode; unsigned?: boolean}>
 ) {
@@ -122,11 +122,9 @@ export function datetime(
         : new Date(`${value.replace(' ', 'T')}Z`)
     },
     mapToDriverValue(value: Date) {
-      if (!(value instanceof Date)) return value
-      const formatted = value.toISOString().replace('T', ' ')
-      return options?.fsp
-        ? formatted.slice(0, 20 + options.fsp)
-        : formatted.slice(0, 19)
+      return value instanceof Date
+        ? value.toISOString().slice(0, -1).replace('T', ' ')
+        : value
     }
   })
 }
@@ -182,7 +180,8 @@ function decimalColumn(
   return new Column({
     name,
     type: column.decimal(options?.precision, options?.scale),
-    mapFromDriverValue
+    mapFromDriverValue,
+    mapToDriverValue: String
   })
 }
 

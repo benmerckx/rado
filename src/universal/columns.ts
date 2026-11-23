@@ -1,4 +1,11 @@
-import {Column, ColumnType, JsonColumn, column} from '../core/Column.ts'
+import {
+  Column,
+  type ColumnArguments,
+  ColumnType,
+  JsonColumn,
+  column,
+  columnConfig
+} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 const idType = new ColumnType(
@@ -29,10 +36,22 @@ const numberType = new ColumnType(
   })
 )
 
+// SQLite gives json and jsonb types numeric affinity, which would store a top
+// level JSON number as a real
+const jsonType = new ColumnType(
+  'json',
+  [],
+  sql.universal({
+    sqlite: sql`text`,
+    default: sql`json`
+  })
+)
+
 const jsonbType = new ColumnType(
   'json',
   [],
   sql.universal({
+    sqlite: sql`text`,
     mysql: sql`json`,
     default: sql`jsonb`
   })
@@ -52,9 +71,9 @@ export function text(name?: string): Column<string> {
 }
 
 export function varchar(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length?: number}>
 ): Column<string> {
+  const {name, options} = columnConfig(args)
   return new Column({name, type: column.varchar(options?.length)})
 }
 
@@ -77,7 +96,7 @@ export function boolean(name?: string): Column<boolean> {
 export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
-    type: column.json(),
+    type: jsonType,
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     },

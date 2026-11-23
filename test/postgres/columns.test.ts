@@ -26,8 +26,10 @@ test('pg bigint and bigserial mapping', () => {
   const bigserialCol = pg.bigserial()
   test.equal(columnSql(bigintCol), 'bigint')
   test.equal(columnSql(bigserialCol), 'bigserial')
-  test.equal(mapFrom(bigintCol, '42'), BigInt('42'))
-  test.equal(mapFrom(bigserialCol, '43'), BigInt('43'))
+  const big: bigint = mapFrom(bigintCol, '42')
+  const bigserial: bigint = mapFrom(bigserialCol, '43')
+  test.equal(big, BigInt('42'))
+  test.equal(bigserial, BigInt('43'))
 
   const bigintNum = pg.bigint(undefined, {mode: 'number'})
   const bigserialNum = pg.bigserial(undefined, {mode: 'number'})
@@ -38,6 +40,7 @@ test('pg bigint and bigserial mapping', () => {
 test('pg char and varchar sql', () => {
   test.equal(columnSql(pg.char()), 'character(1)')
   test.equal(columnSql(pg.char(undefined, {length: 4})), 'character(4)')
+  test.equal(columnSql(pg.char({length: 5})), 'character(5)')
   test.equal(columnSql(pg.varchar({length: 10})), 'varchar(10)')
 })
 
@@ -45,12 +48,17 @@ test('pg date mapping', () => {
   const dateStr = pg.date(undefined, {mode: 'string'})
   const dateDate = pg.date(undefined, {mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
+  test.equal(mapFrom(pg.date(), '2020-01-01'), '2020-01-01')
+  const day: Date = mapFrom(pg.date({mode: 'date'}), '2020-01-01')
+  test.equal(day.toISOString(), '2020-01-01T00:00:00.000Z')
+  test.equal(mapFrom(pg.date('d', {mode: 'date'}), '2020-01-01'), day)
+  test.equal(mapFrom(dateStr, new Date('0999-12-31')), '0999-12-31')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
   const mapped = mapFrom(dateDate, '2020-01-01')
   if (!(mapped instanceof Date)) throw new Error('Expected Date')
   test.equal(mapped.getTime(), Date.parse('2020-01-01'))
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(dateDate, date), date.toISOString())
+  test.equal(mapTo(dateDate, date), '2020-01-01')
   test.equal(mapTo(dateDate, '2020-02-01'), '2020-02-01')
 })
 
@@ -63,14 +71,14 @@ test('pg timestamp mapping', () => {
   if (!(mapped instanceof Date)) throw new Error('Expected Date')
   test.equal(mapped.getTime(), Date.parse('2020-01-01T00:00:00.000Z'))
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(tsDate, date), date.toISOString())
+  test.equal(mapTo(tsDate, date), '2020-01-01 00:00:00+00')
   test.equal(
     mapTo(tsDate, '2020-01-02T00:00:00.000Z'),
     '2020-01-02T00:00:00.000Z'
   )
   test.equal(
     columnSql(pg.timestamp({withTimeZone: true, precision: 3})),
-    'timestamp with time zone(3)'
+    'timestamp(3) with time zone'
   )
   test.equal(
     columnSql(pg.timestamp({withTimezone: true})),
@@ -78,11 +86,56 @@ test('pg timestamp mapping', () => {
   )
 })
 
+test('pg timestamp parsing', () => {
+  const text = pg.timestamp({mode: 'string'})
+  const zonedText = pg.timestamp({mode: 'string', withTimeZone: true})
+  const date = new Date('2000-01-01T00:00:00.120Z')
+  test.equal(mapFrom(text, date), '2000-01-01 00:00:00.12')
+  test.equal(mapFrom(zonedText, new Date(0)), '1970-01-01 00:00:00+00')
+  const far = new Date('+010000-01-01T10:00:00.000Z')
+  const bc = new Date('-000043-03-15T12:00:00.000Z')
+  test.equal(mapFrom(text, far), '10000-01-01 10:00:00')
+  test.equal(mapFrom(zonedText, bc), '0044-03-15 12:00:00+00 BC')
+  test.equal(mapTo(text, bc), '0044-03-15 12:00:00+00 BC')
+  test.equal(
+    mapFrom(pg.date({mode: 'string'}), new Date('0000-01-01')),
+    '0001-01-01 BC'
+  )
+  test.equal(mapFrom(pg.timestamp(), '0044-03-15 12:00:00 BC'), bc)
+  test.equal(mapFrom(pg.timestamp(), '10000-01-01 10:00:00'), far)
+  test.throws(() => mapTo(pg.timestamp(), new Date(NaN)))
+  const zoned = pg.timestamp({withTimeZone: true})
+  const plain = pg.timestamp()
+  const parse = (column: typeof plain, value: string) =>
+    mapFrom(column, value).toISOString()
+  test.equal(parse(zoned, '0001-01-01 00:00:00+00'), '0001-01-01T00:00:00.000Z')
+  test.equal(
+    parse(zoned, '275760-09-13 05:30:00+05:30'),
+    '+275760-09-13T00:00:00.000Z'
+  )
+  test.equal(
+    parse(zoned, '2020-06-01 12:00:00.5+05:30'),
+    '2020-06-01T06:30:00.500Z'
+  )
+  test.equal(
+    parse(plain, '2020-06-01 12:00:00.123456'),
+    '2020-06-01T12:00:00.123Z'
+  )
+  test.equal(
+    parse(plain, '0002-01-01 00:00:00 BC'),
+    '-000001-01-01T00:00:00.000Z'
+  )
+  test.equal(
+    mapFrom(pg.date(undefined, {mode: 'date'}), '0010-02-03').toISOString(),
+    '0010-02-03T00:00:00.000Z'
+  )
+})
+
 test('pg time and interval sql', () => {
   test.equal(columnSql(pg.time()), 'time')
   test.equal(
     columnSql(pg.time({withTimeZone: true, precision: 2})),
-    'time with time zone(2)'
+    'time(2) with time zone'
   )
   test.equal(columnSql(pg.interval()), 'interval')
   test.equal(

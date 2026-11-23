@@ -1,4 +1,5 @@
 import {suite} from '@alinea/suite'
+import {sql} from '#/index.ts'
 import {testDriver} from '../TestDriver.ts'
 import {testServers} from '../TestRuntime.ts'
 
@@ -19,6 +20,22 @@ if (testServers) {
       {sql: 'select nextval($1)', params: ['s'], isSelection: true}
     ])
     test.equal(results, [[], [['1']]])
+  })
+
+  test('neon-http: dates and timestamps come back as text', async () => {
+    const query = `select '2020-01-01'::date as date,
+      '2020-01-01 10:00'::timestamp as timestamp,
+      '1 day'::interval as interval, 1::int as int`
+    test.equal(await db.get(sql.unsafe(query)), {
+      date: '2020-01-01',
+      timestamp: '2020-01-01 10:00:00',
+      interval: '1 day',
+      int: 1
+    })
+    const [rows] = await db.driver.batch([
+      {sql: query, params: [], isSelection: true}
+    ])
+    test.equal(rows, [['2020-01-01', '2020-01-01 10:00:00', '1 day', 1]])
   })
 
   test('neon-http: no interactive transactions', async () => {

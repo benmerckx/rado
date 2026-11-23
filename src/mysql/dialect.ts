@@ -2,7 +2,7 @@ import {Dialect} from '../core/Dialect.ts'
 import {Emitter} from '../core/Emitter.ts'
 import type {JsonPath} from '../core/expr/Json.ts'
 import type {Runtime} from '../core/MetaData.ts'
-import {NamedParam, ValueParam} from '../core/Param.ts'
+import {NamedParam, type ParamMapper, ValueParam} from '../core/Param.ts'
 
 const BACKTICK = '`'
 const ESCAPE_BACKTICK = '``'
@@ -21,8 +21,8 @@ export const mysqlDialect: Dialect = new Dialect(
       this.params.push(new ValueParam(value))
       this.sql += '?'
     }
-    emitPlaceholder(name: string) {
-      this.params.push(new NamedParam(name))
+    emitPlaceholder(name: string, map?: ParamMapper) {
+      this.params.push(new NamedParam(name, map))
       this.sql += '?'
     }
     emitJsonPath({target, asSql, segments}: JsonPath) {

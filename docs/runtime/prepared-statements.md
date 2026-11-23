@@ -42,6 +42,13 @@ a silent `null`.
 
 Placeholders work wherever values do: conditions, limits and inserted values.
 
+Where a placeholder stands for a column's value, its input is mapped through
+that column the way a literal value would be: in inserted values,
+`update().set()`, conflict updates and comparisons with the column (`eq`,
+`inArray`, `between` and the like). Pass the value you would pass without a
+placeholder, such as a `Date` for a timestamp column or an object for a json
+column, not a pre-encoded one.
+
 ```ts
 const page = db
   .select()

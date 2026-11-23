@@ -1,5 +1,7 @@
 import {suite} from '@alinea/suite'
+import {sql, table} from '#/index.ts'
 import * as sqlite from '#/sqlite/columns.ts'
+import * as universal from '#/universal/columns.ts'
 import {columnSql, mapFrom, mapTo} from '../TestUtils.ts'
 
 const test = suite(import.meta)
@@ -39,7 +41,7 @@ test('sqlite blob modes', () => {
   test.equal(mapTo(bigintCol, BigInt('43')), '43')
 
   const jsonCol = sqlite.blob<{foo: string}>({mode: 'json'})
-  test.equal(columnSql(jsonCol), 'json')
+  test.equal(columnSql(jsonCol), 'blob')
   const jsonRaw = JSON.stringify({foo: 'bar'})
   test.equal(mapTo(jsonCol, {foo: 'bar'}), jsonRaw)
   test.equal(mapFrom(jsonCol, jsonRaw), {foo: 'bar'})
@@ -78,10 +80,36 @@ test('sqlite json and jsonb mapping', () => {
   const jsonCol = sqlite.json<{foo: string}>()
   const jsonbCol = sqlite.jsonb<{bar: string}>()
   const raw = JSON.stringify({foo: 'bar'})
-  test.equal(columnSql(jsonCol), 'json')
-  test.equal(columnSql(jsonbCol), 'jsonb')
+  test.equal(columnSql(jsonCol), 'text')
+  test.equal(columnSql(jsonbCol), 'text')
   test.equal(mapTo(jsonCol, {foo: 'bar'}), raw)
   test.equal(mapFrom(jsonCol, raw), {foo: 'bar'})
   test.equal(mapTo(jsonbCol, {bar: 'baz'}), JSON.stringify({bar: 'baz'}))
   test.equal(mapFrom(jsonbCol, raw), {foo: 'bar'})
+})
+
+test('universal varchar takes options first', () => {
+  test.equal(columnSql(universal.varchar({length: 5})), 'varchar(5)')
+  test.equal(columnSql(universal.varchar('name', {length: 5})), 'varchar(5)')
+})
+
+test('sqlite json columns store numbers as text', async () => {
+  const {'sql.js': connect} = await import('#/driver.ts')
+  const {default: init} = await import('sql.js')
+  const {Database} = await init()
+  const db = connect(new Database())
+  const Json = table('Json', {
+    json: sqlite.json(),
+    jsonb: sqlite.jsonb(),
+    universalJson: universal.json(),
+    universalJsonb: universal.jsonb()
+  })
+  db.create(Json).run()
+  db.insert(Json)
+    .values({json: 1.5, jsonb: 1.5, universalJson: 1.5, universalJsonb: 1.5})
+    .run()
+  const types = sql<{types: string}>`select typeof(json) || typeof(jsonb) ||
+    typeof(universalJson) || typeof(universalJsonb) as types from ${Json}`
+  test.equal(db.all(types), [{types: 'texttexttexttext'}])
+  db.close()
 })
