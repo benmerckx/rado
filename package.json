@@ -49,6 +49,7 @@
     "@electric-sql/pglite": "^0.5.4",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
+    "@hegeldev/hegel": "0.6.1",
     "@libsql/client": "^0.17.4",
     "@miniflare/d1": "^2.14.4",
     "@miniflare/shared": "^2.14.4",

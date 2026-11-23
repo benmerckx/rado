@@ -7,4 +7,4 @@
 /docs/dist
 /*.cpuprofile
 /deno.lock
-.DS_Store
+.DS_Store/.hegel
