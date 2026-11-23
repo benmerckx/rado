@@ -10,7 +10,7 @@ import {
 import {getData} from '../core/Internal.ts'
 import {
   type Push,
-  type PushOptions,
+  type PlanOptions,
   type Step,
   createPush,
   differ,
@@ -88,7 +88,7 @@ function* dependents(tx: Database, oid: number) {
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions,
+  options: PlanOptions,
   tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const base = yield* home(tx)
@@ -183,7 +183,7 @@ interface Plan {
   live: Shape
   desired: Shape
   home: string
-  options: PushOptions
+  options: PlanOptions
   tables: Array<TableApi>
 }
 
@@ -224,7 +224,8 @@ function* changes({
     table: api.name,
     live,
     desired,
-    widens
+    widens,
+    assume: options.assume
   })
   const wanted = new Set(Object.values(desired.constraints))
   const present = new Set(Object.values(live.constraints))

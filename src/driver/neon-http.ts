@@ -45,6 +45,8 @@ class PreparedStatement implements AsyncStatement {
 export class NeonHttpDriver implements AsyncDriver {
   parsesJson = true
   supportsTransactions = false
+  singleStatement =
+    'Migrate over the websocket Pool, Neon HTTP runs one statement per query'
 
   constructor(private client: Client) {}
 

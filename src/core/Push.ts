@@ -31,6 +31,11 @@ export interface Push<D extends QueryDialect = QueryDialect> {
   ): Deliver<Meta, Array<string>>
 }
 
+// Generate plans without rows to check, see Comparison.assume
+export interface PlanOptions extends PushOptions {
+  assume?: boolean
+}
+
 export interface Step {
   sql: Sql
   risk?: string
@@ -43,7 +48,7 @@ export interface Planner {
   (
     tx: Database,
     api: TableApi,
-    options: PushOptions,
+    options: PlanOptions,
     // Every table pushed, whose foreign keys may be dropped and re-added
     tables: Array<TableApi>
   ): Gen<Array<Step>>
@@ -55,10 +60,36 @@ export type Apply = (
   tx: Database,
   execute: boolean,
   check?: (steps: Array<Step>) => void
-) => Gen<Array<string>>
+) => Gen<Array<Statement>>
 
 export interface Runner {
-  (db: Database, apply: Apply, dry: boolean): Gen<Array<string>>
+  (db: Database, apply: Apply, dry: boolean): Gen<Array<Statement>>
+}
+
+// A statement push runs, with what it may lose
+export interface Statement {
+  sql: string
+  risk?: string
+}
+
+type Mode = 'push' | 'plan' | 'capture'
+type Run = (
+  db: Database,
+  schema: Schema,
+  mode: Mode,
+  options?: PushOptions
+) => Array<Statement> | Promise<Array<Statement>>
+
+const runs = new WeakMap<object, Run>()
+
+// Applies everything, risky or not, and returns what ran, for generate
+export function capture(
+  push: Push,
+  db: Database,
+  schema: Schema,
+  options?: PushOptions
+): Array<Statement> | Promise<Array<Statement>> {
+  return runs.get(push)!(db, schema, 'capture', options)
 }
 
 const single: Runner = (db, apply, dry) =>
@@ -70,12 +101,9 @@ export function createPush<R extends Runtime>(
   runner = single,
   validate?: (api: TableApi) => void
 ): Push<R> {
-  function go(
-    db: Database,
-    schema: Schema,
-    dry: boolean,
-    options: PushOptions = {}
-  ) {
+  const go: Run = (db, schema, mode, options = {}) => {
+    const dry = mode === 'plan'
+    const assume = mode === 'capture'
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
     if (!db.driver.supportsTransactions)
@@ -94,16 +122,22 @@ export function createPush<R extends Runtime>(
       runner(
         db,
         function* (tx, execute, check) {
-          const result: Array<string> = []
+          const result: Array<Statement> = []
           for (const api of ordered) {
-            const steps = yield* planner(tx, api, options, ordered)
-            const risky = !options.force && steps.find(step => step.risk)
+            const steps = yield* planner(tx, api, {...options, assume}, ordered)
+            const risky =
+              !options.force && !assume && steps.find(step => step.risk)
             if (risky && !dry)
               throw new Error(
                 `Push would ${risky.risk}: ${db.dialect.inline(risky.sql)}`
               )
             check?.(steps)
-            result.push(...steps.map(step => db.dialect.inline(step.sql)))
+            result.push(
+              ...steps.map(step => ({
+                sql: db.dialect.inline(step.sql),
+                risk: step.risk
+              }))
+            )
             // A refused table is left as is, as push would stop there, and a
             // dry run skips tables it can't apply without leaving a trace
             const skip = risky || (dry && steps.some(step => step.effect))
@@ -116,12 +150,16 @@ export function createPush<R extends Runtime>(
       )
     )
   }
+  const sqls = (statements: Array<Statement>) => statements.map(s => s.sql)
   const push = (db: Database, schema: Schema, options?: PushOptions) => {
-    const result = go(db, schema, false, options)
+    const result = go(db, schema, 'push', options)
     if (result instanceof Promise) return result.then(() => {})
   }
-  push.plan = (db: Database, schema: Schema, options?: PushOptions) =>
-    go(db, schema, true, options)
+  push.plan = (db: Database, schema: Schema, options?: PushOptions) => {
+    const result = go(db, schema, 'plan', options)
+    return result instanceof Promise ? result.then(sqls) : sqls(result)
+  }
+  runs.set(push, go)
   return push as Push<R>
 }
 

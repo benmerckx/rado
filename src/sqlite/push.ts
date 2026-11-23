@@ -4,8 +4,8 @@ import {eq, inArray, or} from '../core/expr/Conditions.ts'
 import {columns, foreignKeyChanges} from '../core/ForeignKey.ts'
 import {type HasSql, getData} from '../core/Internal.ts'
 import {
+  type PlanOptions,
   type Push,
-  type PushOptions,
   type Runner,
   type Step,
   createPush,
@@ -56,7 +56,7 @@ const widens = (from: string, to: string) => affinity(from) === affinity(to)
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions
+  options: PlanOptions
 ): Gen<Array<Step>> {
   // Unqualified names resolve to temp first, so a temporary object named
   // like the table, its indexes or a view would be changed instead
@@ -91,7 +91,8 @@ function* plan(
     for (const [name, index] of Object.entries(api.indexes()))
       yield inner.run(getData(index).toSql(copy, prefix + name, false))
     const desired = (yield* shape(inner, copy, true))!
-    return [...renamed, ...(yield* changes(inner, api, live, desired))]
+    const found = yield* changes(inner, api, live, desired, options.assume)
+    return [...renamed, ...found]
   })
 }
 
@@ -99,7 +100,8 @@ function* changes(
   tx: Database,
   api: TableApi,
   live: Shape,
-  desired: Shape
+  desired: Shape,
+  assume?: boolean
 ): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -110,7 +112,8 @@ function* changes(
     table: api.name,
     live,
     desired,
-    widens
+    widens,
+    assume
   })
   const sorted = (shape: Shape) =>
     Object.values(shape.constraints).toSorted().join()

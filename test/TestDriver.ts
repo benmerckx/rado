@@ -14,6 +14,7 @@ import {testInclude} from './integration/TestInclude.ts'
 import {testInspect} from './integration/TestInspect.ts'
 import {testJoins} from './integration/TestJoins.ts'
 import {testJson} from './integration/TestJson.ts'
+import {testMigrate} from './integration/TestMigrate.ts'
 import {testMutationResult} from './integration/TestMutationResult.ts'
 import {testPreparedQuery} from './integration/TestPreparedQuery.ts'
 import {testPush} from './integration/TestPush.ts'
@@ -56,6 +57,7 @@ export function testDriver(db: Database, test: DefineTest<any>, label: string) {
   testUpdate(db, prefixed)
   testViews(db, prefixed)
   testInspect(db, prefixed)
+  testMigrate(db, prefixed)
   if (db.driver.supportsTransactions) {
     testTransactions(db, prefixed)
     testPush(db, prefixed)

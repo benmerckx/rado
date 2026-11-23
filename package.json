@@ -75,5 +75,17 @@
     "sql.js": "^1.14.1",
     "sqlite3": "^6.0.1",
     "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "@electric-sql/pglite": ">=0.5.4",
+    "mysql-wasm": ">=0.4.0"
+  },
+  "peerDependenciesMeta": {
+    "@electric-sql/pglite": {
+      "optional": true
+    },
+    "mysql-wasm": {
+      "optional": true
+    }
   }
 }

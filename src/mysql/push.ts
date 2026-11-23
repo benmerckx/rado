@@ -5,7 +5,7 @@ import {columns, foreignKey, foreignKeyChanges} from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
 import {
   type Push,
-  type PushOptions,
+  type PlanOptions,
   type Runner,
   type Step,
   createPush,
@@ -94,7 +94,7 @@ function* dependents(tx: Database, schema: string, name: string) {
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions,
+  options: PlanOptions,
   tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const base = yield* home(tx)
@@ -121,7 +121,8 @@ function* plan(
     renamed,
     home: base,
     schema,
-    tables
+    tables,
+    assume: options.assume
   })
 }
 
@@ -147,6 +148,7 @@ interface Plan {
   home: string
   schema: string
   tables: Array<TableApi>
+  assume?: boolean
 }
 
 // All changes go into one alter table, which MySQL applies atomically
@@ -158,7 +160,8 @@ function* changes({
   renamed,
   home,
   schema,
-  tables
+  tables,
+  assume
 }: Plan): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -184,8 +187,10 @@ function* changes({
     widens,
     source,
     // A column seen empty can fill up before the alter table runs
-    unchecked:
-      "MySQL can't keep writers out while it checks the data, pass force"
+    unchecked: assume
+      ? undefined
+      : "MySQL can't keep writers out while it checks the data, pass force",
+    assume
   })
   const primary = desired.constraints.primary
   const primaryChanged = live.constraints.primary !== primary

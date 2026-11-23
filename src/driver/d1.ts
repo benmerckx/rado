@@ -55,8 +55,12 @@ export class D1Driver implements AsyncDriver {
 
   constructor(private client: Client) {}
 
+  // D1 runs each line as a statement, so blank and comment lines go
   async exec(query: string) {
-    await this.client.exec(query)
+    const lines = query
+      .split('\n')
+      .filter(line => line.trim() && !line.trim().startsWith('--'))
+    if (lines.length > 0) await this.client.exec(lines.join('\n'))
   }
 
   prepare(sql: string, options?: PrepareOptions): PreparedStatement {

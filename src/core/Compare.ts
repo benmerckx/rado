@@ -26,6 +26,9 @@ export interface Comparison {
   source?: (name: string) => string
   // Why rows can't be checked, drops and narrowing then always count
   unchecked?: string
+  // Count every column as holding values and nulls, for a database without
+  // rows such as the shadow generate uses
+  assume?: boolean
 }
 
 export interface Changes {
@@ -47,7 +50,8 @@ export function* compare({
   desired,
   widens,
   source = name => name,
-  unchecked
+  unchecked,
+  assume = false
 }: Comparison): Gen<Changes> {
   let found: boolean | undefined
   const hasRows = function* () {
@@ -71,9 +75,10 @@ export function* compare({
     return exists(tx, target, missing ? isNull(column) : isNotNull(column))
   }
   const loses = function* (name: string) {
-    return unchecked || (yield* holds(name, false))
+    return assume || unchecked || (yield* holds(name, false))
   }
   const note = unchecked ? ` (${unchecked})` : ''
+  const data = assume ? '' : ' with data'
   for (const name of added) {
     const column = after[name]
     if (
@@ -87,8 +92,7 @@ export function* compare({
       )
   }
   for (const name of dropped)
-    if (yield* loses(name))
-      risks[name] = `drop column "${name}"${note || ' with data'}`
+    if (yield* loses(name)) risks[name] = `drop column "${name}"${note || data}`
   for (const name of changed) {
     const from = before[name]
     const to = after[name]
@@ -99,7 +103,7 @@ export function* compare({
     )
       risks[name] =
         `change column "${name}" from ${from.type} to ${to.type}${note}`
-    if (to.notNull && !from.notNull && (yield* holds(name, true)))
+    if (to.notNull && !from.notNull && (assume || (yield* holds(name, true))))
       nulls[name] = `make column "${name}" not null over null values`
   }
   return {hasRows, dropped, added, changed, risks, nulls}
