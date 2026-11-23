@@ -22,10 +22,12 @@ const Unique = table(
   t => ({gen_code_key: uniqueIndex().on(t.code)})
 )
 const Ref = table('gen_ref', {id: id(), code: integer()})
+const Plain = table('gen_mooded', {id: integer()})
 const Linked = table('gen_ref', {
   id: id(),
   code: integer().references(() => Code.id)
 })
+const OnlyId = table('gen_user', {id: id()})
 const Extra = table('gen_user', {
   id: id(),
   fullName: text('full_name'),
@@ -66,6 +68,11 @@ function testGenerate<D extends QueryDialect>(
     const keys = await generate(keyed, {Code: Unique, Ref: Linked})
     test.equal(keys.includes('-- Adds unique key "gen_code_key", fails'), true)
     test.equal(keys.includes('-- Adds foreign key'), true)
+    // One comment line per risk of a statement
+    const both = await generate(first, {User: OnlyId})
+    test.equal(both.includes('-- Drops column "name"'), true)
+    test.equal(both.includes('-- Drops column "bio"'), true)
+    if (label === 'mysql') test.equal(/-- [^\n]*\n-- /.test(both), true)
   })
 }
 
@@ -124,12 +131,48 @@ if (!isDeno) {
     const Archive = app.table('gen_archive', {id: id()})
     // Push creates the schema a new table is in
     const init = await generate({}, {User, Note, Archive})
-    test.equal(init.includes('create schema "gen_app";'), true)
+    test.equal(init.includes('create schema if not exists "gen_app";'), true)
     const literal = `'see "public".x'`
     test.equal(init.includes(literal), true)
     test.equal(/"?public"?\./.test(init.replace(literal, '')), false)
     test.equal(init.includes('"gen_app"."gen_archive"'), true)
     test.equal(await generate({'0001.sql': init}, {User, Note, Archive}), '')
+  })
+
+  test('postgres: generate a schema for an enum', async () => {
+    const {generate} = await import('#/postgres/generate.ts')
+    const zz = pgSchema('gen_zz')
+    const Mooded = table('gen_mooded', {
+      id: integer(),
+      mood: zz.enum('gen_mood', ['a'])()
+    })
+    const init = await generate({}, {Mooded})
+    const schema = init.indexOf('create schema if not exists "gen_zz";')
+    test.equal(schema >= 0 && schema < init.indexOf('gen_mood'), true)
+    test.equal(await generate({'0001.sql': init}, {Mooded}), '')
+    // An existing table with a new enum column gets the schema too
+    const first = {'0001.sql': await generate({}, {Plain})}
+    const next = await generate(first, {Plain: Mooded})
+    test.equal(next.startsWith('create schema if not exists "gen_zz";'), true)
+  })
+
+  test('postgres: generate needs an empty shadow', async () => {
+    const {generate} = await import('#/postgres/generate.ts')
+    const {PGlite} = await import('@electric-sql/pglite')
+    const {connect} = await import('#/driver/pglite.ts')
+    for (const statement of [
+      "create type gen_kind as enum ('a')",
+      'create sequence gen_seq',
+      'create schema gen_other'
+    ]) {
+      const shadow = connect(new PGlite())
+      await shadow.run(sql.unsafe(statement))
+      test.equal(
+        await failure(() => generate({}, {User}, {shadow})),
+        'Expected an empty database'
+      )
+      await shadow.close()
+    }
   })
 
   test('postgres: generate serial to identity', async () => {
@@ -176,3 +219,46 @@ if (!isDeno) {
     test.equal(/`[^`]*`\.`/.test(first['0001_init.sql'] + next), false)
   })
 }
+
+test('sqlite: generate rebuild comments', async () => {
+  const {generate} = await import('#/sqlite/generate.ts')
+  const {text: sqliteText, integer: sqliteInteger} = await import('#/sqlite.ts')
+  // Only nullability changes, the unique key stays
+  const Loose = table('gen_tag', {
+    code: sqliteText().unique(),
+    note: sqliteText()
+  })
+  const Strict = table('gen_tag', {
+    code: sqliteText().unique(),
+    note: sqliteText().notNull().default('x')
+  })
+  const first = {'0001.sql': await generate({}, {Loose})}
+  const strict = await generate(first, {Loose: Strict})
+  test.equal(strict.includes('Adds unique key'), false)
+  test.equal(strict.includes('sqlite_autoindex'), false)
+  // Every risk of the rebuild above its insert
+  const Slim = table('gen_tag', {
+    code: sqliteText().unique().notNull().default('x')
+  })
+  const slim = await generate(first, {Loose: Slim})
+  test.equal(
+    /-- Drops column "note"\n-- Makes column "code" not null over null values\ninsert into/.test(
+      slim
+    ),
+    true
+  )
+  // A column that becomes the rowid may change it, the shadow can't tell
+  const Hidden = table('gen_rowid', {n: sqliteInteger(), v: sqliteText()})
+  const Promoted = table('gen_rowid', {
+    n: sqliteInteger().primaryKey(),
+    v: sqliteText()
+  })
+  const rowids = await generate(
+    {'0001.sql': await generate({}, {Hidden})},
+    {Hidden: Promoted}
+  )
+  test.equal(
+    rowids.includes('-- Changes the rowids of "gen_rowid" to "n"'),
+    true
+  )
+})

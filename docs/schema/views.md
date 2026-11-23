@@ -102,7 +102,7 @@ See [PostgreSQL schemas & enums](postgres-schemas-and-enums.md).
 
 Views participate in `db.create` and `db.drop` like tables. `db.create`
 creates them after every table, and a view after the views its query reads
-from; `db.drop` runs in reverse:
+from, found from its `from` and joins; `db.drop` runs in reverse:
 
 ```ts
 await db.create(User, ActiveUsers)

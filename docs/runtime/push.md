@@ -25,7 +25,10 @@ the arguments, and module namespaces list their exports alphabetically:
 2. tables, referenced tables before the tables that reference them. Tables
    whose foreign keys form a cycle keep the order given among themselves, and
    the tables around them are still ordered
-3. views, a view after the views its query reads from
+3. views, a view after the views its query reads from: the targets of its
+   `from`, joins, unions and subqueries. A view defined from raw `sql` is
+   matched by the names in it, leaving out names after a `.` or `as`. Views
+   can't form a cycle, that is an error
 
 Where nothing depends on anything, the order given is kept.
 
@@ -34,6 +37,9 @@ Where nothing depends on anything, the order given is kept.
 ```ts
 await db.drop(schema)
 ```
+
+A `pgSchema` in a schema object is created but not dropped: its drop
+cascades to everything in it, so pass it to `db.drop` directly to drop it.
 
 ## Pushing changes with `push`
 

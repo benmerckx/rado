@@ -176,9 +176,11 @@ no `force` option:
 Tables in the shadow's own schema, `public` on PGlite, are written without a
 schema, and so are serial sequences. Such a file applies to the first schema
 in the `search_path` of the database it runs on. Tables in another schema
-keep theirs, and push and generate create a schema that doesn't exist yet,
-so a table in a new `pgSchema` needs no hand-written `create schema`. On
-MySQL the database name is left out the same way.
+keep theirs. Push and generate create a schema that doesn't exist yet, for a
+new table or an enum, with `create schema if not exists`, so a table in a new
+`pgSchema` needs no hand-written `create schema` and the file still runs
+where the schema exists. On MySQL the database name is left out the same
+way.
 
 On SQLite a change `alter table` can't make rebuilds the table, see
 [SQLite table rebuilds](push.md#sqlite-table-rebuilds). A generated rebuild
@@ -221,10 +223,16 @@ finds nothing left to run.
   `foreign_keys` pragma does nothing inside a transaction, so `migrate` turns
   it off around the run, as SQLite's own rebuild procedure does, and fails
   with `Migrations would violate foreign key constraints` before commit if
-  the run broke a reference. Inside your own transaction keys can't be
-  turned off, so there `migrate` refuses with
+  the run broke a reference. Where keys stay on anyway, inside your own
+  transaction, `migrate` refuses with
   `Cannot migrate with foreign keys enforced`: run it outside, or turn keys
-  off first. A waiting process needs a busy timeout to wait at all:
+  off first. libsql runs a transaction on a connection of its own, where the
+  pragma of the client's connection doesn't apply: keys there follow that
+  connection's default, and when they are on `migrate` refuses the same way.
+  That is how the code handles it; it was tested on a local database, not
+  against a remote server. With nothing pending `migrate` returns before
+  any of this, so it doesn't scan the keys at every start. A waiting process
+  needs a busy timeout to wait at all:
   bun:sqlite's default is 0, so set `pragma busy_timeout = 5000` or similar
   when processes may migrate at the same time.
 - MySQL commits implicitly after each DDL statement, so a run can't be rolled
@@ -236,17 +244,17 @@ finds nothing left to run.
   `Cannot migrate inside a MySQL transaction`.
 - Drivers without transactions, such as Cloudflare D1, run the files in
   order without a lock, recording each after it succeeds. Make sure only one
-  process migrates at a time. D1 runs each line of a file as one statement,
-  so blank lines and comment lines outside string literals and block
-  comments are left out, with LF or CRLF line endings, and every statement
-  must fit on one line. Generate writes its own statements that way, but a
-  SQLite rebuild recreates views and triggers as they were stored: put those
-  on one line before running the file on D1.
+  process migrates at a time. D1 runs each line of a script as one
+  statement, so rado puts every statement on a line of its own: comments go
+  and line breaks outside string literals become spaces, with LF or CRLF
+  line endings. A trigger body stays one statement. A line break inside a
+  string literal can't be kept on D1, write it as `char(10)` there. A
+  failing file's error includes the reason D1 gives.
 - Cloudflare D1 and Durable Objects always enforce foreign keys, so turning
-  them off doesn't take. There, rebuilding a table that another table
-  references with `on delete cascade` deletes the referencing rows, deferred
-  keys or not. Push refuses such a rebuild, and `migrate` runs it, so review
-  a generated one before running it there.
+  them off doesn't take, and `migrate` runs anyway. There, rebuilding a
+  table that another table references with `on delete cascade` deletes the
+  referencing rows, deferred keys or not. Push refuses such a rebuild, and
+  `migrate` runs it, so review a generated one before running it there.
 
 Some drivers can't send several statements in one call:
 

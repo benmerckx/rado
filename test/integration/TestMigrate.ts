@@ -173,6 +173,33 @@ export function testMigrate(db: Database, test: DefineTest) {
         })
       ))
 
+    test('migrate skips foreign keys with nothing pending', async () => {
+      await fixture(reset, async () => {
+        await migrate(db, files)
+        // A key that references no unique column breaks foreign_key_check
+        await db.run(sql`create table mig_c (id integer)`)
+        await db.run(
+          sql`create table mig_user (c integer references mig_c (id))`
+        )
+        test.equal(await migrate(db, files), [])
+      })
+    })
+
+    // Either the driver can't nest it or keys stay on, it never runs. libsql
+    // transactions take a connection of their own, with its own keys
+    if (db.driver.constructor.name !== 'LibSQLClient')
+      test('migrate refuses a raw transaction with foreign keys on', () =>
+        keys(() =>
+          fixture(reset, async () => {
+            await db.run(sql`pragma foreign_keys = on`)
+            await db.run(sql`begin`)
+            const error = await failure(() => migrate(db, files))
+            await failure(() => db.run(sql`rollback`))
+            test.equal(error !== '', true)
+            test.equal((await failure(() => db.select(A).from(A))) !== '', true)
+          })
+        ))
+
     test('migrate checks foreign keys', async () => {
       await fixture(reset, async () => {
         const orphan = {

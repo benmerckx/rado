@@ -12,8 +12,8 @@ test('lines puts each statement on a line', () => {
 
 test('lines keeps literals and quoted names', () => {
   test.equal(
-    lines("insert into t values ('a;\n-- b');\nselect \"x;y\", [z;];"),
-    "insert into t values ('a;\n-- b');\nselect \"x;y\", [z;];"
+    lines('insert into t values (\'a;\n-- b\');\nselect "x;y", [z;];'),
+    'insert into t values (\'a;\n-- b\');\nselect "x;y", [z;];'
   )
 })
 

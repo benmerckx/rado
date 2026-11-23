@@ -33,6 +33,10 @@ await db.create(app, User) // create schema if not exists "app"; create table ..
 await db.drop(app) // drop schema if exists "app" cascade
 ```
 
+`db.drop` only drops a schema passed to it directly. Exported next to its
+tables, `db.drop(schema)` with `import * as schema` drops the tables and
+leaves the schema, since dropping it cascades to whatever else it holds.
+
 Everything a schema can contain:
 
 ```ts

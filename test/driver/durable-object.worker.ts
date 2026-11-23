@@ -40,6 +40,7 @@ const unsupported = new Set([
   'generate rebuild keeps referencing rows',
   'migrate inside a transaction with foreign keys on',
   'migrate checks foreign keys',
+  'migrate refuses a raw transaction with foreign keys on',
   'inspect reads indexes of a shadowed name',
   'multiple pushes',
   'push index modifications',
