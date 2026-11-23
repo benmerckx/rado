@@ -68,6 +68,11 @@ function check(
   test.equal(actual.map(plain), expected)
 }
 
+// Drivers that send numbers as String(n) turn -0 into 0, others keep it
+export function signless(actual: unknown, expected: unknown): boolean {
+  return actual === expected
+}
+
 export function float32(actual: unknown, expected: unknown): boolean {
   return typeof actual === 'number' && Math.fround(actual) === expected
 }
@@ -259,7 +264,7 @@ export function universalCases(options: Limits = {}) {
     integer: field(universal.integer(), ints(-2147483648, 2147483647), {
       expect: n => n + 0
     }),
-    number: field(universal.number(), doubles(), {expect: n => n + 0}),
+    number: field(universal.number(), doubles(), {same: signless}),
     boolean: field(universal.boolean(), gs.booleans()),
     json: field(universal.json<Json>(), json(options), {
       expect: value => JSON.parse(JSON.stringify(value))

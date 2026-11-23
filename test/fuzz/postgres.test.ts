@@ -6,7 +6,8 @@ const test = suite(import.meta)
 if (!isDeno) {
   const {gs, field, fuzz, close, ints, bigints, doubles, strings, bytes} =
     await import('./Fuzz.ts')
-  const {json, dates, days, float32, universalCases} = await import('./Fuzz.ts')
+  const {json, dates, days, float32, signless, universalCases} =
+    await import('./Fuzz.ts')
   const pg = await import('#/postgres.ts')
   const drivers = await import('#/driver.ts')
   type Target = import('./Fuzz.ts').Target
@@ -49,8 +50,7 @@ if (!isDeno) {
         {expect: n => n + 0}
       ),
       bigint: field(pg.bigint(), bigints(-(2n ** 63n), 2n ** 63n - 1n)),
-      // pg, postgres-js and PGlite send numbers as String(n), which is '0' for -0
-      double: field(pg.doublePrecision(), doubles(), {expect: n => n + 0}),
+      double: field(pg.doublePrecision(), doubles(), {same: signless}),
       real: field(
         pg.real(),
         gs.floats({width: 32, allowNan: false, allowInfinity: false}),

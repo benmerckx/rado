@@ -7,7 +7,7 @@ const test = suite(import.meta)
 if (!isDeno) {
   const {gs, field, fuzz, close, ints, bigints, doubles, strings, bytes, json} =
     await import('./Fuzz.ts')
-  const {dates, days, universalCases} = await import('./Fuzz.ts')
+  const {dates, days, signless, universalCases} = await import('./Fuzz.ts')
   const mysql = await import('#/mysql.ts')
   const drivers = await import('#/driver.ts')
 
@@ -79,9 +79,8 @@ if (!isDeno) {
         gs.floats({width: 32, allowNan: false, allowInfinity: false}),
         {same: sixDigits}
       ),
-      // MySQL stores -0 as 0
-      double: field(mysql.double(), doubles(), {expect: n => n + 0}),
-      real: field(mysql.real(), doubles(), {expect: n => n + 0}),
+      double: field(mysql.double(), doubles(), {same: signless}),
+      real: field(mysql.real(), doubles(), {same: signless}),
       decimal: field(mysql.decimal({precision: 30, scale: 10}), decimals, {
         expect: value => canonical(value, 10)
       }),
