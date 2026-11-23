@@ -1,11 +1,5 @@
 import {foreignKeys, key} from './ForeignKey.ts'
-import {
-  type HasCreate,
-  type HasDrop,
-  getTable,
-  hasQuery,
-  hasTable
-} from './Internal.ts'
+import {type HasCreate, type HasDrop, getTable, hasTable} from './Internal.ts'
 import type {TableApi} from './Table.ts'
 
 // The tables among an object's values, each once
@@ -60,32 +54,19 @@ export function order(tables: Array<TableApi>): Array<TableApi> {
 type Member = HasCreate & HasDrop
 
 // Arguments are definitions or schema objects whose definitions are picked
-// out. Schemas and enums go first, then tables with referenced tables first,
-// then views. A foreign key cycle keeps the tables in the order given.
+// out, in the order given
 export function members(
   input: Array<object>,
   has: (value: object) => boolean
 ): Array<Member> {
-  const values = input.flatMap(value =>
-    has(value) ? [value] : Object.values(value).filter(isObject).filter(has)
-  )
-  const seen = new Set<object>()
   const found: Array<TableApi> = []
-  const byApi = new Map<TableApi, Member>()
-  const others: Array<Member> = []
-  const views: Array<Member> = []
-  for (const value of values as Array<Member>) {
-    if (seen.has(value)) continue
-    seen.add(value)
-    if (hasTable(value)) {
-      const api = getTable(value)
-      if (add(found, api)) byApi.set(api, value)
-    } else if (hasQuery(value)) views.push(value)
-    else others.push(value)
+  const result: Array<Member> = []
+  for (const value of input.flatMap(value =>
+    has(value) ? [value] : Object.values(value).filter(isObject).filter(has)
+  ) as Array<Member>) {
+    if (result.includes(value)) continue
+    if (hasTable(value) && !add(found, getTable(value))) continue
+    result.push(value)
   }
-  let sorted = found
-  try {
-    sorted = order(found)
-  } catch {}
-  return [...others, ...sorted.map(api => byApi.get(api)!), ...views]
+  return result
 }

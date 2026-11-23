@@ -63,10 +63,10 @@ a data fix. Statements that may lose data come with a comment line above
 them:
 
 ```sql
-alter table "public"."user" rename column "name" to "full_name";
+alter table "user" rename column "name" to "full_name";
 
 -- Drops column "bio"
-alter table "public"."user" drop column "bio";
+alter table "user" drop column "bio";
 ```
 
 Push can't tell a renamed column from a dropped one and a new one, so pass

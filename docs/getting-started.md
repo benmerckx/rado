@@ -88,9 +88,9 @@ More on all of this in [Tables](schema/tables.md).
 db.create(User, Post)
 ```
 
-`db.create` emits `create table` (and any index) statements. For evolving an
-existing database to match your schema, there's `push`. See
-[Schema push](runtime/push.md).
+`db.create` emits `create table` (and any index) statements. To evolve a
+database as your schema changes, use [push](runtime/push.md) during
+development or versioned [migrations](runtime/migrations.md) in production.
 
 ## Insert some rows
 

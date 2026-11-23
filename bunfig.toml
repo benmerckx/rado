@@ -1,3 +1,0 @@
-[test]
-# Generate starts a PGlite or mysql-wasm shadow, which takes a few seconds
-timeout = 20000

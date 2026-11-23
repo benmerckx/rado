@@ -80,7 +80,7 @@ export class Database<Meta extends QueryMeta = Either>
   }
 
   drop(...input: Array<HasDrop | object>): BatchQuery<unknown, Meta> {
-    const queries = members(input, hasDrop).toReversed().flatMap(getDrop)
+    const queries = members(input, hasDrop).flatMap(getDrop)
     return new BatchQuery(getResolver(this), queries)
   }
 

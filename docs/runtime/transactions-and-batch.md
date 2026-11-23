@@ -115,5 +115,6 @@ await db.drop(ActiveUsers, Post, User)
 await db.create(schema) // import * as schema from './schema.ts'
 ```
 
-Tables are created in foreign key order and views after tables; `db.drop`
-runs in reverse. See [Schema push](push.md).
+Everything is created in the order given, and a schema object in the order
+of its exports. List referenced tables first, and drop in the opposite order.
+`push` sorts tables by foreign key itself. See [Schema push](push.md).

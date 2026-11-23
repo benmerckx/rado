@@ -21,6 +21,7 @@ function testGenerate(
     const init = await generate({}, {User}, {shadow})
     test.equal(init.startsWith('create table'), true)
     test.equal(init.endsWith(';'), true)
+    test.equal(init.includes('"public".'), false)
     // A passed shadow is left open, and is no longer empty
     test.equal(
       await failure(() => generate({}, {User}, {shadow})),

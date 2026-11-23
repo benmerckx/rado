@@ -574,14 +574,14 @@ export function testPush(db: Database, test: DefineTest) {
   })
 
   test('create and drop take schema objects', async () => {
-    const schema = {Post, Author, other: 1}
+    const schema = {Author, Post, other: 1}
     await fixture(drop(Post, Author, UserA), async () => {
       await db.create(schema, UserA)
       await db.insert(Author).values({id: 1})
       await db.insert(Post).values({id: 1, author: 1})
       test.equal(await db.$count(Post), 1)
-      await db.drop(schema)
-      await db.create({Post, alias: alias(Post, 'p')}, Author)
+      await db.drop({Post, Author})
+      await db.create(Author, {Post, alias: alias(Post, 'p')})
       await db.drop(Post, {Author})
       test.equal(await db.$count(UserA), 0)
     })
