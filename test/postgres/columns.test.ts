@@ -48,6 +48,7 @@ test('pg date mapping', () => {
   const dateDate = pg.date(undefined, {mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
   test.equal(mapFrom(pg.date(), '2020-01-01'), '2020-01-01')
+  test.equal(mapFrom(dateStr, new Date('0999-12-31')), '0999-12-31')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
   const mapped = mapFrom(dateDate, '2020-01-01')
   if (!(mapped instanceof Date)) throw new Error('Expected Date')
@@ -82,6 +83,11 @@ test('pg timestamp mapping', () => {
 })
 
 test('pg timestamp parsing', () => {
+  const text = pg.timestamp({mode: 'string'})
+  const zonedText = pg.timestamp({mode: 'string', withTimeZone: true})
+  const date = new Date('2000-01-01T00:00:00.120Z')
+  test.equal(mapFrom(text, date), '2000-01-01 00:00:00.12')
+  test.equal(mapFrom(zonedText, new Date(0)), '1970-01-01 00:00:00+00')
   const zoned = pg.timestamp({withTimeZone: true})
   const plain = pg.timestamp()
   const parse = (column: typeof plain, value: string) =>

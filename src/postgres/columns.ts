@@ -81,18 +81,8 @@ function formatLine(value: LineTuple | LineABC | string): string {
   return `{${value.a},${value.b},${value.c}}`
 }
 
-function pad2(value: number): string {
-  return String(value).padStart(2, '0')
-}
-
-function pad3(value: number): string {
-  return String(value).padStart(3, '0')
-}
-
 function formatDateString(value: Date): string {
-  return `${value.getUTCFullYear()}-${pad2(value.getUTCMonth() + 1)}-${pad2(
-    value.getUTCDate()
-  )}`
+  return value.toISOString().slice(0, 10)
 }
 
 const TIMESTAMP =
@@ -120,12 +110,12 @@ function parseTimestamp(value: string): Date {
   return new Date(date.getTime() - (sign === '-' ? -offset : offset) * 1000)
 }
 
+// Matches how postgres prints timestamps for drivers that parse them to Dates
 function formatTimestampString(value: Date, withTimeZone: boolean): string {
-  const date = formatDateString(value)
-  const time = `${pad2(value.getUTCHours())}:${pad2(
-    value.getUTCMinutes()
-  )}:${pad2(value.getUTCSeconds())}.${pad3(value.getUTCMilliseconds())}`
-  return withTimeZone ? `${date} ${time}+00` : `${date} ${time}`
+  const iso = value.toISOString()
+  const fraction = iso.slice(19, 23).replace(/\.?0+$/, '')
+  const time = `${iso.slice(0, 10)} ${iso.slice(11, 19)}${fraction}`
+  return withTimeZone ? `${time}+00` : time
 }
 
 function parsePgArrayValue(input: string): Array<unknown> {
