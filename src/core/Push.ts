@@ -29,9 +29,9 @@ export interface Push<D extends QueryDialect = QueryDialect> {
   ): Deliver<Meta, Array<string>>
 }
 
-// Generate plans without rows to check, see Comparison.assume
+// Generate plans without rows to check, see Comparison.capture
 export interface PlanOptions extends PushOptions {
-  assume?: boolean
+  capture?: boolean
 }
 
 export interface Step {
@@ -101,7 +101,7 @@ export function createPush<R extends Runtime>(
 ): Push<R> {
   const go: Run = (db, schema, mode, options = {}) => {
     const dry = mode === 'plan'
-    const assume = mode === 'capture'
+    const capturing = mode === 'capture'
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
     if (!db.driver.supportsTransactions)
@@ -122,9 +122,9 @@ export function createPush<R extends Runtime>(
         function* (tx, execute, check) {
           const result: Array<Statement> = []
           for (const api of ordered) {
-            const steps = yield* planner(tx, api, {...options, assume}, ordered)
+            const steps = yield* planner(tx, api, {...options, capture: capturing}, ordered)
             const risky =
-              !options.force && !assume && steps.find(step => step.risk)
+              !options.force && !capturing && steps.find(step => step.risk)
             if (risky && !dry)
               throw new Error(
                 `Push would ${risky.risk}: ${db.dialect.inline(risky.sql)}`

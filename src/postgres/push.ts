@@ -90,7 +90,7 @@ function* dependents(tx: Database, oid: number) {
 // home schema runs under any search_path
 function scope(options: PlanOptions, home: string) {
   return (schema: string): string | undefined =>
-    options.assume && schema === home ? undefined : schema
+    options.capture && schema === home ? undefined : schema
 }
 
 const at = (schema: string | undefined, name: Sql): Sql =>
@@ -238,7 +238,7 @@ function* changes({
     live,
     desired,
     widens,
-    assume: options.assume
+    capture: options.capture
   })
   const wanted = new Set(Object.values(desired.constraints))
   const present = new Set(Object.values(live.constraints))

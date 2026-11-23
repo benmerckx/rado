@@ -1,4 +1,6 @@
-import {integer, varchar} from '../universal/columns.ts'
+import {Master as master} from '../sqlite/catalog.ts'
+import {unenforced} from '../sqlite/keys.ts'
+import {varchar} from '../universal/columns.ts'
 import type {Database} from './Database.ts'
 import {eq, inArray, notLike} from './expr/Conditions.ts'
 import {getTable} from './Internal.ts'
@@ -35,24 +37,12 @@ interface Migration {
   checksum: string
 }
 
+const Master = master('main', 'sqlite_master')
+
 const History = table('rado_migrations', {
   name: varchar('name', {length: 255}).primaryKey(),
   checksum: varchar('checksum', {length: 16}).notNull(),
   appliedAt: varchar('applied_at', {length: 32}).notNull()
-})
-
-const Master = table('sqlite_master', {
-  type: varchar().notNull(),
-  name: varchar().notNull()
-})
-
-const Keys = table('pragma_foreign_keys', {foreign_keys: integer()})
-
-const Violations = table('pragma_foreign_key_check', {
-  table: varchar(),
-  rowid: integer(),
-  parent: varchar(),
-  fkid: integer()
 })
 
 const Tables = schema('information_schema').table('tables', {
@@ -188,8 +178,12 @@ function* run(
   migrations: Array<Migration>,
   options: MigrateOptions
 ): Gen<Array<string>> {
-  const single = db.driver.singleStatement
-  if (single) throw new Error(single)
+  if (db.driver.multipleStatements === false)
+    throw new Error(
+      db.dialect.runtime === 'mysql'
+        ? 'Migrations need multipleStatements: true'
+        : 'Migrate over the websocket Pool, Neon HTTP runs one statement per query'
+    )
   if (!db.driver.supportsTransactions)
     return yield* apply(db, migrations, options, true)
   switch (db.dialect.runtime) {
@@ -207,44 +201,18 @@ function* run(
   }
 }
 
-// The foreign_keys pragma is a no-op inside a transaction, where a table
-// rebuild would cascade to the rows that reference it. So keys are off
-// around the run, as SQLite's own rebuild procedure has it, and checked before
-// commit. An immediate transaction keeps other writers out.
-function* sqlite(
+// Keys are off while the files run, so a rebuilt table doesn't cascade to
+// the rows that reference it
+function sqlite(
   db: Database,
   migrations: Array<Migration>,
   options: MigrateOptions
 ): Gen<Array<string>> {
-  const [on] = yield* db.select(Keys.foreign_keys).from(Keys)
-  if (on) yield db.run(sql`pragma foreign_keys = off`)
-  try {
-    return yield* result(
-      transaction(
-        db,
-        function* (tx) {
-          const before = yield* violations(tx)
-          const ran = yield* apply(tx, migrations, options, false)
-          // Counted, only what the run breaks fails it
-          for (const key of yield* violations(tx)) {
-            const index = before.indexOf(key)
-            if (index < 0)
-              throw new Error('Migrations would violate foreign keys')
-            before.splice(index, 1)
-          }
-          return ran
-        },
-        {behavior: 'immediate'}
-      )
-    )
-  } finally {
-    if (on) yield db.run(sql`pragma foreign_keys = on`)
-  }
-}
-
-function* violations(db: Database): Gen<Array<string>> {
-  const rows = yield* db.select(Violations).from(Violations)
-  return rows.map(row => Object.values(row).join())
+  return unenforced(db, 'Migrations', function* (tx, {locked, always}) {
+    if (locked && !always)
+      throw new Error('Cannot migrate with foreign keys enforced')
+    return yield* apply(tx, migrations, options, false)
+  })
 }
 
 // DDL commits implicitly, so each file is recorded as soon as it ran and the
@@ -260,15 +228,21 @@ function* mysql(
   } catch {
     throw new Error('Cannot migrate inside a MySQL transaction')
   }
-  const name = sql.inline(getTable(History).name)
+  // Lock names are server wide, at most 64 characters
+  const name = sql`left(concat('rado_migrations.', database()), 64)`
   return yield* result(
     transaction(db, function* (tx) {
       yield tx.run(sql`commit`)
-      yield* tx.select(sql`get_lock(${name}, -1)`)
+      const [locked] = yield* tx.select(sql<unknown>`get_lock(${name}, -1)`)
+      if (Number(locked) !== 1) throw new Error('Cannot lock migrations')
       try {
         return yield* apply(tx, migrations, options, true)
       } finally {
-        yield* tx.select(sql`release_lock(${name})`)
+        // The lock goes with the connection anyway, an error here would hide
+        // the one that ended the run
+        try {
+          yield* tx.select(sql`release_lock(${name})`)
+        } catch {}
       }
     })
   )

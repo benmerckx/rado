@@ -53,11 +53,13 @@ export function testMigrate(db: Database, test: DefineTest) {
   const names = () =>
     db.select(History.name).from(History).orderBy(History.name)
 
-  if (db.driver.singleStatement) {
+  if (db.driver.multipleStatements === false) {
     test('migrate refuses single statement drivers', async () => {
       test.equal(
         await failure(() => migrate(db, files)),
-        db.driver.singleStatement
+        db.dialect.runtime === 'mysql'
+          ? 'Migrations need multipleStatements: true'
+          : 'Migrate over the websocket Pool, Neon HTTP runs one statement per query'
       )
     })
     return

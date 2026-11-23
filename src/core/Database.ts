@@ -30,6 +30,7 @@ import {type Schema, members} from './Order.ts'
 import {BatchQuery, type SingleQuery} from './Queries.ts'
 import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'
+import {Rollback} from './Rollback.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {Table} from './Table.ts'
 
@@ -190,11 +191,7 @@ export interface TransactionOptions {
   }
 }
 
-export class Rollback<Data = never> extends Error {
-  constructor(public data: Data) {
-    super('Rollback')
-  }
-}
+export {Rollback}
 
 export class Transaction<Meta extends QueryMeta> extends Database<Meta> {
   rollback<Data>(data?: Data): never {

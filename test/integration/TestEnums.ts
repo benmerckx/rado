@@ -1,8 +1,25 @@
 import type {DefineTest} from '@alinea/suite'
 import {sql, table, type Database} from '#/index.ts'
-import {pgEnum} from '#/postgres.ts'
+import {pgEnum, pgSchema} from '#/postgres.ts'
 
 export function testEnums(db: Database, test: DefineTest) {
+  test('create a schema before its enums', async () => {
+    const zz = pgSchema('enum_zz')
+    // Namespaces list their keys alphabetically
+    const schema = {
+      Mood: zz.table('enum_mood', {state: zz.enum('enum_state', ['a'])()}),
+      state: zz.enum('enum_state', ['a']),
+      zz
+    }
+    try {
+      await db.create(schema)
+      await db.insert(schema.Mood).values({state: 'a'})
+      test.equal(await db.select(schema.Mood.state).from(schema.Mood), ['a'])
+    } finally {
+      await db.drop(schema)
+    }
+  })
+
   test('postgres enum create + insert', async () => {
     const mood = pgEnum('mood', ['sad', 'ok', 'happy'])
     const MoodTable = table('Mood', {state: mood().notNull()})

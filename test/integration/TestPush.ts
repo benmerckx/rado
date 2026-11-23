@@ -3,6 +3,7 @@ import type {Async} from '#/core/MetaData.ts'
 import {
   alias,
   type Database,
+  view,
   type Table,
   foreignKey,
   index,
@@ -583,13 +584,24 @@ export function testPush(db: Database, test: DefineTest) {
   })
 
   test('create and drop take schema objects', async () => {
-    // Namespaces list their keys alphabetically, the referencing table first
-    const schema = {Post, Author, other: 1}
-    await fixture(drop(Post, Author, UserA), async () => {
+    // Namespaces list their keys alphabetically, the referencing table and
+    // view first
+    const Authors = view('push_authors').as(
+      db.select({id: Author.id}).from(Author)
+    )
+    const Ids = view('push_ids').as(db.select({id: Authors.id}).from(Authors))
+    const schema = {Ids, Post, Authors, Author, other: 1}
+    const cleanup = async () => {
+      await db.drop(Ids, Authors)
+      await drop(Post, Author, UserA)()
+    }
+    await fixture(cleanup, async () => {
       await db.create(schema, UserA)
       await db.insert(Author).values({id: 1})
       await db.insert(Post).values({id: 1, author: 1})
       test.equal(await db.$count(Post), 1)
+      test.equal(await db.select(Ids.id).from(Ids), [1])
+      await db.drop({Authors, Ids})
       await db.drop({Author, Post})
       await db.create({Post, alias: alias(Post, 'p')}, Author)
       await db.drop(Author, {Post})

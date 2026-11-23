@@ -122,7 +122,7 @@ function* plan(
     home: base,
     schema,
     tables,
-    assume: options.assume
+    capture: options.capture
   })
 }
 
@@ -148,7 +148,7 @@ interface Plan {
   home: string
   schema: string
   tables: Array<TableApi>
-  assume?: boolean
+  capture?: boolean
 }
 
 // All changes go into one alter table, which MySQL applies atomically
@@ -161,7 +161,7 @@ function* changes({
   home,
   schema,
   tables,
-  assume
+  capture
 }: Plan): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -187,10 +187,10 @@ function* changes({
     widens,
     source,
     // A column seen empty can fill up before the alter table runs
-    unchecked: assume
+    unchecked: capture
       ? undefined
       : "MySQL can't keep writers out while it checks the data, pass force",
-    assume
+    capture
   })
   const primary = desired.constraints.primary
   const primaryChanged = live.constraints.primary !== primary

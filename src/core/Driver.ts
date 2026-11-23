@@ -11,8 +11,8 @@ export interface BatchedQuery {
 export interface DriverSpecs {
   parsesJson: boolean
   supportsTransactions: boolean
-  // Why exec can't run several statements at once, when it can't
-  singleStatement?: string
+  // False when exec can't run several statements at once
+  multipleStatements?: false
 }
 export interface PrepareOptions {
   isSelection: boolean

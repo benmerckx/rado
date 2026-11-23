@@ -18,6 +18,7 @@ import {type Sql, sql} from '../core/Sql.ts'
 import {type TableApi, table} from '../core/Table.ts'
 import {type Gen, scratch, within} from '../core/Transaction.ts'
 import {Master} from './catalog.ts'
+import {unenforced} from './keys.ts'
 import {integer, text} from './columns.ts'
 import {prefix, shape} from './shape.ts'
 
@@ -26,17 +27,6 @@ export type {PushOptions, Schema} from '../core/Push.ts'
 const Sequence = table('sqlite_sequence', {
   name: text().notNull(),
   seq: integer().notNull()
-})
-
-const Enforced = table('pragma_foreign_keys', {
-  foreign_keys: integer().notNull()
-})
-
-const Violations = table('pragma_foreign_key_check', {
-  table: text().notNull(),
-  rowid: integer(),
-  parent: text().notNull(),
-  fkid: integer().notNull()
 })
 
 const constant = /^(null|true|false|[-+\d.e]+|x?'([^']|'')*')$/i
@@ -91,7 +81,7 @@ function* plan(
     for (const [name, index] of Object.entries(api.indexes()))
       yield inner.run(getData(index).toSql(copy, prefix + name, false))
     const desired = (yield* shape(inner, copy, true))!
-    const found = yield* changes(inner, api, live, desired, options.assume)
+    const found = yield* changes(inner, api, live, desired, options.capture)
     return [...renamed, ...found]
   })
 }
@@ -101,7 +91,7 @@ function* changes(
   api: TableApi,
   live: Shape,
   desired: Shape,
-  assume?: boolean
+  capture?: boolean
 ): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -113,7 +103,7 @@ function* changes(
     live,
     desired,
     widens,
-    assume
+    capture
   })
   const sorted = (shape: Shape) =>
     Object.values(shape.constraints).toSorted().join()
@@ -145,7 +135,7 @@ function* changes(
       desired,
       hasRows,
       risk: Object.values({...risks, ...nulls})[0],
-      assume
+      capture
     })
   const indexes = api.indexes()
   const definition = (name: string) => api.columnDefinition(data[name].key)
@@ -174,7 +164,7 @@ interface Rebuild {
   desired: Shape
   hasRows: () => Gen<boolean>
   risk?: string
-  assume?: boolean
+  capture?: boolean
 }
 
 // https://www.sqlite.org/lang_altertable.html#otheralter
@@ -185,7 +175,7 @@ function* recreate({
   desired,
   hasRows,
   risk,
-  assume
+  capture
 }: Rebuild): Gen<Array<Step>> {
   const target = api.identifier()
   const temp = sql.identifier(prefix + api.name)
@@ -239,12 +229,12 @@ function* recreate({
   const names = [...(ids ? [into!] : []), ...copied]
   // Without a rowid or a column in common, there is nothing to copy rows by
   const lost = `drop the rows of "${api.name}", no column of them stays`
-  if (names.length === 0 && !assume && (yield* hasRows()))
+  if (names.length === 0 && !capture && (yield* hasRows()))
     throw new Error(`Cannot rebuild "${api.name}", no column of its rows stays`)
   const loses =
     risk ??
     (moves ? `change the rowids of "${api.name}" to "${alias}"` : undefined) ??
-    (names.length === 0 && assume ? lost : undefined)
+    (names.length === 0 && capture ? lost : undefined)
   const copy = names.length > 0
   const selection = [
     ...(ids ? [sql.identifier(from!)] : []),
@@ -264,7 +254,7 @@ function* recreate({
   return [
     // Keys can't be turned off inside a migration's transaction, deferred
     // they are checked at commit, after the table is back
-    ...(assume ? [{sql: sql`pragma defer_foreign_keys = on`}] : []),
+    ...(capture ? [{sql: sql`pragma defer_foreign_keys = on`}] : []),
     // Triggers first, a trigger on a view goes before its view
     ...triggers.map(row => ({
       sql: sql`drop trigger ${sql.identifier(row.name)}`
@@ -302,57 +292,16 @@ function* recreate({
   ]
 }
 
-function* enforced(db: Database): Gen<boolean> {
-  const [on] = yield* db.select(Enforced.foreign_keys).from(Enforced)
-  return Boolean(on)
-}
-
-// The foreign_keys pragma is a no-op inside a transaction, so it is turned
-// off around it and the keys are checked before commit. An immediate
-// transaction keeps writers out between the data checks and the changes.
-// A malformed foreign key, anywhere, makes the check itself fail
-function* violations(tx: Database, failure: string): Gen<Array<string>> {
-  try {
-    const rows = yield* tx.select(Violations).from(Violations)
-    return rows.map(row => Object.values(row).join())
-  } catch (error) {
-    throw new Error(`${failure}: ${(error as Error).message}`, {cause: error})
-  }
-}
-
-const runner: Runner = function* (db, apply, dry) {
-  const on = yield* enforced(db)
-  if (on) yield db.run(sql`pragma foreign_keys = off`)
-  try {
-    return yield* within(
-      db,
-      function* (tx) {
-        const locked = on && (yield* enforced(tx))
-        // Checked whether or not keys are enforced, and only what the push
-        // breaks fails it, so existing orphans elsewhere don't block it
-        const before = yield* violations(tx, 'Cannot check foreign keys')
-        const result = yield* apply(tx, true, steps => {
-          if (locked && steps.some(step => step.rebuild))
-            throw new Error('Cannot rebuild with foreign keys enforced')
-        })
-        // Counted, rows of a table without rowid can repeat the same key
-        for (const key of yield* violations(
-          tx,
-          'Push would break a foreign key'
-        )) {
-          const index = before.indexOf(key)
-          if (index < 0)
-            throw new Error('Push would violate foreign key constraints')
-          before.splice(index, 1)
-        }
-        return result
-      },
-      dry,
-      {behavior: 'immediate'}
-    )
-  } finally {
-    if (on) yield db.run(sql`pragma foreign_keys = on`)
-  }
-}
+const runner: Runner = (db, apply, dry) =>
+  unenforced(
+    db,
+    'Push',
+    (tx, {locked}) =>
+      apply(tx, true, steps => {
+        if (locked && steps.some(step => step.rebuild))
+          throw new Error('Cannot rebuild with foreign keys enforced')
+      }),
+    dry
+  )
 
 export const push: Push<'sqlite'> = createPush('sqlite', plan, runner)

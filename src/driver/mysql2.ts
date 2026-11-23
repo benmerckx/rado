@@ -93,12 +93,11 @@ export class Mysql2Driver implements AsyncDriver {
     private depth = 0
   ) {}
 
-  get singleStatement(): string | undefined {
+  get multipleStatements(): false | undefined {
     // A pool keeps the options of its connections apart
     const client = this.client as any
     const config = client.pool?.config.connectionConfig ?? client.config
-    if (!config?.multipleStatements)
-      return 'Migrations need multipleStatements: true'
+    if (!config?.multipleStatements) return false
   }
 
   async exec(query: string) {
