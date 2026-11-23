@@ -190,11 +190,11 @@ function* run(
 ): Gen<Array<string>> {
   const single = db.driver.singleStatement
   if (single) throw new Error(single)
-  if (db.dialect.runtime === 'sqlite')
-    return yield* sqlite(db, migrations, options)
   if (!db.driver.supportsTransactions)
     return yield* apply(db, migrations, options, true)
   switch (db.dialect.runtime) {
+    case 'sqlite':
+      return yield* sqlite(db, migrations, options)
     case 'postgres':
       return yield* result(
         transaction(db, function* (tx) {
@@ -219,8 +219,6 @@ function* sqlite(
   const [on] = yield* db.select(Keys.foreign_keys).from(Keys)
   if (on) yield db.run(sql`pragma foreign_keys = off`)
   try {
-    if (!db.driver.supportsTransactions)
-      return yield* apply(db, migrations, options, true)
     return yield* result(
       transaction(
         db,

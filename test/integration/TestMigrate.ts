@@ -141,7 +141,8 @@ export function testMigrate(db: Database, test: DefineTest) {
     })
   })
 
-  if (db.dialect.runtime === 'sqlite')
+  // D1 always enforces foreign keys, see docs/runtime/migrations.md
+  if (db.dialect.runtime === 'sqlite' && db.driver.supportsTransactions)
     test('generate rebuild keeps referencing rows', async () => {
       const [keys] = await db.select(Keys.foreign_keys).from(Keys)
       await fixture(reset, async () => {
