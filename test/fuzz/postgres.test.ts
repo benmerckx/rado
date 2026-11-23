@@ -1,19 +1,31 @@
 import {suite} from '@alinea/suite'
 import {isBun, isDeno, testServers} from '../TestRuntime.ts'
+import type {Limits, Target} from './Fuzz.ts'
 
 const test = suite(import.meta)
 
 if (!isDeno) {
-  const {gs, field, fuzz, close, ints, bigints, doubles, strings, bytes} =
-    await import('./Fuzz.ts')
-  const {json, dates, days, float32, signless, universalCases} =
-    await import('./Fuzz.ts')
+  const {
+    gs,
+    asJson,
+    field,
+    fuzz,
+    close,
+    ints,
+    bigints,
+    doubles,
+    strings,
+    bytes,
+    json,
+    dates,
+    days,
+    float32,
+    signless,
+    universalCases
+  } = await import('./Fuzz.ts')
   const pg = await import('#/postgres.ts')
   const drivers = await import('#/driver.ts')
-  type Target = import('./Fuzz.ts').Target
-  type Limits = import('./Fuzz.ts').Limits
 
-  const asJson = (value: unknown) => JSON.parse(JSON.stringify(value))
   const chars = (value: string) => [...value].length
   const decimals = gs.fromRegex('-?(0|[1-9][0-9]{0,30})(\\.[0-9]{1,20})?', {
     fullmatch: true

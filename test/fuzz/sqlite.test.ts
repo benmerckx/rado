@@ -1,25 +1,31 @@
 import {suite} from '@alinea/suite'
 import {isBun, isDeno} from '../TestRuntime.ts'
+import type {Limits, Target} from './Fuzz.ts'
 
 const test = suite(import.meta)
 
 if (!isDeno) {
-  const {gs, field, fuzz, close, ints, bigints, doubles, strings, bytes} =
-    await import('./Fuzz.ts')
   const {
-    json: anyJson,
+    gs,
+    asJson,
+    field,
+    fuzz,
+    close,
+    ints,
+    bigints,
+    doubles,
+    strings,
+    bytes,
+    json,
     dates,
     numbers,
     universalCases
   } = await import('./Fuzz.ts')
-  type Limits = import('./Fuzz.ts').Limits
-  type Target = import('./Fuzz.ts').Target
   const sqlite = await import('#/sqlite.ts')
   const drivers = await import('#/driver.ts')
 
   function cases(options: Limits = {}) {
-    const asJson = (value: unknown) => JSON.parse(JSON.stringify(value))
-    const json = anyJson(options)
+    const doc = json(options)
     return {
       ...universalCases(options),
       int: field(sqlite.integer(), ints(-(2 ** 53) + 1, 2 ** 53 - 1), {
@@ -45,7 +51,7 @@ if (!isDeno) {
         sqlite.text({enum: ['a', 'b', 'ü']}),
         gs.sampledFrom(['a', 'b', 'ü'] as const)
       ),
-      textJson: field(sqlite.text({mode: 'json'}), json, {
+      textJson: field(sqlite.text({mode: 'json'}), doc, {
         expect: asJson
       }),
       blobBytes: field(sqlite.blob(), bytes()),
@@ -57,11 +63,11 @@ if (!isDeno) {
         sqlite.blob({mode: 'bigint'}),
         gs.oneOf(bigints(-(2n ** 63n), 2n ** 63n - 1n), gs.bigIntegers())
       ),
-      blobJson: field(sqlite.blob({mode: 'json'}), json, {
+      blobJson: field(sqlite.blob({mode: 'json'}), doc, {
         expect: asJson
       }),
-      sqliteJson: field(sqlite.json(), json, {expect: asJson}),
-      sqliteJsonb: field(sqlite.jsonb(), json, {expect: asJson})
+      sqliteJson: field(sqlite.json(), doc, {expect: asJson}),
+      sqliteJsonb: field(sqlite.jsonb(), doc, {expect: asJson})
     }
   }
 

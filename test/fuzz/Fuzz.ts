@@ -13,10 +13,10 @@ export {gs}
 
 // @ts-ignore
 const env: Record<string, string | undefined> = process.env
-export const runs = Number(env.FUZZ_RUNS ?? 10)
+export const runs = Number(env.FUZZ_RUNS ?? 25)
 
 // Bun stops a test after 5s, which a high FUZZ_RUNS easily exceeds
-if (isBun) {
+if (isBun && env.FUZZ_RUNS) {
   const {setDefaultTimeout} = await import('bun:test')
   setDefaultTimeout(3_600_000)
 }
@@ -232,7 +232,7 @@ export function json(options: Limits = {}): Gen<Json> {
     ints(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
     text
   )
-  const json = gs.recursive<Json>(
+  const values = gs.recursive<Json>(
     leaf,
     children =>
       gs.oneOf<Json>(
@@ -243,8 +243,8 @@ export function json(options: Limits = {}): Gen<Json> {
       ),
     {maxDepth: 6}
   )
-  if (options.jsonNumbers ?? true) return json
-  return json.filter(value => typeof value !== 'number')
+  if (options.jsonNumbers ?? true) return values
+  return values.filter(value => typeof value !== 'number')
 }
 
 export function dates(min: string, max: string): Gen<Date> {
@@ -262,7 +262,11 @@ export function days(min: string, max: string): Gen<Date> {
   return dates(min, max).map(date => new Date(date.toISOString().slice(0, 10)))
 }
 
-export function universalCases(options: Limits = {}) {
+export function asJson(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value))
+}
+
+export function universalCases(options: Limits = {}): Record<string, Case> {
   return {
     text: field(universal.text(), strings(options)),
     varchar: field(
@@ -275,10 +279,10 @@ export function universalCases(options: Limits = {}) {
     number: field(universal.number(), numbers(options), {same: signless}),
     boolean: field(universal.boolean(), gs.booleans()),
     json: field(universal.json<Json>(), json(options), {
-      expect: value => JSON.parse(JSON.stringify(value))
+      expect: asJson
     }),
     jsonb: field(universal.jsonb<Json>(), json(options), {
-      expect: value => JSON.parse(JSON.stringify(value))
+      expect: asJson
     }),
     blob: field(universal.blob(), bytes())
   }

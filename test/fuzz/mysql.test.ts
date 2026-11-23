@@ -5,14 +5,27 @@ import type {Target} from './Fuzz.ts'
 const test = suite(import.meta)
 
 if (!isDeno) {
-  const {gs, field, fuzz, close, ints, bigints, doubles, strings, bytes, json} =
-    await import('./Fuzz.ts')
-  const {dates, days, signless, universalCases} = await import('./Fuzz.ts')
+  const {
+    gs,
+    asJson,
+    field,
+    fuzz,
+    close,
+    ints,
+    bigints,
+    doubles,
+    strings,
+    bytes,
+    json,
+    dates,
+    days,
+    signless,
+    universalCases
+  } = await import('./Fuzz.ts')
   const mysql = await import('#/mysql.ts')
   const {sql} = await import('#/index.ts')
   const drivers = await import('#/driver.ts')
 
-  const asJson = (value: unknown) => JSON.parse(JSON.stringify(value))
   const decimals = gs.fromRegex('-?(0|[1-9][0-9]{0,19})(\\.[0-9]{1,10})?', {
     fullmatch: true
   })
