@@ -29,7 +29,8 @@ export function lines(query: string): string {
     // A column can be named end, a trigger's end comes before its semicolon
     else if (
       lower === 'end' &&
-      (blocks.at(-1) === 'case' || /^\s*(;|$)/.test(query.slice(at)))
+      (blocks.at(-1) === 'case' ||
+        /^(\s|--[^\n]*|\/\*[\s\S]*?\*\/)*(;|$)/.test(query.slice(at)))
     )
       blocks.pop()
   }
@@ -45,7 +46,7 @@ export function lines(query: string): string {
       continue
     }
     if (/\w/.test(char)) {
-      if (!word) param = '$:@'.includes(query[i - 1] ?? '')
+      if (!word) param = i > 0 && '$:@'.includes(query[i - 1])
       word += char
       current += char
       continue

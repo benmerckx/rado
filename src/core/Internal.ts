@@ -112,5 +112,4 @@ export const hasCreate = (obj: object): obj is HasCreate =>
   internalCreate in obj
 export const getCreate = (obj: HasCreate) => obj[internalCreate]
 export const hasDrop = (obj: object): obj is HasDrop => internalDrop in obj
-
 export const getDrop = (obj: HasDrop) => obj[internalDrop]

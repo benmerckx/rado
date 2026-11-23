@@ -5,8 +5,7 @@ import {push as mysql} from './mysql/push.ts'
 import {push as postgres} from './postgres/push.ts'
 import {push as sqlite} from './sqlite/push.ts'
 
-export type {Define} from './core/Order.ts'
-export type {PushOptions, Schema} from './core/Push.ts'
+export type {Push, PushOptions, Schema} from './core/Push.ts'
 
 // For universal databases whose dialect is picked at runtime, this bundles
 // all three planners, a dialect entry such as rado/sqlite/push bundles one

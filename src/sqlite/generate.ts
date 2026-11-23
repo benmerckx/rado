@@ -5,7 +5,7 @@ import {connect as node} from '../driver/node-sqlite.ts'
 import {migrator} from './migrate.ts'
 import {push} from './push.ts'
 
-export type {GenerateOptions} from '../core/Generate.ts'
+export type {Generate, GenerateOptions} from '../core/Generate.ts'
 
 // The runtime's own sqlite, so there is nothing to install
 async function open(): Promise<Database> {

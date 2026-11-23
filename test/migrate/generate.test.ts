@@ -139,6 +139,21 @@ if (!isDeno) {
     test.equal(await generate({'0001.sql': init}, {User, Note, Archive}), '')
   })
 
+  test('postgres: generate settles on an enum in a schema', async () => {
+    const {generate} = await import('#/postgres/generate.ts')
+    const {push} = await import('#/postgres/push.ts')
+    const app = pgSchema('gen_settle')
+    const Org = app.table('gen_org', {mood: app.enum('gen_mood', ['a'])()})
+    const init = await generate({}, {Org})
+    test.equal(await generate({'0001.sql': init}, {Org}), '')
+    const {PGlite} = await import('@electric-sql/pglite')
+    const {connect} = await import('#/driver/pglite.ts')
+    const db = connect(new PGlite())
+    await push(db, {Org})
+    test.equal(await push.plan(db, {Org}), [])
+    await db.close()
+  })
+
   test('postgres: generate a schema for an enum', async () => {
     const {generate} = await import('#/postgres/generate.ts')
     const zz = pgSchema('gen_zz')

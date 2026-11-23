@@ -23,8 +23,7 @@ import {integer, text} from './columns.ts'
 import {unenforced} from './keys.ts'
 import {prefix, shape} from './shape.ts'
 
-export type {Define} from '../core/Order.ts'
-export type {PushOptions, Schema} from '../core/Push.ts'
+export type {Push, PushOptions, Schema} from '../core/Push.ts'
 
 const Sequence = table('sqlite_sequence', {
   name: text().notNull(),

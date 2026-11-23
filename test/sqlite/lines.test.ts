@@ -52,3 +52,19 @@ test('lines with an end column and parameters', () => {
     'create trigger t after insert on a begin   update a set end = 1, v = case when $case then 1 end; end;\nselect :case, @case;\nselect 2;'
   )
 })
+
+test('lines closes a trigger before a commented semicolon', () => {
+  const trigger = [
+    'create trigger t after insert on a begin',
+    '  delete from b;',
+    'end -- done',
+    '/* really */;',
+    'select 1;'
+  ].join('\n')
+  test.equal(
+    lines(trigger),
+    'create trigger t after insert on a begin   delete from b; end;\nselect 1;'
+  )
+  // A keyword at the very start counts, nothing precedes it
+  test.equal(lines('case; end;\nselect 2;'), 'case; end;\nselect 2;')
+})

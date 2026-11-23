@@ -30,18 +30,24 @@ await drop(db, schema)
 ```
 
 They pick out what they can create and ignore other exports; a schema with
-nothing to create is an error, `No definitions in schema`. Module namespaces
+nothing to create is an error, `No definitions in schema`, and so is a table
+on its own: pass `{User}`. Module namespaces
 list their exports alphabetically, so the order is worked out from the
 definitions:
 
 1. schemas, then enums
 2. tables, referenced tables before the tables that reference them. Tables
-   whose foreign keys form a cycle keep the order given among themselves, and
-   the tables around them are still ordered
+   whose foreign keys form a cycle can't be created this way on PostgreSQL
+   and MySQL, which refuse a reference to a table that doesn't exist yet, so
+   there `create` fails with `Foreign keys form a cycle between …`. SQLite
+   accepts them, they keep the order given among themselves and the tables
+   around them are still ordered
 3. views, a view after the views its sql names, wherever it names them:
    `from`, joins, subqueries, common table expressions or raw `sql`. A name
    counts quoted or not, but not after a `.` or `as`, where it is a column
-   or an alias. Views can't form a cycle, that is an error
+   or an alias, not before a `(`, where it is a function, not inside a
+   string literal, and not when the query names a common table expression
+   that way. Views can't form a cycle, that is an error
 
 Where nothing depends on anything, the order given is kept. `drop` runs in
 exactly the reverse order, and leaves out a `pgSchema` in the schema object:

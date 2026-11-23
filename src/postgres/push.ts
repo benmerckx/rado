@@ -34,8 +34,7 @@ import {Class, Constraint, Namespace, home, prepend} from './catalog.ts'
 import {enumSchemas} from './enum.ts'
 import {shape} from './shape.ts'
 
-export type {Define} from '../core/Order.ts'
-export type {PushOptions, Schema} from '../core/Push.ts'
+export type {Push, PushOptions, Schema} from '../core/Push.ts'
 
 // Arguments a type has when they are left out, unlimited where unbounded
 function fill(base: string): Array<number> {
@@ -167,7 +166,7 @@ function* plan(
       const [found] = yield* inner.select(sql<unknown>`to_regtype(${name})`)
       if (!found) enums.push({sql: query})
     }
-    const desired = yield* scratch(inner, tx => copy(tx, api))
+    const desired = yield* scratch(inner, tx => copy(tx, api, schema))
     return [
       ...spaces,
       ...enums,
@@ -189,10 +188,12 @@ function* plan(
 }
 
 // The desired table, created in a fresh schema so an existing one is never
-// touched
-function* copy(tx: Database, api: TableApi): Gen<Shape> {
+// touched. Types print relative to the search path, so the table's own schema
+// goes on it too, as when the live table is read.
+function* copy(tx: Database, api: TableApi, home: string): Gen<Shape> {
   const schema = `rado_push_${Math.random().toString(36).slice(2)}`
   yield tx.run(sql`create schema ${sql.identifier(schema)}`)
+  yield* prepend(tx, home)
   yield* prepend(tx, schema)
   for (const query of shadow(api, api.name, schema).create())
     yield tx.run(query)

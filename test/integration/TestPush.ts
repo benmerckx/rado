@@ -617,6 +617,15 @@ export function testPush(db: Database, test: DefineTest) {
     })
   })
 
+  test('create refuses a foreign key cycle outside sqlite', async () => {
+    await fixture(drop(CycleA, CycleB), async () => {
+      const error = await failure(() => create(db, {CycleA, CycleB}))
+      if (db.dialect.runtime === 'sqlite') test.equal(error, '')
+      else
+        test.equal(error.startsWith('Foreign keys form a cycle between'), true)
+    })
+  })
+
   test('create views over subqueries, ctes and sql', async () => {
     // Named to sort after the views that read from it
     const Base = view('push_zbase').as(db.select({id: Author.id}).from(Author))

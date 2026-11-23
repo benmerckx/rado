@@ -4,7 +4,7 @@ import {connect} from '../driver/pglite.ts'
 import {migrator} from './migrate.ts'
 import {push} from './push.ts'
 
-export type {GenerateOptions} from '../core/Generate.ts'
+export type {Generate, GenerateOptions} from '../core/Generate.ts'
 
 async function open(): Promise<Database> {
   const {PGlite} = await load(

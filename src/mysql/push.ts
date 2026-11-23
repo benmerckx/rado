@@ -22,8 +22,7 @@ import {grows, parseType, ranks} from '../core/Widening.ts'
 import {Usage, home} from './catalog.ts'
 import {shape} from './shape.ts'
 
-export type {Define} from '../core/Order.ts'
-export type {PushOptions, Schema} from '../core/Push.ts'
+export type {Push, PushOptions, Schema} from '../core/Push.ts'
 
 const capacity: Record<string, number> = {
   tinytext: 255,

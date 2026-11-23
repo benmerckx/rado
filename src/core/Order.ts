@@ -124,31 +124,47 @@ function escape(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function unquote(part: string): string {
+  return part.replace(/^["`]|["`]$/g, '')
+}
+
 // A view's name in the sql of another, quoted or not. Names after a dot or
-// as are columns and aliases, so those don't count.
+// as are columns and aliases, and a name before a parenthesis is a function.
 function pattern(target: string): RegExp {
   const name = target
     .split('.')
-    .map(part => `["\`]?${escape(part.replace(/^["`]|["`]$/g, ''))}["\`]?`)
+    .map(part => `["\`]?${escape(unquote(part))}["\`]?`)
     .join('\\s*\\.\\s*')
   return new RegExp(
-    `(?<!\\.\\s*|\\bas\\s+)(?<![\\w"\`])${name}(?![\\w"\`])`,
+    `(?<!\\.\\s*|\\bas\\s+)(?<![\\w"\`])${name}(?![\\w"\`]|\\s*\\()`,
     'i'
   )
 }
+
+// Names a query gives its common table expressions, which shadow views
+const ctes = /(?:\bwith\s+(?:recursive\s+)?|,\s*)["`]?(\w+)["`]?\s+as\s*\(/gi
 
 function sources<V extends View>(
   views: Array<V>,
   text: (input: Sql) => string
 ): (view: V) => Array<V> {
   const names = new Map(
-    views.map(view => [view, pattern(text(getTarget(view)))])
+    views.map(view => {
+      const target = text(getTarget(view))
+      const name = unquote(target.split('.').at(-1)!).toLowerCase()
+      return [view, {name, pattern: pattern(target)}]
+    })
   )
   return view => {
-    const query = text(getQuery(view))
-    return views.filter(
-      other => other !== view && names.get(other)!.test(query)
+    // A string can hold any name
+    const query = text(getQuery(view)).replace(/'([^']|'')*'/g, "''")
+    const local = new Set(
+      Array.from(query.matchAll(ctes), match => match[1].toLowerCase())
     )
+    return views.filter(other => {
+      const {name, pattern} = names.get(other)!
+      return other !== view && !local.has(name) && pattern.test(query)
+    })
   }
 }
 
@@ -179,33 +195,33 @@ export interface Members {
   // A schema object's pgSchema values are left out, dropping one cascades
   // to everything in it
   drop?: boolean
+  // Refuse a foreign key cycle, where tables can't reference a table that
+  // doesn't exist yet
+  strict?: boolean
 }
 
-// Arguments are definitions or schema objects whose definitions are picked
-// out. Schemas go first, then enums, then tables with referenced tables
-// first, then views after the views they read from. Within a foreign key
-// cycle, and where nothing depends on anything, the order given is kept.
+// The definitions of a schema object: schemas go first, then enums, then
+// tables with referenced tables first, then views after the views they read
+// from. Within a foreign key cycle, and where nothing depends on anything,
+// the order given is kept.
 export function members(
-  input: Array<object>,
-  {has, text, drop}: Members
+  schema: object,
+  {has, text, drop, strict}: Members
 ): Array<Member> {
-  const values = input.flatMap(value => {
-    if (has(value)) return [value as Member]
-    const found = Object.values(value)
-      .filter(isObject)
-      .filter(has)
-      .filter(value => !(drop && isSchema(value)))
-    if (found.length === 0) throw new Error('No definitions in schema')
-    return found as Array<Member>
-  })
+  if (hasTable(schema)) throw new Error('Expected a schema object, not a table')
+  const values = Object.values(schema)
+    .filter(isObject)
+    .filter(has)
+    .filter(value => !(drop && isSchema(value))) as Array<Member>
+  if (values.length === 0) throw new Error('No definitions in schema')
   const distinct = values.filter((value, i) => values.indexOf(value) === i)
   const tables = distinct.filter(value => hasTable(value)) as Array<
     Member & HasTable
   >
   const apis = unique(tables.map(table => getTable(table)))
-  const sorted = components(apis, references(apis))
-    .flat()
-    .map(api => tables.find(table => getTable(table) === api)!)
+  const sorted = (
+    strict ? order(apis) : components(apis, references(apis)).flat()
+  ).map(api => tables.find(table => getTable(table) === api)!)
   const rest = distinct.filter(value => !hasTable(value))
   const views = rest.filter(value => hasQuery(value)) as Array<Member & View>
   const others = rest.filter(value => !hasQuery(value))
@@ -231,10 +247,12 @@ export function define<R extends Runtime>(
     if (runtime && db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
     const text = (input: Sql) => db.dialect.inline(input)
-    const found = members([schema], {
+    // SQLite takes a reference to a table that doesn't exist yet
+    const found = members(schema, {
       has: drop ? hasDrop : hasCreate,
       text,
-      drop
+      drop,
+      strict: db.dialect.runtime !== 'sqlite'
     })
     const queries = drop
       ? found.toReversed().flatMap(getDrop)
