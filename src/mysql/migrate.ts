@@ -1,9 +1,17 @@
+import {Column, column} from '../core/Column.ts'
 import type {Database} from '../core/Database.ts'
 import {eq} from '../core/expr/Conditions.ts'
 import type {Migrator} from '../core/Migrate.ts'
+import {schema} from '../core/Schema.ts'
 import {sql} from '../core/Sql.ts'
 import {type Gen, result, transaction} from '../core/Transaction.ts'
-import {Tables} from './catalog.ts'
+
+// The catalog columns migrate reads, catalog.ts would add all of its own
+const text = () => new Column<string>({type: column.text()}).notNull()
+const Tables = schema('information_schema').table('tables', {
+  table_schema: text(),
+  table_name: text()
+})
 
 const current = sql<string>`database()`
 

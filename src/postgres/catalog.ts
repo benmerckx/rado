@@ -25,12 +25,6 @@ export const Namespace = system.table('pg_namespace', {
   nspname: text().notNull()
 })
 
-export const Type = system.table('pg_type', {
-  typname: text().notNull(),
-  typnamespace: oid().notNull(),
-  typtype: text().notNull()
-})
-
 export const Attribute = system.table('pg_attribute', {
   attrelid: oid().notNull(),
   attname: text().notNull(),

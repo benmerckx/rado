@@ -1,8 +1,22 @@
+import {Column, column} from '../core/Column.ts'
 import {and, eq, inArray, ne, notLike} from '../core/expr/Conditions.ts'
 import type {Migrator} from '../core/Migrate.ts'
+import {schema} from '../core/Schema.ts'
 import {sql} from '../core/Sql.ts'
 import {result, transaction} from '../core/Transaction.ts'
-import {Class, Namespace, Type} from './catalog.ts'
+
+// The catalog columns migrate reads, catalog.ts holds them all with their
+// own types, which would add their bytes to rado/migrate
+const text = () => new Column<string>({type: column.text()}).notNull()
+const oid = () => new Column<number>({type: column.integer()}).notNull()
+const system = schema('pg_catalog')
+const Class = system.table('pg_class', {relname: text(), relnamespace: oid()})
+const Namespace = system.table('pg_namespace', {oid: oid(), nspname: text()})
+const Type = system.table('pg_type', {
+  typname: text(),
+  typnamespace: oid(),
+  typtype: text()
+})
 
 // Pins the lock to migrations, the key is "rado" in ascii
 const key = 0x7261646f
