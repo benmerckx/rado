@@ -12,12 +12,8 @@ async function open(): Promise<Database> {
     const {Database} = await import('bun:sqlite')
     return bun(new Database(':memory:'))
   }
-  // Typed by hand, the node types aren't installed
-  const {
-    DatabaseSync
-  }: {
-    DatabaseSync: new (path: string) => Parameters<typeof node>[0]
-  } = await import('node:sqlite' as string)
+  // Untyped, the node types aren't installed
+  const {DatabaseSync} = await import('node:sqlite' as string)
   return node(new DatabaseSync(':memory:'))
 }
 

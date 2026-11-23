@@ -1,6 +1,7 @@
 import type {Database} from './Database.ts'
 import type {QueryDialect, QueryMeta} from './MetaData.ts'
 import {type Migrations, migrate, objects} from './Migrate.ts'
+import {tables} from './Order.ts'
 import {type Push, type Schema, type Statement, capture} from './Push.ts'
 import {exec} from './Transaction.ts'
 
@@ -34,6 +35,7 @@ export function createGenerate<D extends QueryDialect>(
   open: () => Promise<Database>
 ): Generate<D> {
   return async (migrations, schema, options = {}) => {
+    tables(schema)
     const db = (options.shadow as Database | undefined) ?? (await open())
     try {
       if ((await exec(objects(db))).length > 0)

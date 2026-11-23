@@ -1,4 +1,10 @@
-import {type Changes, type Comparison, compare} from '../core/Compare.ts'
+import {
+  type Changes,
+  type Comparison,
+  compare,
+  keyRisk,
+  referenceRisk
+} from '../core/Compare.ts'
 import type {Database} from '../core/Database.ts'
 import {eq, isNull, ne} from '../core/expr/Conditions.ts'
 import {
@@ -109,8 +115,16 @@ function* plan(
   const oid = yield* relation(tx, schema, api.name)
   // A new table gets its foreign keys afterwards, with qualified references
   // a temporary table can't shadow
-  if (oid === undefined)
+  if (oid === undefined) {
+    const [space] = yield* tx
+      .select(Namespace.oid)
+      .from(Namespace)
+      .where(eq(Namespace.nspname, schema))
     return [
+      // Its schema too, a dry run sees it for the tables after
+      ...(space === undefined
+        ? [{sql: sql`create schema ${sql.identifier(schema)}`}]
+        : []),
       ...shadow(api, api.name, own(schema))
         .create()
         .map(sql => ({sql})),
@@ -121,6 +135,7 @@ function* plan(
         })}`
       }))
     ]
+  }
   // Keeps writers out until the transaction ends, so the data checks hold,
   // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
@@ -288,9 +303,10 @@ function* changes({
     }))
   ]
   // Steps are inlined, so the table's name is quoted by postgres
-  const quoted = sql`format('%I.%I', ${sql.inline(schema)}::text, ${sql.inline(
-    api.name
-  )}::text)`
+  const relname = sql`${sql.inline(api.name)}::text`
+  const quoted = own(schema)
+    ? sql`format('%I.%I', ${sql.inline(schema)}::text, ${relname})`
+    : sql`format('%I', ${relname})`
   const serial = (name: string) =>
     sql<string | null>`pg_get_serial_sequence(${quoted}, ${sql.inline(name)})`
   for (const name of changed) {
@@ -353,7 +369,10 @@ function* changes({
     if (to.extra && from.extra !== to.extra) {
       // A serial's sequence goes with its default, so the identity's own
       // sequence is the one that continues above the rows
-      const [owned] = yield* tx.select(serial(name))
+      // As regclass text it names the schema only when it isn't the home
+      const [owned] = yield* tx.select(
+        options.capture ? sql<string | null>`${serial(name)}::regclass::text` : serial(name)
+      )
       if (!from.extra && owned)
         steps.push({sql: sql`drop sequence ${sql.unsafe(owned)}`})
       steps.push(
@@ -376,14 +395,19 @@ function* changes({
       .filter(([, definition]) => !present.has(definition))
       .map(([name, definition]) =>
         alter(
-          sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`
+          sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`,
+          options.capture ? keyRisk(name, definition) : undefined
         )
       ),
     ...references.added.map(key =>
-      alter(sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`)
+      alter(
+        sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
+        options.capture ? referenceRisk(key.name) : undefined
+      )
     ),
     ...differ(desired.indexes, live.indexes).map(name => ({
-      sql: getData(indexes[name]).toSql(api.name, name, false, own(schema))
+      sql: getData(indexes[name]).toSql(api.name, name, false, own(schema)),
+      risk: options.capture ? keyRisk(name, desired.indexes[name]) : undefined
     }))
   ]
 }

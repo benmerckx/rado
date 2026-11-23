@@ -1,4 +1,4 @@
-import {compare} from '../core/Compare.ts'
+import {compare, keyRisk, referenceRisk} from '../core/Compare.ts'
 import type {Database} from '../core/Database.ts'
 import {and, eq, isNull, not} from '../core/expr/Conditions.ts'
 import {columns, foreignKey, foreignKeyChanges} from '../core/ForeignKey.ts'
@@ -208,12 +208,22 @@ function* changes({
         risk: nulls[name]
       }
     })
+  const keys = capture
+    ? [
+        primaryChanged && primary ? keyRisk('primary', primary) : undefined,
+        ...differ(desired.indexes, live.indexes).map(name =>
+          keyRisk(name, desired.indexes[name])
+        ),
+        ...references.added.map(key => referenceRisk(key.name))
+      ]
+    : []
   const risk = [
     ...dropped.map(name => risks[name]),
     ...added.map(name => risks[name]),
     ...changed.map(
       name => risks[name] ?? (fallback(name) ? undefined : nulls[name])
-    )
+    ),
+    ...keys
   ].find(Boolean)
   // The whole definition is given, change resets what it leaves out
   const alter = (name: string) => {
@@ -272,9 +282,12 @@ function* changes({
         )
     )
     .map(key => ({
-      sql: sql`alter table ${sql.identifier(key.schema)}.${sql.identifier(
-        key.table
-      )} drop foreign key ${sql.identifier(key.name)}`
+      // A generated file runs against any database name
+      sql: sql`alter table ${
+        capture && key.schema === home
+          ? sql.identifier(key.table)
+          : sql`${sql.identifier(key.schema)}.${sql.identifier(key.table)}`
+      } drop foreign key ${sql.identifier(key.name)}`
     }))
   if (clauses.length === 0) return [...drops, ...fills]
   return [

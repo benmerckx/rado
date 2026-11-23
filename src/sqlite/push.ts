@@ -1,4 +1,4 @@
-import {compare, exists} from '../core/Compare.ts'
+import {compare, exists, keyRisk, referenceRisk} from '../core/Compare.ts'
 import type {Database} from '../core/Database.ts'
 import {eq, inArray, or} from '../core/expr/Conditions.ts'
 import {columns, foreignKeyChanges} from '../core/ForeignKey.ts'
@@ -134,7 +134,16 @@ function* changes(
       live,
       desired,
       hasRows,
-      risk: Object.values({...risks, ...nulls})[0],
+      risk:
+        Object.values({...risks, ...nulls})[0] ??
+        (capture
+          ? [
+              ...Object.entries(desired.constraints)
+                .filter(([name, value]) => live.constraints[name] !== value)
+                .map(([name, value]) => keyRisk(name, value)),
+              ...references.added.map(key => referenceRisk(key.name))
+            ].find(Boolean)
+          : undefined),
       capture
     })
   const indexes = api.indexes()
@@ -152,7 +161,8 @@ function* changes(
       risk: risks[name]
     })),
     ...differ(desired.indexes, live.indexes).map(name => ({
-      sql: getData(indexes[name]).toSql(api.name, name, false)
+      sql: getData(indexes[name]).toSql(api.name, name, false),
+      risk: capture ? keyRisk(name, desired.indexes[name]) : undefined
     }))
   ]
 }
@@ -287,7 +297,13 @@ function* recreate({
           }
         ]
       : []),
-    ...api.createIndexes().map(sql => ({sql})),
+    ...Object.entries(api.indexes()).map(([name, index]) => ({
+      sql: getData(index).toSql(api.name, name, false),
+      risk:
+        capture && live.indexes[name] !== desired.indexes[name]
+          ? keyRisk(name, desired.indexes[name])
+          : undefined
+    })),
     ...[...views, ...triggers].map(row => ({sql: sql.unsafe(row.sql ?? '')}))
   ]
 }

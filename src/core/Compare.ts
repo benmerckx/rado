@@ -41,6 +41,25 @@ export interface Changes {
   nulls: Record<string, string>
 }
 
+// A key added to a table that has rows fails on rows it doesn't hold, which
+// generate marks
+export function keyRisk(name: string, definition: string): string | undefined {
+  const kind = /^primary/i.test(definition)
+    ? 'primary key'
+    : /^unique/i.test(definition)
+      ? 'unique key'
+      : undefined
+  if (!kind) return
+  // SQLite and MySQL don't name a primary key
+  const named = name === 'primary' ? '' : ` "${name}"`
+  return `add ${kind}${named}, fails on duplicates`
+}
+
+export function referenceRisk(name?: string): string {
+  const named = name ? ` "${name}"` : ''
+  return `add foreign key${named}, fails on rows without a match`
+}
+
 // Compares columns and finds the changes that would lose data
 export function* compare({
   tx,
