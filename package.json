@@ -62,6 +62,7 @@
     "@types/sql.js": "^1.4.11",
     "@vercel/postgres": "^0.10.0",
     "better-sqlite3": "^12.11.1",
+    "drizzle-orm": "^0.45.4",
     "esbuild": "^0.28.1",
     "glob": "^13.0.6",
     "madge": "^8.0.0",
