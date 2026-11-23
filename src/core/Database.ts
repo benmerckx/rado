@@ -26,7 +26,7 @@ import type {
   QueryMeta,
   Sync
 } from './MetaData.ts'
-import {members} from './Order.ts'
+import {type Schema, members} from './Order.ts'
 import {BatchQuery, type SingleQuery} from './Queries.ts'
 import type {SelectFirst} from './query/Select.ts'
 import {Resolver} from './Resolver.ts'
@@ -74,13 +74,13 @@ export class Database<Meta extends QueryMeta = Either>
     return this.close()
   }
 
-  create(...input: Array<HasCreate | object>): BatchQuery<unknown, Meta> {
+  create(...input: Array<HasCreate | Schema>): BatchQuery<unknown, Meta> {
     const queries = members(input, hasCreate).flatMap(getCreate)
     return new BatchQuery(getResolver(this), queries)
   }
 
-  drop(...input: Array<HasDrop | object>): BatchQuery<unknown, Meta> {
-    const queries = members(input, hasDrop).flatMap(getDrop)
+  drop(...input: Array<HasDrop | Schema>): BatchQuery<unknown, Meta> {
+    const queries = members(input, hasDrop).toReversed().flatMap(getDrop)
     return new BatchQuery(getResolver(this), queries)
   }
 

@@ -15,7 +15,8 @@ import {push as postgresPush} from '#/postgres/push.ts'
 import {push} from '#/push.ts'
 import {push as sqlitePush} from '#/sqlite/push.ts'
 import {id, integer, text, varchar} from '#/universal.ts'
-import {fixture} from '../TestUtils.ts'
+import {failure, fixture} from '../TestUtils.ts'
+import * as fixtures from './schema.ts'
 
 // Initial table structure
 const TableA = table(
@@ -567,23 +568,41 @@ export function testPush(db: Database, test: DefineTest) {
     await rejects(
       test,
       async () => {
+        // @ts-expect-error
         await push(db, UserA)
       },
       'Expected a schema object, not a table'
     )
+    await rejects(
+      test,
+      async () => {
+        await push(db, {other: 1})
+      },
+      'No tables in schema'
+    )
   })
 
   test('create and drop take schema objects', async () => {
-    const schema = {Author, Post, other: 1}
+    // Namespaces list their keys alphabetically, the referencing table first
+    const schema = {Post, Author, other: 1}
     await fixture(drop(Post, Author, UserA), async () => {
       await db.create(schema, UserA)
       await db.insert(Author).values({id: 1})
       await db.insert(Post).values({id: 1, author: 1})
       test.equal(await db.$count(Post), 1)
-      await db.drop({Post, Author})
-      await db.create(Author, {Post, alias: alias(Post, 'p')})
-      await db.drop(Post, {Author})
+      await db.drop({Author, Post})
+      await db.create({Post, alias: alias(Post, 'p')}, Author)
+      await db.drop(Author, {Post})
       test.equal(await db.$count(UserA), 0)
+      test.equal(
+        await failure(() => db.create({other: 1})),
+        'No definitions in schema'
+      )
+      test.equal(
+        // @ts-expect-error
+        await failure(() => db.create(UserA.id)),
+        'No definitions in schema'
+      )
     })
   })
 }
@@ -595,4 +614,8 @@ export function createTyped(db: Database): void {
   // @ts-expect-error
   void db.drop('x')
   void db.create({UserA}, Post, {a: 1})
+  void db.create(fixtures)
+  void push(db, fixtures)
+  // @ts-expect-error
+  void push(db, UserA)
 }

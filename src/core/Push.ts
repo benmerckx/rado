@@ -2,7 +2,7 @@ import type {Database} from './Database.ts'
 import {columns, isForeignKey} from './ForeignKey.ts'
 import {getData, internalData} from './Internal.ts'
 import type {Deliver, QueryDialect, QueryMeta, Runtime} from './MetaData.ts'
-import {order, tables} from './Order.ts'
+import {type Schema, order, tables} from './Order.ts'
 import type {Shape} from './Shape.ts'
 import {type Sql, sql} from './Sql.ts'
 import type {TableApi, TableConfigResult} from './Table.ts'
@@ -13,9 +13,7 @@ export interface PushOptions {
   rename?: Record<string, string>
 }
 
-// A module namespace or object literal, values that aren't tables are
-// ignored
-export type Schema = object
+export type {Schema} from './Order.ts'
 
 // A dialect entry only accepts a database of its dialect
 export interface Push<D extends QueryDialect = QueryDialect> {

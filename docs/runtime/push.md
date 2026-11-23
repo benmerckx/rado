@@ -18,15 +18,19 @@ await db.create(schema, AuditLog)
 ```
 
 From a schema object it picks out what it can create and ignores other
-exports. Schemas and enums go first, then tables with referenced tables before
-the tables that reference them, then views in the order given. Dropping is the
-mirror image and runs in reverse:
+exports; an argument with nothing to create is an error. Whatever the order of
+the arguments, and module namespaces list their exports alphabetically:
+
+1. schemas and enums, in the order given
+2. tables, referenced tables before the tables that reference them. Tables
+   whose foreign keys form a cycle keep the order given
+3. views, in the order given, so list a view after the views it uses
+
+`db.drop` runs in exactly the reverse order:
 
 ```ts
 await db.drop(schema)
 ```
-
-Tables whose foreign keys form a cycle keep the order given.
 
 ## Pushing changes with `push`
 
@@ -46,6 +50,8 @@ Push reads the object's values and keeps the tables, so relations, helpers
 and constants exported next to them are ignored. A table exported twice, for
 example once more with relations attached, counts once. Two different
 definitions of the same table are an error: `Table "user" is defined twice`.
+A schema without tables is an error too, and a table on its own is not a
+schema: pass `{User}`.
 
 Import it from the entry for your database:
 
@@ -272,7 +278,7 @@ such as views, sequences or policies.
 
 ## Upgrading from `db.migrate`
 
-`db.migrate(...tables)` was replaced by `push(db, {...tables})` from
+`db.migrate(User, Post)` was replaced by `push(db, {User, Post})` from
 `rado/sqlite/push`, `rado/postgres/push` or `rado/mysql/push` (or `rado/push`
 for universal databases). The `Database` constructor no longer takes a diff argument:
 `new Database(driver, dialect, options)`. Push refuses destructive changes
