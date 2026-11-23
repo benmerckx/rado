@@ -11,13 +11,12 @@ type ReturningDb = Database<IsPostgres | IsSqlite>
 
 export {gs}
 
-// @ts-ignore
-const env: Record<string, string | undefined> = process.env
-export const runs = Number(env.FUZZ_RUNS ?? 25)
+const {FUZZ_RUNS} = process.env
+export const runs = Number(FUZZ_RUNS) || 25
 
 // Bun stops a test after 5s, which a high FUZZ_RUNS easily exceeds. Its
 // timeout is set per test file, so fuzz sets it for each file it runs in.
-const bun = isBun && env.FUZZ_RUNS ? await import('bun:test') : undefined
+const bun = isBun && FUZZ_RUNS ? await import('bun:test') : undefined
 
 export interface Case {
   column: Column<unknown>
