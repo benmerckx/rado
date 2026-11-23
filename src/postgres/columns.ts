@@ -81,12 +81,30 @@ function formatLine(value: LineTuple | LineABC | string): string {
   return `{${value.a},${value.b},${value.c}}`
 }
 
-function formatDateString(value: Date): string {
-  return value.toISOString().slice(0, 10)
+function pad(value: number, size = 2): string {
+  return String(value).padStart(size, '0')
 }
 
-const TIMESTAMP =
-  /^(\d{4,})-(\d\d)-(\d\d)(?:[ T](\d\d):(\d\d):(\d\d)(?:\.(\d+))?)?(?:([+-])(\d\d)(?::?(\d\d))?(?::?(\d\d))?|Z)?( BC)?$/
+// Postgres prints years with at least four digits, and year 0 as 1 BC
+function formatDay(value: Date): {day: string; era: string} {
+  if (Number.isNaN(value.getTime())) throw new Error('Invalid date')
+  const year = value.getUTCFullYear()
+  const month = pad(value.getUTCMonth() + 1)
+  const date = pad(value.getUTCDate())
+  const day = `${pad(year > 0 ? year : 1 - year, 4)}-${month}-${date}`
+  return {day, era: year > 0 ? '' : ' BC'}
+}
+
+function formatDateString(value: Date): string {
+  const {day, era} = formatDay(value)
+  return day + era
+}
+
+const TIMESTAMP = new RegExp(
+  '^(\\d{4,})-(\\d\\d)-(\\d\\d)' +
+    '(?:[ T](\\d\\d):(\\d\\d):(\\d\\d)(?:\\.(\\d+))?)?' +
+    '(?:([+-])(\\d\\d)(?::?(\\d\\d))?(?::?(\\d\\d))?|Z)?( BC)?$'
+)
 
 // Date only parses ISO strings reliably, and guesses years like 0001 as 2001
 function parseTimestamp(value: string): Date {
@@ -97,25 +115,27 @@ function parseTimestamp(value: string): Date {
   const date = new Date(0)
   const fullYear = bc ? 1 - Number(year) : Number(year)
   date.setUTCFullYear(fullYear, Number(month) - 1, Number(day))
+  // The offset goes in with the time, so values at the edges of what a Date
+  // holds don't pass outside it in between
+  const direction = sign === '-' ? -1 : 1
   date.setUTCHours(
-    Number(hours ?? 0),
-    Number(minutes ?? 0),
-    Number(seconds ?? 0),
+    Number(hours ?? 0) - direction * Number(offsetHours ?? 0),
+    Number(minutes ?? 0) - direction * Number(offsetMinutes ?? 0),
+    Number(seconds ?? 0) - direction * Number(offsetSeconds ?? 0),
     Number(fraction.padEnd(3, '0').slice(0, 3))
   )
-  const offset =
-    Number(offsetHours ?? 0) * 3600 +
-    Number(offsetMinutes ?? 0) * 60 +
-    Number(offsetSeconds ?? 0)
-  return new Date(date.getTime() - (sign === '-' ? -offset : offset) * 1000)
+  return date
 }
 
-// Matches how postgres prints timestamps for drivers that parse them to Dates
+// Matches how postgres prints timestamps, also used to write them
 function formatTimestampString(value: Date, withTimeZone: boolean): string {
-  const iso = value.toISOString()
-  const fraction = iso.slice(19, 23).replace(/\.?0+$/, '')
-  const time = `${iso.slice(0, 10)} ${iso.slice(11, 19)}${fraction}`
-  return withTimeZone ? `${time}+00` : time
+  const {day, era} = formatDay(value)
+  const ms = value.getUTCMilliseconds()
+  const fraction = ms ? `.${pad(ms, 3)}`.replace(/0+$/, '') : ''
+  const time = `${pad(value.getUTCHours())}:${pad(value.getUTCMinutes())}:${pad(
+    value.getUTCSeconds()
+  )}${fraction}`
+  return `${day} ${time}${withTimeZone ? '+00' : ''}${era}`
 }
 
 function parsePgArrayValue(input: string): Array<unknown> {
@@ -188,7 +208,7 @@ function serializePgArrayItem(value: unknown): string {
   if (Array.isArray(value)) return serializePgArrayValue(value)
   if (value === null || value === undefined) return 'NULL'
   let normalized: string
-  if (value instanceof Date) normalized = value.toISOString()
+  if (value instanceof Date) normalized = formatTimestampString(value, true)
   else if (typeof value === 'string') normalized = value
   else if (
     typeof value === 'number' ||
@@ -356,7 +376,7 @@ export function date(...args: ColumnArguments<{mode?: 'date' | 'string'}>) {
       return value instanceof Date ? formatDateString(value) : value
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date ? value.toISOString() : value
+      return value instanceof Date ? formatDateString(value) : value
     }
   })
 }
@@ -658,7 +678,8 @@ export function timestamp(
       return value instanceof Date ? value : parseTimestamp(value)
     },
     mapToDriverValue(value: Date) {
-      return value instanceof Date ? value.toISOString() : value
+      // A zone is ignored by timestamps without one, which read it as UTC
+      return value instanceof Date ? formatTimestampString(value, true) : value
     }
   })
 }

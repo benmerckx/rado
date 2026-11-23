@@ -262,7 +262,11 @@ export function dates(min: string, max: string): Gen<Date> {
 }
 
 export function days(min: string, max: string): Gen<Date> {
-  return dates(min, max).map(date => new Date(date.toISOString().slice(0, 10)))
+  return dates(min, max).map(date => {
+    const day = new Date(date)
+    day.setUTCHours(0, 0, 0, 0)
+    return day
+  })
 }
 
 // What JSON.stringify keeps of a value, without going through JSON.parse

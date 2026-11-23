@@ -40,6 +40,24 @@ if (!isDeno) {
   const suffix = Math.random().toString(36).slice(2, 8)
   const mood = pg.pgEnum(`fuzz_mood_${suffix}`, ['a', "it's", 'ü 😀', 'b c'])
 
+  // Postgres goes back to 4713 BC and further ahead than a Date can
+  const first = '-004712-01-01T00:00:00Z'
+  const last = '+275760-09-13T00:00:00Z'
+
+  // How postgres prints dates: four digit years at least, 1 BC for year 0
+  function pgDay(date: Date) {
+    const year = date.getUTCFullYear()
+    const digits = String(year > 0 ? year : 1 - year).padStart(4, '0')
+    const era = year > 0 ? '' : ' BC'
+    return `${digits}${date.toISOString().slice(-20, -14)}${era}`
+  }
+
+  function pgTimestamp(date: Date) {
+    const [day, era = ''] = pgDay(date).split(/(?= BC)/)
+    const time = trimFraction(date.toISOString().slice(-13, -1))
+    return `${day} ${time}${era}`
+  }
+
   function trimFraction(value: string) {
     return value.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
   }
@@ -96,29 +114,20 @@ if (!isDeno) {
       bytea: field(pg.bytea(), bytes()),
       pgJson: field(pg.json(), json(text), {expect: asJson}),
       pgJsonb: field(pg.jsonb(), json(text), {expect: asJson}),
-      date: field(
-        pg.date(undefined, {mode: 'date'}),
-        days('0001', '9999-12-31')
-      ),
-      dateString: field(
-        pg.date(undefined, {mode: 'string'}),
-        days('0001', '9999-12-31').map(date => date.toISOString().slice(0, 10))
-      ),
-      timestamp: field(pg.timestamp(), dates('0001', '9999-12-31')),
+      date: field(pg.date({mode: 'date'}), days(first, last)),
+      dateString: field(pg.date(), days(first, last).map(pgDay)),
+      timestamp: field(pg.timestamp(), dates(first, last)),
       timestamptz: field(
         pg.timestamp({withTimeZone: true}),
-        dates('0001', '9999-12-31')
+        dates(first, last)
       ),
       timestamptzPrecision: field(
         pg.timestamp({withTimeZone: true, precision: 3}),
-        dates('0001', '9999-12-31')
+        dates(first, last)
       ),
       timestampString: field(
         pg.timestamp({mode: 'string'}),
-        dates('0001', '9999-12-31').map(date =>
-          date.toISOString().replace('T', ' ').slice(0, -1)
-        ),
-        {expect: trimFraction}
+        dates(first, last).map(pgTimestamp)
       ),
       time: field(pg.time(), times, {expect: trimFraction}),
       enum: field(

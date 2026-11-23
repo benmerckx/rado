@@ -58,7 +58,7 @@ test('pg date mapping', () => {
   if (!(mapped instanceof Date)) throw new Error('Expected Date')
   test.equal(mapped.getTime(), Date.parse('2020-01-01'))
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(dateDate, date), date.toISOString())
+  test.equal(mapTo(dateDate, date), '2020-01-01')
   test.equal(mapTo(dateDate, '2020-02-01'), '2020-02-01')
 })
 
@@ -71,7 +71,7 @@ test('pg timestamp mapping', () => {
   if (!(mapped instanceof Date)) throw new Error('Expected Date')
   test.equal(mapped.getTime(), Date.parse('2020-01-01T00:00:00.000Z'))
   const date = new Date('2020-01-01T00:00:00.000Z')
-  test.equal(mapTo(tsDate, date), date.toISOString())
+  test.equal(mapTo(tsDate, date), '2020-01-01 00:00:00+00')
   test.equal(
     mapTo(tsDate, '2020-01-02T00:00:00.000Z'),
     '2020-01-02T00:00:00.000Z'
@@ -92,11 +92,27 @@ test('pg timestamp parsing', () => {
   const date = new Date('2000-01-01T00:00:00.120Z')
   test.equal(mapFrom(text, date), '2000-01-01 00:00:00.12')
   test.equal(mapFrom(zonedText, new Date(0)), '1970-01-01 00:00:00+00')
+  const far = new Date('+010000-01-01T10:00:00.000Z')
+  const bc = new Date('-000043-03-15T12:00:00.000Z')
+  test.equal(mapFrom(text, far), '10000-01-01 10:00:00')
+  test.equal(mapFrom(zonedText, bc), '0044-03-15 12:00:00+00 BC')
+  test.equal(mapTo(text, bc), '0044-03-15 12:00:00+00 BC')
+  test.equal(
+    mapFrom(pg.date({mode: 'string'}), new Date('0000-01-01')),
+    '0001-01-01 BC'
+  )
+  test.equal(mapFrom(pg.timestamp(), '0044-03-15 12:00:00 BC'), bc)
+  test.equal(mapFrom(pg.timestamp(), '10000-01-01 10:00:00'), far)
+  test.throws(() => mapTo(pg.timestamp(), new Date(NaN)))
   const zoned = pg.timestamp({withTimeZone: true})
   const plain = pg.timestamp()
   const parse = (column: typeof plain, value: string) =>
     mapFrom(column, value).toISOString()
   test.equal(parse(zoned, '0001-01-01 00:00:00+00'), '0001-01-01T00:00:00.000Z')
+  test.equal(
+    parse(zoned, '275760-09-13 05:30:00+05:30'),
+    '+275760-09-13T00:00:00.000Z'
+  )
   test.equal(
     parse(zoned, '2020-06-01 12:00:00.5+05:30'),
     '2020-06-01T06:30:00.500Z'
