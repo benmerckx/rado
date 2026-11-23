@@ -73,7 +73,7 @@ const Session = pgTable('session', {
 
 ```ts
 date() // string, as postgres prints it
-date({mode: 'date'}) // Date
+date(undefined, {mode: 'date'}) // Date
 time({precision: 6, withTimeZone: true}) // string
 timestamp({mode: 'date'}) // Date
 timestamp({mode: 'string', precision: 3, withTimeZone: true})
