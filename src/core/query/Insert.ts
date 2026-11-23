@@ -205,22 +205,32 @@ function formatValues(
   )
 }
 
-function formatUpdates(update: TableUpdate<TableDefinition>): Sql {
+function formatUpdates(
+  table: TableApi,
+  update: TableUpdate<TableDefinition>
+): Sql {
   return sql.join(
-    Object.entries(update).map(
-      ([key, value]) => sql`${sql.identifier(key)} = ${input(value)}`
-    ),
+    Object.entries(update).map(([key, value]) => {
+      const column = table.columns[key]
+      if (!column) throw new Error(`Unknown column: ${key}`)
+      const columnApi = getData(column)
+      const name = sql.identifier(columnApi.name ?? key)
+      return sql`${name} = ${mapToColumn(columnApi, value)}`
+    }),
     sql`, `
   )
 }
 
-function formatConflict({
-  target,
-  targetWhere,
-  set,
-  where: setWhere
-}: Partial<OnConflictUpdate<TableDefinition>>): Sql {
-  const update = set && formatUpdates(set)
+function formatConflict(
+  table: TableApi,
+  {
+    target,
+    targetWhere,
+    set,
+    where: setWhere
+  }: Partial<OnConflictUpdate<TableDefinition>>
+): Sql {
+  const update = set && formatUpdates(table, set)
   return sql.query({
     onConflict: sql.join([
       target &&
@@ -236,17 +246,24 @@ function formatConflict({
   })
 }
 
-function formatConflicts(on: Array<Conflict>): Sql | undefined {
+function formatConflicts(
+  table: TableApi,
+  on: Array<Conflict>
+): Sql | undefined {
   return sql.join(
     on.map(conflict => {
       if ('duplicateKeyUpdate' in conflict)
         return sql.query({
-          onDuplicateKeyUpdate: formatUpdates(conflict.duplicateKeyUpdate.set)
+          onDuplicateKeyUpdate: formatUpdates(
+            table,
+            conflict.duplicateKeyUpdate.set
+          )
         })
       if ('conflictDoUpdate' in conflict)
-        return formatConflict(conflict.conflictDoUpdate)
+        return formatConflict(table, conflict.conflictDoUpdate)
       if ('conflictDoNothing' in conflict)
         return formatConflict(
+          table,
           conflict.conflictDoNothing === true ? {} : conflict.conflictDoNothing
         )
       throw new Error('Unknown conflict type')
@@ -264,7 +281,7 @@ export function insertQuery(query: InsertQuery): Sql {
         values: formatValues(table, Array.isArray(values) ? values : [values])
       })
     : selectQuery(<SelectQuery>query)
-  const conflicts = query.on ? formatConflicts(query.on) : undefined
+  const conflicts = query.on ? formatConflicts(table, query.on) : undefined
   return sql
     .query(
       formatCTE(query),

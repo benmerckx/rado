@@ -87,7 +87,7 @@ export function inArray<T>(
     if (value.length === 0) return sql`false`
     return bool(
       sql`${input(left)} in (${sql.join(
-        value.map(i => input(i)),
+        value.map(i => input(i, left)),
         sql`, `
       )})`
     )
@@ -104,7 +104,7 @@ export function notInArray<T>(
     if (value.length === 0) return sql`true`
     return bool(
       sql`${input(left)} not in (${sql.join(
-        value.map(i => input(i)),
+        value.map(i => input(i, left)),
         sql`, `
       )})`
     )
@@ -125,7 +125,9 @@ export function between<T>(
   left: Input<T>,
   right: Input<T>
 ): Sql<boolean> {
-  return bool(sql`${input(value)} between ${input(left)} and ${input(right)}`)
+  return bool(
+    sql`${input(value)} between ${input(left, value)} and ${input(right, value)}`
+  )
 }
 
 export function notBetween<T>(
@@ -134,7 +136,10 @@ export function notBetween<T>(
   right: Input<T>
 ): Sql<boolean> {
   return bool(
-    sql`${input(value)} not between ${input(left)} and ${input(right)}`
+    sql`${input(value)} not between ${input(left, value)} and ${input(
+      right,
+      value
+    )}`
   )
 }
 
