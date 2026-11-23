@@ -57,6 +57,32 @@ async function acquireClient(
   }
 }
 
+// pg parses dates and timestamps itself, reading those without a zone as
+// local time. Like drizzle, these stay text so the columns can parse them.
+const RAW = new Set([1082, 1114, 1184, 1186, 1182, 1115, 1185, 1187, 1231])
+const raw = (value: string) => value
+
+interface Parsers {
+  getTypeParser(oid: number, format?: string): unknown
+}
+
+// A query given its own types skips the client's, so they are the fallback
+function types(client: Queryable) {
+  if (!('getTypeParser' in client)) return undefined
+  const parsers = client as Parsers
+  return {
+    getTypeParser: (oid: number, format?: string) =>
+      RAW.has(oid) ? raw : parsers.getTypeParser(oid, format)
+  }
+}
+
+interface QueryConfig {
+  name?: string
+  text: string
+  values: Array<unknown>
+  rowMode?: 'array'
+}
+
 class PreparedStatement implements AsyncStatement {
   constructor(
     private client: Queryable,
@@ -64,22 +90,30 @@ class PreparedStatement implements AsyncStatement {
     private name?: string
   ) {}
 
-  all(params: Array<unknown>): Promise<Array<object>> {
-    return this.client
-      .query<object>({
-        name: this.name,
-        text: this.sql,
-        values: params
-      })
-      .then(res => res.rows)
-  }
-
-  async run(params: Array<unknown>): Promise<MutationResultBase> {
-    const result = await this.client.query({
+  async #query(params: Array<unknown>, rowMode?: 'array') {
+    const config: QueryConfig = {
       name: this.name,
       text: this.sql,
       values: params
-    })
+    }
+    if (rowMode) config.rowMode = rowMode
+    if (!isPool(this.client))
+      return this.client.query({...config, types: types(this.client)})
+    // Pools have no parsers of their own, the client they hand out does
+    const client = await this.client.connect()
+    try {
+      return await client.query({...config, types: types(client)})
+    } finally {
+      client.release()
+    }
+  }
+
+  all(params: Array<unknown>): Promise<Array<object>> {
+    return this.#query(params).then(res => res.rows)
+  }
+
+  async run(params: Array<unknown>): Promise<MutationResultBase> {
+    const result = await this.#query(params)
     return {affectedRows: result.rowCount ?? 0}
   }
 
@@ -88,14 +122,7 @@ class PreparedStatement implements AsyncStatement {
   }
 
   values(params: Array<unknown>): Promise<Array<Array<unknown>>> {
-    return this.client
-      .query({
-        name: this.name,
-        text: this.sql,
-        values: params,
-        rowMode: 'array'
-      })
-      .then(res => res.rows)
+    return this.#query(params, 'array').then(res => res.rows)
   }
 
   free() {}
