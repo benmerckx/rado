@@ -93,10 +93,8 @@ if (!isDeno) {
     label: 'sql.js',
     db: drivers['sql.js'](new Database()),
     // sql.js binds strings as C strings, cutting them off at the first NUL,
-    // and decodes them with a TextDecoder, which drops a leading BOM. Json
-    // columns have numeric affinity, so a top level number is stored as a
-    // real, which the SQLite it bundles (3.49) doesn't always parse exactly.
-    limits: {nul: false, bom: false, jsonNumbers: false}
+    // and decodes them with a TextDecoder, which drops a leading BOM
+    limits: {nul: false, bom: false}
   })
 
   for (const target of targets) {

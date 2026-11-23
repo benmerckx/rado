@@ -179,20 +179,14 @@ const tricky = `aN ${marks}\t\n'"\\%_\`{},`
 export interface Limits {
   nul?: boolean
   bom?: boolean
-  jsonNumbers?: boolean
   unsafe?: boolean
 }
 
 // Numeric affinity stores integral doubles as integers, which node:sqlite
-// refuses to read back once they are past Number.MAX_SAFE_INTEGER. Json
-// columns have numeric affinity too, for top level numbers.
+// refuses to read back once they are past Number.MAX_SAFE_INTEGER
 export function numbers(options: Limits = {}): Gen<number> {
   if (options.unsafe ?? true) return doubles()
-  return doubles().filter(safe)
-}
-
-function safe(n: number): boolean {
-  return !Number.isInteger(n) || Number.isSafeInteger(n)
+  return doubles().filter(n => !Number.isInteger(n) || Number.isSafeInteger(n))
 }
 
 export function strings(
@@ -241,7 +235,7 @@ export function json(options: Limits = {}): Gen<Json> {
     ints(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
     text
   )
-  const values = gs.recursive<Json>(
+  return gs.recursive<Json>(
     leaf,
     children =>
       gs.oneOf<Json>(
@@ -251,11 +245,6 @@ export function json(options: Limits = {}): Gen<Json> {
           .map(map => Object.fromEntries(map))
       ),
     {maxDepth: 6}
-  )
-  const {jsonNumbers = true, unsafe = true} = options
-  if (jsonNumbers && unsafe) return values
-  return values.filter(
-    value => typeof value !== 'number' || (jsonNumbers && safe(value))
   )
 }
 

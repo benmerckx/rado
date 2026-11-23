@@ -29,10 +29,22 @@ const numberType = new ColumnType(
   })
 )
 
+// SQLite gives json and jsonb types numeric affinity, which would store a top
+// level JSON number as a real
+const jsonType = new ColumnType(
+  'json',
+  [],
+  sql.universal({
+    sqlite: sql`text`,
+    default: sql`json`
+  })
+)
+
 const jsonbType = new ColumnType(
   'json',
   [],
   sql.universal({
+    sqlite: sql`text`,
     mysql: sql`json`,
     default: sql`jsonb`
   })
@@ -77,7 +89,7 @@ export function boolean(name?: string): Column<boolean> {
 export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
-    type: column.json(),
+    type: jsonType,
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     },

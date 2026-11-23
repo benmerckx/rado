@@ -27,7 +27,7 @@ const User = table('user', {
 | `number()`          | `number`        | `numeric`         | `numeric`                              | `double`                      |
 | `boolean()`         | `boolean`       | `integer` 0/1     | `boolean`                              | `tinyint(1)`                  |
 | `json<T>()`         | `T`             | `text`            | `json`                                 | `json`                        |
-| `jsonb<T>()`        | `T`             | `jsonb`           | `jsonb`                                | `json`                        |
+| `jsonb<T>()`        | `T`             | `text`            | `jsonb`                                | `json`                        |
 | `blob()`            | `Uint8Array`    | `blob`            | `bytea`                                | `blob`                        |
 
 `id()` creates an auto-incrementing, non-null primary key on every dialect,

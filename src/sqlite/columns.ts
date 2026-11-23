@@ -141,10 +141,12 @@ export function numeric(name?: string): Column<number> {
   return new Column({name, type: column.numeric()})
 }
 
+// Declared as text: a json or jsonb type has numeric affinity, which would
+// store a top level JSON number as a real
 export function json<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
-    type: column.json(),
+    type: column.text(),
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     },
@@ -157,7 +159,7 @@ export function json<T>(name?: string): JsonColumn<T> {
 export function jsonb<T>(name?: string): JsonColumn<T> {
   return new JsonColumn({
     name,
-    type: column.jsonb(),
+    type: column.text(),
     mapToDriverValue(value: T): string {
       return JSON.stringify(value)
     },
