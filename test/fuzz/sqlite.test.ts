@@ -84,7 +84,11 @@ if (!isDeno) {
     targets.push({
       label: 'node:sqlite',
       db: drivers['node:sqlite'](new DatabaseSync(':memory:')),
-      limits: {unsafe: false}
+      // Node 25 reads text back up to the first NUL, Node 24 doesn't
+      limits: {
+        unsafe: false,
+        nul: Number(process.versions.node.split('.')[0]) < 25
+      }
     })
   }
   const {default: init} = await import('sql.js')
