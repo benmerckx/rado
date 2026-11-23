@@ -1010,6 +1010,20 @@ test('prepared statement with placeholder in .where', async ctx => {
   expect(result).toEqual([{id: 1, name: 'John'}])
 })
 
+test('placeholders on columns with encoder in .where', async ctx => {
+  const {db} = ctx.sqlite
+
+  const createdAt = new Date('2020-01-01T00:00:00.000Z')
+  await db.insert(usersTable).values({name: 'John', createdAt}).run()
+  const stmt = db
+    .select({id: usersTable.id})
+    .from(usersTable)
+    .where(eq(usersTable.createdAt, sql.placeholder('createdAt')))
+    .prepare()
+
+  expect(await stmt.all({createdAt})).toEqual([{id: 1}])
+})
+
 test('prepared statement with placeholder in .limit', async ctx => {
   const {db} = ctx.sqlite
 

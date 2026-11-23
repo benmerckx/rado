@@ -2,7 +2,7 @@ import type {FieldData} from './expr/Field.ts'
 import type {JsonPath} from './expr/Json.ts'
 import {type HasSql, getSql} from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
-import {type Param, ValueParam} from './Param.ts'
+import {type Param, type ParamMapper, ValueParam} from './Param.ts'
 import {Sql} from './Sql.ts'
 
 export abstract class Emitter {
@@ -14,7 +14,7 @@ export abstract class Emitter {
   abstract emitValue(value: unknown): void
   abstract emitInline(value: unknown): void
   abstract emitJsonPath(path: JsonPath): void
-  abstract emitPlaceholder(value: string): void
+  abstract emitPlaceholder(value: string, map?: ParamMapper): void
 
   constructor(runtime: Runtime) {
     this.#runtime = runtime
@@ -27,8 +27,11 @@ export abstract class Emitter {
   bind(inputs?: Record<string, unknown>): Array<unknown> {
     return this.params.map(param => {
       if (param instanceof ValueParam) return this.processValue(param.value)
-      if (inputs && param.name in inputs)
-        return this.processValue(inputs[param.name])
+      if (inputs && param.name in inputs) {
+        const value = inputs[param.name]
+        const mapped = param.map && value != null ? param.map(value) : value
+        return this.processValue(mapped)
+      }
       throw new Error(`Missing input for named parameter: ${param.name}`)
     })
   }
