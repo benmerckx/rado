@@ -1,6 +1,7 @@
 import type {Database} from '../core/Database.ts'
 import {type Generate, createGenerate, load} from '../core/Generate.ts'
 import {connect} from '../driver/mysql-wasm.ts'
+import {migrator} from './migrate.ts'
 import {push} from './push.ts'
 
 export type {GenerateOptions} from '../core/Generate.ts'
@@ -10,4 +11,4 @@ async function open(): Promise<Database> {
   return connect(await MySQL.create())
 }
 
-export const generate: Generate<'mysql'> = createGenerate(push, open)
+export const generate: Generate<'mysql'> = createGenerate(push, migrator, open)

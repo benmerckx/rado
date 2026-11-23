@@ -217,14 +217,14 @@ function* changes({
         ...references.added.map(key => referenceRisk(key.name))
       ]
     : []
-  const risk = [
+  const all = [
     ...dropped.map(name => risks[name]),
     ...added.map(name => risks[name]),
     ...changed.map(
       name => risks[name] ?? (fallback(name) ? undefined : nulls[name])
     ),
     ...keys
-  ].find(Boolean)
+  ].filter(risk => risk !== undefined)
   // The whole definition is given, change resets what it leaves out
   const alter = (name: string) => {
     const from = sql.identifier(source(name))
@@ -293,7 +293,11 @@ function* changes({
   return [
     ...drops,
     ...fills,
-    {sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`, risk}
+    {
+      sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`,
+      risk: all[0],
+      risks: all
+    }
   ]
 }
 

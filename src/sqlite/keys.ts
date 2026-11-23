@@ -1,4 +1,4 @@
-import type {Database, Transaction} from '../core/Database.ts'
+import type {Database} from '../core/Database.ts'
 import {sql} from '../core/Sql.ts'
 import {table} from '../core/Table.ts'
 import {type Gen, within} from '../core/Transaction.ts'
@@ -30,30 +30,26 @@ function* violations(tx: Database, failure: string): Gen<Array<string>> {
   }
 }
 
+export interface Unenforced {
+  // Push or Migrations, in the errors
+  name: string
+  // Rolls back what ran
+  dry?: boolean
+}
+
 // The foreign_keys pragma is a no-op inside a transaction, where dropping a
 // rebuilt table would cascade to the rows that reference it. So keys are
 // turned off around the transaction, as SQLite's rebuild procedure has it,
 // and checked before commit. An immediate transaction keeps writers out.
-// Keys stay enforced inside a caller's transaction, then locked is set, and
-// on a database that always enforces them, such as a Durable Object, which
-// sets always too.
-export interface Keys {
-  locked: boolean
-  always: boolean
-}
-
+// Locked is set when keys stay enforced anyway: inside a caller's
+// transaction, or on a database that always enforces them.
 export function* unenforced<T>(
   db: Database,
-  name: string,
-  run: (tx: Database, keys: Keys) => Gen<T>,
-  dry = false
+  {name, dry = false}: Unenforced,
+  run: (tx: Database, locked: boolean) => Gen<T>
 ): Gen<T> {
   const on = yield* enforced(db)
   if (on) yield db.run(sql`pragma foreign_keys = off`)
-  // A caller's transaction has a rollback, importing its class would bundle
-  // the whole query builder
-  const inside = typeof (db as Transaction<any>).rollback === 'function'
-  const always = on && !inside && (yield* enforced(db))
   try {
     return yield* within(
       db,
@@ -62,7 +58,7 @@ export function* unenforced<T>(
         // Checked whether or not keys are enforced, and only what the run
         // breaks fails it, so existing orphans elsewhere don't block it
         const before = yield* violations(tx, 'Cannot check foreign keys')
-        const result = yield* run(tx, {locked, always})
+        const result = yield* run(tx, locked)
         // Counted, rows of a table without rowid can repeat the same key
         for (const key of yield* violations(
           tx,

@@ -50,8 +50,9 @@ export function keyRisk(name: string, definition: string): string | undefined {
       ? 'unique key'
       : undefined
   if (!kind) return
-  // SQLite and MySQL don't name a primary key
-  const named = name === 'primary' ? '' : ` "${name}"`
+  // SQLite and MySQL don't name a primary key, SQLite names its own unique
+  // keys
+  const named = /^(primary|sqlite_autoindex_)/.test(name) ? '' : ` "${name}"`
   return `add ${kind}${named}, fails on duplicates`
 }
 

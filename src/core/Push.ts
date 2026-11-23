@@ -36,7 +36,10 @@ export interface PlanOptions extends PushOptions {
 
 export interface Step {
   sql: Sql
+  // What push refuses it for
   risk?: string
+  // Every risk of a statement that combines changes, for generate
+  risks?: Array<string>
   rebuild?: boolean
   // Changes something a rollback doesn't undo, such as a sequence
   effect?: boolean
@@ -67,7 +70,7 @@ export interface Runner {
 // A statement push runs, with what it may lose
 export interface Statement {
   sql: string
-  risk?: string
+  risks: Array<string>
 }
 
 type Mode = 'push' | 'plan' | 'capture'
@@ -138,7 +141,7 @@ export function createPush<R extends Runtime>(
             result.push(
               ...steps.map(step => ({
                 sql: db.dialect.inline(step.sql),
-                risk: step.risk
+                risks: step.risks ?? (step.risk ? [step.risk] : [])
               }))
             )
             // A refused table is left as is, as push would stop there, and a

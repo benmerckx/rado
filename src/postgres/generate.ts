@@ -1,6 +1,7 @@
 import type {Database} from '../core/Database.ts'
 import {type Generate, createGenerate, load} from '../core/Generate.ts'
 import {connect} from '../driver/pglite.ts'
+import {migrator} from './migrate.ts'
 import {push} from './push.ts'
 
 export type {GenerateOptions} from '../core/Generate.ts'
@@ -13,4 +14,8 @@ async function open(): Promise<Database> {
   return connect(new PGlite())
 }
 
-export const generate: Generate<'postgres'> = createGenerate(push, open)
+export const generate: Generate<'postgres'> = createGenerate(
+  push,
+  migrator,
+  open
+)

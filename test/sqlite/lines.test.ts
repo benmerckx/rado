@@ -3,27 +3,38 @@ import {lines} from '#/sqlite/lines.ts'
 
 const test = suite(import.meta)
 
-test('lines drops blank and comment lines', () => {
+test('lines puts each statement on a line', () => {
   test.equal(
-    lines('-- a\n\nselect 1;\n  -- b\nselect 2; -- c'),
-    'select 1;\nselect 2; -- c'
+    lines('-- a\n\ncreate table t (\n  id integer -- key\n);\nselect 1;'),
+    'create table t (   id integer  );\nselect 1;'
   )
 })
 
-test('lines keeps literals that span lines', () => {
-  const query =
-    "insert into t values ('a\n-- b\n\nc'); -- 'x\n-- d\nselect 'it''s';"
+test('lines keeps literals and quoted names', () => {
   test.equal(
-    lines(query),
-    "insert into t values ('a\n-- b\n\nc'); -- 'x\nselect 'it''s';"
+    lines("insert into t values ('a;\n-- b');\nselect \"x;y\", [z;];"),
+    "insert into t values ('a;\n-- b');\nselect \"x;y\", [z;];"
   )
 })
 
 test('lines with crlf and block comments', () => {
+  test.equal(lines('select 1;\r\n\r\nselect 2;'), 'select 1;\nselect 2;')
   test.equal(
-    lines('-- a\r\n\r\nselect 1;\r\nselect 2;'),
-    'select 1;\nselect 2;'
+    lines("select /* it's; */ 1;\n-- 'x\nselect 2;"),
+    'select   1;\nselect 2;'
   )
-  const query = "select /* it's */ 1;\n-- 'x\nselect 2;"
-  test.equal(lines(query), "select /* it's */ 1;\nselect 2;")
+})
+
+test('lines keeps a trigger body whole', () => {
+  const trigger = [
+    'create trigger t after insert on a begin',
+    '  update a set v = case when v then 1 else 0 end;',
+    '  delete from b;',
+    'end;',
+    'select 1;'
+  ].join('\n')
+  test.equal(
+    lines(trigger),
+    'create trigger t after insert on a begin   update a set v = case when v then 1 else 0 end;   delete from b; end;\nselect 1;'
+  )
 })

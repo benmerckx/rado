@@ -68,6 +68,15 @@ export function enumQuery(enumInfo: PgEnumInfo): Sql {
   )}); exception when duplicate_object then null; end $$`
 }
 
+// The schemas the table's enums are in
+export function enumSchemas(table: TableApi): Array<string> {
+  return Object.values(table.columns)
+    .map(column => getData(column))
+    .filter(data => hasEnum<PgEnumInfo>(data))
+    .map(data => getEnum<PgEnumInfo>(data).schema)
+    .filter(schema => schema !== undefined)
+}
+
 export function collectEnumQuery(table: TableApi): Array<Sql> {
   const enums: Array<Sql> = []
   const seen = new Set<string>()

@@ -6,7 +6,7 @@ import {
   referenceRisk
 } from '../core/Compare.ts'
 import type {Database} from '../core/Database.ts'
-import {eq, isNull, ne} from '../core/expr/Conditions.ts'
+import {eq, inArray, isNull, ne} from '../core/expr/Conditions.ts'
 import {
   columns,
   foreignKey,
@@ -30,6 +30,7 @@ import {alias, type TableApi} from '../core/Table.ts'
 import {type Gen, result, scratch} from '../core/Transaction.ts'
 import {grows, parseType, ranks} from '../core/Widening.ts'
 import {Class, Constraint, Namespace, home, prepend} from './catalog.ts'
+import {enumSchemas} from './enum.ts'
 import {shape} from './shape.ts'
 
 export type {PushOptions, Schema} from '../core/Push.ts'
@@ -102,6 +103,20 @@ function scope(options: PlanOptions, home: string) {
 const at = (schema: string | undefined, name: Sql): Sql =>
   schema ? sql`${sql.identifier(schema)}.${name}` : name
 
+// Schemas that don't exist yet, for the table and its enums. If not exists,
+// a file generated against a shadow may run where they do.
+function* schemas(tx: Database, names: Array<string>): Gen<Array<Step>> {
+  const found = yield* tx
+    .select(Namespace.nspname)
+    .from(Namespace)
+    .where(inArray(Namespace.nspname, names))
+  return names
+    .filter((name, i) => names.indexOf(name) === i && !found.includes(name))
+    .map(name => ({
+      sql: sql`create schema if not exists ${sql.identifier(name)}`
+    }))
+}
+
 function* plan(
   tx: Database,
   api: TableApi,
@@ -116,15 +131,9 @@ function* plan(
   // A new table gets its foreign keys afterwards, with qualified references
   // a temporary table can't shadow
   if (oid === undefined) {
-    const [space] = yield* tx
-      .select(Namespace.oid)
-      .from(Namespace)
-      .where(eq(Namespace.nspname, schema))
     return [
-      // Its schema too, a dry run sees it for the tables after
-      ...(space === undefined
-        ? [{sql: sql`create schema ${sql.identifier(schema)}`}]
-        : []),
+      // A dry run applies them, the tables after see them
+      ...(yield* schemas(tx, [schema, ...enumSchemas(api)])),
       ...shadow(api, api.name, own(schema))
         .create()
         .map(sql => ({sql})),
@@ -147,7 +156,8 @@ function* plan(
     for (const step of renamed) yield inner.run(step.sql)
     const live =
       renamed.length > 0 ? (yield* shape(inner, api.name, schema))! : before
-    const enums: Array<Step> = []
+    const enums = yield* schemas(inner, enumSchemas(api))
+    for (const step of enums) yield inner.run(step.sql)
     for (const query of api.createEnums()) {
       const name = inner.dialect.inline(query).match(/type (.+?) as/)![1]
       const [found] = yield* inner.select(sql<unknown>`to_regtype(${name})`)

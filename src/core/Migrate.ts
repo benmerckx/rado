@@ -1,14 +1,10 @@
-import {Master as master} from '../sqlite/catalog.ts'
-import {unenforced} from '../sqlite/keys.ts'
-import {varchar} from '../universal/columns.ts'
+import {Column, column} from './Column.ts'
 import type {Database} from './Database.ts'
-import {eq, inArray, notLike} from './expr/Conditions.ts'
 import {getTable} from './Internal.ts'
 import type {Deliver, QueryMeta} from './MetaData.ts'
-import {schema} from './Schema.ts'
 import {sql} from './Sql.ts'
 import {table} from './Table.ts'
-import {type Gen, exec, result, transaction} from './Transaction.ts'
+import {type Gen, exec} from './Transaction.ts'
 
 // File name to sql, the shape import.meta.glob returns
 export type Migrations = Record<string, string>
@@ -31,27 +27,36 @@ export interface Migrate {
   ): Deliver<Meta, Array<string>>
 }
 
+// What each dialect does its own way
+export interface Migrator {
+  // Why a driver that runs one statement at a time can't migrate
+  statements: string
+  // Whether the current schema has a table or view of this name
+  exists(db: Database, name: string): Gen<boolean>
+  // Whether nothing is defined yet, for the shadow generate runs on
+  empty(db: Database): Gen<boolean>
+  // Runs apply under the dialect's lock and transaction. Partial is set
+  // when a failing file leaves what ran before it.
+  run(
+    db: Database,
+    apply: (tx: Database, partial: boolean) => Gen<Array<string>>
+  ): Gen<Array<string>>
+}
+
 interface Migration {
   name: string
   sql: string
   checksum: string
 }
 
-const Master = master('main', 'sqlite_master')
+const varchar = (name: string, length: number) =>
+  new Column<string>({name, type: column.varchar(length)})
 
-const History = table('rado_migrations', {
-  name: varchar('name', {length: 255}).primaryKey(),
-  checksum: varchar('checksum', {length: 16}).notNull(),
-  appliedAt: varchar('applied_at', {length: 32}).notNull()
+export const History = table('rado_migrations', {
+  name: varchar('name', 255).primaryKey(),
+  checksum: varchar('checksum', 16).notNull(),
+  appliedAt: varchar('applied_at', 32).notNull()
 })
-
-const Tables = schema('information_schema').table('tables', {
-  table_schema: varchar().notNull(),
-  table_name: varchar().notNull()
-})
-
-// Pins the lock to this run, the key is "rado" in ascii
-const key = 0x7261646f
 
 // cyrb53, small and sync, line endings are normalized so a checkout with
 // crlf doesn't count as a change
@@ -93,35 +98,13 @@ export function list(migrations: Migrations): Array<Migration> {
   )
 }
 
-// Tables and views in the current schema, or the one named
-export function* objects(db: Database, name?: string): Gen<Array<string>> {
-  if (db.dialect.runtime === 'sqlite')
-    return yield* db
-      .select(Master.name)
-      .from(Master)
-      .where(
-        inArray(Master.type, ['table', 'view']),
-        name ? eq(Master.name, name) : notLike(Master.name, 'sqlite_%')
-      )
-  const current = sql.universal<string>({
-    postgres: sql`current_schema()`,
-    mysql: sql`database()`
-  })
-  return yield* db
-    .select(Tables.table_name)
-    .from(Tables)
-    .where(
-      eq(Tables.table_schema, current),
-      name ? eq(Tables.table_name, name) : undefined
-    )
-}
-
 // The migrations that haven't run, after checking the ones that have
 function* check(
   db: Database,
+  migrator: Migrator,
   migrations: Array<Migration>
 ): Gen<Array<Migration>> {
-  const applied = (yield* objects(db, getTable(History).name)).length
+  const applied = (yield* migrator.exists(db, getTable(History).name))
     ? yield* db.select(History).from(History)
     : []
   for (const row of applied) {
@@ -134,17 +117,22 @@ function* check(
   return migrations.filter(m => !applied.some(row => row.name === m.name))
 }
 
+// The message of an error and the one it wraps, D1 puts the reason there
+function reason(error: unknown): string {
+  const {message, cause} = error as Error
+  return cause instanceof Error ? `${message}: ${cause.message}` : message
+}
+
 function* apply(
   db: Database,
+  migrator: Migrator,
   migrations: Array<Migration>,
-  options: MigrateOptions,
+  baseline: string | undefined,
   partial: boolean
 ): Gen<Array<string>> {
   yield db.run(getTable(History).createTable(undefined, true))
-  const pending = yield* check(db, migrations)
-  const baseline = options.baseline && named(options.baseline)
-  if (baseline && !migrations.some(m => m.name === baseline))
-    throw new Error(`Unknown baseline ${baseline}`)
+  // Checked again under the lock, another process may have run them
+  const pending = yield* check(db, migrator, migrations)
   // Only an empty history takes a baseline, so it can stay in place
   const marked =
     baseline && pending.length === migrations.length
@@ -156,9 +144,8 @@ function* apply(
     try {
       if (m.sql.trim()) yield db.run(sql.unsafe(m.sql))
     } catch (error) {
-      const reason = (error as Error).message
       const note = partial ? ' and may be partially applied' : ''
-      throw new Error(`Migration ${m.name} failed${note}: ${reason}`, {
+      throw new Error(`Migration ${m.name} failed${note}: ${reason(error)}`, {
         cause: error
       })
     }
@@ -175,91 +162,38 @@ function record(db: Database, {name, checksum}: Migration) {
 
 function* run(
   db: Database,
+  migrator: Migrator,
   migrations: Array<Migration>,
   options: MigrateOptions
 ): Gen<Array<string>> {
   if (db.driver.multipleStatements === false)
-    throw new Error(
-      db.dialect.runtime === 'mysql'
-        ? 'Migrations need multipleStatements: true'
-        : 'Migrate over the websocket Pool, Neon HTTP runs one statement per query'
-    )
-  if (!db.driver.supportsTransactions)
-    return yield* apply(db, migrations, options, true)
-  switch (db.dialect.runtime) {
-    case 'sqlite':
-      return yield* sqlite(db, migrations, options)
-    case 'postgres':
-      return yield* result(
-        transaction(db, function* (tx) {
-          yield* tx.select(sql`pg_advisory_xact_lock(${sql.inline(key)})`)
-          return yield* apply(tx, migrations, options, false)
-        })
-      )
-    case 'mysql':
-      return yield* mysql(db, migrations, options)
-  }
-}
-
-// Keys are off while the files run, so a rebuilt table doesn't cascade to
-// the rows that reference it
-function sqlite(
-  db: Database,
-  migrations: Array<Migration>,
-  options: MigrateOptions
-): Gen<Array<string>> {
-  return unenforced(db, 'Migrations', function* (tx, {locked, always}) {
-    if (locked && !always)
-      throw new Error('Cannot migrate with foreign keys enforced')
-    return yield* apply(tx, migrations, options, false)
-  })
-}
-
-// DDL commits implicitly, so each file is recorded as soon as it ran and the
-// transaction only holds one connection for the lock
-function* mysql(
-  db: Database,
-  migrations: Array<Migration>,
-  options: MigrateOptions
-): Gen<Array<string>> {
-  try {
-    // Fails while a transaction is open, else it only sets the default
-    yield db.run(sql`set transaction read write`)
-  } catch {
-    throw new Error('Cannot migrate inside a MySQL transaction')
-  }
-  // Lock names are server wide, at most 64 characters
-  const name = sql`left(concat('rado_migrations.', database()), 64)`
-  return yield* result(
-    transaction(db, function* (tx) {
-      yield tx.run(sql`commit`)
-      const [locked] = yield* tx.select(sql<unknown>`get_lock(${name}, -1)`)
-      if (Number(locked) !== 1) throw new Error('Cannot lock migrations')
-      try {
-        return yield* apply(tx, migrations, options, true)
-      } finally {
-        // The lock goes with the connection anyway, an error here would hide
-        // the one that ended the run
-        try {
-          yield* tx.select(sql`release_lock(${name})`)
-        } catch {}
-      }
-    })
-  )
+    throw new Error(migrator.statements)
+  const baseline = options.baseline && named(options.baseline)
+  if (baseline && !migrations.some(m => m.name === baseline))
+    throw new Error(`Unknown baseline ${baseline}`)
+  // Nothing to run, so no lock and, on SQLite, no foreign key checks
+  if ((yield* check(db, migrator, migrations)).length === 0) return []
+  const go = (tx: Database, partial: boolean) =>
+    apply(tx, migrator, migrations, baseline, partial)
+  if (!db.driver.supportsTransactions) return yield* go(db, true)
+  return yield* migrator.run(db, go)
 }
 
 function* pending(
   db: Database,
+  migrator: Migrator,
   migrations: Array<Migration>
 ): Gen<Array<string>> {
-  return (yield* check(db, migrations)).map(m => m.name)
+  return (yield* check(db, migrator, migrations)).map(m => m.name)
 }
 
-export const migrate: Migrate = Object.assign(
-  (db: Database, migrations: Migrations, options: MigrateOptions = {}) =>
-    exec(run(db, list(migrations), options)),
-  {
-    pending: (db: Database, migrations: Migrations) =>
-      exec(pending(db, list(migrations)))
-  }
-) as Migrate
+export function createMigrate(pick: (db: Database) => Migrator): Migrate {
+  return Object.assign(
+    (db: Database, migrations: Migrations, options: MigrateOptions = {}) =>
+      exec(run(db, pick(db), list(migrations), options)),
+    {
+      pending: (db: Database, migrations: Migrations) =>
+        exec(pending(db, pick(db), list(migrations)))
+    }
+  ) as Migrate
+}

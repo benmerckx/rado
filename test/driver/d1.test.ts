@@ -30,5 +30,40 @@ if (isNode) {
     )
   })
 
+  test('d1: migrate a multi-line file', async () => {
+    const {migrate} = await import('#/migrate.ts')
+    const {sql} = await import('#/index.ts')
+    const file = [
+      '-- Notes, with a trigger',
+      'create table d1_note (',
+      '  id integer primary key, -- the key',
+      "  body text not null default 'a;b'",
+      ');',
+      '',
+      'create table d1_log (id integer);',
+      // Miniflare's D1 only finds a trigger body after an uppercase BEGIN
+      'create trigger d1_logged after insert on d1_note BEGIN',
+      '  insert into d1_log values (new.id);',
+      'END;',
+      'insert into d1_note (id) values (1);'
+    ].join('\r\n')
+    try {
+      test.equal(await migrate(db, {'0001_note.sql': file}), ['0001_note'])
+      test.equal(await db.all(sql<{id: number}>`select id from d1_log`), [
+        {id: 1}
+      ])
+      const error = await failure(() =>
+        migrate(db, {
+          '0001_note.sql': file,
+          '0002_bad.sql': 'insert into d1_missing values (1);'
+        })
+      )
+      test.equal(error.includes('no such table: d1_missing'), true)
+    } finally {
+      for (const name of ['d1_note', 'd1_log', 'rado_migrations'])
+        await db.run(sql`drop table if exists ${sql.identifier(name)}`)
+    }
+  })
+
   testDriver(db, test, 'd1')
 }

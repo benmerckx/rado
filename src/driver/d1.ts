@@ -53,6 +53,7 @@ class PreparedStatement implements AsyncStatement {
 export class D1Driver implements AsyncDriver {
   parsesJson = false
   supportsTransactions = false
+  enforcesForeignKeys = true as const
 
   constructor(private client: Client) {}
 

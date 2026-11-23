@@ -2,6 +2,7 @@ import type {Database} from '../core/Database.ts'
 import {type Generate, createGenerate} from '../core/Generate.ts'
 import {connect as bun} from '../driver/bun-sqlite.ts'
 import {connect as node} from '../driver/node-sqlite.ts'
+import {migrator} from './migrate.ts'
 import {push} from './push.ts'
 
 export type {GenerateOptions} from '../core/Generate.ts'
@@ -17,4 +18,4 @@ async function open(): Promise<Database> {
   return node(new DatabaseSync(':memory:'))
 }
 
-export const generate: Generate<'sqlite'> = createGenerate(push, open)
+export const generate: Generate<'sqlite'> = createGenerate(push, migrator, open)

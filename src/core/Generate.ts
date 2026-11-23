@@ -1,6 +1,6 @@
 import type {Database} from './Database.ts'
 import type {QueryDialect, QueryMeta} from './MetaData.ts'
-import {type Migrations, migrate, objects} from './Migrate.ts'
+import {type Migrations, type Migrator, createMigrate} from './Migrate.ts'
 import {tables} from './Order.ts'
 import {type Push, type Schema, type Statement, capture} from './Push.ts'
 import {exec} from './Transaction.ts'
@@ -26,19 +26,21 @@ function comment(risk: string): string {
 
 function format(statements: Array<Statement>): string {
   return statements
-    .map(({sql, risk}) => `${risk ? `${comment(risk)}\n` : ''}${sql};`)
+    .map(({sql, risks}) => [...risks.map(comment), `${sql};`].join('\n'))
     .join('\n\n')
 }
 
 export function createGenerate<D extends QueryDialect>(
   push: Push<D>,
+  migrator: Migrator,
   open: () => Promise<Database>
 ): Generate<D> {
+  const migrate = createMigrate(() => migrator)
   return async (migrations, schema, options = {}) => {
     tables(schema)
     const db = (options.shadow as Database | undefined) ?? (await open())
     try {
-      if ((await exec(objects(db))).length > 0)
+      if (!(await exec(migrator.empty(db))))
         throw new Error('Expected an empty database')
       await migrate(db, migrations)
       const statements = await capture(push as Push, db, schema, {

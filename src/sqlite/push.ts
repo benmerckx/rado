@@ -134,16 +134,23 @@ function* changes(
       live,
       desired,
       hasRows,
-      risk:
-        Object.values({...risks, ...nulls})[0] ??
-        (capture
+      risks: [
+        ...Object.values(risks),
+        ...Object.values(nulls),
+        // Keys are compared by definition, sqlite names unique keys by their
+        // place in the table
+        ...(capture
           ? [
               ...Object.entries(desired.constraints)
-                .filter(([name, value]) => live.constraints[name] !== value)
+                .filter(
+                  ([, value]) =>
+                    !Object.values(live.constraints).includes(value)
+                )
                 .map(([name, value]) => keyRisk(name, value)),
               ...references.added.map(key => referenceRisk(key.name))
-            ].find(Boolean)
-          : undefined),
+            ]
+          : [])
+      ].filter(risk => risk !== undefined),
       capture
     })
   const indexes = api.indexes()
@@ -173,7 +180,7 @@ interface Rebuild {
   live: Shape
   desired: Shape
   hasRows: () => Gen<boolean>
-  risk?: string
+  risks: Array<string>
   capture?: boolean
 }
 
@@ -184,7 +191,7 @@ function* recreate({
   live,
   desired,
   hasRows,
-  risk,
+  risks,
   capture
 }: Rebuild): Gen<Array<Step>> {
   const target = api.identifier()
@@ -230,21 +237,24 @@ function* recreate({
     rowid &&
     promoted &&
     alias !== live.rowid &&
-    (yield* exists(
-      tx,
-      target,
-      sql`${sql.identifier(alias)} is not ${sql.identifier(from!)}`
-    ))
+    // The shadow has no rows to tell
+    (capture ||
+      (yield* exists(
+        tx,
+        target,
+        sql`${sql.identifier(alias)} is not ${sql.identifier(from!)}`
+      )))
   const ids = rowid && !promoted
   const names = [...(ids ? [into!] : []), ...copied]
   // Without a rowid or a column in common, there is nothing to copy rows by
   const lost = `drop the rows of "${api.name}", no column of them stays`
   if (names.length === 0 && !capture && (yield* hasRows()))
     throw new Error(`Cannot rebuild "${api.name}", no column of its rows stays`)
-  const loses =
-    risk ??
-    (moves ? `change the rowids of "${api.name}" to "${alias}"` : undefined) ??
-    (names.length === 0 && capture ? lost : undefined)
+  const loses = [
+    ...risks,
+    ...(moves ? [`change the rowids of "${api.name}" to "${alias}"`] : []),
+    ...(names.length === 0 && capture ? [lost] : [])
+  ]
   const copy = names.length > 0
   const selection = [
     ...(ids ? [sql.identifier(from!)] : []),
@@ -278,14 +288,15 @@ function* recreate({
               selection,
               sql`, `
             )} from ${target}`,
-            risk: loses
+            risk: loses[0],
+            risks: loses
           }
         ]
       : []),
     // The old table goes with any data the copy leaves out
     {
       sql: sql`drop table ${target}`,
-      risk: copy ? undefined : loses,
+      ...(copy ? {} : {risk: loses[0], risks: loses}),
       rebuild: true
     },
     {sql: sql`alter table ${temp} rename to ${sql.identifier(api.name)}`},
@@ -309,15 +320,11 @@ function* recreate({
 }
 
 const runner: Runner = (db, apply, dry) =>
-  unenforced(
-    db,
-    'Push',
-    (tx, {locked}) =>
-      apply(tx, true, steps => {
-        if (locked && steps.some(step => step.rebuild))
-          throw new Error('Cannot rebuild with foreign keys enforced')
-      }),
-    dry
+  unenforced(db, {name: 'Push', dry}, (tx, locked) =>
+    apply(tx, true, steps => {
+      if (locked && steps.some(step => step.rebuild))
+        throw new Error('Cannot rebuild with foreign keys enforced')
+    })
   )
 
 export const push: Push<'sqlite'> = createPush('sqlite', plan, runner)
