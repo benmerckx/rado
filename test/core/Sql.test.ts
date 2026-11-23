@@ -11,6 +11,12 @@ suite(import.meta, test => {
     test.equal(emit(sql.placeholder('name')), '?name')
   })
 
+  test('placeholders are plain sql', async () => {
+    const rado = await import('#/index.ts')
+    test.equal('Placeholder' in rado, false)
+    test.equal(Object.keys(sql.placeholder('name')), Object.keys(sql.value(1)))
+  })
+
   test('identifier', () => {
     test.equal(emit(sql.identifier('name')), '"name"')
   })

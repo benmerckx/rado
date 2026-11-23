@@ -8,7 +8,8 @@ import {
   hasSql,
   hasTable
 } from '../Internal.ts'
-import {Placeholder, type Sql, sql} from '../Sql.ts'
+import {placeholders} from '../Param.ts'
+import {Sql, sql} from '../Sql.ts'
 
 export type Input<T = unknown> = HasSql<T> | T
 
@@ -34,9 +35,9 @@ export function mapToColumn<T>(
   const isObject = expr && typeof expr === 'object'
   if (isObject && hasSql(expr)) {
     const inner = getSql(expr)
-    if (inner instanceof Placeholder && mapToDriverValue)
-      return inner.mapTo(mapToDriverValue)
-    return inner
+    const name = placeholders.get(inner)
+    if (name === undefined || !mapToDriverValue) return inner
+    return new Sql(emitter => emitter.emitPlaceholder(name, mapToDriverValue))
   }
   if (Array.isArray(expr) && type.kind === 'array') {
     if (!mapToDriverValue) return input(expr as T)

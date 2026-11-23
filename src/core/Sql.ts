@@ -11,7 +11,7 @@ import {
   internalSql
 } from './Internal.ts'
 import type {Runtime} from './MetaData.ts'
-import type {ParamMapper} from './Param.ts'
+import {placeholders} from './Param.ts'
 
 export type Decoder<T = unknown> =
   | ((value: unknown) => T)
@@ -79,19 +79,6 @@ export class Sql<Value = unknown> implements HasSql<Value> {
   }
 }
 
-export class Placeholder<T> extends Sql<T> {
-  constructor(
-    public name: string,
-    map?: ParamMapper
-  ) {
-    super(emitter => emitter.emitPlaceholder(name, map))
-  }
-
-  mapTo(map: ParamMapper): Placeholder<T> {
-    return new Placeholder(this.name, map)
-  }
-}
-
 class JsonPathSql<T> extends Sql<T> {
   constructor(public path: JsonPath) {
     super(emitter => emitter.emitJsonPath(path))
@@ -139,7 +126,9 @@ export namespace sql {
   }
 
   export function placeholder<T>(name: string): Sql<T> {
-    return new Placeholder(name)
+    const placeholder = new Sql<T>(emitter => emitter.emitPlaceholder(name))
+    placeholders.set(placeholder, name)
+    return placeholder
   }
 
   export function identifier<T>(identifier: string): Sql<T> {
