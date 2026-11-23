@@ -108,15 +108,15 @@ if (!isDeno) {
         bigints(-(10n ** 30n) + 1n, 10n ** 30n - 1n)
       ),
       // MySQL drops trailing spaces from char values when reading them
-      char: field(mysql.char({length: 5}), strings({maxSize: 5}), {
+      myChar: field(mysql.char({length: 5}), strings({maxSize: 5}), {
         expect: value => value.replace(/ +$/, '')
       }),
-      varchar: field(mysql.varchar({length: 5}), strings({maxSize: 5})),
-      text: field(mysql.text(), strings()),
+      myVarchar: field(mysql.varchar({length: 5}), strings({maxSize: 5})),
+      myText: field(mysql.text(), strings()),
       tinytext: field(mysql.tinytext(), strings({maxSize: 60})),
       mediumtext: field(mysql.mediumtext(), strings()),
       longtext: field(mysql.longtext(), strings()),
-      boolean: field(mysql.boolean(), gs.booleans()),
+      myBoolean: field(mysql.boolean(), gs.booleans()),
       // Binary values are padded with zero bytes up to their length
       binary: field(mysql.binary({length: 16}), gs.binary({maxSize: 16}), {
         expect: value => {
@@ -126,7 +126,7 @@ if (!isDeno) {
         }
       }),
       varbinary: field(mysql.varbinary({length: 256}), bytes(256)),
-      blob: field(mysql.blob(), bytes()),
+      myBlob: field(mysql.blob(), bytes()),
       date: field(mysql.date(), days('1000', '9999-12-31')),
       dateString: field(
         mysql.date({mode: 'string'}),
@@ -153,7 +153,7 @@ if (!isDeno) {
       ),
       time: field(mysql.time(), times),
       year: field(mysql.year(), gs.integers({minValue: 1901, maxValue: 2155})),
-      json: field(mysql.json(), json(), {expect: asJson}),
+      myJson: field(mysql.json(), json(), {expect: asJson}),
       enum: field(mysql.mysqlEnum('enum', values), gs.sampledFrom(values))
     }
   }
