@@ -3,7 +3,7 @@ export interface Parsers {
 }
 
 // Drivers parse dates and timestamps themselves, reading those without a zone
-// as local time. Like drizzle, these stay text so the columns parse them:
+// as local time. These stay text so the columns parse them:
 // date, timestamp, timestamptz, interval, their arrays and numeric[].
 const text = new Set([1082, 1114, 1184, 1186, 1182, 1115, 1185, 1187, 1231])
 

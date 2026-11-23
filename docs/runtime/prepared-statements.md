@@ -49,11 +49,6 @@ that column the way a literal value would be: in inserted values,
 placeholder, such as a `Date` for a timestamp column or an object for a json
 column, not a pre-encoded one.
 
-> Coming from Drizzle: Drizzle maps placeholder inputs in inserts but not in
-> conditions. Code that encodes inputs itself, for example passing
-> `JSON.stringify(value)` to a json column's placeholder, now gets them
-> encoded twice and should pass the plain value instead.
-
 ```ts
 const page = db
   .select()

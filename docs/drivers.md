@@ -71,7 +71,7 @@ const db = connect(new Pool({connectionString: process.env.DATABASE_URL}))
 `connect` accepts a `Client`, `Pool` or `PoolClient`.
 
 pg parses dates and timestamps itself, reading those without a time zone as
-local time. Like drizzle, rado reads `date`, `timestamp`, `timestamptz`,
+local time. Rado reads `date`, `timestamp`, `timestamptz`,
 `interval` (and arrays of them) as text and lets the columns parse them, on
 each query and without changing the client's own type parsers. A raw `sql`
 select of these types returns the string postgres prints, such as
