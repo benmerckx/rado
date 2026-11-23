@@ -6,7 +6,12 @@ const test = suite(import.meta)
 if (!isDeno) {
   const {gs, field, fuzz, close, ints, bigints, doubles, strings, bytes} =
     await import('./Fuzz.ts')
-  const {json: anyJson, dates, universalCases} = await import('./Fuzz.ts')
+  const {
+    json: anyJson,
+    dates,
+    numbers,
+    universalCases
+  } = await import('./Fuzz.ts')
   type Limits = import('./Fuzz.ts').Limits
   type Target = import('./Fuzz.ts').Target
   const sqlite = await import('#/sqlite.ts')
@@ -32,7 +37,9 @@ if (!isDeno) {
       ),
       // SQLite stores integral reals as integers, which turns -0 into 0
       real: field(sqlite.real(), doubles(), {expect: n => n + 0}),
-      numeric: field(sqlite.numeric(), doubles(), {expect: n => n + 0}),
+      numeric: field(sqlite.numeric(), numbers(options), {
+        expect: n => n + 0
+      }),
       textLength: field(sqlite.text({length: 3}), strings(options)),
       textEnum: field(
         sqlite.text({enum: ['a', 'b', 'ü']}),
@@ -70,7 +77,8 @@ if (!isDeno) {
     const {DatabaseSync} = await import(nodeSqlite)
     targets.push({
       label: 'node:sqlite',
-      db: drivers['node:sqlite'](new DatabaseSync(':memory:'))
+      db: drivers['node:sqlite'](new DatabaseSync(':memory:')),
+      limits: {unsafe: false}
     })
   }
   const {default: init} = await import('sql.js')
@@ -82,7 +90,7 @@ if (!isDeno) {
     // and decodes them with a TextDecoder, which drops a leading BOM. Json
     // columns have numeric affinity, so a top level number is stored as a
     // real, which the SQLite it bundles (3.49) doesn't always parse exactly.
-    limits: {nul: false, bom: false, numbers: false}
+    limits: {nul: false, bom: false, jsonNumbers: false}
   })
 
   for (const target of targets) {

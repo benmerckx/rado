@@ -141,6 +141,9 @@ if (!isDeno) {
     const {default: Pg} = await import('pg')
     const client = new Pg.Client({connectionString: url})
     await client.connect()
+    // pg parses dates and timestamps without a zone as local time, which
+    // rado can't undo, so they are read as text as for the other drivers
+    for (const oid of [1082, 1114]) client.setTypeParser(oid, text => text)
     targets.push({label: 'pg', db: drivers.pg(client), limits})
     const {default: postgres} = await import('postgres')
     const sql = postgres(url, {onnotice() {}})

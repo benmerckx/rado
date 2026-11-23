@@ -180,7 +180,15 @@ const tricky = `aN ${marks}\t\n'"\\%_\`{},`
 export interface Limits {
   nul?: boolean
   bom?: boolean
-  numbers?: boolean
+  jsonNumbers?: boolean
+  unsafe?: boolean
+}
+
+// Numeric affinity stores integral doubles as integers, which node:sqlite
+// refuses to read back once they are past Number.MAX_SAFE_INTEGER
+export function numbers(options: Limits = {}): Gen<number> {
+  if (options.unsafe ?? true) return doubles()
+  return doubles().filter(n => !Number.isInteger(n) || Number.isSafeInteger(n))
 }
 
 export function strings(
@@ -235,7 +243,7 @@ export function json(options: Limits = {}): Gen<Json> {
       ),
     {maxDepth: 6}
   )
-  if (options.numbers ?? true) return json
+  if (options.jsonNumbers ?? true) return json
   return json.filter(value => typeof value !== 'number')
 }
 
@@ -264,7 +272,7 @@ export function universalCases(options: Limits = {}) {
     integer: field(universal.integer(), ints(-2147483648, 2147483647), {
       expect: n => n + 0
     }),
-    number: field(universal.number(), doubles(), {same: signless}),
+    number: field(universal.number(), numbers(options), {same: signless}),
     boolean: field(universal.boolean(), gs.booleans()),
     json: field(universal.json<Json>(), json(options), {
       expect: value => JSON.parse(JSON.stringify(value))

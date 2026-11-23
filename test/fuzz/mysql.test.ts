@@ -9,6 +9,7 @@ if (!isDeno) {
     await import('./Fuzz.ts')
   const {dates, days, signless, universalCases} = await import('./Fuzz.ts')
   const mysql = await import('#/mysql.ts')
+  const {sql} = await import('#/index.ts')
   const drivers = await import('#/driver.ts')
 
   const asJson = (value: unknown) => JSON.parse(JSON.stringify(value))
@@ -165,6 +166,9 @@ if (!isDeno) {
       targets.push({label: 'bun-sql mysql', db})
     }
   }
+
+  // Timestamps are written and read as UTC, which needs a UTC session
+  for (const {db} of targets) await db.run(sql`set time_zone = '+00:00'`)
 
   for (const target of targets) {
     fuzz(test, target, cases())
