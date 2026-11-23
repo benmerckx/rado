@@ -14,6 +14,7 @@ tinyint({unsigned: true})
 smallint({unsigned: true}) // number
 mediumint({unsigned: true}) // number
 integer() / int() // number
+bigint() // bigint
 bigint({mode: 'number'}) // number
 bigint({mode: 'bigint', unsigned: true}) // bigint
 float() // number

@@ -70,6 +70,14 @@ const db = connect(new Pool({connectionString: process.env.DATABASE_URL}))
 
 `connect` accepts a `Client`, `Pool` or `PoolClient`.
 
+pg parses dates and timestamps itself, reading those without a time zone as
+local time. Like drizzle, rado reads `date`, `timestamp`, `timestamptz`,
+`interval` (and arrays of them) as text and lets the columns parse them, on
+each query and without changing the client's own type parsers. A raw `sql`
+select of these types returns the string postgres prints, such as
+`'2020-01-01'`, not a `Date`. The same goes for Neon, Vercel Postgres and Neon
+HTTP below.
+
 ### PGlite
 
 Postgres compiled to WASM runs in Node.js and the browser. It works well for
@@ -112,6 +120,9 @@ import {connect} from 'rado/driver/pg'
 
 const db = connect(createPool())
 ```
+
+The `sql` export of `@vercel/postgres`, a proxy for a pool it creates on first
+use, can be passed to `connect` as well.
 
 ### Neon HTTP
 

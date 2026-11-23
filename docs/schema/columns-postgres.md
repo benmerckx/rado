@@ -13,6 +13,7 @@ import {pgTable, integer, text, timestamp} from 'rado/postgres'
 ```ts
 smallint() // number
 integer() / int() // number
+bigint() // bigint
 bigint({mode: 'number'}) // number
 bigint({mode: 'bigint'}) // bigint
 doublePrecision() // number
