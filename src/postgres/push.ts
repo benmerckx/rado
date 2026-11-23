@@ -156,8 +156,10 @@ function* plan(
     for (const step of renamed) yield inner.run(step.sql)
     const live =
       renamed.length > 0 ? (yield* shape(inner, api.name, schema))! : before
-    const enums = yield* schemas(inner, enumSchemas(api))
-    for (const step of enums) yield inner.run(step.sql)
+    // The copy needs them, so they're created in the scratch transaction
+    const spaces = yield* schemas(inner, enumSchemas(api))
+    for (const step of spaces) yield inner.run(step.sql)
+    const enums: Array<Step> = []
     for (const query of api.createEnums()) {
       const name = inner.dialect.inline(query).match(/type (.+?) as/)![1]
       const [found] = yield* inner.select(sql<unknown>`to_regtype(${name})`)
@@ -165,6 +167,7 @@ function* plan(
     }
     const desired = yield* scratch(inner, tx => copy(tx, api))
     return [
+      ...spaces,
       ...enums,
       ...renamed,
       ...(yield* changes({

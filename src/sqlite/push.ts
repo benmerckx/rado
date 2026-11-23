@@ -17,7 +17,7 @@ import type {Shape} from '../core/Shape.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import {type TableApi, table} from '../core/Table.ts'
 import {type Gen, scratch, within} from '../core/Transaction.ts'
-import {Master} from './catalog.ts'
+import {Master, cascading} from './catalog.ts'
 import {integer, text} from './columns.ts'
 import {unenforced} from './keys.ts'
 import {prefix, shape} from './shape.ts'
@@ -256,6 +256,15 @@ function* recreate({
     ...(names.length === 0 && capture ? [lost] : [])
   ]
   const copy = names.length > 0
+  // Where keys can't be turned off, dropping the old table deletes the rows
+  // that reference it
+  const cascades = capture
+    ? (yield* cascading(tx, api.name)).map(
+        child =>
+          `rebuild "${api.name}", deletes rows of "${child}" where foreign ` +
+          'keys stay enforced (D1, Durable Objects)'
+      )
+    : []
   const selection = [
     ...(ids ? [sql.identifier(from!)] : []),
     ...copied.map(name => {
@@ -296,7 +305,8 @@ function* recreate({
     // The old table goes with any data the copy leaves out
     {
       sql: sql`drop table ${target}`,
-      ...(copy ? {} : {risk: loses[0], risks: loses}),
+      ...(copy ? {} : {risk: loses[0]}),
+      risks: [...(copy ? [] : loses), ...cascades],
       rebuild: true
     },
     {sql: sql`alter table ${temp} rename to ${sql.identifier(api.name)}`},

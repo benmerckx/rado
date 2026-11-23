@@ -68,7 +68,6 @@ export function enumQuery(enumInfo: PgEnumInfo): Sql {
   )}); exception when duplicate_object then null; end $$`
 }
 
-// The schemas the table's enums are in
 export function enumSchemas(table: TableApi): Array<string> {
   return Object.values(table.columns)
     .map(column => getData(column))

@@ -8,10 +8,8 @@ import {
   type internalTable,
   getData,
   getQuery,
-  getSource,
   getTable,
   getTarget,
-  hasData,
   hasQuery,
   hasTable,
   hasTarget
@@ -85,7 +83,6 @@ function components<T>(
   return result
 }
 
-// The tables a table references
 function references(tables: Array<TableApi>) {
   const byName = new Map(
     tables.map(api => [key(api.schemaName, api.name), api])
@@ -117,49 +114,31 @@ export function order(tables: Array<TableApi>): Array<TableApi> {
 
 type View = HasQuery & HasTarget
 
-// The targets a query builder reads from: its data is walked, so views are
-// matched by identity in from, joins, unions and subqueries. Fields and sql
-// are class instances and aren't entered.
-function reads(source: object, views: Set<object>): Set<object> {
-  const found = new Set<object>()
-  const seen = new Set<object>()
-  const stack: Array<unknown> = [source]
-  while (stack.length > 0) {
-    const node = stack.pop()
-    if (!isObject(node) || seen.has(node)) continue
-    seen.add(node)
-    if (node !== source && views.has(node)) found.add(node)
-    else if (Array.isArray(node)) stack.push(...node)
-    else if (hasData(node)) stack.push(getData(node))
-    else if (Object.getPrototypeOf(node) === Object.prototype)
-      stack.push(...Object.values(node))
-  }
-  return found
-}
-
 function escape(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// The views a view reads from. A view defined from raw sql is matched by
-// name, leaving out names after a dot or as, which are columns and aliases
+// A view's name in the sql of another, quoted or not. Names after a dot or
+// as are columns and aliases, so those don't count.
+function pattern(target: string): RegExp {
+  const name = target
+    .split('.')
+    .map(part => `["\`]?${escape(part.replace(/^["`]|["`]$/g, ''))}["\`]?`)
+    .join('\\s*\\.\\s*')
+  return new RegExp(
+    `(?<!\\.\\s*|\\bas\\s+)(?<![\\w"\`])${name}(?![\\w"\`])`,
+    'i'
+  )
+}
+
 function sources<V extends View>(
   views: Array<V>,
   text: (input: Sql) => string
 ): (view: V) => Array<V> {
-  const all = new Set<object>(views)
   const names = new Map(
-    views.map(view => [
-      view,
-      new RegExp(`(?<!\\.\\s*|\\bas\\s+)${escape(text(getTarget(view)))}`, 'i')
-    ])
+    views.map(view => [view, pattern(text(getTarget(view)))])
   )
   return view => {
-    const source = getSource(view)
-    if (source && hasData(source)) {
-      const found = reads(source, all)
-      return views.filter(other => found.has(other))
-    }
     const query = text(getQuery(view))
     return views.filter(
       other => other !== view && names.get(other)!.test(query)
@@ -188,10 +167,6 @@ function isSchema(value: object): boolean {
   return hasTarget(value) && !hasTable(value) && !hasQuery(value)
 }
 
-// Arguments are definitions or schema objects whose definitions are picked
-// out. Schemas go first, then enums, then tables with referenced tables
-// first, then views after the views they read from. Within a foreign key
-// cycle, and where nothing depends on anything, the order given is kept.
 export interface Members {
   has: (value: object) => boolean
   text: (input: Sql) => string
@@ -200,6 +175,10 @@ export interface Members {
   drop?: boolean
 }
 
+// Arguments are definitions or schema objects whose definitions are picked
+// out. Schemas go first, then enums, then tables with referenced tables
+// first, then views after the views they read from. Within a foreign key
+// cycle, and where nothing depends on anything, the order given is kept.
 export function members(
   input: Array<object>,
   {has, text, drop}: Members

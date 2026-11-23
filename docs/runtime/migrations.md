@@ -155,7 +155,10 @@ A database you pass stays open, the default one is closed when generate is
 done. Generate only exists in these entries, so an app that pushes or
 migrates never bundles the code that loads a shadow.
 
-What generate covers is what push covers, see [Schema push](push.md). The
+What generate covers is what push covers, see [Schema push](push.md): the
+tables of the schema object, with the schemas and enums they need. Views in
+the schema object are left out, as push leaves them out; write a view's
+`create view` into a migration by hand. The
 shadow has no rows, so generate counts every table as holding data and
 nothing is refused for it. Instead, a statement that push would refuse or
 that would fail on a table with rows gets a comment above it, and there is

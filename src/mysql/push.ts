@@ -220,9 +220,10 @@ function* changes({
   const all = [
     ...dropped.map(name => risks[name]),
     ...added.map(name => risks[name]),
-    ...changed.map(
-      name => risks[name] ?? (fallback(name) ? undefined : nulls[name])
-    ),
+    ...changed.flatMap(name => [
+      risks[name],
+      fallback(name) ? undefined : nulls[name]
+    ]),
     ...keys
   ].filter(risk => risk !== undefined)
   // The whole definition is given, change resets what it leaves out

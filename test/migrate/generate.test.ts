@@ -200,6 +200,25 @@ if (!isDeno) {
     await db.close()
   })
 
+  test('mysql: generate lists every risk of a column', async () => {
+    const {generate} = await import('#/mysql/generate.ts')
+    const Wide = table('gen_wide', {v: varchar(undefined, {length: 20})})
+    const Narrow = table('gen_wide', {
+      v: varchar(undefined, {length: 10}).notNull()
+    })
+    const next = await generate(
+      {'0001.sql': await generate({}, {Wide})},
+      {Wide: Narrow}
+    )
+    test.equal(
+      next.includes(
+        '-- Changes column "v" from varchar(20) to varchar(10)\n' +
+          '-- Makes column "v" not null over null values\n'
+      ),
+      true
+    )
+  })
+
   test('mysql: generate leaves out the database name', async () => {
     const {generate} = await import('#/mysql/generate.ts')
     const Parent = table('gen_parent', {
@@ -259,6 +278,26 @@ test('sqlite: generate rebuild comments', async () => {
   )
   test.equal(
     rowids.includes('-- Changes the rowids of "gen_rowid" to "n"'),
+    true
+  )
+  // Dropping the old table cascades where keys stay on
+  const P = table('gen_p', {id: sqliteInteger().primaryKey(), v: sqliteText()})
+  const C = table('gen_c', {
+    p: sqliteInteger().references(() => P.id, {onDelete: 'cascade'})
+  })
+  const StrictP = table('gen_p', {
+    id: sqliteInteger().primaryKey(),
+    v: sqliteText().notNull().default('x')
+  })
+  const cascade = await generate(
+    {'0001.sql': await generate({}, {P, C})},
+    {P: StrictP, C}
+  )
+  test.equal(
+    cascade.includes(
+      '-- Rebuilds "gen_p", deletes rows of "gen_c" where foreign keys stay ' +
+        'enforced (D1, Durable Objects)\ndrop table "gen_p";'
+    ),
     true
   )
 })

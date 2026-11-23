@@ -3,6 +3,8 @@ import type {Async} from '#/core/MetaData.ts'
 import {
   alias,
   type Database,
+  inArray,
+  sql,
   view,
   type Table,
   foreignKey,
@@ -615,6 +617,40 @@ export function testPush(db: Database, test: DefineTest) {
         await failure(() => db.create(UserA.id)),
         'No definitions in schema'
       )
+    })
+  })
+
+  test('create views over subqueries, ctes and sql', async () => {
+    // Named to sort after the views that read from it
+    const Base = view('push_zbase').as(db.select({id: Author.id}).from(Author))
+    const sub = db.select({id: Base.id}).from(Base).as('s')
+    const FromSub = view('push_from_sub').as(db.select({id: sub.id}).from(sub))
+    const InSub = view('push_in_sub').as(
+      db
+        .select({id: Author.id})
+        .from(Author)
+        .where(inArray(Author.id, db.select(Base.id).from(Base)))
+    )
+    const cte = db.$with('c').as(db.select({id: Base.id}).from(Base))
+    const WithCte = view('push_with_cte').as(
+      db.with(cte).select({id: cte.id}).from(cte)
+    )
+    const FromSql = view('push_from_sql').as(
+      db.select({one: sql<number>`1`}).from(sql`push_zbase`)
+    )
+    const Raw = view('push_raw', {id: integer()}).as(
+      sql`select id from push_zbase`
+    )
+    const views = {FromSub, InSub, WithCte, FromSql, Raw, Base}
+    const cleanup = async () => {
+      await db.drop(views)
+      await drop(Author)()
+    }
+    await fixture(cleanup, async () => {
+      await db.create(views, Author)
+      await db.insert(Author).values({id: 1})
+      test.equal(await db.select(Raw.id).from(Raw), [1])
+      test.equal(await db.select(WithCte.id).from(WithCte), [1])
     })
   })
 

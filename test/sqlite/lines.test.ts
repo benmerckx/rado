@@ -38,3 +38,17 @@ test('lines keeps a trigger body whole', () => {
     'create trigger t after insert on a begin   update a set v = case when v then 1 else 0 end;   delete from b; end;\nselect 1;'
   )
 })
+
+test('lines with an end column and parameters', () => {
+  const trigger = [
+    'create trigger t after insert on a begin',
+    '  update a set end = 1, v = case when $case then 1 end;',
+    'end;',
+    'select :case, @case;',
+    'select 2;'
+  ].join('\n')
+  test.equal(
+    lines(trigger),
+    'create trigger t after insert on a begin   update a set end = 1, v = case when $case then 1 end; end;\nselect :case, @case;\nselect 2;'
+  )
+})

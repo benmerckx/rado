@@ -14,15 +14,24 @@ export function lines(query: string): string {
   let current = ''
   // What closes the literal or block comment the scan is in
   let open = ''
-  // Case and trigger begin blocks the scan is in
-  let depth = 0
+  // The case and trigger begin blocks the scan is in
+  const blocks: Array<string> = []
   let word = ''
-  const close = () => {
-    const lower = word.toLowerCase()
-    const trigger = /^\s*create\s+(temp\w*\s+)?trigger\b/i.test(current)
-    if (lower === 'case' || (lower === 'begin' && trigger)) depth++
-    else if (lower === 'end' && depth > 0) depth--
+  // Set for a parameter such as $case, which is no keyword
+  let param = false
+  function close(at: number): void {
+    const lower = param ? '' : word.toLowerCase()
     word = ''
+    param = false
+    const trigger = /^\s*create\s+(temp\w*\s+)?trigger\b/i
+    if (lower === 'case' || (lower === 'begin' && trigger.test(current)))
+      blocks.push(lower)
+    // A column can be named end, a trigger's end comes before its semicolon
+    else if (
+      lower === 'end' &&
+      (blocks.at(-1) === 'case' || /^\s*(;|$)/.test(query.slice(at)))
+    )
+      blocks.pop()
   }
   for (let i = 0; i < query.length; i++) {
     const char = query[i]
@@ -36,11 +45,12 @@ export function lines(query: string): string {
       continue
     }
     if (/\w/.test(char)) {
+      if (!word) param = '$:@'.includes(query[i - 1] ?? '')
       word += char
       current += char
       continue
     }
-    close()
+    close(i)
     if (pair === '--') {
       while (i < query.length && query[i] !== '\n') i++
       current += ' '
@@ -52,12 +62,12 @@ export function lines(query: string): string {
       open = closing[char]
       current += char
     } else if (char === '\n' || char === '\r') current += ' '
-    else if (char === ';' && depth === 0) {
+    else if (char === ';' && blocks.length === 0) {
       result.push(`${current.trim()};`)
       current = ''
     } else current += char
   }
-  close()
+  close(query.length)
   if (current.trim()) result.push(current.trim())
   return result.filter(statement => statement !== ';').join('\n')
 }

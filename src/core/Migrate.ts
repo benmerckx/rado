@@ -49,8 +49,9 @@ interface Migration {
   checksum: string
 }
 
-const varchar = (name: string, length: number) =>
-  new Column<string>({name, type: column.varchar(length)})
+function varchar(name: string, length: number): Column<string> {
+  return new Column<string>({name, type: column.varchar(length)})
+}
 
 export const History = table('rado_migrations', {
   name: varchar('name', 255).primaryKey(),
@@ -76,7 +77,6 @@ export function checksum(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16)
 }
 
-// The file name without its directory and extension
 function named(file: string): string {
   return file
     .split(/[\\/]/)
