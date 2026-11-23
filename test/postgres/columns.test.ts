@@ -40,6 +40,7 @@ test('pg bigint and bigserial mapping', () => {
 test('pg char and varchar sql', () => {
   test.equal(columnSql(pg.char()), 'character(1)')
   test.equal(columnSql(pg.char(undefined, {length: 4})), 'character(4)')
+  test.equal(columnSql(pg.char({length: 5})), 'character(5)')
   test.equal(columnSql(pg.varchar({length: 10})), 'varchar(10)')
 })
 
@@ -48,6 +49,9 @@ test('pg date mapping', () => {
   const dateDate = pg.date(undefined, {mode: 'date'})
   test.equal(columnSql(dateStr), 'date')
   test.equal(mapFrom(pg.date(), '2020-01-01'), '2020-01-01')
+  const day: Date = mapFrom(pg.date({mode: 'date'}), '2020-01-01')
+  test.equal(day.toISOString(), '2020-01-01T00:00:00.000Z')
+  test.equal(mapFrom(pg.date('d', {mode: 'date'}), '2020-01-01'), day)
   test.equal(mapFrom(dateStr, new Date('0999-12-31')), '0999-12-31')
   test.equal(mapFrom(dateStr, '2020-01-01'), '2020-01-01')
   const mapped = mapFrom(dateDate, '2020-01-01')

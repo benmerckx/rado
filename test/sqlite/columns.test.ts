@@ -88,6 +88,11 @@ test('sqlite json and jsonb mapping', () => {
   test.equal(mapFrom(jsonbCol, raw), {foo: 'bar'})
 })
 
+test('universal varchar takes options first', () => {
+  test.equal(columnSql(universal.varchar({length: 5})), 'varchar(5)')
+  test.equal(columnSql(universal.varchar('name', {length: 5})), 'varchar(5)')
+})
+
 test('sqlite json columns store numbers as text', async () => {
   const {'sql.js': connect} = await import('#/driver.ts')
   const {default: init} = await import('sql.js')

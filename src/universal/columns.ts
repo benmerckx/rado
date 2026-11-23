@@ -1,4 +1,11 @@
-import {Column, ColumnType, JsonColumn, column} from '../core/Column.ts'
+import {
+  Column,
+  type ColumnArguments,
+  ColumnType,
+  JsonColumn,
+  column,
+  columnConfig
+} from '../core/Column.ts'
 import {sql} from '../core/Sql.ts'
 
 const idType = new ColumnType(
@@ -64,9 +71,9 @@ export function text(name?: string): Column<string> {
 }
 
 export function varchar(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length?: number}>
 ): Column<string> {
+  const {name, options} = columnConfig(args)
   return new Column({name, type: column.varchar(options?.length)})
 }
 

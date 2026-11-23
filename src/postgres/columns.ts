@@ -313,9 +313,9 @@ export function bigserial(...args: ColumnArguments<{mode?: IntegerMode}>) {
 }
 
 export function char(
-  name?: string,
-  options?: {length: number}
+  ...args: ColumnArguments<{length?: number}>
 ): PgColumn<string> {
+  const {name, options} = columnConfig(args)
   return new PgColumn({
     name,
     type: column.character(options?.length ?? 1)
@@ -341,14 +341,11 @@ export function cidr(name?: string): PgColumn<string> {
 }
 
 export function date(
-  name?: string,
-  options?: {mode: 'string'}
+  ...args: ColumnArguments<{mode?: 'string'}>
 ): PgColumn<string>
-export function date(
-  name: string | undefined,
-  options: {mode: 'date'}
-): PgColumn<Date>
-export function date(name?: string, options?: {mode: 'date' | 'string'}) {
+export function date(...args: ColumnArguments<{mode: 'date'}>): PgColumn<Date>
+export function date(...args: ColumnArguments<{mode?: 'date' | 'string'}>) {
+  const {name, options} = columnConfig(args)
   const mode = options?.mode ?? 'string'
   return new PgColumn({
     name,
