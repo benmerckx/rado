@@ -85,20 +85,22 @@ test('generate needs its peer dependency', async () => {
   )
 })
 
-testGenerate(
-  'sqlite',
-  () => import('#/sqlite/generate.ts'),
-  async () => {
-    if (isBun) {
-      const {Database} = await import('bun:sqlite')
-      const {connect} = await import('#/driver/bun-sqlite.ts')
-      return connect(new Database(':memory:'))
+// The default sqlite shadow is node:sqlite, which Deno 1 doesn't have
+if (!isDeno)
+  testGenerate(
+    'sqlite',
+    () => import('#/sqlite/generate.ts'),
+    async () => {
+      if (isBun) {
+        const {Database} = await import('bun:sqlite')
+        const {connect} = await import('#/driver/bun-sqlite.ts')
+        return connect(new Database(':memory:'))
+      }
+      const {DatabaseSync} = await import('node:sqlite' as string)
+      const {connect} = await import('#/driver/node-sqlite.ts')
+      return connect(new DatabaseSync(':memory:'))
     }
-    const {DatabaseSync} = await import('node:sqlite' as string)
-    const {connect} = await import('#/driver/node-sqlite.ts')
-    return connect(new DatabaseSync(':memory:'))
-  }
-)
+  )
 
 if (!isDeno) {
   testGenerate(
@@ -254,65 +256,70 @@ if (!isDeno) {
   })
 }
 
-test('sqlite: generate rebuild comments', async () => {
-  const {generate} = await import('#/sqlite/generate.ts')
-  const {text: sqliteText, integer: sqliteInteger} = await import('#/sqlite.ts')
-  // Only nullability changes, the unique key stays
-  const Loose = table('gen_tag', {
-    code: sqliteText().unique(),
-    note: sqliteText()
+if (!isDeno)
+  test('sqlite: generate rebuild comments', async () => {
+    const {generate} = await import('#/sqlite/generate.ts')
+    const {text: sqliteText, integer: sqliteInteger} =
+      await import('#/sqlite.ts')
+    // Only nullability changes, the unique key stays
+    const Loose = table('gen_tag', {
+      code: sqliteText().unique(),
+      note: sqliteText()
+    })
+    const Strict = table('gen_tag', {
+      code: sqliteText().unique(),
+      note: sqliteText().notNull().default('x')
+    })
+    const first = {'0001.sql': await generate({}, {Loose})}
+    const strict = await generate(first, {Loose: Strict})
+    test.equal(strict.includes('Adds unique key'), false)
+    test.equal(strict.includes('sqlite_autoindex'), false)
+    // Every risk of the rebuild above its insert
+    const Slim = table('gen_tag', {
+      code: sqliteText().unique().notNull().default('x')
+    })
+    const slim = await generate(first, {Loose: Slim})
+    test.equal(
+      /-- Drops column "note"\n-- Makes column "code" not null over null values\ninsert into/.test(
+        slim
+      ),
+      true
+    )
+    // A column that becomes the rowid may change it, the shadow can't tell
+    const Hidden = table('gen_rowid', {n: sqliteInteger(), v: sqliteText()})
+    const Promoted = table('gen_rowid', {
+      n: sqliteInteger().primaryKey(),
+      v: sqliteText()
+    })
+    const rowids = await generate(
+      {'0001.sql': await generate({}, {Hidden})},
+      {Hidden: Promoted}
+    )
+    test.equal(
+      rowids.includes('-- Changes the rowids of "gen_rowid" to "n"'),
+      true
+    )
+    // Dropping the old table cascades where keys stay on
+    const P = table('gen_p', {
+      id: sqliteInteger().primaryKey(),
+      v: sqliteText()
+    })
+    const C = table('gen_c', {
+      p: sqliteInteger().references(() => P.id, {onDelete: 'cascade'})
+    })
+    const StrictP = table('gen_p', {
+      id: sqliteInteger().primaryKey(),
+      v: sqliteText().notNull().default('x')
+    })
+    const cascade = await generate(
+      {'0001.sql': await generate({}, {P, C})},
+      {P: StrictP, C}
+    )
+    test.equal(
+      cascade.includes(
+        '-- Rebuilds "gen_p", deletes rows of "gen_c" where foreign keys stay ' +
+          'enforced (D1, Durable Objects)\ndrop table "gen_p";'
+      ),
+      true
+    )
   })
-  const Strict = table('gen_tag', {
-    code: sqliteText().unique(),
-    note: sqliteText().notNull().default('x')
-  })
-  const first = {'0001.sql': await generate({}, {Loose})}
-  const strict = await generate(first, {Loose: Strict})
-  test.equal(strict.includes('Adds unique key'), false)
-  test.equal(strict.includes('sqlite_autoindex'), false)
-  // Every risk of the rebuild above its insert
-  const Slim = table('gen_tag', {
-    code: sqliteText().unique().notNull().default('x')
-  })
-  const slim = await generate(first, {Loose: Slim})
-  test.equal(
-    /-- Drops column "note"\n-- Makes column "code" not null over null values\ninsert into/.test(
-      slim
-    ),
-    true
-  )
-  // A column that becomes the rowid may change it, the shadow can't tell
-  const Hidden = table('gen_rowid', {n: sqliteInteger(), v: sqliteText()})
-  const Promoted = table('gen_rowid', {
-    n: sqliteInteger().primaryKey(),
-    v: sqliteText()
-  })
-  const rowids = await generate(
-    {'0001.sql': await generate({}, {Hidden})},
-    {Hidden: Promoted}
-  )
-  test.equal(
-    rowids.includes('-- Changes the rowids of "gen_rowid" to "n"'),
-    true
-  )
-  // Dropping the old table cascades where keys stay on
-  const P = table('gen_p', {id: sqliteInteger().primaryKey(), v: sqliteText()})
-  const C = table('gen_c', {
-    p: sqliteInteger().references(() => P.id, {onDelete: 'cascade'})
-  })
-  const StrictP = table('gen_p', {
-    id: sqliteInteger().primaryKey(),
-    v: sqliteText().notNull().default('x')
-  })
-  const cascade = await generate(
-    {'0001.sql': await generate({}, {P, C})},
-    {P: StrictP, C}
-  )
-  test.equal(
-    cascade.includes(
-      '-- Rebuilds "gen_p", deletes rows of "gen_c" where foreign keys stay ' +
-        'enforced (D1, Durable Objects)\ndrop table "gen_p";'
-    ),
-    true
-  )
-})

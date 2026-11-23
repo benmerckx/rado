@@ -5,6 +5,7 @@ import {generate as mysql} from '#/mysql/generate.ts'
 import {generate as postgres} from '#/postgres/generate.ts'
 import {generate as sqlite} from '#/sqlite/generate.ts'
 import {id, integer, text} from '#/universal.ts'
+import {isDeno} from '../TestRuntime.ts'
 import {failure, fixture} from '../TestUtils.ts'
 
 const generates = {sqlite, postgres, mysql}
@@ -236,8 +237,13 @@ export function testMigrate(db: Database, test: DefineTest) {
       })
     })
 
-  // D1 always enforces foreign keys, see docs/runtime/migrations.md
-  if (db.dialect.runtime === 'sqlite' && db.driver.supportsTransactions)
+  // D1 always enforces foreign keys, see docs/runtime/migrations.md. The
+  // default sqlite shadow is node:sqlite, which Deno 1 doesn't have
+  if (
+    db.dialect.runtime === 'sqlite' &&
+    db.driver.supportsTransactions &&
+    !isDeno
+  )
     test('generate rebuild keeps referencing rows', async () => {
       const [keys] = await db.select(Keys.foreign_keys).from(Keys)
       await fixture(reset, async () => {
@@ -258,15 +264,16 @@ export function testMigrate(db: Database, test: DefineTest) {
       if (!keys) await db.run(sql`pragma foreign_keys = off`)
     })
 
-  test('generate round trip', async () => {
-    await fixture(reset, async () => {
-      const init = await generate({}, {User, other: 1})
-      test.equal(init.startsWith('create table'), true)
-      const all = {'0001_init.sql': init}
-      test.equal(await migrate(db, all), ['0001_init'])
-      await db.insert(User).values({name: 'a'})
-      test.equal(await db.select(User.name).from(User), ['a'])
-      test.equal(await generate(all, {User}), '')
+  if (!isDeno || db.dialect.runtime !== 'sqlite')
+    test('generate round trip', async () => {
+      await fixture(reset, async () => {
+        const init = await generate({}, {User, other: 1})
+        test.equal(init.startsWith('create table'), true)
+        const all = {'0001_init.sql': init}
+        test.equal(await migrate(db, all), ['0001_init'])
+        await db.insert(User).values({name: 'a'})
+        test.equal(await db.select(User.name).from(User), ['a'])
+        test.equal(await generate(all, {User}), '')
+      })
     })
-  })
 }

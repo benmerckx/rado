@@ -4,20 +4,16 @@ import {migrate} from '#/migrate.ts'
 import {create as other} from '#/postgres/push.ts'
 import {integer} from '#/sqlite.ts'
 import {create, drop} from '#/sqlite/push.ts'
-import {isBun} from '../TestRuntime.ts'
 import {failure} from '../TestUtils.ts'
 
 const test = suite(import.meta)
 
+// sql.js is sync and runs on every runtime
 async function open() {
-  if (isBun) {
-    const {Database} = await import('bun:sqlite')
-    const {connect} = await import('#/driver/bun-sqlite.ts')
-    return connect(new Database(':memory:'))
-  }
-  const {DatabaseSync} = await import('node:sqlite' as string)
-  const {connect} = await import('#/driver/node-sqlite.ts')
-  return connect(new DatabaseSync(':memory:'))
+  const {default: init} = await import('sql.js')
+  const {connect} = await import('#/driver/sql.js.ts')
+  const {Database} = await init()
+  return connect(new Database())
 }
 
 test('migrate returns plain values on a sync driver', async () => {
