@@ -7,6 +7,7 @@ import type {
 } from '../core/Driver.ts'
 import type {MutationResultBase} from '../core/MetaData.ts'
 import {sqliteDialect} from '../sqlite.ts'
+import {lines} from '../sqlite/lines.ts'
 
 type Client = D1Database
 
@@ -55,12 +56,9 @@ export class D1Driver implements AsyncDriver {
 
   constructor(private client: Client) {}
 
-  // D1 runs each line as a statement, so blank and comment lines go
   async exec(query: string) {
-    const lines = query
-      .split('\n')
-      .filter(line => line.trim() && !line.trim().startsWith('--'))
-    if (lines.length > 0) await this.client.exec(lines.join('\n'))
+    const script = lines(query)
+    if (script) await this.client.exec(script)
   }
 
   prepare(sql: string, options?: PrepareOptions): PreparedStatement {

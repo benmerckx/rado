@@ -49,9 +49,7 @@ export function tables(schema: Schema): Array<TableApi> {
 // The tables a table references, by key
 function targets(api: TableApi): Array<string> {
   return [
-    ...Object.values(api.columns).map(
-      column => getData(column).references?.()
-    ),
+    ...Object.values(api.columns).map(column => getData(column).references?.()),
     ...configEntries(api.config?.()).map(
       ([, value]) => isForeignKey(value) && getData(value).references[0]
     )

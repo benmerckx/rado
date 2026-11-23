@@ -121,9 +121,10 @@ await migrate(db, migrations, {baseline: '0001_init'})
 ```
 
 Every migration up to and including the baseline is recorded without
-running, and the ones after it run. The baseline only applies while the
-history is empty, so it is safe to leave in place; an unknown name is an
-error.
+running, and the ones after it run. The baseline is a name like the others,
+so `'0001_init.sql'` and `'./migrations/0001_init.sql'` work too. It only
+applies while the history is empty, so it is safe to leave in place; an
+unknown name is an error.
 
 ## No snapshot files
 
@@ -155,10 +156,28 @@ done. Generate only exists in these entries, so an app that pushes or
 migrates never bundles the code that loads a shadow.
 
 What generate covers is what push covers, see [Schema push](push.md). The
-shadow has no rows, so nothing is refused for data: every statement push
-would refuse when a table holds data gets its comment instead, and there is
-no `force` option. On PostgreSQL push names each table with its schema, so
-the files do too.
+shadow has no rows, so generate counts every table as holding data and
+nothing is refused for it. Instead, a statement that push would refuse or
+that would fail on a table with rows gets a comment above it, and there is
+no `force` option:
+
+- dropping a column: `-- Drops column "bio"`
+- changing a column's type in a way that may not hold every value:
+  `-- Changes column "n" from text to integer`
+- making a column not null: `-- Makes column "name" not null over null
+values`. With a default, the nulls are filled with it first
+- adding a not null column without a default:
+  `-- Adds not null column "extra" without a default`
+
+Tables in the database's own schema are written without it, so a file runs
+under any `search_path`; tables in another schema keep theirs.
+
+On SQLite a change `alter table` can't make rebuilds the table, see
+[SQLite table rebuilds](push.md#sqlite-table-rebuilds). A generated rebuild
+starts with `pragma defer_foreign_keys = on`, so where foreign keys can't be
+turned off, references are checked at commit instead of failing the drop. Its comment sits above the
+`insert` that copies the rows, and views and triggers are dropped and
+recreated as SQLite stored them, which can span several lines.
 
 ## Files and history
 
@@ -185,9 +204,17 @@ finds nothing left to run.
 
 - PostgreSQL: one transaction for the whole run, holding an advisory lock
   (`pg_advisory_xact_lock`). A failing file rolls back every file of the
-  run.
+  run. Statements that can't run in a transaction, such as
+  `create index concurrently`, can't be part of a migration.
 - SQLite: one `immediate` transaction for the whole run, with the same
-  rollback.
+  rollback. A rebuilt table is dropped and recreated, and with foreign keys
+  on, dropping it would cascade to the rows that reference it. The
+  `foreign_keys` pragma does nothing inside a transaction, so `migrate` turns
+  it off around the run, as SQLite's own rebuild procedure does, and fails
+  with `Migrations would violate foreign keys` before commit if the run
+  broke a reference. A waiting process needs a busy timeout to wait at all:
+  bun:sqlite's default is 0, so set `pragma busy_timeout = 5000` or similar
+  when processes may migrate at the same time.
 - MySQL commits implicitly after each DDL statement, so a run can't be rolled
   back. It holds `get_lock('rado_migrations')` on one connection and records
   each file right after it succeeds. A failing file stops the run with
@@ -196,8 +223,16 @@ finds nothing left to run.
   Don't run `migrate` inside your own MySQL transaction.
 - Drivers without transactions, such as Cloudflare D1, run the files in
   order without a lock, recording each after it succeeds. Make sure only one
-  process migrates at a time. D1 runs each line of a file as one statement:
-  keep a statement on a single line, as generate writes them.
+  process migrates at a time. D1 runs each line of a file as one statement,
+  so blank lines and comment lines are left out and every statement must fit
+  on one line. Generate writes its own statements that way, but a SQLite
+  rebuild recreates views and triggers as they were stored: put those on one
+  line before running the file on D1.
+- Cloudflare D1 and Durable Objects always enforce foreign keys, so turning
+  them off doesn't take. There, rebuilding a table that another table
+  references with `on delete cascade` deletes the referencing rows, deferred
+  keys or not. Push refuses such a rebuild; review a generated one before
+  running it there.
 
 Some drivers can't send several statements in one call:
 

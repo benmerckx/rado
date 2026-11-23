@@ -85,6 +85,17 @@ function* dependents(tx: Database, oid: number) {
     )
 }
 
+// Push names every schema, so a temporary table can't shadow a name. The
+// shadow generate runs on has none, and a migration file that leaves out the
+// home schema runs under any search_path
+function scope(options: PlanOptions, home: string) {
+  return (schema: string): string | undefined =>
+    options.assume && schema === home ? undefined : schema
+}
+
+const at = (schema: string | undefined, name: Sql): Sql =>
+  schema ? sql`${sql.identifier(schema)}.${name}` : name
+
 function* plan(
   tx: Database,
   api: TableApi,
@@ -93,19 +104,20 @@ function* plan(
 ): Gen<Array<Step>> {
   const base = yield* home(tx)
   const schema = api.schemaName ?? base
-  const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
+  const own = scope(options, base)
+  const target = at(own(schema), sql.identifier(api.name))
   const oid = yield* relation(tx, schema, api.name)
   // A new table gets its foreign keys afterwards, with qualified references
   // a temporary table can't shadow
   if (oid === undefined)
     return [
-      ...shadow(api, api.name, schema)
+      ...shadow(api, api.name, own(schema))
         .create()
         .map(sql => ({sql})),
       ...foreignKeys(api).map(key => ({
         sql: sql`alter table ${target} add ${foreignKey({
           ...key,
-          schema: key.schema ?? base
+          schema: own(key.schema ?? base)
         })}`
       }))
     ]
@@ -200,6 +212,7 @@ function* changes({
   tables
 }: Plan): Gen<Array<Step>> {
   const data = columns(api)
+  const own = scope(options, home)
   const bare = shadow(api, api.name, api.schemaName, true)
   const alter = (change: Sql, risk?: string): Step => ({
     sql: sql`alter table ${target} ${change}`,
@@ -248,8 +261,9 @@ function* changes({
     ...others
       .filter(key => gone.includes(key.key) && pushed(key))
       .map(key => ({
-        sql: sql`alter table ${sql.identifier(key.schema)}.${sql.identifier(
-          key.table
+        sql: sql`alter table ${at(
+          own(key.schema),
+          sql.identifier(key.table)
         )} drop constraint ${sql.identifier(key.name)}`
       })),
     ...references.dropped.map(key =>
@@ -258,9 +272,7 @@ function* changes({
     ...gone.map(name =>
       live.indexes[name]
         ? {
-            sql: sql`drop index ${sql.identifier(schema)}.${sql.identifier(
-              name
-            )}`
+            sql: sql`drop index ${at(own(schema), sql.identifier(name))}`
           }
         : alter(sql`drop constraint ${sql.identifier(name)}`)
     ),
@@ -268,7 +280,10 @@ function* changes({
       alter(sql`drop column ${sql.identifier(name)}`, risks[name])
     ),
     ...added.map(name => ({
-      ...alter(sql`add column ${bare.columnDefinition(data[name].key)}`),
+      ...alter(
+        sql`add column ${bare.columnDefinition(data[name].key)}`,
+        risks[name]
+      ),
       effect: draws(name)
     }))
   ]
@@ -303,7 +318,7 @@ function* changes({
     // A sequence the copy's default draws from is created for the column
     const sequence = to.default?.match(/^nextval\('(.+)'::regclass\)$/)?.[1]
     if (sequence && to.default !== from.default) {
-      const created = sql`${sql.identifier(schema)}.${sql.unsafe(sequence)}`
+      const created = at(own(schema), sql.unsafe(sequence))
       // A default takes no parameters, the name goes in as a literal
       const literal = sql.inline(tx.dialect.inline(created))
       steps.push(
@@ -365,10 +380,10 @@ function* changes({
         )
       ),
     ...references.added.map(key =>
-      alter(sql`add ${foreignKey({...key, schema: key.schema ?? home})}`)
+      alter(sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`)
     ),
     ...differ(desired.indexes, live.indexes).map(name => ({
-      sql: getData(indexes[name]).toSql(api.name, name, false, schema)
+      sql: getData(indexes[name]).toSql(api.name, name, false, own(schema))
     }))
   ]
 }

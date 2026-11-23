@@ -1,7 +1,9 @@
 import {suite} from '@alinea/suite'
 import {type Generate, load} from '#/core/Generate.ts'
-import {type Database, table} from '#/index.ts'
-import {id, text} from '#/universal.ts'
+import type {QueryDialect, QueryMeta} from '#/core/MetaData.ts'
+import {type Database, sql, table} from '#/index.ts'
+import {pgSchema} from '#/postgres.ts'
+import {id, integer, text} from '#/universal.ts'
 import {isBun, isDeno} from '../TestRuntime.ts'
 import {failure} from '../TestUtils.ts'
 
@@ -9,11 +11,16 @@ const test = suite(import.meta)
 
 const User = table('gen_user', {id: id(), name: text(), bio: text()})
 const Renamed = table('gen_user', {id: id(), fullName: text('full_name')})
+const Extra = table('gen_user', {
+  id: id(),
+  fullName: text('full_name'),
+  extra: text().notNull()
+})
 
-function testGenerate(
-  label: string,
-  entry: () => Promise<{generate: Generate<any>}>,
-  open: () => Promise<Database<any>>
+function testGenerate<D extends QueryDialect>(
+  label: D,
+  entry: () => Promise<{generate: Generate<D>}>,
+  open: () => Promise<Database<QueryMeta & {dialect: D}>>
 ) {
   test(`${label}: generate`, async () => {
     const {generate} = await entry()
@@ -21,23 +28,24 @@ function testGenerate(
     const init = await generate({}, {User}, {shadow})
     test.equal(init.startsWith('create table'), true)
     test.equal(init.endsWith(';'), true)
-    test.equal(init.includes('"public".'), false)
     // A passed shadow is left open, and is no longer empty
     test.equal(
       await failure(() => generate({}, {User}, {shadow})),
       'Expected an empty database'
     )
     await shadow.driver.close()
-    const migrations = {'0001_init.sql': init}
+    const first = {'0001_init.sql': init}
     const rename = {rename: {'gen_user.name': 'full_name'}}
-    const next = await generate(migrations, {Renamed}, rename)
+    const next = await generate(first, {Renamed}, rename)
     test.equal(next.includes('rename column'), true)
     // MySQL alters the table once, the comment goes above that statement
     test.equal(/-- Drops column "bio"\n[^\n]*drop column/.test(next), true)
-    test.equal(
-      await generate({...migrations, '0002_next.sql': next}, {Renamed}),
-      ''
-    )
+    const second = {...first, '0002_rename.sql': next}
+    test.equal(await generate(second, {Renamed}), '')
+    // Fails on a table with rows, so it's marked
+    const extra = await generate(second, {Extra})
+    const comment = '-- Adds not null column "extra" without a default'
+    test.equal(extra.includes(`${comment}\n`), true)
   })
 }
 
@@ -84,4 +92,23 @@ if (!isDeno) {
       return connect(await MySQL.create())
     }
   )
+
+  test('postgres: generate leaves out the home schema', async () => {
+    const {generate} = await import('#/postgres/generate.ts')
+    const app = pgSchema('gen_app')
+    const Note = table('gen_note', {
+      id: id(),
+      body: text().default(sql`'see "public".x'`),
+      user: integer().references(() => User.id)
+    })
+    const Archive = app.table('gen_archive', {id: id()})
+    const init = await generate(
+      {'0000_app.sql': 'create schema gen_app;'},
+      {User, Note, Archive}
+    )
+    const literal = `'see "public".x'`
+    test.equal(init.includes(literal), true)
+    test.equal(init.replace(literal, '').includes('"public".'), false)
+    test.equal(init.includes('"gen_app"."gen_archive"'), true)
+  })
 }

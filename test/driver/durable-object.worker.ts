@@ -37,6 +37,7 @@ function throws(run: Run, includes?: string): unknown {
 // runtime's own sqlite
 const unsupported = new Set([
   'generate round trip',
+  'generate rebuild keeps referencing rows',
   'inspect reads indexes of a shadowed name',
   'multiple pushes',
   'push index modifications',

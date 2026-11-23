@@ -31,8 +31,7 @@ function format(statements: Array<Statement>): string {
 
 export function createGenerate<D extends QueryDialect>(
   push: Push<D>,
-  open: () => Promise<Database>,
-  tidy?: (db: Database) => Promise<(statement: string) => string>
+  open: () => Promise<Database>
 ): Generate<D> {
   return async (migrations, schema, options = {}) => {
     const db = (options.shadow as Database | undefined) ?? (await open())
@@ -43,8 +42,7 @@ export function createGenerate<D extends QueryDialect>(
       const statements = await capture(push as Push, db, schema, {
         rename: options.rename
       })
-      const clean = tidy ? await tidy(db) : (sql: string) => sql
-      return format(statements.map(step => ({...step, sql: clean(step.sql)})))
+      return format(statements)
     } finally {
       if (!options.shadow) await db.driver.close()
     }

@@ -144,7 +144,8 @@ function* changes(
       live,
       desired,
       hasRows,
-      risk: Object.values({...risks, ...nulls})[0]
+      risk: Object.values({...risks, ...nulls})[0],
+      assume
     })
   const indexes = api.indexes()
   const definition = (name: string) => api.columnDefinition(data[name].key)
@@ -173,6 +174,7 @@ interface Rebuild {
   desired: Shape
   hasRows: () => Gen<boolean>
   risk?: string
+  assume?: boolean
 }
 
 // https://www.sqlite.org/lang_altertable.html#otheralter
@@ -182,7 +184,8 @@ function* recreate({
   live,
   desired,
   hasRows,
-  risk
+  risk,
+  assume
 }: Rebuild): Gen<Array<Step>> {
   const target = api.identifier()
   const temp = sql.identifier(prefix + api.name)
@@ -235,8 +238,14 @@ function* recreate({
   const ids = rowid && !promoted
   const names = [...(ids ? [into!] : []), ...copied]
   // Without a rowid or a column in common, there is nothing to copy rows by
-  if (names.length === 0 && (yield* hasRows()))
+  const lost = `drop the rows of "${api.name}", no column of them stays`
+  if (names.length === 0 && !assume && (yield* hasRows()))
     throw new Error(`Cannot rebuild "${api.name}", no column of its rows stays`)
+  const loses =
+    risk ??
+    (moves ? `change the rowids of "${api.name}" to "${alias}"` : undefined) ??
+    (names.length === 0 && assume ? lost : undefined)
+  const copy = names.length > 0
   const selection = [
     ...(ids ? [sql.identifier(from!)] : []),
     ...copied.map(name => {
@@ -253,30 +262,30 @@ function* recreate({
   const seq = sql`cast(${sql.inline(sequence)} as integer)`
   const row = sql`values (${name}, ${seq})`
   return [
+    // Keys can't be turned off inside a migration's transaction, deferred
+    // they are checked at commit, after the table is back
+    ...(assume ? [{sql: sql`pragma defer_foreign_keys = on`}] : []),
     // Triggers first, a trigger on a view goes before its view
     ...triggers.map(row => ({
       sql: sql`drop trigger ${sql.identifier(row.name)}`
     })),
     ...views.map(row => ({sql: sql`drop view ${sql.identifier(row.name)}`})),
     {sql: api.createTable(prefix + api.name)},
-    ...(names.length > 0
+    ...(copy
       ? [
           {
             sql: sql`insert into ${temp} (${list}) select ${sql.join(
               selection,
               sql`, `
-            )} from ${target}`
+            )} from ${target}`,
+            risk: loses
           }
         ]
       : []),
     // The old table goes with any data the copy leaves out
     {
       sql: sql`drop table ${target}`,
-      risk:
-        risk ??
-        (moves
-          ? `change the rowids of "${api.name}" to "${alias}"`
-          : undefined),
+      risk: copy ? undefined : loses,
       rebuild: true
     },
     {sql: sql`alter table ${temp} rename to ${sql.identifier(api.name)}`},

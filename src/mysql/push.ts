@@ -210,6 +210,7 @@ function* changes({
     })
   const risk = [
     ...dropped.map(name => risks[name]),
+    ...added.map(name => risks[name]),
     ...changed.map(
       name => risks[name] ?? (fallback(name) ? undefined : nulls[name])
     )

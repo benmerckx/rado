@@ -1,4 +1,4 @@
-import {varchar} from '../universal/columns.ts'
+import {integer, varchar} from '../universal/columns.ts'
 import type {Database} from './Database.ts'
 import {eq, inArray, notLike} from './expr/Conditions.ts'
 import {getTable} from './Internal.ts'
@@ -46,6 +46,15 @@ const Master = table('sqlite_master', {
   name: varchar().notNull()
 })
 
+const Keys = table('pragma_foreign_keys', {foreign_keys: integer()})
+
+const Violations = table('pragma_foreign_key_check', {
+  table: varchar(),
+  rowid: integer(),
+  parent: varchar(),
+  fkid: integer()
+})
+
 const Tables = schema('information_schema').table('tables', {
   table_schema: varchar().notNull(),
   table_name: varchar().notNull()
@@ -72,12 +81,17 @@ export function checksum(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16)
 }
 
+// The file name without its directory and extension
+function named(file: string): string {
+  return file
+    .split(/[\\/]/)
+    .at(-1)!
+    .replace(/\.sql$/, '')
+}
+
 export function list(migrations: Migrations): Array<Migration> {
   const result = Object.entries(migrations).map(([file, sql]) => ({
-    name: file
-      .split(/[\\/]/)
-      .at(-1)!
-      .replace(/\.sql$/, ''),
+    name: named(file),
     sql,
     checksum: checksum(sql)
   }))
@@ -137,17 +151,18 @@ function* apply(
   partial: boolean
 ): Gen<Array<string>> {
   yield db.run(getTable(History).createTable(undefined, true))
-  let pending = yield* check(db, migrations)
-  const {baseline} = options
-  if (baseline && pending.length === migrations.length) {
-    if (!migrations.some(m => m.name === baseline))
-      throw new Error(`Unknown baseline ${baseline}`)
-    const marked = pending.filter(m => m.name <= baseline)
-    for (const m of marked) yield record(db, m)
-    pending = pending.filter(m => m.name > baseline)
-  }
+  const pending = yield* check(db, migrations)
+  const baseline = options.baseline && named(options.baseline)
+  if (baseline && !migrations.some(m => m.name === baseline))
+    throw new Error(`Unknown baseline ${baseline}`)
+  // Only an empty history takes a baseline, so it can stay in place
+  const marked =
+    baseline && pending.length === migrations.length
+      ? pending.filter(m => m.name <= baseline)
+      : []
+  for (const m of marked) yield record(db, m)
   const ran: Array<string> = []
-  for (const m of pending) {
+  for (const m of pending.filter(m => !marked.includes(m))) {
     try {
       if (m.sql.trim()) yield db.run(sql.unsafe(m.sql))
     } catch (error) {
@@ -175,15 +190,11 @@ function* run(
 ): Gen<Array<string>> {
   const single = db.driver.singleStatement
   if (single) throw new Error(single)
+  if (db.dialect.runtime === 'sqlite')
+    return yield* sqlite(db, migrations, options)
   if (!db.driver.supportsTransactions)
     return yield* apply(db, migrations, options, true)
   switch (db.dialect.runtime) {
-    case 'sqlite':
-      return yield* result(
-        transaction(db, tx => apply(tx, migrations, options, false), {
-          behavior: 'immediate'
-        })
-      )
     case 'postgres':
       return yield* result(
         transaction(db, function* (tx) {
@@ -194,6 +205,48 @@ function* run(
     case 'mysql':
       return yield* mysql(db, migrations, options)
   }
+}
+
+// The foreign_keys pragma is a no-op inside a transaction, where a table
+// rebuild would cascade to the rows that reference it. So keys are off
+// around the run, as SQLite's own rebuild procedure has it, and checked before
+// commit. An immediate transaction keeps other writers out.
+function* sqlite(
+  db: Database,
+  migrations: Array<Migration>,
+  options: MigrateOptions
+): Gen<Array<string>> {
+  const [on] = yield* db.select(Keys.foreign_keys).from(Keys)
+  if (on) yield db.run(sql`pragma foreign_keys = off`)
+  try {
+    if (!db.driver.supportsTransactions)
+      return yield* apply(db, migrations, options, true)
+    return yield* result(
+      transaction(
+        db,
+        function* (tx) {
+          const before = yield* violations(tx)
+          const ran = yield* apply(tx, migrations, options, false)
+          // Counted, only what the run breaks fails it
+          for (const key of yield* violations(tx)) {
+            const index = before.indexOf(key)
+            if (index < 0)
+              throw new Error('Migrations would violate foreign keys')
+            before.splice(index, 1)
+          }
+          return ran
+        },
+        {behavior: 'immediate'}
+      )
+    )
+  } finally {
+    if (on) yield db.run(sql`pragma foreign_keys = on`)
+  }
+}
+
+function* violations(db: Database): Gen<Array<string>> {
+  const rows = yield* db.select(Violations).from(Violations)
+  return rows.map(row => Object.values(row).join())
 }
 
 // DDL commits implicitly, so each file is recorded as soon as it ran and the

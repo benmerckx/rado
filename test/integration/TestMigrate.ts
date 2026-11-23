@@ -28,12 +28,25 @@ const bad = {
 
 const User = table('mig_user', {id: id(), name: text()})
 
+const Parent = table('mig_parent', {id: integer().primaryKey(), name: text()})
+const Strict = table('mig_parent', {
+  id: integer().primaryKey(),
+  name: text().notNull().default('x')
+})
+const Child = table('mig_child', {
+  id: integer().primaryKey(),
+  parent: integer().references(() => Parent.id, {onDelete: 'cascade'})
+})
+
+const Keys = table('pragma_foreign_keys', {foreign_keys: integer()})
+
 export function testMigrate(db: Database, test: DefineTest) {
   const generate = generates[db.dialect.runtime]
   const transactional =
     db.driver.supportsTransactions && db.dialect.runtime !== 'mysql'
   const reset = async () => {
-    for (const name of ['mig_a', 'mig_b', 'mig_c', 'mig_user'])
+    const tables = ['mig_a', 'mig_b', 'mig_c', 'mig_user', 'mig_child']
+    for (const name of [...tables, 'mig_parent'])
       await db.run(sql`drop table if exists ${sql.identifier(name)}`)
     await db.drop(History)
   }
@@ -98,7 +111,8 @@ export function testMigrate(db: Database, test: DefineTest) {
   test('migrate baseline', async () => {
     await fixture(reset, async () => {
       await db.run(sql`create table mig_a (id integer)`)
-      const options = {baseline: '0001_init'}
+      // Normalized like the file names
+      const options = {baseline: './migrations/0001_init.sql'}
       test.equal(await migrate(db, files, options), ['0002_more'])
       test.equal(await db.select(A.id).from(A), [])
       test.equal(await names(), ['0001_init', '0002_more'])
@@ -126,6 +140,27 @@ export function testMigrate(db: Database, test: DefineTest) {
       }
     })
   })
+
+  if (db.dialect.runtime === 'sqlite')
+    test('generate rebuild keeps referencing rows', async () => {
+      const [keys] = await db.select(Keys.foreign_keys).from(Keys)
+      await fixture(reset, async () => {
+        const first = {'0001_init.sql': await generate({}, {Parent, Child})}
+        const next = await generate(first, {Parent: Strict, Child})
+        test.equal(next.startsWith('pragma defer_foreign_keys = on;'), true)
+        const comment = '-- Makes column "name" not null over null values'
+        test.equal(next.includes(`${comment}\ninsert into`), true)
+        await db.run(sql`pragma foreign_keys = on`)
+        await migrate(db, first)
+        await db.insert(Parent).values({id: 1})
+        await db.insert(Child).values({id: 1, parent: 1})
+        await migrate(db, {...first, '0002_strict.sql': next})
+        test.equal(await db.select(Child.id).from(Child), [1])
+        test.equal(await db.select(Strict.name).from(Strict), ['x'])
+        test.equal(await db.select(Keys.foreign_keys).from(Keys), [1])
+      })
+      if (!keys) await db.run(sql`pragma foreign_keys = off`)
+    })
 
   test('generate round trip', async () => {
     await fixture(reset, async () => {

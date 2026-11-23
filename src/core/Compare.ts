@@ -55,7 +55,7 @@ export function* compare({
 }: Comparison): Gen<Changes> {
   let found: boolean | undefined
   const hasRows = function* () {
-    return (found ??= yield* exists(tx, target))
+    return assume || (found ??= yield* exists(tx, target))
   }
   const before = live.columns
   const after = desired.columns
@@ -81,15 +81,13 @@ export function* compare({
   const data = assume ? '' : ' with data'
   for (const name of added) {
     const column = after[name]
-    if (
-      column.notNull &&
-      column.default === null &&
-      !column.extra &&
-      (yield* hasRows())
-    )
-      throw new Error(
-        `Cannot add not null column "${name}" without a default to "${table}"`
-      )
+    if (column.notNull && column.default === null && !column.extra)
+      if (assume)
+        risks[name] = `add not null column "${name}" without a default`
+      else if (yield* hasRows())
+        throw new Error(
+          `Cannot add not null column "${name}" without a default to "${table}"`
+        )
   }
   for (const name of dropped)
     if (yield* loses(name)) risks[name] = `drop column "${name}"${note || data}`
