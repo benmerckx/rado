@@ -91,5 +91,5 @@ available on the builder.
 ## When do they apply?
 
 Constraints and indexes are emitted by `db.create(Table)` and kept up to date
-by `push(db, Table)`, which adds, drops and recreates indexes and constraints
+by `push(db, {Table})`, which adds, drops and recreates indexes and constraints
 to match your definition. See [Schema push](../runtime/push.md).

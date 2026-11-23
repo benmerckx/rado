@@ -128,8 +128,9 @@ Every query runs in its own session, so session state such as
 `lastInsertId()` does not carry over to the next query. Use `returning`
 instead. HTTP has no interactive transactions, so `db.transaction` is
 unavailable. [`db.batch`](runtime/transactions-and-batch.md#batch) runs its
-queries in a single transaction. Schema push and inspect need interactive
-transactions too. For those, use the websocket `Pool` with the pg driver.
+queries in a single transaction. Schema push, inspect and migrations need
+interactive transactions or several statements per query. For those, use the
+websocket `Pool` with the pg driver.
 
 ## SQLite
 
@@ -228,6 +229,8 @@ const db = connect(createConnection({uri: process.env.DATABASE_URL}))
 ```
 
 Both callback-style and promise-style mysql2 connections are accepted.
+[Migrations](runtime/migrations.md) run each file as one query, so they need
+the connection or pool created with `multipleStatements: true`.
 
 ### mysql-wasm (async)
 
@@ -259,6 +262,11 @@ For PostgreSQL, `connect` turns off the client's prepared statements, because
 Bun encodes strings bound to json parameters a second time when it prepares
 them. Bun reports changed rows as affected rows on MySQL, so `affectedRows` of
 an update counts the rows that changed rather than the rows that matched.
+
+A MySQL 8 or later server that hasn't cached the user's password yet only
+accepts the login over TLS, since Bun can't fetch the server's RSA key. Pass
+`tls: true` (`new SQL({url, tls: true})`) when the login fails with
+`The server requested RSA public key retrieval`.
 
 ## One import to rule them all
 

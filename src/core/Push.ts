@@ -1,10 +1,11 @@
 import type {Database} from './Database.ts'
-import {columns, foreignKeys, isForeignKey, key} from './ForeignKey.ts'
-import {getData, getTable, hasTable, internalData} from './Internal.ts'
+import {columns, isForeignKey} from './ForeignKey.ts'
+import {getData, internalData} from './Internal.ts'
 import type {Deliver, QueryDialect, QueryMeta, Runtime} from './MetaData.ts'
+import {type Schema, order, tables} from './Order.ts'
 import type {Shape} from './Shape.ts'
 import {type Sql, sql} from './Sql.ts'
-import type {Table, TableApi, TableConfigResult} from './Table.ts'
+import type {TableApi, TableConfigResult} from './Table.ts'
 import {exec, type Gen, within} from './Transaction.ts'
 
 export interface PushOptions {
@@ -12,23 +13,33 @@ export interface PushOptions {
   rename?: Record<string, string>
 }
 
-export type PushInput = Array<Table> | [...Array<Table>, PushOptions]
+export type {Schema} from './Order.ts'
 
 // A dialect entry only accepts a database of its dialect
 export interface Push<D extends QueryDialect = QueryDialect> {
   <Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
-    ...input: PushInput
+    schema: Schema,
+    options?: PushOptions
   ): Deliver<Meta, void>
   plan<Meta extends QueryMeta & {dialect: D}>(
     db: Database<Meta>,
-    ...input: PushInput
+    schema: Schema,
+    options?: PushOptions
   ): Deliver<Meta, Array<string>>
+}
+
+// Generate plans without rows to check, see Comparison.capture
+export interface PlanOptions extends PushOptions {
+  capture?: boolean
 }
 
 export interface Step {
   sql: Sql
+  // What push refuses it for
   risk?: string
+  // Every risk of a statement that combines changes, for generate
+  risks?: Array<string>
   rebuild?: boolean
   // Changes something a rollback doesn't undo, such as a sequence
   effect?: boolean
@@ -38,7 +49,7 @@ export interface Planner {
   (
     tx: Database,
     api: TableApi,
-    options: PushOptions,
+    options: PlanOptions,
     // Every table pushed, whose foreign keys may be dropped and re-added
     tables: Array<TableApi>
   ): Gen<Array<Step>>
@@ -50,10 +61,36 @@ export type Apply = (
   tx: Database,
   execute: boolean,
   check?: (steps: Array<Step>) => void
-) => Gen<Array<string>>
+) => Gen<Array<Statement>>
 
 export interface Runner {
-  (db: Database, apply: Apply, dry: boolean): Gen<Array<string>>
+  (db: Database, apply: Apply, dry: boolean): Gen<Array<Statement>>
+}
+
+// A statement push runs, with what it may lose
+export interface Statement {
+  sql: string
+  risks: Array<string>
+}
+
+type Mode = 'push' | 'plan' | 'capture'
+type Run = (
+  db: Database,
+  schema: Schema,
+  mode: Mode,
+  options?: PushOptions
+) => Array<Statement> | Promise<Array<Statement>>
+
+const runs = new WeakMap<object, Run>()
+
+// Applies everything, risky or not, and returns what ran, for generate
+export function capture(
+  push: Push,
+  db: Database,
+  schema: Schema,
+  options?: PushOptions
+): Array<Statement> | Promise<Array<Statement>> {
+  return runs.get(push)!(db, schema, 'capture', options)
 }
 
 const single: Runner = (db, apply, dry) =>
@@ -65,37 +102,48 @@ export function createPush<R extends Runtime>(
   runner = single,
   validate?: (api: TableApi) => void
 ): Push<R> {
-  function go(db: Database, input: PushInput, dry: boolean) {
+  const go: Run = (db, schema, mode, options = {}) => {
+    const dry = mode === 'plan'
+    const capturing = mode === 'capture'
     if (db.dialect.runtime !== runtime)
       throw new Error(`Expected a ${runtime} database`)
     if (!db.driver.supportsTransactions)
       throw new Error('Push needs a driver with transactions')
-    const last = input.at(-1)
-    const options = last && !hasTable(last) ? (last as PushOptions) : {}
-    const tables = (input.filter(hasTable) as Array<Table>).map(getTable)
-    for (const api of tables) {
+    const found = tables(schema)
+    for (const api of found) {
       if (api.temporary) throw new Error('Temporary tables cannot be pushed')
       validate?.(api)
       renames(api, options)
     }
     for (const from of Object.keys(options.rename ?? {}))
-      if (!tables.some(api => from.startsWith(prefix(api))))
+      if (!found.some(api => from.startsWith(prefix(api))))
         throw new Error(`Rename "${from}" is not a column of a pushed table`)
-    const ordered = order(tables)
+    const ordered = order(found)
     return exec(
       runner(
         db,
         function* (tx, execute, check) {
-          const result: Array<string> = []
+          const result: Array<Statement> = []
           for (const api of ordered) {
-            const steps = yield* planner(tx, api, options, ordered)
-            const risky = !options.force && steps.find(step => step.risk)
+            const steps = yield* planner(
+              tx,
+              api,
+              {...options, capture: capturing},
+              ordered
+            )
+            const risky =
+              !options.force && !capturing && steps.find(step => step.risk)
             if (risky && !dry)
               throw new Error(
                 `Push would ${risky.risk}: ${db.dialect.inline(risky.sql)}`
               )
             check?.(steps)
-            result.push(...steps.map(step => db.dialect.inline(step.sql)))
+            result.push(
+              ...steps.map(step => ({
+                sql: db.dialect.inline(step.sql),
+                risks: step.risks ?? (step.risk ? [step.risk] : [])
+              }))
+            )
             // A refused table is left as is, as push would stop there, and a
             // dry run skips tables it can't apply without leaving a trace
             const skip = risky || (dry && steps.some(step => step.effect))
@@ -108,37 +156,17 @@ export function createPush<R extends Runtime>(
       )
     )
   }
-  const push = (db: Database, ...input: PushInput) => {
-    const result = go(db, input, false)
+  const sqls = (statements: Array<Statement>) => statements.map(s => s.sql)
+  const push = (db: Database, schema: Schema, options?: PushOptions) => {
+    const result = go(db, schema, 'push', options)
     if (result instanceof Promise) return result.then(() => {})
   }
-  push.plan = (db: Database, ...input: PushInput) => go(db, input, true)
-  return push as Push<R>
-}
-
-// Referenced tables first, so foreign keys can be created
-function order(tables: Array<TableApi>): Array<TableApi> {
-  const byName = new Map(
-    tables.map(api => [key(api.schemaName, api.name), api])
-  )
-  const result: Array<TableApi> = []
-  const visiting = new Set<TableApi>()
-  const visit = (api: TableApi) => {
-    if (result.includes(api)) return
-    visiting.add(api)
-    for (const {schema, table} of foreignKeys(api)) {
-      const dependency = byName.get(key(schema, table))
-      if (!dependency || dependency === api) continue
-      const pair = `"${dependency.name}" and "${api.name}"`
-      if (visiting.has(dependency))
-        throw new Error(`Foreign keys form a cycle between ${pair}`)
-      visit(dependency)
-    }
-    visiting.delete(api)
-    result.push(api)
+  push.plan = (db: Database, schema: Schema, options?: PushOptions) => {
+    const result = go(db, schema, 'plan', options)
+    return result instanceof Promise ? result.then(sqls) : sqls(result)
   }
-  for (const api of tables) visit(api)
-  return result
+  runs.set(push, go)
+  return push as Push<R>
 }
 
 // Keys of a that b lacks or defines differently

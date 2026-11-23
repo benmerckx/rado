@@ -33,6 +33,11 @@ await db.create(app, User) // create schema if not exists "app"; create table ..
 await db.drop(app) // drop schema if exists "app" cascade
 ```
 
+`drop(db, schema)` from the push entries, which works out the order for a
+whole schema object, drops the tables of an exported `pgSchema` but leaves
+the schema, since dropping it cascades to whatever else it holds. Pass the
+schema to `db.drop` to drop it.
+
 Everything a schema can contain:
 
 ```ts

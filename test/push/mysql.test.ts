@@ -664,7 +664,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run('create table __rado_victim (sentinel int)')
     await run('insert into __rado_victim values (42)')
     try {
-      test.equal(await push.plan(db, Victim), [
+      test.equal(await push.plan(db, {Victim}), [
         'alter table `victim` add column `extra` integer'
       ])
       test.equal(await all('select sentinel from __rado_victim'), [
@@ -683,7 +683,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run('create table atomic_t (a int, key i (a))')
     await run('insert into atomic_t values (1), (1)')
     try {
-      test.equal((await fails(() => push(db, T))).includes('Duplicate'), true)
+      test.equal((await fails(() => push(db, {T}))).includes('Duplicate'), true)
       test.equal(
         await all(
           `select index_name as name, non_unique as nonUnique from information_schema.statistics where table_schema = database() and table_name = 'atomic_t'`
@@ -710,7 +710,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
       const error = await fails(() =>
         db.transaction(async tx => {
           await tx.run(sql`insert into trx_t values (1)`)
-          const planned = await fails(() => push.plan(tx, T))
+          const planned = await fails(() => push.plan(tx, {T}))
           throw new Error(planned)
         })
       )
@@ -761,7 +761,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
         `select referenced_table_schema as target from information_schema.key_column_usage where table_schema = '${schema}' and table_name = 'dup' and referenced_table_name is not null`
       )
     try {
-      await push(db, Parent, ArchiveParent, Dup, ArchiveDup)
+      await push(db, {Parent, ArchiveParent, Dup, ArchiveDup})
       test.equal(await describe(home), [
         {name: 'id'},
         {name: 'a'},
@@ -782,7 +782,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
         {id: 1, b: 'x', pid: 1}
       ])
       test.equal(
-        await push.plan(db, Parent, ArchiveParent, Dup, ArchiveDup),
+        await push.plan(db, {Parent, ArchiveParent, Dup, ArchiveDup}),
         []
       )
     } finally {
@@ -796,7 +796,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run('drop table if exists bad_new')
     try {
       test.equal(
-        (await fails(() => push(db, T))).includes('without a key length'),
+        (await fails(() => push(db, {T}))).includes('without a key length'),
         true
       )
       test.equal(
@@ -817,7 +817,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run(`insert into fsp_t values ('2026-01-02 03:04:05.678901')`)
     try {
       test.equal(
-        (await fails(() => push(db, T))).startsWith(
+        (await fails(() => push(db, {T}))).startsWith(
           'Push would change column "at" from datetime(6) to datetime'
         ),
         true
@@ -840,7 +840,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run('drop table if exists plain_new, partial_new')
     try {
       test.equal(
-        await fails(() => push(db, Plain, Partial)),
+        await fails(() => push(db, {Plain, Partial})),
         `MySQL indexes don't support where, see "vip"`
       )
       test.equal(
@@ -864,7 +864,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run(`insert into logs_t values (2, 'temp')`)
     try {
       test.equal(
-        await fails(() => push(db, Logs, {force: true})),
+        await fails(() => push(db, {Logs}, {force: true})),
         'Cannot push "logs_t", a temporary table shadows it'
       )
       test.equal(await all('select id, notes from logs_t'), [
@@ -904,13 +904,13 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run('insert into key_users values (1, 1)')
     await run('insert into key_posts values (1)')
     try {
-      test.equal((await fails(() => push(db, Users))) !== '', true)
+      test.equal((await fails(() => push(db, {Users}))) !== '', true)
       test.equal(await keys('key_users'), [{name: 'PRIMARY', col: 'id'}])
-      await push(db, Users, Posts)
+      await push(db, {Users, Posts})
       test.equal(await keys('key_users'), [{name: 'PRIMARY', col: 'account'}])
       test.equal(await target(), [{col: 'account'}])
       test.equal(await all('select author from key_posts'), [{author: 1}])
-      test.equal(await push.plan(db, Users, Posts), [])
+      test.equal(await push.plan(db, {Users, Posts}), [])
     } finally {
       await run('drop table if exists key_posts, key_users')
     }
@@ -944,15 +944,15 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     }
     try {
       await reset()
-      await push(db, Wide, WidePosts)
+      await push(db, {Wide, WidePosts})
       test.equal(await describe(), [
         {tbl: 'ref_posts', type: 'bigint', extra: ''},
         {tbl: 'ref_users', type: 'bigint', extra: ''}
       ])
       test.equal(await target(), [{col: 'id'}])
-      test.equal(await push.plan(db, Wide, WidePosts), [])
+      test.equal(await push.plan(db, {Wide, WidePosts}), [])
       await reset()
-      await push(db, Counted, CountedPosts)
+      await push(db, {Counted, CountedPosts})
       await run('insert into ref_users values ()')
       test.equal(await all('select id from ref_users order by id'), [
         {id: 1},
@@ -1006,7 +1006,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     await run(`insert into narrow_t values (repeat('x', 300))`)
     try {
       test.equal(
-        (await fails(() => push(db, T))).startsWith(
+        (await fails(() => push(db, {T}))).startsWith(
           'Push would change column "v" from varchar(1000) to tinytext'
         ),
         true
@@ -1058,7 +1058,7 @@ if (!isDeno) {
     try {
       for (const desired of [Dropped, Narrowed]) {
         logged.length = 0
-        await push(logging, desired, {force: true})
+        await push(logging, {desired}, {force: true})
         test.equal(
           logged.filter(query => /select 1 as found from `lazy_t`/.test(query)),
           []

@@ -9,13 +9,18 @@
     "./sqlite": "./src/sqlite.ts",
     "./sqlite/push": "./src/sqlite/push.ts",
     "./sqlite/inspect": "./src/sqlite/inspect.ts",
+    "./sqlite/generate": "./src/sqlite/generate.ts",
     "./mysql": "./src/mysql.ts",
     "./mysql/push": "./src/mysql/push.ts",
     "./mysql/inspect": "./src/mysql/inspect.ts",
+    "./mysql/generate": "./src/mysql/generate.ts",
     "./postgres": "./src/postgres.ts",
     "./postgres/push": "./src/postgres/push.ts",
     "./postgres/inspect": "./src/postgres/inspect.ts",
+    "./postgres/generate": "./src/postgres/generate.ts",
     "./push": "./src/push.ts",
-    "./inspect": "./src/inspect.ts"
+    "./inspect": "./src/inspect.ts",
+    "./migrate": "./src/migrate.ts",
+    "./migrate/fs": "./src/migrate/fs.ts"
   }
 }

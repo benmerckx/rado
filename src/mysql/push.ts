@@ -1,11 +1,12 @@
-import {compare} from '../core/Compare.ts'
+import {compare, keyRisk, referenceRisk} from '../core/Compare.ts'
 import type {Database} from '../core/Database.ts'
 import {and, eq, isNull, not} from '../core/expr/Conditions.ts'
 import {columns, foreignKey, foreignKeyChanges} from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
+import {type Define, define} from '../core/Order.ts'
 import {
   type Push,
-  type PushOptions,
+  type PlanOptions,
   type Runner,
   type Step,
   createPush,
@@ -21,7 +22,7 @@ import {grows, parseType, ranks} from '../core/Widening.ts'
 import {Usage, home} from './catalog.ts'
 import {shape} from './shape.ts'
 
-export type {PushInput, PushOptions} from '../core/Push.ts'
+export type {Push, PushOptions, Schema} from '../core/Push.ts'
 
 const capacity: Record<string, number> = {
   tinytext: 255,
@@ -51,7 +52,7 @@ function widens(from: string, to: string): boolean {
 }
 
 // One create table with its indexes, so a failing index leaves no table
-function create(api: TableApi): Sql {
+function createTable(api: TableApi): Sql {
   const keys = Object.entries(api.indexes()).map(([name, index]) => {
     const {unique, fields, order, using} = getData(index)
     return sql.join([
@@ -94,13 +95,13 @@ function* dependents(tx: Database, schema: string, name: string) {
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions,
+  options: PlanOptions,
   tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const base = yield* home(tx)
   const schema = api.schemaName ?? base
   const before = yield* shape(tx, api.name, schema)
-  if (!before) return [{sql: create(api)}]
+  if (!before) return [{sql: createTable(api)}]
   // The catalog shows the permanent table, statements reach a temporary one
   // of the same name on this connection
   const [shown] = yield* result(
@@ -121,7 +122,8 @@ function* plan(
     renamed,
     home: base,
     schema,
-    tables
+    tables,
+    capture: options.capture
   })
 }
 
@@ -130,7 +132,7 @@ function* plan(
 function* copy(tx: Database, api: TableApi, schema: string): Gen<Shape> {
   const name = `__rado_${Math.random().toString(36).slice(2, 12)}`
   const table = shadow(api, name, api.schemaName)
-  yield tx.run(create(table))
+  yield tx.run(createTable(table))
   try {
     return (yield* shape(tx, name, schema))!
   } finally {
@@ -147,6 +149,7 @@ interface Plan {
   home: string
   schema: string
   tables: Array<TableApi>
+  capture?: boolean
 }
 
 // All changes go into one alter table, which MySQL applies atomically
@@ -158,7 +161,8 @@ function* changes({
   renamed,
   home,
   schema,
-  tables
+  tables,
+  capture
 }: Plan): Gen<Array<Step>> {
   const target = api.identifier()
   const data = columns(api)
@@ -184,8 +188,10 @@ function* changes({
     widens,
     source,
     // A column seen empty can fill up before the alter table runs
-    unchecked:
-      "MySQL can't keep writers out while it checks the data, pass force"
+    unchecked: capture
+      ? undefined
+      : "MySQL can't keep writers out while it checks the data, pass force",
+    capture
   })
   const primary = desired.constraints.primary
   const primaryChanged = live.constraints.primary !== primary
@@ -203,12 +209,24 @@ function* changes({
         risk: nulls[name]
       }
     })
-  const risk = [
+  const keys = capture
+    ? [
+        primaryChanged && primary ? keyRisk('primary', primary) : undefined,
+        ...differ(desired.indexes, live.indexes).map(name =>
+          keyRisk(name, desired.indexes[name])
+        ),
+        ...references.added.map(key => referenceRisk(key.name))
+      ]
+    : []
+  const all = [
     ...dropped.map(name => risks[name]),
-    ...changed.map(
-      name => risks[name] ?? (fallback(name) ? undefined : nulls[name])
-    )
-  ].find(Boolean)
+    ...added.map(name => risks[name]),
+    ...changed.flatMap(name => [
+      risks[name],
+      fallback(name) ? undefined : nulls[name]
+    ]),
+    ...keys
+  ].filter(risk => risk !== undefined)
   // The whole definition is given, change resets what it leaves out
   const alter = (name: string) => {
     const from = sql.identifier(source(name))
@@ -266,15 +284,22 @@ function* changes({
         )
     )
     .map(key => ({
-      sql: sql`alter table ${sql.identifier(key.schema)}.${sql.identifier(
-        key.table
-      )} drop foreign key ${sql.identifier(key.name)}`
+      // A generated file runs against any database name
+      sql: sql`alter table ${
+        capture && key.schema === home
+          ? sql.identifier(key.table)
+          : sql`${sql.identifier(key.schema)}.${sql.identifier(key.table)}`
+      } drop foreign key ${sql.identifier(key.name)}`
     }))
   if (clauses.length === 0) return [...drops, ...fills]
   return [
     ...drops,
     ...fills,
-    {sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`, risk}
+    {
+      sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`,
+      risk: all[0],
+      risks: all
+    }
   ]
 }
 
@@ -307,3 +332,6 @@ function validate(api: TableApi): void {
 }
 
 export const push: Push<'mysql'> = createPush('mysql', plan, runner, validate)
+
+export const create: Define<'mysql'> = define('mysql', false)
+export const drop: Define<'mysql'> = define('mysql', true)

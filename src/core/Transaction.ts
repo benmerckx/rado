@@ -1,6 +1,7 @@
 import {run} from '../universal/transactions.ts'
-import {type Database, Rollback, type TransactionOptions} from './Database.ts'
+import type {Database, TransactionOptions} from './Database.ts'
 import type {QueryDialect} from './MetaData.ts'
+import {Rollback} from './Rollback.ts'
 
 // Yields queries, or their promises on an async driver, so the same code
 // runs on sync and async drivers

@@ -66,6 +66,7 @@ class PreparedStatement implements SyncStatement {
 export class DurableObjectDriver implements SyncDriver {
   parsesJson = false
   supportsTransactions = true
+  enforcesForeignKeys = true as const
 
   constructor(private storage: Storage) {}
 

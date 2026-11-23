@@ -45,6 +45,7 @@ class PreparedStatement implements AsyncStatement {
 export class NeonHttpDriver implements AsyncDriver {
   parsesJson = true
   supportsTransactions = false
+  multipleStatements = false as const
 
   constructor(private client: Client) {}
 

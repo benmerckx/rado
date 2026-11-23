@@ -1,6 +1,12 @@
-import {type Changes, type Comparison, compare} from '../core/Compare.ts'
+import {
+  type Changes,
+  type Comparison,
+  compare,
+  keyRisk,
+  referenceRisk
+} from '../core/Compare.ts'
 import type {Database} from '../core/Database.ts'
-import {eq, isNull, ne} from '../core/expr/Conditions.ts'
+import {eq, inArray, isNull, ne} from '../core/expr/Conditions.ts'
 import {
   columns,
   foreignKey,
@@ -8,9 +14,10 @@ import {
   foreignKeys
 } from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
+import {type Define, define} from '../core/Order.ts'
 import {
   type Push,
-  type PushOptions,
+  type PlanOptions,
   type Step,
   createPush,
   differ,
@@ -24,9 +31,10 @@ import {alias, type TableApi} from '../core/Table.ts'
 import {type Gen, result, scratch} from '../core/Transaction.ts'
 import {grows, parseType, ranks} from '../core/Widening.ts'
 import {Class, Constraint, Namespace, home, prepend} from './catalog.ts'
+import {enumSchemas} from './enum.ts'
 import {shape} from './shape.ts'
 
-export type {PushInput, PushOptions} from '../core/Push.ts'
+export type {Push, PushOptions, Schema} from '../core/Push.ts'
 
 // Arguments a type has when they are left out, unlimited where unbounded
 function fill(base: string): Array<number> {
@@ -85,30 +93,59 @@ function* dependents(tx: Database, oid: number) {
     )
 }
 
+// Push names every schema, so a temporary table can't shadow a name. The
+// shadow generate runs on has none, and a migration file that leaves out the
+// home schema runs under any search_path
+function scope(options: PlanOptions, home: string) {
+  return (schema: string): string | undefined =>
+    options.capture && schema === home ? undefined : schema
+}
+
+const at = (schema: string | undefined, name: Sql): Sql =>
+  schema ? sql`${sql.identifier(schema)}.${name}` : name
+
+// Schemas that don't exist yet, for the table and its enums. If not exists,
+// a file generated against a shadow may run where they do.
+function* schemas(tx: Database, names: Array<string>): Gen<Array<Step>> {
+  const found = yield* tx
+    .select(Namespace.nspname)
+    .from(Namespace)
+    .where(inArray(Namespace.nspname, names))
+  return names
+    .filter((name, i) => names.indexOf(name) === i && !found.includes(name))
+    .map(name => ({
+      sql: sql`create schema if not exists ${sql.identifier(name)}`
+    }))
+}
+
 function* plan(
   tx: Database,
   api: TableApi,
-  options: PushOptions,
+  options: PlanOptions,
   tables: Array<TableApi>
 ): Gen<Array<Step>> {
   const base = yield* home(tx)
   const schema = api.schemaName ?? base
-  const target = sql`${sql.identifier(schema)}.${sql.identifier(api.name)}`
+  const own = scope(options, base)
+  const target = at(own(schema), sql.identifier(api.name))
   const oid = yield* relation(tx, schema, api.name)
   // A new table gets its foreign keys afterwards, with qualified references
   // a temporary table can't shadow
-  if (oid === undefined)
+  if (oid === undefined) {
     return [
-      ...shadow(api, api.name, schema)
+      // A dry run applies them, the tables after see them
+      ...(yield* schemas(tx, [schema, ...enumSchemas(api)])),
+      ...shadow(api, api.name, own(schema))
         .create()
         .map(sql => ({sql})),
       ...foreignKeys(api).map(key => ({
         sql: sql`alter table ${target} add ${foreignKey({
           ...key,
-          schema: key.schema ?? base
+          schema: own(key.schema ?? base)
         })}`
       }))
     ]
+  }
   // Keeps writers out until the transaction ends, so the data checks hold,
   // and the table is read under the lock
   yield tx.run(sql`lock table ${target} in share row exclusive mode`)
@@ -120,14 +157,18 @@ function* plan(
     for (const step of renamed) yield inner.run(step.sql)
     const live =
       renamed.length > 0 ? (yield* shape(inner, api.name, schema))! : before
+    // The copy needs them, so they're created in the scratch transaction
+    const spaces = yield* schemas(inner, enumSchemas(api))
+    for (const step of spaces) yield inner.run(step.sql)
     const enums: Array<Step> = []
     for (const query of api.createEnums()) {
       const name = inner.dialect.inline(query).match(/type (.+?) as/)![1]
       const [found] = yield* inner.select(sql<unknown>`to_regtype(${name})`)
       if (!found) enums.push({sql: query})
     }
-    const desired = yield* scratch(inner, tx => copy(tx, api))
+    const desired = yield* scratch(inner, tx => copy(tx, api, schema))
     return [
+      ...spaces,
       ...enums,
       ...renamed,
       ...(yield* changes({
@@ -147,10 +188,12 @@ function* plan(
 }
 
 // The desired table, created in a fresh schema so an existing one is never
-// touched
-function* copy(tx: Database, api: TableApi): Gen<Shape> {
+// touched. Types print relative to the search path, so the table's own schema
+// goes on it too, as when the live table is read.
+function* copy(tx: Database, api: TableApi, home: string): Gen<Shape> {
   const schema = `rado_push_${Math.random().toString(36).slice(2)}`
   yield tx.run(sql`create schema ${sql.identifier(schema)}`)
+  yield* prepend(tx, home)
   yield* prepend(tx, schema)
   for (const query of shadow(api, api.name, schema).create())
     yield tx.run(query)
@@ -183,7 +226,7 @@ interface Plan {
   live: Shape
   desired: Shape
   home: string
-  options: PushOptions
+  options: PlanOptions
   tables: Array<TableApi>
 }
 
@@ -200,6 +243,7 @@ function* changes({
   tables
 }: Plan): Gen<Array<Step>> {
   const data = columns(api)
+  const own = scope(options, home)
   const bare = shadow(api, api.name, api.schemaName, true)
   const alter = (change: Sql, risk?: string): Step => ({
     sql: sql`alter table ${target} ${change}`,
@@ -224,7 +268,8 @@ function* changes({
     table: api.name,
     live,
     desired,
-    widens
+    widens,
+    capture: options.capture
   })
   const wanted = new Set(Object.values(desired.constraints))
   const present = new Set(Object.values(live.constraints))
@@ -247,8 +292,9 @@ function* changes({
     ...others
       .filter(key => gone.includes(key.key) && pushed(key))
       .map(key => ({
-        sql: sql`alter table ${sql.identifier(key.schema)}.${sql.identifier(
-          key.table
+        sql: sql`alter table ${at(
+          own(key.schema),
+          sql.identifier(key.table)
         )} drop constraint ${sql.identifier(key.name)}`
       })),
     ...references.dropped.map(key =>
@@ -257,9 +303,7 @@ function* changes({
     ...gone.map(name =>
       live.indexes[name]
         ? {
-            sql: sql`drop index ${sql.identifier(schema)}.${sql.identifier(
-              name
-            )}`
+            sql: sql`drop index ${at(own(schema), sql.identifier(name))}`
           }
         : alter(sql`drop constraint ${sql.identifier(name)}`)
     ),
@@ -267,14 +311,18 @@ function* changes({
       alter(sql`drop column ${sql.identifier(name)}`, risks[name])
     ),
     ...added.map(name => ({
-      ...alter(sql`add column ${bare.columnDefinition(data[name].key)}`),
+      ...alter(
+        sql`add column ${bare.columnDefinition(data[name].key)}`,
+        risks[name]
+      ),
       effect: draws(name)
     }))
   ]
   // Steps are inlined, so the table's name is quoted by postgres
-  const quoted = sql`format('%I.%I', ${sql.inline(schema)}::text, ${sql.inline(
-    api.name
-  )}::text)`
+  const relname = sql`${sql.inline(api.name)}::text`
+  const quoted = own(schema)
+    ? sql`format('%I.%I', ${sql.inline(schema)}::text, ${relname})`
+    : sql`format('%I', ${relname})`
   const serial = (name: string) =>
     sql<string | null>`pg_get_serial_sequence(${quoted}, ${sql.inline(name)})`
   for (const name of changed) {
@@ -302,7 +350,7 @@ function* changes({
     // A sequence the copy's default draws from is created for the column
     const sequence = to.default?.match(/^nextval\('(.+)'::regclass\)$/)?.[1]
     if (sequence && to.default !== from.default) {
-      const created = sql`${sql.identifier(schema)}.${sql.unsafe(sequence)}`
+      const created = at(own(schema), sql.unsafe(sequence))
       // A default takes no parameters, the name goes in as a literal
       const literal = sql.inline(tx.dialect.inline(created))
       steps.push(
@@ -337,7 +385,12 @@ function* changes({
     if (to.extra && from.extra !== to.extra) {
       // A serial's sequence goes with its default, so the identity's own
       // sequence is the one that continues above the rows
-      const [owned] = yield* tx.select(serial(name))
+      // As regclass text it names the schema only when it isn't the home
+      const [owned] = yield* tx.select(
+        options.capture
+          ? sql<string | null>`${serial(name)}::regclass::text`
+          : serial(name)
+      )
       if (!from.extra && owned)
         steps.push({sql: sql`drop sequence ${sql.unsafe(owned)}`})
       steps.push(
@@ -360,16 +413,24 @@ function* changes({
       .filter(([, definition]) => !present.has(definition))
       .map(([name, definition]) =>
         alter(
-          sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`
+          sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`,
+          options.capture ? keyRisk(name, definition) : undefined
         )
       ),
     ...references.added.map(key =>
-      alter(sql`add ${foreignKey({...key, schema: key.schema ?? home})}`)
+      alter(
+        sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
+        options.capture ? referenceRisk(key.name) : undefined
+      )
     ),
     ...differ(desired.indexes, live.indexes).map(name => ({
-      sql: getData(indexes[name]).toSql(api.name, name, false, schema)
+      sql: getData(indexes[name]).toSql(api.name, name, false, own(schema)),
+      risk: options.capture ? keyRisk(name, desired.indexes[name]) : undefined
     }))
   ]
 }
 
 export const push: Push<'postgres'> = createPush('postgres', plan)
+
+export const create: Define<'postgres'> = define('postgres', false)
+export const drop: Define<'postgres'> = define('postgres', true)

@@ -153,15 +153,22 @@ that generates `.sql` migration files on disk. Rado builds in a single
 declarative function:
 
 ```ts
-await push(db, User, Post)
+import * as schema from './schema.ts'
+
+await push(db, schema)
 ```
 
 `push` from `rado/sqlite/push` (or the postgres and mysql equivalents) diffs
 schema against database and applies changes on the spot, anywhere, including
 browsers and edge runtimes. It refuses
 changes that lose data unless forced, and `push.plan` shows what would run.
-Less ceremony, less control: for carefully reviewed production migrations
-you may still prefer a dedicated tool. See [Schema push](runtime/push.md).
+See [Schema push](runtime/push.md).
+
+For reviewed production changes, `generate` writes the SQL push would run
+into a migration file, and `migrate` applies the files on startup and keeps
+a history. Instead of snapshot files, generate replays your existing
+migrations on a scratch database, so hand edits are part of what it compares
+against. See [Migrations](runtime/migrations.md).
 
 ### Simpler types
 
@@ -195,8 +202,8 @@ These are decisions, not gaps waiting to be filled:
 
 - **The relational query API** (`db.query.*.findMany`): by design; use
   [Include](queries/include.md)
-- **drizzle-kit** style SQL-file migrations: use `push` or an external
-  migration tool
+- **drizzle-kit** extras: no snapshots, no down migrations and no studio.
+  [Migrations](runtime/migrations.md) are plain SQL files
 - **Ecosystem**: Drizzle has integrations, studio tooling and a large
   community; rado is a focused query builder
 - Some driver coverage: rado supports the

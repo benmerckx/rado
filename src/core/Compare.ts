@@ -26,6 +26,9 @@ export interface Comparison {
   source?: (name: string) => string
   // Why rows can't be checked, drops and narrowing then always count
   unchecked?: string
+  // Count every column as holding values and nulls, for a database without
+  // rows such as the shadow generate uses
+  capture?: boolean
 }
 
 export interface Changes {
@@ -38,6 +41,26 @@ export interface Changes {
   nulls: Record<string, string>
 }
 
+// A key added to a table that has rows fails on rows it doesn't hold, which
+// generate marks
+export function keyRisk(name: string, definition: string): string | undefined {
+  const kind = /^primary/i.test(definition)
+    ? 'primary key'
+    : /^unique/i.test(definition)
+      ? 'unique key'
+      : undefined
+  if (!kind) return
+  // SQLite and MySQL don't name a primary key, SQLite names its own unique
+  // keys
+  const named = /^(primary|sqlite_autoindex_)/.test(name) ? '' : ` "${name}"`
+  return `add ${kind}${named}, fails on duplicates`
+}
+
+export function referenceRisk(name?: string): string {
+  const named = name ? ` "${name}"` : ''
+  return `add foreign key${named}, fails on rows without a match`
+}
+
 // Compares columns and finds the changes that would lose data
 export function* compare({
   tx,
@@ -47,11 +70,12 @@ export function* compare({
   desired,
   widens,
   source = name => name,
-  unchecked
+  unchecked,
+  capture = false
 }: Comparison): Gen<Changes> {
   let found: boolean | undefined
   const hasRows = function* () {
-    return (found ??= yield* exists(tx, target))
+    return capture || (found ??= yield* exists(tx, target))
   }
   const before = live.columns
   const after = desired.columns
@@ -71,24 +95,22 @@ export function* compare({
     return exists(tx, target, missing ? isNull(column) : isNotNull(column))
   }
   const loses = function* (name: string) {
-    return unchecked || (yield* holds(name, false))
+    return capture || unchecked || (yield* holds(name, false))
   }
   const note = unchecked ? ` (${unchecked})` : ''
+  const data = capture ? '' : ' with data'
   for (const name of added) {
     const column = after[name]
-    if (
-      column.notNull &&
-      column.default === null &&
-      !column.extra &&
-      (yield* hasRows())
-    )
-      throw new Error(
-        `Cannot add not null column "${name}" without a default to "${table}"`
-      )
+    if (column.notNull && column.default === null && !column.extra)
+      if (capture)
+        risks[name] = `add not null column "${name}" without a default`
+      else if (yield* hasRows())
+        throw new Error(
+          `Cannot add not null column "${name}" without a default to "${table}"`
+        )
   }
   for (const name of dropped)
-    if (yield* loses(name))
-      risks[name] = `drop column "${name}"${note || ' with data'}`
+    if (yield* loses(name)) risks[name] = `drop column "${name}"${note || data}`
   for (const name of changed) {
     const from = before[name]
     const to = after[name]
@@ -99,7 +121,7 @@ export function* compare({
     )
       risks[name] =
         `change column "${name}" from ${from.type} to ${to.type}${note}`
-    if (to.notNull && !from.notNull && (yield* holds(name, true)))
+    if (to.notNull && !from.notNull && (capture || (yield* holds(name, true))))
       nulls[name] = `make column "${name}" not null over null values`
   }
   return {hasRows, dropped, added, changed, risks, nulls}

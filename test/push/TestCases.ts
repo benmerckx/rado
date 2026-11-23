@@ -100,9 +100,9 @@ export function testCases(
           await db.run(sql.unsafe(statement))
         const before = await rows(c.keep)
         const options = c.options ?? {}
-        await dialect.push(db, ...c.desired, options)
+        await dialect.push(db, {...c.desired}, options)
         const pushed = await read(c.desired)
-        test.equal(await dialect.push.plan(db, ...c.desired, options), [])
+        test.equal(await dialect.push.plan(db, {...c.desired}, options), [])
         test.equal(await rows(c.keep, true), before)
         for (const statement of statements(c.after))
           await db.run(sql.unsafe(statement))

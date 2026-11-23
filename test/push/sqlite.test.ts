@@ -459,7 +459,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(`insert into parent values (1, '12')`)
       await run('insert into child values (1, 1)')
       await run('pragma foreign_keys = on')
-      await push(db, Parent, Child, {force: true})
+      await push(db, {Parent, Child}, {force: true})
       test.equal(await db.select().from(Parent), [{id: 1, code: 12}])
       test.equal(await db.select().from(Child), [{id: 1, parent: 1}])
       test.equal(
@@ -475,10 +475,10 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run('create table child (id integer primary key, parent integer)')
       await run('insert into child values (1, 2)')
       await run('pragma foreign_keys = on')
-      const error = await failure(() => push(db, Parent, Child))
+      const error = await failure(() => push(db, {Parent, Child}))
       test.equal(error, 'Push would violate foreign key constraints')
       test.equal(
-        await failure(() => push.plan(db, Child)),
+        await failure(() => push.plan(db, {Child})),
         'Push would violate foreign key constraints'
       )
       test.equal(await db.$count(sql`child`), 1)
@@ -498,7 +498,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(
         `create trigger parent_insert after insert on parent begin insert into log values ('inserted'); end`
       )
-      await push(db, Parent, {force: true})
+      await push(db, {Parent}, {force: true})
       await db.insert(Parent).values({id: 2, code: 8})
       test.equal(await db.select().from(Log), [{message: 'inserted'}])
       test.equal(
@@ -507,16 +507,16 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
         })),
         [{code: 7}, {code: 8}]
       )
-      test.equal(await push.plan(db, Parent), [])
+      test.equal(await push.plan(db, {Parent}), [])
     })
   })
 
   test('a trigger named after its table', async () => {
     await fixture(empty, async () => {
       const Counter = table('log', {id: integer().primaryKey().autoincrement()})
-      await push(db, Counter)
+      await push(db, {Counter})
       await run('create trigger log after insert on log begin select 1; end')
-      test.equal(await push.plan(db, Counter), [])
+      test.equal(await push.plan(db, {Counter}), [])
     })
   })
 
@@ -526,7 +526,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run('pragma foreign_keys = on')
       const error = await failure(() =>
         db.transaction(async tx => {
-          await push(tx, Parent)
+          await push(tx, {Parent})
         })
       )
       test.equal(error, 'Cannot rebuild with foreign keys enforced')
@@ -535,8 +535,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
 
   test('rebuild of an unchanged table does nothing', async () => {
     await fixture(empty, async () => {
-      await push(db, Parent, Child)
-      test.equal(await push.plan(db, Parent, Child), [])
+      await push(db, {Parent, Child})
+      test.equal(await push.plan(db, {Parent, Child}), [])
     })
   })
 
@@ -546,13 +546,13 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     await fixture(empty, async () => {
       await run('create table r (a text)')
       await run('insert into r values (null), (null)')
-      await push(db, R)
+      await push(db, {R})
       test.equal(all('select b from r'), [{b: 1}, {b: 2}])
       empty()
       await run('create table r (a text)')
       await run(`insert into r values ('kept')`)
       test.equal(
-        (await failure(() => push(db, R))).startsWith(
+        (await failure(() => push(db, {R}))).startsWith(
           'Push would drop column "a" with data'
         ),
         true
@@ -569,7 +569,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(
         `create trigger v_insert instead of insert on v begin insert into log values ('via view'); end`
       )
-      await push(db, Parent)
+      await push(db, {Parent})
       await run('insert into v values (1, 2)')
       test.equal(all('select message from log'), [{message: 'via view'}])
     })
@@ -589,7 +589,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run('delete from counter where id = 100')
       await run('create table plain (v text, w text)')
       await run('insert into plain (rowid, v) values (5, 1), (9, 2)')
-      await push(db, Counter, Plain, {force: true})
+      await push(db, {Counter, Plain}, {force: true})
       await db.insert(Counter).values({v: 3})
       test.equal(all('select id from counter'), [{id: 1}, {id: 101}])
       test.equal(all('select rowid as id, v from plain'), [
@@ -604,7 +604,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     await fixture(empty, async () => {
       await run('create table wide (v integer, w text)')
       await run(`insert into wide values ('abc', 'x')`)
-      await push(db, Wide)
+      await push(db, {Wide})
       test.equal(all('select v, typeof(v) as type from wide'), [
         {v: 'abc', type: 'text'}
       ])
@@ -622,8 +622,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(
         `create unique index members_vip on members (code) where s = 'VIP'`
       )
-      await push(db, Members)
-      test.equal(push.plan(db, Members), [])
+      await push(db, {Members})
+      test.equal(push.plan(db, {Members}), [])
       await run(`insert into members values (1, 'vip')`)
       test.throws(() => run(`insert into members values (1, 'vip')`))
     })
@@ -635,7 +635,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run('create table child (id integer primary key, parent integer)')
       await run('insert into child values (1, 2)')
       test.equal(
-        await failure(() => push(db, Parent, Child)),
+        await failure(() => push(db, {Parent, Child})),
         'Push would violate foreign key constraints'
       )
       test.equal(all(`select * from pragma_foreign_key_list('child')`), [])
@@ -652,7 +652,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(`insert into owner values (1, 'a')`)
       await run(`insert into pet values ('a')`)
       test.equal(
-        (await failure(() => push(db, Owner))).startsWith(
+        (await failure(() => push(db, {Owner}))).startsWith(
           'Push would break a foreign key: foreign key mismatch'
         ),
         true
@@ -668,7 +668,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
         code: text().unique(),
         extra: text()
       })
-      await push(db, Pushed)
+      await push(db, {Pushed})
       test.equal(all('select code, extra from owner'), [
         {code: 'a', extra: null}
       ])
@@ -686,7 +686,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       )
       await run('insert into big values (9007199254740993, 1)')
       await run('delete from big')
-      await push(db, Big)
+      await push(db, {Big})
       await run('insert into big (v) values (2)')
       test.equal(all('select cast(id as text) as id from big'), [
         {id: '9007199254740994'}
@@ -704,7 +704,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run('create table fk_other (code text)')
       await run('create table fk_bad (code text references fk_other(code))')
       test.equal(
-        await failure(() => push(db, Parent)),
+        await failure(() => push(db, {Parent})),
         'Cannot check foreign keys: foreign key mismatch - "fk_bad" referencing "fk_other"'
       )
       test.equal(all(`select pk from pragma_table_info('fk_parent')`), [
@@ -723,7 +723,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(`insert into main.logs values (1, 'main')`)
       await run(`insert into temp.logs values (2, 'temp')`)
       test.equal(
-        await failure(() => push(db, Logs, {force: true})),
+        await failure(() => push(db, {Logs}, {force: true})),
         'Cannot push "logs", a temporary "logs" shadows it'
       )
       test.equal(all('select id, notes from main.logs'), [
@@ -742,7 +742,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run('create table desc_k (id integer primary key desc, v text)')
       await run(`insert into desc_k (rowid, id, v) values (42, 1, 'a')`)
       test.equal(
-        (await failure(() => push(db, Desc))).startsWith(
+        (await failure(() => push(db, {Desc}))).startsWith(
           'Push would change the rowids of "desc_k" to "id"'
         ),
         true
@@ -750,8 +750,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       test.equal(all('select _rowid_ as rowid, id from desc_k'), [
         {rowid: 42, id: 1}
       ])
-      await push(db, Desc, {force: true})
-      test.equal(push.plan(db, Desc), [])
+      await push(db, {Desc}, {force: true})
+      test.equal(push.plan(db, {Desc}), [])
       await run(`insert into desc_k (v) values ('b')`)
       test.equal(all('select id, v from desc_k order by id'), [
         {id: 1, v: 'a'},
@@ -766,8 +766,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(
         'create table replaced (a text primary key, b text) without rowid'
       )
-      await push(db, Replaced)
-      test.equal(push.plan(db, Replaced), [])
+      await push(db, {Replaced})
+      test.equal(push.plan(db, {Replaced}), [])
       await run('insert into replaced (c) values (null)')
       test.equal(all('select c from replaced'), [{c: 1}])
       empty()
@@ -776,7 +776,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       )
       await run(`insert into replaced values ('x', 'y')`)
       test.equal(
-        await failure(() => push(db, Replaced, {force: true})),
+        await failure(() => push(db, {Replaced}, {force: true})),
         'Cannot rebuild "replaced", no column of its rows stays'
       )
       test.equal(all('select a, b from replaced'), [{a: 'x', b: 'y'}])
@@ -792,7 +792,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(`insert into main.mixed values (1, 'main')`)
       await run(`insert into temp.MIXED values (2, 'temp')`)
       test.equal(
-        await failure(() => push(db, Mixed, {force: true})),
+        await failure(() => push(db, {Mixed}, {force: true})),
         'Cannot push "mixed", a temporary "MIXED" shadows it'
       )
       test.equal(all('select id, payload from main.mixed'), [
@@ -812,7 +812,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(
         `create trigger events_audit after insert on events begin insert into audit (rowid) values (null); end`
       )
-      await push(db, Audit)
+      await push(db, {Audit})
       await run('insert into events values (1)')
       test.equal(all('select message from audit'), [{message: 'logged'}])
     })
@@ -826,7 +826,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     await fixture(empty, async () => {
       await run('create table named (v text)')
       await run(`insert into named (rowid, v) values (42, 'a')`)
-      await push(db, Named)
+      await push(db, {Named})
       test.equal(all('select _rowid_ as id, v, rowid from named'), [
         {id: 42, v: 'a', rowid: 'n'}
       ])
@@ -841,7 +841,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
         `insert into keyed (rowid, id, v) values (77, 10, 'a'), (81, null, 'b')`
       )
       test.equal(
-        (await failure(() => push(db, Keyed))).startsWith(
+        (await failure(() => push(db, {Keyed}))).startsWith(
           'Push would change the rowids of "keyed" to "id"'
         ),
         true
@@ -851,7 +851,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
         {rowid: 81, id: null}
       ])
       await run('update keyed set id = rowid')
-      await push(db, Keyed)
+      await push(db, {Keyed})
       test.equal(all('select _rowid_ as rowid, id, v from keyed'), [
         {rowid: 77, id: 77, v: 'a'},
         {rowid: 81, id: 81, v: 'b'}
@@ -869,7 +869,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
         `create table worded (id integer, s text default 'without rowid')`
       )
       await run(`insert into worded (rowid, id, s) values (77, 1, 'a')`)
-      await push(db, Worded)
+      await push(db, {Worded})
       test.equal(all('select _rowid_ as rowid, s from worded'), [
         {rowid: 77, s: 'a'}
       ])
@@ -892,12 +892,12 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await run(
         'create table hidden (rowid text, _rowid_ text, oid text, v text)'
       )
-      await push(db, Shadowed)
+      await push(db, {Shadowed})
       test.equal(all('select _rowid_ as id, rowid, v from shadowed'), [
         {id: 42, rowid: 'user', v: 'x'}
       ])
       test.equal(
-        await failure(() => push(db, Hidden)),
+        await failure(() => push(db, {Hidden})),
         'Cannot rebuild "hidden", its columns hide the rowid'
       )
     })
@@ -908,8 +908,8 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       __rado_v: index().on(t.v)
     }))
     await fixture(empty, async () => {
-      await push(db, Prefixed)
-      test.equal(push.plan(db, Prefixed), [])
+      await push(db, {Prefixed})
+      test.equal(push.plan(db, {Prefixed}), [])
       test.equal(all(`select name from pragma_index_list('prefixed')`), [
         {name: '__rado_v'}
       ])

@@ -17,7 +17,20 @@ if (!isDeno) {
     write: false,
     format: 'esm',
     platform: 'neutral',
-    external: ['cloudflare:*', 'node:*']
+    external: ['cloudflare:*', 'node:*'],
+    // Default shadows of generate, which doesn't run in workerd
+    plugins: [
+      {
+        name: 'stub',
+        setup(build) {
+          const filter = /^(bun:sqlite|@electric-sql\/pglite|mysql-wasm)$/
+          build.onResolve({filter}, ({path}) => ({path, namespace: 'stub'}))
+          build.onLoad({filter: /.*/, namespace: 'stub'}, () => ({
+            contents: 'export {}'
+          }))
+        }
+      }
+    ]
   })
   const mf = new Miniflare({
     modules: true,

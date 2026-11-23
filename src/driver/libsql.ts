@@ -56,7 +56,7 @@ export class LibSQLClient implements AsyncDriver {
   ) {}
 
   async exec(query: string) {
-    await this.client.execute(query)
+    await this.client.executeMultiple(query)
   }
 
   prepare(sql: string, options?: PrepareOptions): PreparedStatement {

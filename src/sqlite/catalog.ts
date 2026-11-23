@@ -175,3 +175,20 @@ export function* catalog(
     }
   })
 }
+
+// Tables whose rows go when a row of this table is deleted
+export function* cascading(tx: Database, name: string): Gen<Array<string>> {
+  const t = alias(Tables, 't')
+  const f = call(References, 'f', t.name, t.schema)
+  const rows = yield* tx
+    .select(t.name)
+    .from(t)
+    .crossJoin(f)
+    .where(
+      eq(t.schema, 'main'),
+      ne(t.name, name),
+      eq(sql<string>`${f.table} collate nocase`, name),
+      eq(f.on_delete, 'CASCADE')
+    )
+  return rows.filter((row, i) => rows.indexOf(row) === i)
+}

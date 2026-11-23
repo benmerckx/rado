@@ -33,8 +33,14 @@ function throws(run: Run, includes?: string): unknown {
 }
 
 // Durable Objects forbid temp tables and always enforce foreign keys, which
-// makes push refuse to rebuild a table
+// makes push refuse to rebuild a table. Generate's default shadow needs the
+// runtime's own sqlite
 const unsupported = new Set([
+  'generate round trip',
+  'generate rebuild keeps referencing rows',
+  'migrate inside a transaction with foreign keys on',
+  'migrate checks foreign keys',
+  'migrate refuses a raw transaction with foreign keys on',
   'inspect reads indexes of a shadowed name',
   'multiple pushes',
   'push index modifications',

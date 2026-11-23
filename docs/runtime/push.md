@@ -6,28 +6,76 @@ code, then ask the database to match it.
 ## Creating from scratch
 
 `db.create` emits `create table` statements (plus indexes, enums, views,
-schemas) for everything you pass it:
+schemas) for everything you pass it, in the order you list them:
 
 ```ts
 await db.create(User, Post)
 ```
 
-Dropping is the mirror image:
+Dropping is the mirror image, again in the order you list:
 
 ```ts
 await db.drop(Post, User)
 ```
 
+To have rado work the order out, `create` and `drop` from the push entry take
+a schema object, such as a module namespace:
+
+```ts
+import {create, drop} from 'rado/postgres/push'
+import * as schema from './schema.ts'
+
+await create(db, schema)
+await drop(db, schema)
+```
+
+They pick out what they can create and ignore other exports; a schema with
+nothing to create is an error, `No definitions in schema`, and so is a table
+on its own: pass `{User}`. Module namespaces
+list their exports alphabetically, so the order is worked out from the
+definitions:
+
+1. schemas, then enums
+2. tables, referenced tables before the tables that reference them. Tables
+   whose foreign keys form a cycle can't be created this way on PostgreSQL
+   and MySQL, which refuse a reference to a table that doesn't exist yet, so
+   there `create` fails with `Foreign keys form a cycle between …`. SQLite
+   accepts them, they keep the order given among themselves and the tables
+   around them are still ordered
+3. views, a view after the views its sql names, wherever it names them:
+   `from`, joins, subqueries, common table expressions or raw `sql`. A name
+   counts quoted or not, but not after a `.` or `as`, where it is a column
+   or an alias, not before a `(`, where it is a function, not inside a
+   string literal, and not when the query names a common table expression
+   that way. Views can't form a cycle, that is an error
+
+Where nothing depends on anything, the order given is kept. `drop` runs in
+exactly the reverse order, and leaves out a `pgSchema` in the schema object:
+dropping one cascades to everything in it, so pass it to `db.drop` to drop
+it. Like push, they return directly on a synchronous driver and a promise on
+an asynchronous one, and the entry for a dialect refuses a database of
+another. `rado/push` has them for universal databases.
+
 ## Pushing changes with `push`
 
-For an existing database, `push` compares each table you pass with what's
-actually in the database and applies the difference:
+For an existing database, `push` compares each table of a schema object with
+what's actually in the database and applies the difference:
 
 ```ts
 import {push} from 'rado/sqlite/push'
+import * as schema from './schema.ts'
 
-await push(db, User, Post)
+await push(db, schema)
+await push(db, schema, {force: true})
+await push(db, {User, Post}) // a subset is an object literal
 ```
+
+Push reads the object's values and keeps the tables, so relations, helpers
+and constants exported next to them are ignored. A table exported twice, for
+example once more with relations attached, counts once. Two different
+definitions of the same table are an error: `Table "user" is defined twice`.
+A schema without tables is an error too, and a table on its own is not a
+schema: pass `{User}`.
 
 Import it from the entry for your database:
 
@@ -46,7 +94,7 @@ runtime: it bundles all three planners and picks one from
 
 What it handles:
 
-- creating missing tables
+- creating missing tables, and on PostgreSQL the schema a new table is in
 - adding, removing, renaming and altering columns: type, nullability,
   default and identity
 - adding, removing and updating primary keys, unique constraints, foreign
@@ -54,10 +102,11 @@ What it handles:
 - on SQLite, rebuilding the table when `alter table` can't make the change
   (see below)
 
-Push only touches the tables you pass it. It never drops other tables, and
-there are no migration files, history table or down migrations.
+Push only touches the tables you pass it. It never drops other tables. To
+keep a history of reviewed SQL files instead, see
+[Migrations](migrations.md).
 
-Tables are pushed in foreign key order, so `push(db, Post, User)` creates
+Tables are pushed in foreign key order, so `push(db, {Post, User})` creates
 `User` first. Tables whose foreign keys form a cycle are refused with an error
 naming them; create one side with `db.create` and add the other reference in
 a second push. Temporary tables can't be pushed.
@@ -116,7 +165,7 @@ run, without keeping any change. On SQLite and PostgreSQL it does run them,
 inside a transaction it always rolls back:
 
 ```ts
-const statements = await push.plan(db, User, Post)
+const statements = await push.plan(db, schema)
 // ['alter table "user" add column "bio" text', ...]
 ```
 
@@ -171,7 +220,7 @@ It checks the rows, so these are only refused when there is data to lose:
 Pass `force` to run them anyway:
 
 ```ts
-await push(db, User, {force: true})
+await push(db, schema, {force: true})
 ```
 
 With `force`, a column made `not null` that has a default gets its nulls
@@ -188,7 +237,7 @@ with a rename hint, keyed by the current `table.column` (database names) and
 pointing at the new column name:
 
 ```ts
-await push(db, User, {rename: {'user.name': 'full_name'}})
+await push(db, schema, {rename: {'user.name': 'full_name'}})
 ```
 
 The hint renames the column in place and keeps its data. Once applied it is
@@ -243,9 +292,8 @@ Push is declarative. Even with the data-loss guard, treat it accordingly:
 
 - great for development, tests, embedded databases, local-first apps and
   small projects
-- for production databases you care about, review `push.plan` first, or use
-  a dedicated migration tool such as
-  [dbmate](https://github.com/amacneil/dbmate) and keep rado for querying
+- for production databases you care about, review `push.plan` first, or
+  generate reviewed SQL files with [migrations](migrations.md)
 - back up before pushing anything irreplaceable
 
 Not covered: check constraints, generated columns, collations, enum value
@@ -254,7 +302,7 @@ such as views, sequences or policies.
 
 ## Upgrading from `db.migrate`
 
-`db.migrate(...tables)` was replaced by `push(db, ...tables)` from
+`db.migrate(User, Post)` was replaced by `push(db, {User, Post})` from
 `rado/sqlite/push`, `rado/postgres/push` or `rado/mysql/push` (or `rado/push`
 for universal databases). The `Database` constructor no longer takes a diff argument:
 `new Database(driver, dialect, options)`. Push refuses destructive changes
@@ -269,5 +317,4 @@ have you covered:
 await db.run(sql`alter table ${User} add column "bio" text`)
 ```
 
-Combined with `db.batch` and `db.transaction`, that's enough to build your
-own migration runner with versioning if you need one.
+For versioned SQL files, use [migrations](migrations.md).

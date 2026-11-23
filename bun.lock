@@ -37,6 +37,14 @@
         "sqlite3": "^6.0.1",
         "typescript": "^7.0.2",
       },
+      "peerDependencies": {
+        "@electric-sql/pglite": ">=0.5.4",
+        "mysql-wasm": ">=0.4.0",
+      },
+      "optionalPeers": [
+        "@electric-sql/pglite",
+        "mysql-wasm",
+      ],
     },
   },
   "packages": {

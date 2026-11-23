@@ -11,6 +11,10 @@ export interface BatchedQuery {
 export interface DriverSpecs {
   parsesJson: boolean
   supportsTransactions: boolean
+  // False when exec can't run several statements at once
+  multipleStatements?: false
+  // Set when foreign keys can't be turned off, as on Durable Objects
+  enforcesForeignKeys?: true
 }
 export interface PrepareOptions {
   isSelection: boolean
