@@ -95,6 +95,31 @@ function formatDateString(value: Date): string {
   )}`
 }
 
+const TIMESTAMP =
+  /^(\d{4,})-(\d\d)-(\d\d)(?:[ T](\d\d):(\d\d):(\d\d)(?:\.(\d+))?)?(?:([+-])(\d\d)(?::?(\d\d))?(?::?(\d\d))?|Z)?( BC)?$/
+
+// Date only parses ISO strings reliably, and guesses years like 0001 as 2001
+function parseTimestamp(value: string): Date {
+  const match = TIMESTAMP.exec(value)
+  if (!match) return new Date(value)
+  const [, year, month, day, hours, minutes, seconds, fraction = ''] = match
+  const [sign, offsetHours, offsetMinutes, offsetSeconds, bc] = match.slice(8)
+  const date = new Date(0)
+  const fullYear = bc ? 1 - Number(year) : Number(year)
+  date.setUTCFullYear(fullYear, Number(month) - 1, Number(day))
+  date.setUTCHours(
+    Number(hours ?? 0),
+    Number(minutes ?? 0),
+    Number(seconds ?? 0),
+    Number(fraction.padEnd(3, '0').slice(0, 3))
+  )
+  const offset =
+    Number(offsetHours ?? 0) * 3600 +
+    Number(offsetMinutes ?? 0) * 60 +
+    Number(offsetSeconds ?? 0)
+  return new Date(date.getTime() - (sign === '-' ? -offset : offset) * 1000)
+}
+
 function formatTimestampString(value: Date, withTimeZone: boolean): string {
   const date = formatDateString(value)
   const time = `${pad2(value.getUTCHours())}:${pad2(
@@ -340,7 +365,7 @@ export function date(name?: string, options?: {mode: 'date' | 'string'}) {
     type: column.date(),
     mapFromDriverValue(value: string | Date) {
       if (mode === 'date')
-        return value instanceof Date ? value : new Date(value)
+        return value instanceof Date ? value : parseTimestamp(value)
       return value instanceof Date ? formatDateString(value) : value
     },
     mapToDriverValue(value: Date) {
@@ -583,15 +608,25 @@ export function smallserial(name?: string): PgColumn<number> {
   return new PgColumn({name, type: column.smallserial()})
 }
 
+// Postgres puts the precision before the zone: timestamp(3) with time zone
+function zoned(kind: 'time' | 'timestamp', precision?: Precision): ColumnType {
+  const type = column[kind](precision)
+  return new ColumnType(
+    `${kind} with time zone`,
+    type.args,
+    sql`${type} with time zone`
+  )
+}
+
 export function time(
   ...args: ColumnArguments<{precision?: Precision; withTimeZone?: boolean}>
 ): PgColumn<string> {
   const {name, options} = columnConfig(args)
   return new PgColumn({
     name,
-    type: column[options?.withTimeZone ? 'time with time zone' : 'time'](
-      options?.precision
-    )
+    type: options?.withTimeZone
+      ? zoned('time', options.precision)
+      : column.time(options?.precision)
   })
 }
 
@@ -624,16 +659,16 @@ export function timestamp(
   const mode = options?.mode ?? 'date'
   return new PgColumn({
     name,
-    type: column[withTimeZone ? 'timestamp with time zone' : 'timestamp'](
-      options?.precision
-    ),
+    type: withTimeZone
+      ? zoned('timestamp', options?.precision)
+      : column.timestamp(options?.precision),
     mapFromDriverValue(value: string | Date) {
       if (mode === 'string') {
         return value instanceof Date
           ? formatTimestampString(value, !!withTimeZone)
           : value
       }
-      return value instanceof Date ? value : new Date(value)
+      return value instanceof Date ? value : parseTimestamp(value)
     },
     mapToDriverValue(value: Date) {
       return value instanceof Date ? value.toISOString() : value

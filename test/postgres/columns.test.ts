@@ -72,7 +72,7 @@ test('pg timestamp mapping', () => {
   )
   test.equal(
     columnSql(pg.timestamp({withTimeZone: true, precision: 3})),
-    'timestamp with time zone(3)'
+    'timestamp(3) with time zone'
   )
   test.equal(
     columnSql(pg.timestamp({withTimezone: true})),
@@ -80,11 +80,35 @@ test('pg timestamp mapping', () => {
   )
 })
 
+test('pg timestamp parsing', () => {
+  const zoned = pg.timestamp({withTimeZone: true})
+  const plain = pg.timestamp()
+  const parse = (column: typeof plain, value: string) =>
+    mapFrom(column, value).toISOString()
+  test.equal(parse(zoned, '0001-01-01 00:00:00+00'), '0001-01-01T00:00:00.000Z')
+  test.equal(
+    parse(zoned, '2020-06-01 12:00:00.5+05:30'),
+    '2020-06-01T06:30:00.500Z'
+  )
+  test.equal(
+    parse(plain, '2020-06-01 12:00:00.123456'),
+    '2020-06-01T12:00:00.123Z'
+  )
+  test.equal(
+    parse(plain, '0002-01-01 00:00:00 BC'),
+    '-000001-01-01T00:00:00.000Z'
+  )
+  test.equal(
+    mapFrom(pg.date(undefined, {mode: 'date'}), '0010-02-03').toISOString(),
+    '0010-02-03T00:00:00.000Z'
+  )
+})
+
 test('pg time and interval sql', () => {
   test.equal(columnSql(pg.time()), 'time')
   test.equal(
     columnSql(pg.time({withTimeZone: true, precision: 2})),
-    'time with time zone(2)'
+    'time(2) with time zone'
   )
   test.equal(columnSql(pg.interval()), 'interval')
   test.equal(
