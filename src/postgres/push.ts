@@ -371,7 +371,9 @@ function* changes({
       // sequence is the one that continues above the rows
       // As regclass text it names the schema only when it isn't the home
       const [owned] = yield* tx.select(
-        options.capture ? sql<string | null>`${serial(name)}::regclass::text` : serial(name)
+        options.capture
+          ? sql<string | null>`${serial(name)}::regclass::text`
+          : serial(name)
       )
       if (!from.extra && owned)
         steps.push({sql: sql`drop sequence ${sql.unsafe(owned)}`})

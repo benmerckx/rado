@@ -38,6 +38,8 @@ function throws(run: Run, includes?: string): unknown {
 const unsupported = new Set([
   'generate round trip',
   'generate rebuild keeps referencing rows',
+  'migrate inside a transaction with foreign keys on',
+  'migrate checks foreign keys',
   'inspect reads indexes of a shadowed name',
   'multiple pushes',
   'push index modifications',

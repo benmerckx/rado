@@ -115,7 +115,7 @@ await db.drop(ActiveUsers, Post, User)
 await db.create(schema) // import * as schema from './schema.ts'
 ```
 
-Schemas and enums are created first, then tables with referenced tables
-first, then views in the order given. `db.drop` runs in the reverse order. See
+Schemas are created first, then enums, then tables with referenced tables
+first, then views after the views they read from. `db.drop` runs in the reverse order. See
 [Schema push](push.md#creating-from-scratch).
 `push` sorts tables by foreign key itself. See [Schema push](push.md).

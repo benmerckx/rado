@@ -21,10 +21,13 @@ From a schema object it picks out what it can create and ignores other
 exports; an argument with nothing to create is an error. Whatever the order of
 the arguments, and module namespaces list their exports alphabetically:
 
-1. schemas and enums, in the order given
+1. schemas, then enums
 2. tables, referenced tables before the tables that reference them. Tables
-   whose foreign keys form a cycle keep the order given
-3. views, in the order given, so list a view after the views it uses
+   whose foreign keys form a cycle keep the order given among themselves, and
+   the tables around them are still ordered
+3. views, a view after the views its query reads from
+
+Where nothing depends on anything, the order given is kept.
 
 `db.drop` runs in exactly the reverse order:
 
@@ -70,7 +73,7 @@ runtime: it bundles all three planners and picks one from
 
 What it handles:
 
-- creating missing tables
+- creating missing tables, and on PostgreSQL the schema a new table is in
 - adding, removing, renaming and altering columns: type, nullability,
   default and identity
 - adding, removing and updating primary keys, unique constraints, foreign

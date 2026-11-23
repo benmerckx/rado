@@ -143,6 +143,72 @@ export function testMigrate(db: Database, test: DefineTest) {
     })
   })
 
+  const keys = async (run: () => Promise<void>) => {
+    const [on] = await db.select(Keys.foreign_keys).from(Keys)
+    try {
+      await run()
+    } finally {
+      await db.run(sql`pragma foreign_keys = ${sql.unsafe(on ? 'on' : 'off')}`)
+    }
+  }
+
+  if (db.dialect.runtime === 'sqlite' && db.driver.supportsTransactions) {
+    test('migrate inside a transaction with foreign keys on', () =>
+      keys(() =>
+        fixture(reset, async () => {
+          await db.run(sql`pragma foreign_keys = on`)
+          test.equal(
+            await failure(() =>
+              db.transaction(async tx => {
+                await migrate(tx, files)
+              })
+            ),
+            'Cannot migrate with foreign keys enforced'
+          )
+          await db.run(sql`pragma foreign_keys = off`)
+          await db.transaction(async tx => {
+            await migrate(tx, files)
+          })
+          test.equal(await names(), ['0001_init', '0002_more'])
+        })
+      ))
+
+    test('migrate checks foreign keys', async () => {
+      await fixture(reset, async () => {
+        const orphan = {
+          '0001_orphan.sql': [
+            'create table mig_parent (id integer primary key);',
+            'create table mig_child (id integer primary key,',
+            '  parent integer references mig_parent (id));',
+            'insert into mig_child values (1, 2);'
+          ].join('\n')
+        }
+        test.equal(
+          await failure(() => migrate(db, orphan)),
+          'Migrations would violate foreign key constraints'
+        )
+        test.equal(
+          (await failure(() => db.select(Child).from(Child))) !== '',
+          true
+        )
+      })
+    })
+  }
+
+  if (db.dialect.runtime === 'mysql' && db.driver.supportsTransactions)
+    test('migrate refuses a mysql transaction', async () => {
+      await fixture(reset, async () => {
+        test.equal(
+          await failure(() =>
+            db.transaction(async tx => {
+              await migrate(tx, files)
+            })
+          ),
+          'Cannot migrate inside a MySQL transaction'
+        )
+      })
+    })
+
   // D1 always enforces foreign keys, see docs/runtime/migrations.md
   if (db.dialect.runtime === 'sqlite' && db.driver.supportsTransactions)
     test('generate rebuild keeps referencing rows', async () => {
