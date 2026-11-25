@@ -187,6 +187,17 @@ function* plan(
   })
 }
 
+function* casts(tx: Database, from: string, to: string): Gen<boolean> {
+  try {
+    yield* scratch(tx, function* (inner) {
+      yield inner.run(sql`select null::${sql.unsafe(from)}::${sql.unsafe(to)}`)
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
 // The desired table, created in a fresh schema so an existing one is never
 // touched. Types print relative to the search path, so the table's own schema
 // goes on it too, as when the live table is read.
@@ -343,8 +354,12 @@ function* changes({
     if (cleared) steps.push(alter(sql`${column} drop default`))
     if (retype) {
       const type = sql.unsafe(to.type)
+      // Every type casts from text, integer to date only through it
+      const value = (yield* casts(tx, from.type, to.type))
+        ? id
+        : sql`${id}::text`
       steps.push(
-        alter(sql`${column} type ${type} using ${id}::${type}`, risks[name])
+        alter(sql`${column} type ${type} using ${value}::${type}`, risks[name])
       )
     }
     // A sequence the copy's default draws from is created for the column
@@ -407,8 +422,30 @@ function* changes({
         })
     }
   }
+  // A key is kept by its definition under its live name, unless something
+  // added takes that name, then it moves to its own
+  const names = Object.fromEntries(
+    Object.entries(desired.constraints).map(([name, value]) => [value, name])
+  )
+  const claimed = new Set([
+    ...Object.keys(desired.indexes),
+    ...Object.keys(desired.constraints)
+  ])
+  const moved = Object.entries(live.constraints)
+    .filter(
+      ([name, value]) =>
+        wanted.has(value) && claimed.has(name) && names[value] !== name
+    )
+    .map(([name, value]) =>
+      alter(
+        sql`rename constraint ${sql.identifier(name)} to ${sql.identifier(
+          names[value]
+        )}`
+      )
+    )
   return [
     ...steps,
+    ...moved,
     ...Object.entries(desired.constraints)
       .filter(([, definition]) => !present.has(definition))
       .map(([name, definition]) =>

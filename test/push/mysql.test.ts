@@ -643,6 +643,16 @@ const cases: Record<string, Case> = {
       );
     `,
     desired: [users, posts]
+  },
+  // MySQL 9 can't add a key and a foreign key to it in one alter table
+  SelfReferenceToNewKey: {
+    current: 'create table tree (id int); insert into tree values (1)',
+    desired: [
+      table('tree', {id: int().primaryKey(), parent: int()}, t => [
+        foreignKey(t.parent).references(t.id)
+      ])
+    ],
+    keep: {tree: ['id']}
   }
 }
 
@@ -656,6 +666,25 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
         () => '',
         error => String(error.message)
       )
+
+  test('defaults of bigints and dates', async () => {
+    const Defaults = table('defaults', {
+      id: int(),
+      big: bigint().default(2n),
+      at: datetime().default(new Date(0))
+    })
+    await run('drop table if exists defaults')
+    try {
+      await push(db, {Defaults})
+      test.equal(await push.plan(db, {Defaults}), [])
+      await db.insert(Defaults).values({id: 1})
+      test.equal(await db.select().from(Defaults), [
+        {id: 1, big: 2n, at: new Date(0)}
+      ])
+    } finally {
+      await run('drop table if exists defaults')
+    }
+  })
 
   test('old scratch table name', async () => {
     const Victim = table('victim', {id: int(), extra: int()})

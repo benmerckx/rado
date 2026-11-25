@@ -1,5 +1,5 @@
 import {Dialect} from '../core/Dialect.ts'
-import {Emitter} from '../core/Emitter.ts'
+import {Emitter, hex} from '../core/Emitter.ts'
 import type {JsonPath} from '../core/expr/Json.ts'
 import type {Runtime} from '../core/MetaData.ts'
 import {NamedParam, type ParamMapper, ValueParam} from '../core/Param.ts'
@@ -42,6 +42,10 @@ export const mysqlDialect: Dialect = new Dialect(
         return (this.sql += value)
       if (typeof value === 'string')
         return (this.sql += this.quoteString(value))
+      if (typeof value === 'bigint') return (this.sql += String(value))
+      if (value instanceof Uint8Array) return (this.sql += `x'${hex(value)}'`)
+      if (value instanceof Date)
+        return (this.sql += this.quoteString(value.toISOString()))
       this.sql += this.quoteString(JSON.stringify(value))
     }
     quoteString(input: string): string {

@@ -1,5 +1,5 @@
 import {Dialect} from '../core/Dialect.ts'
-import {Emitter} from '../core/Emitter.ts'
+import {Emitter, hex} from '../core/Emitter.ts'
 import type {JsonPath} from '../core/expr/Json.ts'
 import {NamedParam, type ParamMapper, ValueParam} from '../core/Param.ts'
 
@@ -40,6 +40,10 @@ export const sqliteDialect: Dialect = new Dialect(
       if (typeof value === 'number') return (this.sql += value)
       if (typeof value === 'string')
         return (this.sql += this.quoteString(value))
+      if (typeof value === 'bigint') return (this.sql += String(value))
+      if (value instanceof Uint8Array) return (this.sql += `x'${hex(value)}'`)
+      if (value instanceof Date)
+        return (this.sql += this.quoteString(value.toISOString()))
       if (typeof value === 'boolean') return (this.sql += value ? '1' : '0')
       this.sql += `json(${this.quoteString(JSON.stringify(value))})`
     }
