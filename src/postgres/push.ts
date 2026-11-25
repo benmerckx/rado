@@ -590,16 +590,17 @@ function* changes({
           options.capture ? keyRisk(name, definition) : undefined
         )
       ),
-    ...fresh.map(key =>
-      alter(
-        sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
-        options.capture ? referenceRisk(key.name) : undefined
-      )
-    ),
+    // Before new keys, which postgres may give the same generated name
     ...readded.map(({name, definition, risk}) =>
       alter(
         sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`,
         risk
+      )
+    ),
+    ...fresh.map(key =>
+      alter(
+        sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
+        options.capture ? referenceRisk(key.name) : undefined
       )
     ),
     ...differ(desired.indexes, live.indexes).map(name => ({

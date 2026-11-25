@@ -924,6 +924,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       'zz_tree',
       'zz_child',
       'zz_parent',
+      'zz_other',
       'fk_child',
       'review.fk_parent',
       'public.fk_parent'
@@ -998,6 +999,35 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
         [{conname: 'zz_c', confmatchtype: 'f', condeferred: true}]
       )
       test.equal(await push.plan(db, {Parent, Child}), [])
+    })
+  })
+
+  test('a re-added key keeps its name over a new unnamed one', async () => {
+    const Parent = table('zz_parent', {id: text().primaryKey()})
+    const Other = table('zz_other', {id: text().primaryKey()})
+    const Child = table('zz_child', {p: text().references(Parent.id)}, t => [
+      foreignKey(t.p).references(Other.id)
+    ])
+    const Tree: any = table(
+      'zz_tree',
+      {id: text().primaryKey(), parent: text().references(() => Tree.id)},
+      t => [foreignKey(t.parent).references(Other.id)]
+    )
+    await fixture(reset, async () => {
+      await run('create table zz_parent (id int primary key)')
+      await run('create table zz_child (p int references zz_parent (id))')
+      await run(
+        'create table zz_tree (id int primary key, parent int references zz_tree (id))'
+      )
+      const schema = {Parent, Other, Child, Tree}
+      await push(db, schema, {force: true})
+      test.equal(await push.plan(db, schema), [])
+      test.equal(
+        await all(
+          `select conname from pg_constraint where conname in ('zz_child_p_fkey', 'zz_tree_parent_fkey') order by conname`
+        ),
+        [{conname: 'zz_child_p_fkey'}, {conname: 'zz_tree_parent_fkey'}]
+      )
     })
   })
 
