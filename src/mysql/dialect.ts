@@ -43,9 +43,14 @@ export const mysqlDialect: Dialect = new Dialect(
       if (typeof value === 'string')
         return (this.sql += this.quoteString(value))
       if (typeof value === 'bigint') return (this.sql += String(value))
+      if (value instanceof ArrayBuffer) value = new Uint8Array(value)
       if (value instanceof Uint8Array) return (this.sql += `x'${hex(value)}'`)
+      // As datetime columns write them, MySQL takes an ISO default in a
+      // create table but refuses it when an insert uses it
       if (value instanceof Date)
-        return (this.sql += this.quoteString(value.toISOString()))
+        return (this.sql += this.quoteString(
+          value.toISOString().slice(0, -1).replace('T', ' ')
+        ))
       this.sql += this.quoteString(JSON.stringify(value))
     }
     quoteString(input: string): string {

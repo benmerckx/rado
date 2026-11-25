@@ -791,10 +791,112 @@ const cases: Record<string, Case> = {
     ],
     keep: {users: ['a', 'b']}
   },
+  // Keys matched by their columns keep their names, swapped or not
+  SwapKeyNames: {
+    current: `
+      create table users (
+        a int, b int,
+        constraint users_k1 unique (a), constraint users_k2 unique (b)
+      );
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer()}, t => [
+        unique('users_k2').on(t.a),
+        unique('users_k1').on(t.b)
+      ])
+    ]
+  },
+  ChainKeyNames: {
+    current: `
+      create table users (
+        a int, b int,
+        constraint users_k1 unique (a), constraint users_k2 unique (b)
+      );
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer()}, t => [
+        unique('users_k2').on(t.a),
+        unique('users_k3').on(t.b)
+      ])
+    ]
+  },
+  // A new index takes the name of a key that moves onto a name still held
+  IndexTakesHeldKeyName: {
+    current: `
+      create table users (
+        a int, b int, c int,
+        constraint users_k1 unique (a), constraint users_k2 unique (b)
+      );
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer(), c: integer()}, t => ({
+        users_k2: unique('users_k2').on(t.a),
+        users_k3: unique('users_k3').on(t.b),
+        users_k1: index().on(t.c)
+      }))
+    ]
+  },
+  // A kept foreign key moves out of the way of a new one with its name
+  ForeignKeyTakesKeptName: {
+    current: `
+      create table p (id int primary key);
+      create table t (
+        id int primary key, a int, b int,
+        constraint t_f0 foreign key (a) references t (id)
+      );
+    `,
+    desired: (() => {
+      const p = table('p', {id: integer().primaryKey()})
+      const t = table(
+        't',
+        {id: integer().primaryKey(), a: integer(), b: integer()},
+        t => ({
+          t_f0: foreignKey(t.b).references(p.id),
+          t_f1: foreignKey(t.a).references(t.id)
+        })
+      )
+      return [p, t]
+    })()
+  },
+  // Foreign keys over a column that changes type are dropped and re-added
+  RetypeSelfReference: {
+    current: `
+      create table tree (
+        id int primary key, parent int,
+        foreign key (parent) references tree (id)
+      );
+    `,
+    desired: (() => {
+      const tree = table(
+        'tree',
+        {id: text().primaryKey(), parent: text()},
+        t => [foreignKey(t.parent).references(t.id)]
+      )
+      return [tree]
+    })()
+  },
+  RetypeReferencedKey: {
+    current: `
+      create table p (id int primary key);
+      create table c (p_id int references p (id));
+    `,
+    desired: (() => {
+      const p = table('p', {id: text().primaryKey()})
+      return [p, table('c', {pId: text('p_id').references(p.id)})]
+    })()
+  },
   // Postgres has no cast from integer to date, only through text
   IntegerToDate: {
     current: 'create table users (day integer)',
     desired: [table('users', {day: date()})]
+  },
+  // The cast to a new enum is checked once the enum exists
+  IntegerToNewEnum: {
+    current: `
+      drop type if exists push_mood;
+      create table users (mood integer);
+    `,
+    desired: [table('users', {mood: pushMood()})]
   },
   IntegerToDateWithNulls: {
     current: `

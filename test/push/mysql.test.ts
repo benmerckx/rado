@@ -671,7 +671,8 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
     const Defaults = table('defaults', {
       id: int(),
       big: bigint().default(2n),
-      at: datetime().default(new Date(0))
+      at: datetime().default(new Date(0)),
+      raw: datetime().default(sql.inline(new Date(0)))
     })
     await run('drop table if exists defaults')
     try {
@@ -679,7 +680,7 @@ function testRegressions(db: AsyncDatabase<'mysql'>, home: string) {
       test.equal(await push.plan(db, {Defaults}), [])
       await db.insert(Defaults).values({id: 1})
       test.equal(await db.select().from(Defaults), [
-        {id: 1, big: 2n, at: new Date(0)}
+        {id: 1, big: 2n, at: new Date(0), raw: new Date(0)}
       ])
     } finally {
       await run('drop table if exists defaults')

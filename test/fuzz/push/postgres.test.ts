@@ -19,6 +19,7 @@ if (!isDeno) {
   const types: Array<Type> = [
     {
       name: 'integer',
+      widens: ['bigint'],
       column: () => pg.integer(),
       values: pick(0, 1, 2),
       fallback: 1,
@@ -33,6 +34,7 @@ if (!isDeno) {
     },
     {
       name: 'smallint',
+      widens: ['integer', 'bigint'],
       column: () => pg.smallint(),
       values: pick(0, 1),
       fallback: 1,
@@ -47,6 +49,7 @@ if (!isDeno) {
     },
     {
       name: 'varchar',
+      widens: ['text'],
       column: () => pg.varchar({length: 5}),
       values: pick('a', 'bb'),
       fallback: 'v',

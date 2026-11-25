@@ -305,10 +305,14 @@ function* changes({
           : sql`${sql.identifier(key.schema)}.${sql.identifier(key.table)}`
       } drop foreign key ${sql.identifier(key.name)}`
     }))
-  const after = later.map(key => ({
-    sql: sql`alter table ${target} add ${foreignKey(key)}`,
-    risks: capture ? [referenceRisk(key.name)] : []
-  }))
+  const after = later.map((key): Step => {
+    const risks = capture ? [referenceRisk(key.name)] : []
+    return {
+      sql: sql`alter table ${target} add ${foreignKey(key)}`,
+      risk: risks[0],
+      risks
+    }
+  })
   if (clauses.length === 0) return [...drops, ...fills, ...after]
   return [
     ...drops,

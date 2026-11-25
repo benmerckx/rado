@@ -41,6 +41,7 @@ export const sqliteDialect: Dialect = new Dialect(
       if (typeof value === 'string')
         return (this.sql += this.quoteString(value))
       if (typeof value === 'bigint') return (this.sql += String(value))
+      if (value instanceof ArrayBuffer) value = new Uint8Array(value)
       if (value instanceof Uint8Array) return (this.sql += `x'${hex(value)}'`)
       if (value instanceof Date)
         return (this.sql += this.quoteString(value.toISOString()))
