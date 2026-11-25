@@ -18,6 +18,7 @@ if (!isDeno) {
   const types: Array<Type> = [
     {
       name: 'int',
+      widens: ['bigint'],
       column: () => mysql.integer(),
       values: pick(0, 1, 2),
       fallback: 1,
@@ -32,6 +33,7 @@ if (!isDeno) {
     },
     {
       name: 'varchar',
+      widens: ['text'],
       column: () => mysql.varchar({length: 5}),
       values: pick('a', 'bb'),
       fallback: 'v',
@@ -44,6 +46,7 @@ if (!isDeno) {
     },
     {
       name: 'boolean',
+      widens: ['int', 'bigint'],
       column: () => mysql.boolean(),
       values: gs.booleans(),
       fallback: true,

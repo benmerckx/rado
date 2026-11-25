@@ -24,6 +24,7 @@ if (!isDeno) {
     },
     {
       name: 'text',
+      widens: ['varchar', 'json'],
       column: () => sqlite.text(),
       values: pick('a', 'b', ''),
       fallback: 'd',
@@ -38,6 +39,7 @@ if (!isDeno) {
     },
     {
       name: 'numeric',
+      widens: ['boolean'],
       column: () => sqlite.numeric(),
       values: pick(1, 2.5),
       fallback: 2,
@@ -52,6 +54,7 @@ if (!isDeno) {
     },
     {
       name: 'varchar',
+      widens: ['text', 'json'],
       column: () => universal.varchar(undefined, {length: 5}),
       values: pick('a', 'bb'),
       fallback: 'v',
@@ -59,6 +62,7 @@ if (!isDeno) {
     },
     {
       name: 'boolean',
+      widens: ['numeric'],
       column: () => universal.boolean(),
       values: gs.booleans(),
       fallback: true,
@@ -66,6 +70,7 @@ if (!isDeno) {
     },
     {
       name: 'json',
+      widens: ['text', 'varchar'],
       column: () => universal.json(),
       values: pick<unknown>({a: 1}, [1], 'x'),
       fallback: {b: 2},
@@ -78,6 +83,7 @@ if (!isDeno) {
     generate,
     types,
     atomic: true,
+    rowid: 'integer',
     read: async (db: any) => inspect(db),
     clean: (tables: Array<string>) => [
       ...tables.toReversed().map(name => `drop table if exists "${name}"`),

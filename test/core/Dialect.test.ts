@@ -1,6 +1,7 @@
 import {suite} from '@alinea/suite'
 import {sql} from '#/core/Sql.ts'
 import {mysqlDialect} from '#/mysql/dialect.ts'
+import {postgresDialect} from '#/postgres/dialect.ts'
 import {sqliteDialect} from '#/sqlite/dialect.ts'
 
 const test = suite(import.meta)
@@ -33,4 +34,28 @@ test('sql query with no active chunks emits empty string', () => {
 
   test.equal(sqliteDialect.inline(empty), '')
   test.equal(sqliteDialect.inline(sql.join([sql`x`, empty])), 'x')
+})
+
+test('inline bigints, bytes and dates', () => {
+  const values = [2n, new Uint8Array([4, 255]), new Uint8Array([4]).buffer]
+  const inline = (dialect: typeof sqliteDialect) =>
+    [...values, new Date(0)].map(value => dialect.inline(sql.inline(value)))
+  test.equal(inline(sqliteDialect), [
+    '2',
+    "x'04ff'",
+    "x'04'",
+    "'1970-01-01T00:00:00.000Z'"
+  ])
+  test.equal(inline(postgresDialect), [
+    '2',
+    "E'\\\\x04ff'",
+    "E'\\\\x04'",
+    "'1970-01-01T00:00:00.000Z'"
+  ])
+  test.equal(inline(mysqlDialect), [
+    '2',
+    "x'04ff'",
+    "x'04'",
+    "'1970-01-01 00:00:00.000'"
+  ])
 })

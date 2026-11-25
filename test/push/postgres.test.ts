@@ -26,7 +26,7 @@ import {
 } from '#/postgres.ts'
 import {push} from '#/postgres/push.ts'
 import {shape} from '#/postgres/shape.ts'
-import {isDeno, testServers} from '../TestRuntime.ts'
+import {isBun, isDeno, testServers} from '../TestRuntime.ts'
 import {failure, fixture} from '../TestUtils.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -791,10 +791,112 @@ const cases: Record<string, Case> = {
     ],
     keep: {users: ['a', 'b']}
   },
+  // Keys matched by their columns keep their names, swapped or not
+  SwapKeyNames: {
+    current: `
+      create table users (
+        a int, b int,
+        constraint users_k1 unique (a), constraint users_k2 unique (b)
+      );
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer()}, t => [
+        unique('users_k2').on(t.a),
+        unique('users_k1').on(t.b)
+      ])
+    ]
+  },
+  ChainKeyNames: {
+    current: `
+      create table users (
+        a int, b int,
+        constraint users_k1 unique (a), constraint users_k2 unique (b)
+      );
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer()}, t => [
+        unique('users_k2').on(t.a),
+        unique('users_k3').on(t.b)
+      ])
+    ]
+  },
+  // A new index takes the name of a key that moves onto a name still held
+  IndexTakesHeldKeyName: {
+    current: `
+      create table users (
+        a int, b int, c int,
+        constraint users_k1 unique (a), constraint users_k2 unique (b)
+      );
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer(), c: integer()}, t => ({
+        users_k2: unique('users_k2').on(t.a),
+        users_k3: unique('users_k3').on(t.b),
+        users_k1: index().on(t.c)
+      }))
+    ]
+  },
+  // A kept foreign key moves out of the way of a new one with its name
+  ForeignKeyTakesKeptName: {
+    current: `
+      create table p (id int primary key);
+      create table t (
+        id int primary key, a int, b int,
+        constraint t_f0 foreign key (a) references t (id)
+      );
+    `,
+    desired: (() => {
+      const p = table('p', {id: integer().primaryKey()})
+      const t = table(
+        't',
+        {id: integer().primaryKey(), a: integer(), b: integer()},
+        t => ({
+          t_f0: foreignKey(t.b).references(p.id),
+          t_f1: foreignKey(t.a).references(t.id)
+        })
+      )
+      return [p, t]
+    })()
+  },
+  // Foreign keys over a column that changes type are dropped and re-added
+  RetypeSelfReference: {
+    current: `
+      create table tree (
+        id int primary key, parent int,
+        foreign key (parent) references tree (id)
+      );
+    `,
+    desired: (() => {
+      const tree = table(
+        'tree',
+        {id: text().primaryKey(), parent: text()},
+        t => [foreignKey(t.parent).references(t.id)]
+      )
+      return [tree]
+    })()
+  },
+  RetypeReferencedKey: {
+    current: `
+      create table p (id int primary key);
+      create table c (p_id int references p (id));
+    `,
+    desired: (() => {
+      const p = table('p', {id: text().primaryKey()})
+      return [p, table('c', {pId: text('p_id').references(p.id)})]
+    })()
+  },
   // Postgres has no cast from integer to date, only through text
   IntegerToDate: {
     current: 'create table users (day integer)',
     desired: [table('users', {day: date()})]
+  },
+  // The cast to a new enum is checked once the enum exists
+  IntegerToNewEnum: {
+    current: `
+      drop type if exists push_mood;
+      create table users (mood integer);
+    `,
+    desired: [table('users', {mood: pushMood()})]
   },
   IntegerToDateWithNulls: {
     current: `
@@ -818,6 +920,11 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       'public.review_t',
       'review.review_d',
       'public.review_d',
+      'rv_tree',
+      'zz_tree',
+      'zz_child',
+      'zz_parent',
+      'zz_other',
       'fk_child',
       'review.fk_parent',
       'public.fk_parent'
@@ -848,6 +955,118 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
           at: new Date(0)
         }
       )
+    })
+  })
+
+  test('a re-added self reference gives way to a new key', async () => {
+    const Tree: any = table(
+      'zz_tree',
+      {id: text().primaryKey(), parent: text().references(() => Tree.id)},
+      t => [unique('zz_x').on(t.parent)]
+    )
+    const Named: any = table(
+      'zz_tree',
+      {
+        id: text().primaryKey(),
+        parent: text().references(() => Named.id),
+        other: text()
+      },
+      t => ({zz_x: foreignKey(t.other).references(t.id)})
+    )
+    for (const desired of [Tree, Named])
+      await fixture(reset, async () => {
+        await run(
+          'create table zz_tree (id int primary key, parent int, constraint zz_x foreign key (parent) references zz_tree (id))'
+        )
+        await push(db, {desired}, {force: true})
+        test.equal(await push.plan(db, {desired}), [])
+      })
+  })
+
+  test('a retype keeps a foreign key of another table as it was', async () => {
+    const Parent = table('zz_parent', {id: text().primaryKey()})
+    const Child = table('zz_child', {p: text().references(Parent.id)})
+    await fixture(reset, async () => {
+      await run('create table zz_parent (id int primary key)')
+      await run(
+        'create table zz_child (p int, constraint zz_c foreign key (p) references zz_parent (id) match full deferrable initially deferred)'
+      )
+      await push(db, {Parent, Child}, {force: true})
+      test.equal(
+        await all(
+          `select conname, confmatchtype, condeferred from pg_constraint where conrelid = 'zz_child'::regclass and contype = 'f'`
+        ),
+        [{conname: 'zz_c', confmatchtype: 'f', condeferred: true}]
+      )
+      test.equal(await push.plan(db, {Parent, Child}), [])
+    })
+  })
+
+  test('a re-added key keeps its name over a new unnamed one', async () => {
+    const Parent = table('zz_parent', {id: text().primaryKey()})
+    const Other = table('zz_other', {id: text().primaryKey()})
+    const Child = table('zz_child', {p: text().references(Parent.id)}, t => [
+      foreignKey(t.p).references(Other.id)
+    ])
+    const Tree: any = table(
+      'zz_tree',
+      {id: text().primaryKey(), parent: text().references(() => Tree.id)},
+      t => [foreignKey(t.parent).references(Other.id)]
+    )
+    await fixture(reset, async () => {
+      await run('create table zz_parent (id int primary key)')
+      await run('create table zz_child (p int references zz_parent (id))')
+      await run(
+        'create table zz_tree (id int primary key, parent int references zz_tree (id))'
+      )
+      const schema = {Parent, Other, Child, Tree}
+      await push(db, schema, {force: true})
+      test.equal(await push.plan(db, schema), [])
+      test.equal(
+        await all(
+          `select conname from pg_constraint where conname in ('zz_child_p_fkey', 'zz_tree_parent_fkey') order by conname`
+        ),
+        [{conname: 'zz_child_p_fkey'}, {conname: 'zz_tree_parent_fkey'}]
+      )
+    })
+  })
+
+  test('an index named like a kept foreign key moves nothing', async () => {
+    const Tree: any = table(
+      'rv_tree',
+      {id: integer().primaryKey(), parent: integer()},
+      t => ({
+        rv_x: foreignKey(t.parent).references(t.id),
+        rv_x_index: index('rv_x').on(t.parent)
+      })
+    )
+    await fixture(reset, async () => {
+      await run(
+        'create table rv_tree (id int primary key, parent int, constraint rv_x foreign key (parent) references rv_tree (id))'
+      )
+      test.equal(await push.plan(db, {Tree}), [
+        'create index "rv_x" on "public"."rv_tree" ("parent")'
+      ])
+    })
+  })
+
+  test('a retype keeps a self reference as it was', async () => {
+    const Tree: any = table('rv_tree', {
+      id: text().primaryKey(),
+      parent: text().references(() => Tree.id)
+    })
+    await fixture(reset, async () => {
+      await run(
+        'create table rv_tree (id int primary key, parent int references rv_tree (id) deferrable initially deferred)'
+      )
+      await push(db, {Tree}, {force: true})
+      test.equal(
+        await all(
+          `select conname, condeferred from pg_constraint where conrelid = 'rv_tree'::regclass and contype = 'f'`
+        ),
+        [{conname: 'rv_tree_parent_fkey', condeferred: true}]
+      )
+      test.equal(await push.plan(db, {Tree}), [])
     })
   })
 
@@ -1391,6 +1610,29 @@ if (!isDeno) {
   )
   testRegressions(db)
   test('close', async () => {
+    await db.close()
+  })
+}
+
+// Bun SQL puts the SQLSTATE in errno, the cast check reads it there too
+if (isBun && testServers) {
+  const {'bun-sql': connect} = await import('#/driver.ts')
+  const {SQL} = await import('bun')
+  const db = connect(
+    new SQL('postgres://postgres:postgres@localhost:5432/postgres')
+  )
+  test('bun-sql: integer to date', async () => {
+    const Days = table('bun_days', {day: date()})
+    await db.run(sql`drop table if exists bun_days`)
+    await db.run(sql`create table bun_days (day integer)`)
+    try {
+      await push(db, {Days})
+      test.equal(await push.plan(db, {Days}), [])
+    } finally {
+      await db.run(sql`drop table if exists bun_days`)
+    }
+  })
+  test('bun-sql: close', async () => {
     await db.close()
   })
 }

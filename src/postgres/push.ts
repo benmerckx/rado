@@ -11,7 +11,8 @@ import {
   columns,
   foreignKey,
   foreignKeyChanges,
-  foreignKeys
+  foreignKeys,
+  signature
 } from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
 import {type Define, define} from '../core/Order.ts'
@@ -25,7 +26,7 @@ import {
   renameSteps,
   shadow
 } from '../core/Push.ts'
-import type {Shape} from '../core/Shape.ts'
+import type {ForeignKeyShape, Shape} from '../core/Shape.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import {alias, type TableApi} from '../core/Table.ts'
 import {type Gen, result, scratch} from '../core/Transaction.ts'
@@ -70,6 +71,26 @@ function* relation(
   return oid
 }
 
+// A foreign key of another pushed table, dropped while its key changes,
+// which that table's plan adds back as it was
+interface Carried {
+  schema: string
+  table: string
+  key: ForeignKeyShape
+  name: string
+  definition: string
+}
+
+// By the tables of one push, which every table's plan shares
+const carried = new WeakMap<Array<TableApi>, Array<Carried>>()
+
+// A live key, the name the schema gives it and the names that make it move
+interface Kept {
+  name: string
+  wish?: string
+  claimed: Set<string>
+}
+
 // Foreign keys of other tables on a key of this one
 function* dependents(tx: Database, oid: number) {
   const Owner = alias(Class, 'r')
@@ -80,7 +101,8 @@ function* dependents(tx: Database, oid: number) {
       schema: Space.nspname,
       table: Owner.relname,
       key: Key.relname,
-      name: Constraint.conname
+      name: Constraint.conname,
+      definition: sql<string>`pg_get_constraintdef(${Constraint.oid})`
     })
     .from(Constraint)
     .innerJoin(Owner, eq(Owner.oid, Constraint.conrelid))
@@ -167,6 +189,8 @@ function* plan(
       if (!found) enums.push({sql: query})
     }
     const desired = yield* scratch(inner, tx => copy(tx, api, schema))
+    // A type change checks its cast, which needs the new enums
+    for (const step of enums) yield inner.run(step.sql)
     return [
       ...spaces,
       ...enums,
@@ -193,8 +217,12 @@ function* casts(tx: Database, from: string, to: string): Gen<boolean> {
       yield inner.run(sql`select null::${sql.unsafe(from)}::${sql.unsafe(to)}`)
     })
     return true
-  } catch {
-    return false
+  } catch (error) {
+    // cannot_coerce, Bun SQL has the state in errno, other drivers in code,
+    // any other error is the push's own
+    const {code, errno} = error as {code?: string; errno?: string}
+    if (errno === '42846' || code === '42846') return false
+    throw error
   }
 }
 
@@ -291,24 +319,90 @@ function* changes({
       .filter(([, definition]) => !wanted.has(definition))
       .map(([name]) => name)
   ]
-  // Foreign keys of other pushed tables on a key that goes are dropped
-  // first, the other table's own plan adds them back
-  const others = gone.length ? yield* dependents(tx, oid) : []
+  // Postgres checks a foreign key after each statement, so one over a column
+  // that changes type goes first and comes back after
+  const retyped = changed.filter(
+    name => live.columns[name].type !== desired.columns[name].type
+  )
+  const touches = (names: Array<string>) =>
+    names.some(name => retyped.includes(name))
+  const rekeyed = live.foreignKeys.filter(
+    key =>
+      key.table === api.name &&
+      (key.schema ?? home) === schema &&
+      !references.dropped.includes(key) &&
+      touches([...key.columns, ...key.references])
+  )
+  // A kept foreign key as the schema defines it, under its desired name
+  const local = (key: ForeignKeyShape) =>
+    signature({...key, schema: key.schema === home ? undefined : key.schema})
+  const defined = foreignKeys(api)
+  const match = (key: ForeignKeyShape) =>
+    defined.find(other => local(other) === local(key))
+  const removed = [...references.dropped, ...rekeyed]
+  // Re-added as postgres prints them, under their own name, so deferrable
+  // and match options stay
+  const reprinted = rekeyed.length
+    ? yield* tx
+        .select({
+          name: Constraint.conname,
+          definition: sql<string>`pg_get_constraintdef(${Constraint.oid})`
+        })
+        .from(Constraint)
+        .where(
+          eq(Constraint.conrelid, oid),
+          inArray(
+            Constraint.conname,
+            rekeyed.map(key => key.name!)
+          )
+        )
+    : []
+  // The columns of a key, from its definition
+  const parts = (name: string) =>
+    (live.constraints[name] ?? live.indexes[name] ?? '')
+      .match(/\(([^)]*)\)/)?.[1]
+      .split(',')
+      .map(part => part.trim().replace(/^"|"$/g, '')) ?? []
+  // Foreign keys of other pushed tables on a key that goes or changes type
+  // are dropped first, the other table's own plan adds them back
+  const others = gone.length || retyped.length ? yield* dependents(tx, oid) : []
   const pushed = (key: {schema: string; table: string}) =>
     tables.some(
       other =>
         other.name === key.table && (other.schemaName ?? home) === key.schema
     )
+  const freed = others.filter(
+    key => (gone.includes(key.key) || touches(parts(key.key))) && pushed(key)
+  )
+  const carry = carried.get(tables) ?? []
+  carried.set(tables, carry)
+  for (const key of freed) {
+    const child = yield* shape(tx, key.table, key.schema)
+    const found = child?.foreignKeys.find(other => other.name === key.name)
+    if (found) carry.push({...key, key: found})
+  }
+  // Keys this table's plan adds back as they were, from its own retype or
+  // from an earlier table's
+  const reborn = references.added.flatMap(added => {
+    const found = carry.find(
+      entry =>
+        entry.table === api.name &&
+        entry.schema === schema &&
+        local(entry.key) === local(added)
+    )
+    return found ? [{added, ...found}] : []
+  })
+  const fresh = references.added.filter(
+    added => !reborn.some(entry => entry.added === added)
+  )
   const steps: Array<Step> = [
-    ...others
-      .filter(key => gone.includes(key.key) && pushed(key))
-      .map(key => ({
-        sql: sql`alter table ${at(
-          own(key.schema),
-          sql.identifier(key.table)
-        )} drop constraint ${sql.identifier(key.name)}`
-      })),
-    ...references.dropped.map(key =>
+    ...freed.map(key => ({
+      sql: sql`alter table ${at(
+        own(key.schema),
+        sql.identifier(key.table)
+      )} drop constraint ${sql.identifier(key.name)}`
+    })),
+    ...removed.map(key =>
       alter(sql`drop constraint ${sql.identifier(key.name!)}`)
     ),
     ...gone.map(name =>
@@ -422,27 +516,69 @@ function* changes({
         })
     }
   }
-  // A key is kept by its definition under its live name, unless something
-  // added takes that name, then it moves to its own
+  // Keys and foreign keys are kept by their definition under their live
+  // name, unless one being added takes that name. It then moves to its own
+  // name, or to a free one while another live key still holds that. They
+  // share one name space per table, as do indexes per schema.
   const names = Object.fromEntries(
     Object.entries(desired.constraints).map(([name, value]) => [value, name])
   )
-  const claimed = new Set([
-    ...Object.keys(desired.indexes),
-    ...Object.keys(desired.constraints)
+  // Unique and primary keys hold an index of their name, foreign keys
+  // don't, and an inline foreign key gets a name postgres picks
+  const keys = new Set([
+    ...Object.entries(desired.constraints)
+      .filter(([, value]) => !present.has(value))
+      .map(([name]) => name),
+    ...fresh.flatMap(key => (key.name && !key.inline ? [key.name] : []))
   ])
-  const moved = Object.entries(live.constraints)
-    .filter(
-      ([name, value]) =>
-        wanted.has(value) && claimed.has(name) && names[value] !== name
-    )
-    .map(([name, value]) =>
-      alter(
-        sql`rename constraint ${sql.identifier(name)} to ${sql.identifier(
-          names[value]
-        )}`
-      )
-    )
+  const adding = new Set([...keys, ...differ(desired.indexes, live.indexes)])
+  const remaining = live.foreignKeys.filter(key => !removed.includes(key))
+  const held = new Set(
+    [
+      ...Object.keys(live.constraints),
+      ...Object.keys(live.indexes),
+      ...remaining.map(key => key.name!)
+    ].filter(name => !gone.includes(name))
+  )
+  // The first name nothing holds or takes, its own when free
+  const free = (name: string, wish = name) => {
+    let to = wish
+    for (let i = 1; held.has(to) || adding.has(to); i++) to = `${name}_${i}`
+    return to
+  }
+  // Keys added back keep their name unless something added takes it
+  const readded = [
+    ...reprinted.map(row => ({...row, risk: undefined})),
+    ...reborn.map(({name, definition, added}) => ({
+      name,
+      definition,
+      risk: options.capture ? referenceRisk(added.name) : undefined
+    }))
+  ].map(row => {
+    const name = free(row.name)
+    keys.add(name)
+    adding.add(name)
+    return {...row, name}
+  })
+  const kept: Array<Kept> = [
+    ...Object.entries(live.constraints)
+      .filter(([, value]) => wanted.has(value))
+      .map(([name, value]) => ({name, wish: names[value], claimed: adding})),
+    ...remaining.map(key => {
+      const wish = match(key)
+      const name = key.name!
+      return {name, wish: wish?.inline ? undefined : wish?.name, claimed: keys}
+    })
+  ]
+  const moved: Array<Step> = []
+  for (const {name, wish, claimed} of kept) {
+    if (!claimed.has(name)) continue
+    const to = free(name, wish ?? `${name}_1`)
+    held.delete(name)
+    held.add(to)
+    const pair = sql`${sql.identifier(name)} to ${sql.identifier(to)}`
+    moved.push(alter(sql`rename constraint ${pair}`))
+  }
   return [
     ...steps,
     ...moved,
@@ -454,7 +590,14 @@ function* changes({
           options.capture ? keyRisk(name, definition) : undefined
         )
       ),
-    ...references.added.map(key =>
+    // Before new keys, which postgres may give the same generated name
+    ...readded.map(({name, definition, risk}) =>
+      alter(
+        sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`,
+        risk
+      )
+    ),
+    ...fresh.map(key =>
       alter(
         sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
         options.capture ? referenceRisk(key.name) : undefined
