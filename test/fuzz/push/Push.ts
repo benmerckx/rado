@@ -511,7 +511,8 @@ export function fuzzPush<Context>(
   test: DefineTest<Context>,
   target: Target
 ): void {
-  bun?.setDefaultTimeout(3_600_000)
+  // Bounded, so a hang fails the file instead of stalling CI
+  bun?.setDefaultTimeout(FUZZ_RUNS ? 3_600_000 : 60_000)
   const {label, db, push} = target
   const spec = schemas(target.types.length)
   const pair = pairs(target.types.length)
