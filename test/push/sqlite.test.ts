@@ -907,6 +907,7 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
     const Defaults = table('defaults', {
       id: integer(),
       bytes: blob().default(new Uint8Array([4])),
+      buffer: blob({mode: 'buffer'}).default(new Uint8Array([5]).buffer),
       big: blob({mode: 'bigint'}).default(2n),
       at: integer({mode: 'timestamp'}).default(new Date(0))
     })
@@ -914,9 +915,17 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
       await push(db, {Defaults})
       test.equal(push.plan(db, {Defaults}), [])
       await db.insert(Defaults).values({id: 1})
-      test.equal(await db.select().from(Defaults), [
-        {id: 1, bytes: new Uint8Array([4]), big: 2n, at: new Date(0)}
-      ])
+      const [row] = await db.select().from(Defaults)
+      test.equal(
+        {...row, buffer: new Uint8Array(row.buffer!)},
+        {
+          id: 1,
+          bytes: new Uint8Array([4]),
+          buffer: new Uint8Array([5]),
+          big: 2n,
+          at: new Date(0)
+        }
+      )
     })
   })
 

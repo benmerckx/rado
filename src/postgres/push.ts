@@ -11,7 +11,8 @@ import {
   columns,
   foreignKey,
   foreignKeyChanges,
-  foreignKeys
+  foreignKeys,
+  signature
 } from '../core/ForeignKey.ts'
 import {getData} from '../core/Internal.ts'
 import {type Define, define} from '../core/Order.ts'
@@ -25,7 +26,7 @@ import {
   renameSteps,
   shadow
 } from '../core/Push.ts'
-import type {Shape} from '../core/Shape.ts'
+import type {ForeignKeyShape, Shape} from '../core/Shape.ts'
 import {type Sql, sql} from '../core/Sql.ts'
 import {alias, type TableApi} from '../core/Table.ts'
 import {type Gen, result, scratch} from '../core/Transaction.ts'
@@ -167,6 +168,8 @@ function* plan(
       if (!found) enums.push({sql: query})
     }
     const desired = yield* scratch(inner, tx => copy(tx, api, schema))
+    // A type change checks its cast, which needs the new enums
+    for (const step of enums) yield inner.run(step.sql)
     return [
       ...spaces,
       ...enums,
@@ -193,8 +196,10 @@ function* casts(tx: Database, from: string, to: string): Gen<boolean> {
       yield inner.run(sql`select null::${sql.unsafe(from)}::${sql.unsafe(to)}`)
     })
     return true
-  } catch {
-    return false
+  } catch (error) {
+    // cannot_coerce, any other error is the push's own
+    if ((error as {code?: string}).code === '42846') return false
+    throw error
   }
 }
 
@@ -291,9 +296,40 @@ function* changes({
       .filter(([, definition]) => !wanted.has(definition))
       .map(([name]) => name)
   ]
-  // Foreign keys of other pushed tables on a key that goes are dropped
-  // first, the other table's own plan adds them back
-  const others = gone.length ? yield* dependents(tx, oid) : []
+  // Postgres checks a foreign key after each statement, so one over a column
+  // that changes type goes first and comes back after
+  const retyped = changed.filter(
+    name => live.columns[name].type !== desired.columns[name].type
+  )
+  const touches = (names: Array<string>) =>
+    names.some(name => retyped.includes(name))
+  const rekeyed = live.foreignKeys.filter(
+    key =>
+      key.table === api.name &&
+      (key.schema ?? home) === schema &&
+      !references.dropped.includes(key) &&
+      touches([...key.columns, ...key.references])
+  )
+  // A kept foreign key as the schema defines it, under its desired name
+  const local = (key: ForeignKeyShape) =>
+    signature({...key, schema: key.schema === home ? undefined : key.schema})
+  const defined = foreignKeys(api)
+  const match = (key: ForeignKeyShape) =>
+    defined.find(other => local(other) === local(key))
+  const removed = [...references.dropped, ...rekeyed]
+  const restored = [
+    ...references.added,
+    ...rekeyed.map(key => ({...key, name: match(key)?.name ?? key.name}))
+  ]
+  // The columns of a key, from its definition
+  const parts = (name: string) =>
+    (live.constraints[name] ?? live.indexes[name] ?? '')
+      .match(/\(([^)]*)\)/)?.[1]
+      .split(',')
+      .map(part => part.trim().replace(/^"|"$/g, '')) ?? []
+  // Foreign keys of other pushed tables on a key that goes or changes type
+  // are dropped first, the other table's own plan adds them back
+  const others = gone.length || retyped.length ? yield* dependents(tx, oid) : []
   const pushed = (key: {schema: string; table: string}) =>
     tables.some(
       other =>
@@ -301,14 +337,17 @@ function* changes({
     )
   const steps: Array<Step> = [
     ...others
-      .filter(key => gone.includes(key.key) && pushed(key))
+      .filter(
+        key =>
+          (gone.includes(key.key) || touches(parts(key.key))) && pushed(key)
+      )
       .map(key => ({
         sql: sql`alter table ${at(
           own(key.schema),
           sql.identifier(key.table)
         )} drop constraint ${sql.identifier(key.name)}`
       })),
-    ...references.dropped.map(key =>
+    ...removed.map(key =>
       alter(sql`drop constraint ${sql.identifier(key.name!)}`)
     ),
     ...gone.map(name =>
@@ -422,27 +461,47 @@ function* changes({
         })
     }
   }
-  // A key is kept by its definition under its live name, unless something
-  // added takes that name, then it moves to its own
+  // Keys and foreign keys are kept by their definition under their live
+  // name, unless one being added takes that name. It then moves to its own
+  // name, or to a free one while another live key still holds that. They
+  // share one name space per table, as do indexes per schema.
   const names = Object.fromEntries(
     Object.entries(desired.constraints).map(([name, value]) => [value, name])
   )
-  const claimed = new Set([
-    ...Object.keys(desired.indexes),
-    ...Object.keys(desired.constraints)
+  const adding = new Set([
+    ...differ(desired.indexes, live.indexes),
+    ...Object.entries(desired.constraints)
+      .filter(([, value]) => !present.has(value))
+      .map(([name]) => name),
+    ...restored.flatMap(key => (key.name ? [key.name] : []))
   ])
-  const moved = Object.entries(live.constraints)
-    .filter(
-      ([name, value]) =>
-        wanted.has(value) && claimed.has(name) && names[value] !== name
-    )
-    .map(([name, value]) =>
-      alter(
-        sql`rename constraint ${sql.identifier(name)} to ${sql.identifier(
-          names[value]
-        )}`
-      )
-    )
+  const remaining = live.foreignKeys.filter(key => !removed.includes(key))
+  const held = new Set(
+    [
+      ...Object.keys(live.constraints),
+      ...Object.keys(live.indexes),
+      ...remaining.map(key => key.name!)
+    ].filter(name => !gone.includes(name))
+  )
+  const kept: Array<[string, string | undefined]> = [
+    ...Object.entries(live.constraints)
+      .filter(([, value]) => wanted.has(value))
+      .map(([name, value]): [string, string] => [name, names[value]]),
+    ...remaining.map((key): [string, string | undefined] => [
+      key.name!,
+      match(key)?.name
+    ])
+  ]
+  const moved: Array<Step> = []
+  for (const [name, wish] of kept) {
+    if (!adding.has(name)) continue
+    let to = wish ?? `${name}_1`
+    for (let i = 1; held.has(to) || adding.has(to); i++) to = `${name}_${i}`
+    held.delete(name)
+    held.add(to)
+    const pair = sql`${sql.identifier(name)} to ${sql.identifier(to)}`
+    moved.push(alter(sql`rename constraint ${pair}`))
+  }
   return [
     ...steps,
     ...moved,
@@ -454,7 +513,7 @@ function* changes({
           options.capture ? keyRisk(name, definition) : undefined
         )
       ),
-    ...references.added.map(key =>
+    ...restored.map(key =>
       alter(
         sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
         options.capture ? referenceRisk(key.name) : undefined

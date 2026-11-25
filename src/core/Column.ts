@@ -105,9 +105,12 @@ export class Column<Value = unknown, Nulls extends Nullability = Nullability> {
   }
   default(value: Input<Value>): Column<Value, [Nulls[0], false]> {
     const data = getData(this)
-    // Dates and bigints are stored as the column stores them, as an insert
-    // would, JSON is inlined as it is
-    const mapped = value instanceof Date || typeof value === 'bigint'
+    // Dates, bigints and buffers are stored as the column stores them, as an
+    // insert would, JSON is inlined as it is
+    const mapped =
+      value instanceof Date ||
+      value instanceof ArrayBuffer ||
+      typeof value === 'bigint'
     return new Column({
       ...data,
       defaultValue: mapped ? mapToColumn(data, value) : input(value)
