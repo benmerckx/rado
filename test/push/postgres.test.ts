@@ -3,6 +3,7 @@ import {type AsyncDatabase, type Sql, getTable, sql} from '#/index.ts'
 import {
   bigint,
   boolean,
+  bytea,
   date,
   doublePrecision,
   foreignKey,
@@ -776,6 +777,32 @@ const cases: Record<string, Case> = {
         table('c', {pId: integer('p_id').references(q.id)})
       ]
     })()
+  },
+  // The unique key is kept, its name moves out of the new index's way
+  IndexTakesKeyName: {
+    current: `
+      create table users (a int, b int, constraint users_x unique (b));
+      insert into users values (1, 2);
+    `,
+    desired: [
+      table('users', {a: integer(), b: integer().unique()}, t => ({
+        users_x: index().on(t.a)
+      }))
+    ],
+    keep: {users: ['a', 'b']}
+  },
+  // Postgres has no cast from integer to date, only through text
+  IntegerToDate: {
+    current: 'create table users (day integer)',
+    desired: [table('users', {day: date()})]
+  },
+  IntegerToDateWithNulls: {
+    current: `
+      create table users (id int, day integer);
+      insert into users values (1, null);
+    `,
+    desired: [table('users', {id: integer(), day: date()})],
+    keep: {users: ['id']}
   }
 }
 
@@ -790,12 +817,39 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       'review.review_t',
       'public.review_t',
       'review.review_d',
+      'public.review_d',
       'fk_child',
       'review.fk_parent',
       'public.fk_parent'
     ])
       await run(`drop table if exists ${name} cascade`)
   }
+
+  test('defaults of bytes, bigints and dates', async () => {
+    const Defaults = table('review_d', {
+      id: integer(),
+      bytes: bytea().default(new Uint8Array([4])),
+      big: bigint().default(2n),
+      day: date({mode: 'date'}).default(new Date(0)),
+      at: timestamp().default(new Date(0))
+    })
+    await fixture(reset, async () => {
+      await push(db, {Defaults})
+      test.equal(await push.plan(db, {Defaults}), [])
+      await db.insert(Defaults).values({id: 1})
+      const [row] = await db.select().from(Defaults)
+      test.equal(
+        {...row, bytes: new Uint8Array(row.bytes!)},
+        {
+          id: 1,
+          bytes: new Uint8Array([4]),
+          big: 2n,
+          day: new Date(0),
+          at: new Date(0)
+        }
+      )
+    })
+  })
 
   test('push creates indexes in the table schema', async () => {
     const T = review.table('review_t', {v: integer()}, t => ({

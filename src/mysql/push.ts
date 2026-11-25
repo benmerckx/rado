@@ -209,13 +209,25 @@ function* changes({
         risk: nulls[name]
       }
     })
+  // MySQL can't add a foreign key to its own table in the alter table that
+  // adds the key it references, it follows in one of its own
+  const keyed =
+    (primaryChanged && primary) ||
+    differ(desired.indexes, live.indexes).length > 0
+  const later = keyed
+    ? references.added.filter(
+        key => key.table === api.name && (key.schema ?? home) === schema
+      )
+    : []
   const keys = capture
     ? [
         primaryChanged && primary ? keyRisk('primary', primary) : undefined,
         ...differ(desired.indexes, live.indexes).map(name =>
           keyRisk(name, desired.indexes[name])
         ),
-        ...references.added.map(key => referenceRisk(key.name))
+        ...references.added
+          .filter(key => !later.includes(key))
+          .map(key => referenceRisk(key.name))
       ]
     : []
   const all = [
@@ -260,7 +272,9 @@ function* changes({
     ...Object.keys(desired.columns).flatMap(alter),
     ...(primaryChanged && primary ? [sql`add ${sql.unsafe(primary)}`] : []),
     ...differ(desired.indexes, live.indexes).map(index),
-    ...references.added.map(key => sql`add ${foreignKey(key)}`)
+    ...references.added
+      .filter(key => !later.includes(key))
+      .map(key => sql`add ${foreignKey(key)}`)
   ]
   // Foreign keys of other pushed tables on a key that goes are dropped
   // first, the other table's own plan adds what it wants
@@ -291,7 +305,11 @@ function* changes({
           : sql`${sql.identifier(key.schema)}.${sql.identifier(key.table)}`
       } drop foreign key ${sql.identifier(key.name)}`
     }))
-  if (clauses.length === 0) return [...drops, ...fills]
+  const after = later.map(key => ({
+    sql: sql`alter table ${target} add ${foreignKey(key)}`,
+    risks: capture ? [referenceRisk(key.name)] : []
+  }))
+  if (clauses.length === 0) return [...drops, ...fills, ...after]
   return [
     ...drops,
     ...fills,
@@ -299,7 +317,8 @@ function* changes({
       sql: sql`alter table ${target} ${sql.join(clauses, sql`, `)}`,
       risk: all[0],
       risks: all
-    }
+    },
+    ...after
   ]
 }
 

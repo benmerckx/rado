@@ -144,7 +144,9 @@ MySQL commits implicitly after every DDL statement, so there:
 - a new table is created with its indexes in one `create table`, and an
   existing table's changes, renames included, go into one `alter table`.
   MySQL applies each atomically: a failure, such as a new unique index over
-  duplicates, leaves that table as it was
+  duplicates, leaves that table as it was. A foreign key to the table itself
+  that uses a key added in the same push follows in an `alter table` of its
+  own, MySQL refuses both in one
 - tables are pushed one at a time, so a failure leaves the tables before it
   pushed
 - with `force`, the `update` that fills nulls with a default runs just before

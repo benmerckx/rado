@@ -12,7 +12,7 @@ import {
   table,
   uniqueIndex
 } from '#/index.ts'
-import {integer, numeric, text} from '#/sqlite.ts'
+import {blob, integer, numeric, text} from '#/sqlite.ts'
 import {push} from '#/sqlite/push.ts'
 import {shape} from '#/sqlite/shape.ts'
 import {isBun, isNode} from '../TestRuntime.ts'
@@ -900,6 +900,23 @@ function testRebuild(db: SyncDatabase<'sqlite'>) {
         await failure(() => push(db, {Hidden})),
         'Cannot rebuild "hidden", its columns hide the rowid'
       )
+    })
+  })
+
+  test('defaults of bytes, bigints and dates', async () => {
+    const Defaults = table('defaults', {
+      id: integer(),
+      bytes: blob().default(new Uint8Array([4])),
+      big: blob({mode: 'bigint'}).default(2n),
+      at: integer({mode: 'timestamp'}).default(new Date(0))
+    })
+    await fixture(empty, async () => {
+      await push(db, {Defaults})
+      test.equal(push.plan(db, {Defaults}), [])
+      await db.insert(Defaults).values({id: 1})
+      test.equal(await db.select().from(Defaults), [
+        {id: 1, bytes: new Uint8Array([4]), big: 2n, at: new Date(0)}
+      ])
     })
   })
 
