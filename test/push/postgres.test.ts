@@ -26,7 +26,7 @@ import {
 } from '#/postgres.ts'
 import {push} from '#/postgres/push.ts'
 import {shape} from '#/postgres/shape.ts'
-import {isDeno, testServers} from '../TestRuntime.ts'
+import {isBun, isDeno, testServers} from '../TestRuntime.ts'
 import {failure, fixture} from '../TestUtils.ts'
 import {type Case, testCases} from './TestCases.ts'
 
@@ -920,6 +920,7 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       'public.review_t',
       'review.review_d',
       'public.review_d',
+      'rv_tree',
       'fk_child',
       'review.fk_parent',
       'public.fk_parent'
@@ -950,6 +951,45 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
           at: new Date(0)
         }
       )
+    })
+  })
+
+  test('an index named like a kept foreign key moves nothing', async () => {
+    const Tree: any = table(
+      'rv_tree',
+      {id: integer().primaryKey(), parent: integer()},
+      t => ({
+        rv_x: foreignKey(t.parent).references(t.id),
+        rv_x_index: index('rv_x').on(t.parent)
+      })
+    )
+    await fixture(reset, async () => {
+      await run(
+        'create table rv_tree (id int primary key, parent int, constraint rv_x foreign key (parent) references rv_tree (id))'
+      )
+      test.equal(await push.plan(db, {Tree}), [
+        'create index "rv_x" on "public"."rv_tree" ("parent")'
+      ])
+    })
+  })
+
+  test('a retype keeps a self reference as it was', async () => {
+    const Tree: any = table('rv_tree', {
+      id: text().primaryKey(),
+      parent: text().references(() => Tree.id)
+    })
+    await fixture(reset, async () => {
+      await run(
+        'create table rv_tree (id int primary key, parent int references rv_tree (id) deferrable initially deferred)'
+      )
+      await push(db, {Tree}, {force: true})
+      test.equal(
+        await all(
+          `select conname, condeferred from pg_constraint where conrelid = 'rv_tree'::regclass and contype = 'f'`
+        ),
+        [{conname: 'rv_tree_parent_fkey', condeferred: true}]
+      )
+      test.equal(await push.plan(db, {Tree}), [])
     })
   })
 
@@ -1493,6 +1533,29 @@ if (!isDeno) {
   )
   testRegressions(db)
   test('close', async () => {
+    await db.close()
+  })
+}
+
+// Bun SQL puts the SQLSTATE in errno, the cast check reads it there too
+if (isBun && testServers) {
+  const {'bun-sql': connect} = await import('#/driver.ts')
+  const {SQL} = await import('bun')
+  const db = connect(
+    new SQL('postgres://postgres:postgres@localhost:5432/postgres')
+  )
+  test('bun-sql: integer to date', async () => {
+    const Days = table('bun_days', {day: date()})
+    await db.run(sql`drop table if exists bun_days`)
+    await db.run(sql`create table bun_days (day integer)`)
+    try {
+      await push(db, {Days})
+      test.equal(await push.plan(db, {Days}), [])
+    } finally {
+      await db.run(sql`drop table if exists bun_days`)
+    }
+  })
+  test('bun-sql: close', async () => {
     await db.close()
   })
 }

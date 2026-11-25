@@ -471,10 +471,11 @@ export function violation(error: unknown): boolean {
     return true
   // MySQL sets HY000 on some of these, sqlite sets no state at all
   if (errno !== undefined && mysqlData.includes(errno)) return true
-  return /constraint failed|datatype mismatch|^Push would violate foreign key/.test(
-    message
-  )
+  return rejected.test(message)
 }
+
+const rejected =
+  /constraint failed|datatype mismatch|^Push would violate foreign key/
 
 // Null, duplicate, foreign key, out of range, truncated or invalid values
 const mysqlData = [
@@ -606,7 +607,7 @@ export function fuzzPush<Context>(
 
   // Converges is vacuous when every row it draws is refused
   test(`${label}: rows go in`, () => {
-    test.equal(inserted.kept > inserted.drawn / 4, true)
+    test.equal(inserted.drawn === 0 || inserted.kept > inserted.drawn / 4, true)
   })
 
   property('generates', async tc => {

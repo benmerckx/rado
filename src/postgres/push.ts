@@ -197,8 +197,10 @@ function* casts(tx: Database, from: string, to: string): Gen<boolean> {
     })
     return true
   } catch (error) {
-    // cannot_coerce, any other error is the push's own
-    if ((error as {code?: string}).code === '42846') return false
+    // cannot_coerce, Bun SQL has the state in errno, other drivers in code,
+    // any other error is the push's own
+    const {code, errno} = error as {code?: string; errno?: string}
+    if (errno === '42846' || code === '42846') return false
     throw error
   }
 }
@@ -317,10 +319,23 @@ function* changes({
   const match = (key: ForeignKeyShape) =>
     defined.find(other => local(other) === local(key))
   const removed = [...references.dropped, ...rekeyed]
-  const restored = [
-    ...references.added,
-    ...rekeyed.map(key => ({...key, name: match(key)?.name ?? key.name}))
-  ]
+  // Re-added as postgres prints them, under their own name, so deferrable
+  // and match options stay
+  const reprinted = rekeyed.length
+    ? yield* tx
+        .select({
+          name: Constraint.conname,
+          definition: sql<string>`pg_get_constraintdef(${Constraint.oid})`
+        })
+        .from(Constraint)
+        .where(
+          eq(Constraint.conrelid, oid),
+          inArray(
+            Constraint.conname,
+            rekeyed.map(key => key.name!)
+          )
+        )
+    : []
   // The columns of a key, from its definition
   const parts = (name: string) =>
     (live.constraints[name] ?? live.indexes[name] ?? '')
@@ -468,13 +483,18 @@ function* changes({
   const names = Object.fromEntries(
     Object.entries(desired.constraints).map(([name, value]) => [value, name])
   )
-  const adding = new Set([
-    ...differ(desired.indexes, live.indexes),
+  // Unique and primary keys hold an index of their name, foreign keys
+  // don't, and an inline foreign key gets a name postgres picks
+  const keys = new Set([
     ...Object.entries(desired.constraints)
       .filter(([, value]) => !present.has(value))
       .map(([name]) => name),
-    ...restored.flatMap(key => (key.name ? [key.name] : []))
+    ...references.added.flatMap(key =>
+      key.name && !key.inline ? [key.name] : []
+    ),
+    ...reprinted.map(row => row.name)
   ])
+  const adding = new Set([...keys, ...differ(desired.indexes, live.indexes)])
   const remaining = live.foreignKeys.filter(key => !removed.includes(key))
   const held = new Set(
     [
@@ -483,18 +503,22 @@ function* changes({
       ...remaining.map(key => key.name!)
     ].filter(name => !gone.includes(name))
   )
-  const kept: Array<[string, string | undefined]> = [
+  const kept: Array<[string, string | undefined, Set<string>]> = [
     ...Object.entries(live.constraints)
       .filter(([, value]) => wanted.has(value))
-      .map(([name, value]): [string, string] => [name, names[value]]),
-    ...remaining.map((key): [string, string | undefined] => [
-      key.name!,
-      match(key)?.name
-    ])
+      .map(([name, value]): [string, string, Set<string>] => [
+        name,
+        names[value],
+        adding
+      ]),
+    ...remaining.map((key): [string, string | undefined, Set<string>] => {
+      const wish = match(key)
+      return [key.name!, wish?.inline ? undefined : wish?.name, keys]
+    })
   ]
   const moved: Array<Step> = []
-  for (const [name, wish] of kept) {
-    if (!adding.has(name)) continue
+  for (const [name, wish, claimed] of kept) {
+    if (!claimed.has(name)) continue
     let to = wish ?? `${name}_1`
     for (let i = 1; held.has(to) || adding.has(to); i++) to = `${name}_${i}`
     held.delete(name)
@@ -513,10 +537,15 @@ function* changes({
           options.capture ? keyRisk(name, definition) : undefined
         )
       ),
-    ...restored.map(key =>
+    ...references.added.map(key =>
       alter(
         sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
         options.capture ? referenceRisk(key.name) : undefined
+      )
+    ),
+    ...reprinted.map(({name, definition}) =>
+      alter(
+        sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`
       )
     ),
     ...differ(desired.indexes, live.indexes).map(name => ({

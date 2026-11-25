@@ -234,6 +234,13 @@ Where PostgreSQL has no cast between the two types, such as `integer` to
 the new type can't read fails the push, and one it can read takes the
 meaning of that text, so `integer` 5 becomes the `interval` `00:00:05`.
 
+PostgreSQL checks a foreign key after each statement, so push drops a
+foreign key over a column that changes type and adds it back after: one of
+the table itself, or of another pushed table on a key that changes. A key
+that a table left out of the push references is not handled, as when tables
+reference each other and only one is pushed: that fails with PostgreSQL's
+own error, `foreign key constraint … cannot be implemented`.
+
 Some changes fail no matter what, with a short error: adding a `not null`
 column without a default to a table that has rows, or a new unique or
 foreign key constraint that the existing rows violate.
