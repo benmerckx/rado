@@ -236,7 +236,10 @@ meaning of that text, so `integer` 5 becomes the `interval` `00:00:05`.
 
 PostgreSQL checks a foreign key after each statement, so push drops a
 foreign key over a column that changes type and adds it back after: one of
-the table itself, or of another pushed table on a key that changes. A key
+the table itself, or of another pushed table on a key that changes. It comes
+back as PostgreSQL printed it, with its name, `match` and `deferrable`
+options, unless a key the push adds takes that name, then it gets the first
+free one with a number after it. A key
 that a table left out of the push references is not handled, as when tables
 reference each other and only one is pushed: that fails with PostgreSQL's
 own error, `foreign key constraint … cannot be implemented`.

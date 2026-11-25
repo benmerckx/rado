@@ -921,6 +921,9 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
       'review.review_d',
       'public.review_d',
       'rv_tree',
+      'zz_tree',
+      'zz_child',
+      'zz_parent',
       'fk_child',
       'review.fk_parent',
       'public.fk_parent'
@@ -951,6 +954,50 @@ function testRegressions(db: AsyncDatabase<'postgres'>) {
           at: new Date(0)
         }
       )
+    })
+  })
+
+  test('a re-added self reference gives way to a new key', async () => {
+    const Tree: any = table(
+      'zz_tree',
+      {id: text().primaryKey(), parent: text().references(() => Tree.id)},
+      t => [unique('zz_x').on(t.parent)]
+    )
+    const Named: any = table(
+      'zz_tree',
+      {
+        id: text().primaryKey(),
+        parent: text().references(() => Named.id),
+        other: text()
+      },
+      t => ({zz_x: foreignKey(t.other).references(t.id)})
+    )
+    for (const desired of [Tree, Named])
+      await fixture(reset, async () => {
+        await run(
+          'create table zz_tree (id int primary key, parent int, constraint zz_x foreign key (parent) references zz_tree (id))'
+        )
+        await push(db, {desired}, {force: true})
+        test.equal(await push.plan(db, {desired}), [])
+      })
+  })
+
+  test('a retype keeps a foreign key of another table as it was', async () => {
+    const Parent = table('zz_parent', {id: text().primaryKey()})
+    const Child = table('zz_child', {p: text().references(Parent.id)})
+    await fixture(reset, async () => {
+      await run('create table zz_parent (id int primary key)')
+      await run(
+        'create table zz_child (p int, constraint zz_c foreign key (p) references zz_parent (id) match full deferrable initially deferred)'
+      )
+      await push(db, {Parent, Child}, {force: true})
+      test.equal(
+        await all(
+          `select conname, confmatchtype, condeferred from pg_constraint where conrelid = 'zz_child'::regclass and contype = 'f'`
+        ),
+        [{conname: 'zz_c', confmatchtype: 'f', condeferred: true}]
+      )
+      test.equal(await push.plan(db, {Parent, Child}), [])
     })
   })
 

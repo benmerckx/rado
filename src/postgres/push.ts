@@ -71,6 +71,26 @@ function* relation(
   return oid
 }
 
+// A foreign key of another pushed table, dropped while its key changes,
+// which that table's plan adds back as it was
+interface Carried {
+  schema: string
+  table: string
+  key: ForeignKeyShape
+  name: string
+  definition: string
+}
+
+// By the tables of one push, which every table's plan shares
+const carried = new WeakMap<Array<TableApi>, Array<Carried>>()
+
+// A live key, the name the schema gives it and the names that make it move
+interface Kept {
+  name: string
+  wish?: string
+  claimed: Set<string>
+}
+
 // Foreign keys of other tables on a key of this one
 function* dependents(tx: Database, oid: number) {
   const Owner = alias(Class, 'r')
@@ -81,7 +101,8 @@ function* dependents(tx: Database, oid: number) {
       schema: Space.nspname,
       table: Owner.relname,
       key: Key.relname,
-      name: Constraint.conname
+      name: Constraint.conname,
+      definition: sql<string>`pg_get_constraintdef(${Constraint.oid})`
     })
     .from(Constraint)
     .innerJoin(Owner, eq(Owner.oid, Constraint.conrelid))
@@ -350,18 +371,37 @@ function* changes({
       other =>
         other.name === key.table && (other.schemaName ?? home) === key.schema
     )
+  const freed = others.filter(
+    key => (gone.includes(key.key) || touches(parts(key.key))) && pushed(key)
+  )
+  const carry = carried.get(tables) ?? []
+  carried.set(tables, carry)
+  for (const key of freed) {
+    const child = yield* shape(tx, key.table, key.schema)
+    const found = child?.foreignKeys.find(other => other.name === key.name)
+    if (found) carry.push({...key, key: found})
+  }
+  // Keys this table's plan adds back as they were, from its own retype or
+  // from an earlier table's
+  const reborn = references.added.flatMap(added => {
+    const found = carry.find(
+      entry =>
+        entry.table === api.name &&
+        entry.schema === schema &&
+        local(entry.key) === local(added)
+    )
+    return found ? [{added, ...found}] : []
+  })
+  const fresh = references.added.filter(
+    added => !reborn.some(entry => entry.added === added)
+  )
   const steps: Array<Step> = [
-    ...others
-      .filter(
-        key =>
-          (gone.includes(key.key) || touches(parts(key.key))) && pushed(key)
-      )
-      .map(key => ({
-        sql: sql`alter table ${at(
-          own(key.schema),
-          sql.identifier(key.table)
-        )} drop constraint ${sql.identifier(key.name)}`
-      })),
+    ...freed.map(key => ({
+      sql: sql`alter table ${at(
+        own(key.schema),
+        sql.identifier(key.table)
+      )} drop constraint ${sql.identifier(key.name)}`
+    })),
     ...removed.map(key =>
       alter(sql`drop constraint ${sql.identifier(key.name!)}`)
     ),
@@ -489,10 +529,7 @@ function* changes({
     ...Object.entries(desired.constraints)
       .filter(([, value]) => !present.has(value))
       .map(([name]) => name),
-    ...references.added.flatMap(key =>
-      key.name && !key.inline ? [key.name] : []
-    ),
-    ...reprinted.map(row => row.name)
+    ...fresh.flatMap(key => (key.name && !key.inline ? [key.name] : []))
   ])
   const adding = new Set([...keys, ...differ(desired.indexes, live.indexes)])
   const remaining = live.foreignKeys.filter(key => !removed.includes(key))
@@ -503,24 +540,40 @@ function* changes({
       ...remaining.map(key => key.name!)
     ].filter(name => !gone.includes(name))
   )
-  const kept: Array<[string, string | undefined, Set<string>]> = [
+  // The first name nothing holds or takes, its own when free
+  const free = (name: string, wish = name) => {
+    let to = wish
+    for (let i = 1; held.has(to) || adding.has(to); i++) to = `${name}_${i}`
+    return to
+  }
+  // Keys added back keep their name unless something added takes it
+  const readded = [
+    ...reprinted.map(row => ({...row, risk: undefined})),
+    ...reborn.map(({name, definition, added}) => ({
+      name,
+      definition,
+      risk: options.capture ? referenceRisk(added.name) : undefined
+    }))
+  ].map(row => {
+    const name = free(row.name)
+    keys.add(name)
+    adding.add(name)
+    return {...row, name}
+  })
+  const kept: Array<Kept> = [
     ...Object.entries(live.constraints)
       .filter(([, value]) => wanted.has(value))
-      .map(([name, value]): [string, string, Set<string>] => [
-        name,
-        names[value],
-        adding
-      ]),
-    ...remaining.map((key): [string, string | undefined, Set<string>] => {
+      .map(([name, value]) => ({name, wish: names[value], claimed: adding})),
+    ...remaining.map(key => {
       const wish = match(key)
-      return [key.name!, wish?.inline ? undefined : wish?.name, keys]
+      const name = key.name!
+      return {name, wish: wish?.inline ? undefined : wish?.name, claimed: keys}
     })
   ]
   const moved: Array<Step> = []
-  for (const [name, wish, claimed] of kept) {
+  for (const {name, wish, claimed} of kept) {
     if (!claimed.has(name)) continue
-    let to = wish ?? `${name}_1`
-    for (let i = 1; held.has(to) || adding.has(to); i++) to = `${name}_${i}`
+    const to = free(name, wish ?? `${name}_1`)
     held.delete(name)
     held.add(to)
     const pair = sql`${sql.identifier(name)} to ${sql.identifier(to)}`
@@ -537,15 +590,16 @@ function* changes({
           options.capture ? keyRisk(name, definition) : undefined
         )
       ),
-    ...references.added.map(key =>
+    ...fresh.map(key =>
       alter(
         sql`add ${foreignKey({...key, schema: own(key.schema ?? home)})}`,
         options.capture ? referenceRisk(key.name) : undefined
       )
     ),
-    ...reprinted.map(({name, definition}) =>
+    ...readded.map(({name, definition, risk}) =>
       alter(
-        sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`
+        sql`add constraint ${sql.identifier(name)} ${sql.unsafe(definition)}`,
+        risk
       )
     ),
     ...differ(desired.indexes, live.indexes).map(name => ({
